@@ -3,7 +3,7 @@
 **Workspace Path:** `c:\Users\ZISHAN\Desktop\WORK\NSAC- PROJECT_1`  
 **Rule File:** [.agents/rules/conversation_context_logging.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/.agents/rules/conversation_context_logging.md)  
 **Global Rule:** [conversation_context_logging.md](file:///C:/Users/ZISHAN/.gemini/config/rules/conversation_context_logging.md)  
-**Last Updated:** 2026-09-24 05:00:00 (Local Time)
+**Last Updated:** 2026-09-24 05:03:00 (Local Time)
 
 ---
 
@@ -3045,4 +3045,25 @@
   * [documentation/dataset_coverage_analysis.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/dataset_coverage_analysis.md)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/conv_contexts.md)
   * [.agents/rules/conversation_context_logging.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/.agents/rules/conversation_context_logging.md)
+
+---
+
+## Turn 111: Architectural Consultation — Running Python Servers on GitHub Actions
+* **Date/Time:** 2026-09-24 05:03:00 (Local Time) / 23:03:00 UTC
+* **User Request & Intent:**
+  > *"can github action can run python servers?"*
+* **Architectural Evaluation & Technical Analysis**:
+  1. **Dual Use-Case Distinction**:
+     - **Use-Case A: CI/CD & Automated Testing (YES ✅)**:
+       - GitHub Actions can start background Python servers (e.g. `uvicorn app.main:app &`), execute end-to-end integration tests (`scripts/run_all_tests.py`, API smoke tests, frontend E2E), and terminate upon job completion.
+     - **Use-Case B: Persistent / 24/7 Production Web Hosting (NO ❌)**:
+       - GitHub Actions enforces a strict 6-hour execution timeout per job.
+       - GitHub Terms of Service strictly forbid using runners as public web servers, tunnels, or hosting proxies.
+       - Runners lack inbound static public IPs and open ports.
+  2. **Recommended Free & Production Alternatives**:
+     - Containerized deployment to developer's Ubuntu 24.04 VPS (`103.217.252.17`) via Docker + Nginx reverse proxy.
+     - Free cloud container/PaaS platforms: Render, Railway, Fly.io, or Hugging Face Spaces (Docker).
+* **Key Files Referenced:**
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/conv_contexts.md)
+
 
