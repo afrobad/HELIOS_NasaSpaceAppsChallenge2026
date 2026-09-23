@@ -126,18 +126,189 @@ class TelemetryFeeder:
         self._progressive_interval_seconds: float = 16.0
 
     SCENARIO_OFFSETS: Dict[str, int] = {
+        # ── CSV NOMINAL_CRUISE zone: rows 0–1199 per astronaut ──
         "NOMINAL_CRUISE": 0,
-        "SCENARIO_1_BASELINE_DRIFT": 1520,      # Point of resting tachycardia drift
-        "SCENARIO_2_WORKOUT_GATING": 2400,      # Point of workout tachycardia initiation
-        "SCENARIO_3_CO2_HYPOXIA": 3890,         # Point of acute CO2 leak & SpO2 desaturation
-        "SCENARIO_4_DEEP_SPACE_BLACKOUT": 4805, # Point of communications blackout
-        "SCENARIO_5_PRESYMPTOMATIC_SEPSIS": 6000, # Point of subclinical immune cytokine surge
-        "SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA": 7200, # Point of microgravity K+ wasting & QTc widening
-        "SCENARIO_7_VENOUS_THROMBOSIS_RISK": 8400, # Point of cephalic hemoconcentration & IJV stasis
-        "SCENARIO_8_SOLAR_RADIATION_STORM": 9600,  # Point of solar particle event & lymphocyte depletion
-        "SOLAR_RADIATION_STORM": 9600,
-        "SOLAR_STORM": 9600
+
+        # ── Life Support & Cabin Scenarios (1–5) ──
+        # All land in NOMINAL zone; _apply_scenario_telemetry shapes the packet
+        "SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH": 50,
+        "SCENARIO_2_SLOW_DECOMPRESSION_HYPOXIA": 120,
+        "SCENARIO_3_SOLAR_RADIATION_STORM": 200,
+        "SCENARIO_4_AMMONIA_COOLANT_LEAK": 300,
+        "SCENARIO_5_ELECTRICAL_FIRE_SMOLDER": 400,
+
+        # ── Cardiovascular Scenarios (6–9) ──
+        # Scenarios 6 & 7 were already correct; keep them. 8 & 9 → NOMINAL base.
+        "SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA": 7565,   # correct (lands in CSV HYPOKALEMIA zone)
+        "SCENARIO_7_VENOUS_THROMBOSIS_RISK": 8585,   # correct (lands in CSV THROMBOSIS zone)
+        "SCENARIO_8_CARDIOVASCULAR_DECONDITIONING": 500,
+        "SCENARIO_9_CORONARY_MICROVASCULAR_STRESS": 600,
+
+        # ── Immune & Infection Scenarios (10–13) ──
+        "SCENARIO_10_PRESYMPTOMATIC_SEPSIS": 700,
+        "SCENARIO_11_LATENT_VIRUS_REACTIVATION": 750,
+        "SCENARIO_12_CYTOKINE_RELEASE_STORM": 800,
+        "SCENARIO_13_RADIATION_MARROW_EXHAUSTION": 850,
+
+        # ── Metabolic, SANS & Fluids Scenarios (14–18) ──
+        "SCENARIO_14_NEPHROLITHIASIS": 900,
+        "SCENARIO_15_INTRAVASCULAR_DEHYDRATION": 950,
+        "SCENARIO_16_HEPATIC_METABOLIC_DYSFUNCTION": 1000,
+        "SCENARIO_17_SPACE_VISION_SANS": 1050,
+        "SCENARIO_18_CIRCADIAN_FATIGUE_DRIFT": 1100,
+
+        # Aliases for backward compatibility
+        "SCENARIO_1_BASELINE_DRIFT": 1100,
+        "SCENARIO_2_WORKOUT_GATING": 2400,
+        "SCENARIO_3_CO2_HYPOXIA": 50,
+        "SCENARIO_4_DEEP_SPACE_BLACKOUT": 4805,
+        "SCENARIO_5_PRESYMPTOMATIC_SEPSIS": 700,
+        "SCENARIO_8_SOLAR_RADIATION_STORM": 200,
+        "SOLAR_RADIATION_STORM": 200,
+        "SOLAR_STORM": 200
     }
+
+    def _apply_scenario_telemetry(self, packet: Dict[str, Any], ast_id: str) -> None:
+        """Dynamically shapes packet biometrics and lab values when any of the 18 spaceflight scenarios are active."""
+        sc = self._active_scenario
+        if not sc or sc == "NOMINAL_CRUISE":
+            return
+
+        is_primary = (ast_id in ("AST-01_COMMANDER", "AST-01", "COMMANDER"))
+
+        if sc in ("SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH", "SCENARIO_3_CO2_HYPOXIA"):
+            packet["cabin_co2"] = 4.25
+            packet["heart_rate"] = max(float(packet.get("heart_rate", 70.0)), 82.0)
+            packet["spo2"] = min(float(packet.get("spo2", 98.0)), 96.2)
+            packet["scenario_phase"] = "SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH"
+
+        elif sc == "SCENARIO_2_SLOW_DECOMPRESSION_HYPOXIA":
+            packet["spo2"] = 88.5
+            packet["heart_rate"] = 118.0
+            packet["hrv_rmssd"] = 24.0
+            packet["scenario_phase"] = "SCENARIO_2_SLOW_DECOMPRESSION_HYPOXIA"
+
+        elif sc in ("SCENARIO_3_SOLAR_RADIATION_STORM", "SCENARIO_8_SOLAR_RADIATION_STORM", "SOLAR_STORM", "SOLAR_RADIATION_STORM"):
+            packet["radiation_flux"] = 85.0
+            packet["radiation_dose_gy"] = 0.75
+            packet["lymphocyte_count"] = 0.85
+            packet["computed_rsi"] = 1.25
+            packet["heart_rate"] = max(float(packet.get("heart_rate", 70.0)), 84.0)
+            packet["scenario_phase"] = "SCENARIO_3_SOLAR_RADIATION_STORM"
+
+        elif sc == "SCENARIO_4_AMMONIA_COOLANT_LEAK":
+            # SpO2 = 89.5 (below 90.0 CRITICAL threshold) — toxic ammonia suppresses O2 exchange
+            packet["spo2"] = 89.5
+            packet["heart_rate"] = 132.0
+            packet["hrv_rmssd"] = 18.0
+            packet["il_6"] = 28.0
+            packet["core_temp"] = 37.4
+            packet["scenario_phase"] = "SCENARIO_4_AMMONIA_COOLANT_LEAK"
+
+        elif sc == "SCENARIO_5_ELECTRICAL_FIRE_SMOLDER":
+            packet["spo2"] = 93.5
+            packet["heart_rate"] = 108.0
+            packet["hrv_rmssd"] = 16.0
+            packet["crp"] = 8.5
+            packet["scenario_phase"] = "SCENARIO_5_ELECTRICAL_FIRE_SMOLDER"
+
+        elif sc == "SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA":
+            if is_primary:
+                packet["potassium"] = 2.95
+                packet["computed_qtc"] = 492.0
+                packet["computed_arf"] = 1.75
+                packet["heart_rate"] = 78.0
+                packet["scenario_phase"] = "SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA"
+
+        elif sc == "SCENARIO_7_VENOUS_THROMBOSIS_RISK":
+            if is_primary:
+                packet["hematocrit"] = 52.5
+                packet["platelet_count"] = 385.0
+                packet["il_6"] = 18.5
+                packet["computed_trm"] = 2.35
+                packet["scenario_phase"] = "SCENARIO_7_VENOUS_THROMBOSIS_RISK"
+
+        elif sc == "SCENARIO_8_CARDIOVASCULAR_DECONDITIONING":
+            if is_primary:
+                packet["heart_rate"] = 98.0
+                packet["hrv_rmssd"] = 18.0
+                packet["hematocrit"] = 36.0
+                packet["scenario_phase"] = "SCENARIO_8_CARDIOVASCULAR_DECONDITIONING"
+
+        elif sc == "SCENARIO_9_CORONARY_MICROVASCULAR_STRESS":
+            if is_primary:
+                packet["heart_rate"] = 96.0
+                packet["crp"] = 6.8
+                # potassium=3.6 drives the sentry's live QTc recalculation to ~462ms (>450 WARNING),
+                # preventing nominal K+ from overwriting the intended QTc prolongation signal
+                packet["potassium"] = 3.6
+                packet["computed_qtc"] = 458.0
+                packet["scenario_phase"] = "SCENARIO_9_CORONARY_MICROVASCULAR_STRESS"
+
+        elif sc in ("SCENARIO_10_PRESYMPTOMATIC_SEPSIS", "SCENARIO_5_PRESYMPTOMATIC_SEPSIS"):
+            if is_primary:
+                packet["il_6"] = 125.0
+                packet["wbc_count"] = 14.5
+                packet["crp"] = 16.5
+                packet["core_temp"] = 37.8
+                packet["computed_epi"] = 1.65
+                packet["scenario_phase"] = "SCENARIO_10_PRESYMPTOMATIC_SEPSIS"
+
+        elif sc == "SCENARIO_11_LATENT_VIRUS_REACTIVATION":
+            if is_primary:
+                packet["il_6"] = 22.0
+                packet["lymphocyte_count"] = 1.4
+                packet["heart_rate"] = 78.0
+                packet["computed_epi"] = 0.95
+                packet["scenario_phase"] = "SCENARIO_11_LATENT_VIRUS_REACTIVATION"
+
+        elif sc == "SCENARIO_12_CYTOKINE_RELEASE_STORM":
+            if is_primary:
+                packet["il_6"] = 195.0
+                packet["wbc_count"] = 16.8
+                packet["crp"] = 24.0
+                packet["core_temp"] = 38.9
+                packet["heart_rate"] = 126.0
+                packet["computed_epi"] = 1.95
+                packet["scenario_phase"] = "SCENARIO_12_CYTOKINE_RELEASE_STORM"
+
+        elif sc == "SCENARIO_13_RADIATION_MARROW_EXHAUSTION":
+            if is_primary:
+                packet["lymphocyte_count"] = 0.52
+                packet["wbc_count"] = 2.4
+                packet["radiation_dose_gy"] = 0.95
+                packet["computed_rsi"] = 1.45
+                packet["scenario_phase"] = "SCENARIO_13_RADIATION_MARROW_EXHAUSTION"
+
+        elif sc == "SCENARIO_14_NEPHROLITHIASIS":
+            if is_primary:
+                packet["heart_rate"] = 88.0
+                packet["hrv_rmssd"] = 28.0
+                packet["scenario_phase"] = "SCENARIO_14_NEPHROLITHIASIS"
+
+        elif sc == "SCENARIO_15_INTRAVASCULAR_DEHYDRATION":
+            if is_primary:
+                packet["hematocrit"] = 52.0
+                packet["heart_rate"] = 92.0
+                packet["hrv_rmssd"] = 22.0
+                packet["scenario_phase"] = "SCENARIO_15_INTRAVASCULAR_DEHYDRATION"
+
+        elif sc == "SCENARIO_16_HEPATIC_METABOLIC_DYSFUNCTION":
+            if is_primary:
+                packet["scenario_phase"] = "SCENARIO_16_HEPATIC_METABOLIC_DYSFUNCTION"
+
+        elif sc == "SCENARIO_17_SPACE_VISION_SANS":
+            if is_primary:
+                packet["cabin_co2"] = 3.6
+                packet["platelet_count"] = 290.0
+                packet["scenario_phase"] = "SCENARIO_17_SPACE_VISION_SANS"
+
+        elif sc in ("SCENARIO_18_CIRCADIAN_FATIGUE_DRIFT", "SCENARIO_1_BASELINE_DRIFT"):
+            if is_primary:
+                packet["sleep_score"] = 42.0
+                packet["heart_rate"] = float(packet.get("heart_rate", 65.0)) + 14.0
+                packet["hrv_rmssd"] = 22.0
+                packet["scenario_phase"] = "SCENARIO_18_CIRCADIAN_FATIGUE_DRIFT"
 
 
     def jump_to_scenario(self, scenario_phase: str) -> bool:
@@ -213,7 +384,9 @@ class TelemetryFeeder:
             for ast_id, crew_recs in self.records_by_astronaut.items():
                 if not crew_recs:
                     continue
-                packet = crew_recs[self.current_tick % len(crew_recs)]
+                raw_pkt = crew_recs[self.current_tick % len(crew_recs)]
+                packet = dict(raw_pkt)
+                self._apply_scenario_telemetry(packet, ast_id)
                 mission_state = packet["mission_state"]
 
                 # 1. Push to O(1) in-memory buffer
@@ -231,7 +404,7 @@ class TelemetryFeeder:
 
                 # 3. Check for Proactive Alert Escalation
                 prev_sev = self.last_severities.get(ast_id, "NOMINAL")
-                if severity in ("WARNING", "CRITICAL") and (prev_sev != severity or severity == "CRITICAL"):
+                if severity in ("WARNING", "CRITICAL") and prev_sev != severity:
                     elevated_candidates.append({
                         "ast_id": ast_id,
                         "packet": packet,
@@ -256,19 +429,18 @@ class TelemetryFeeder:
                 self._stage_and_coalesce_alerts(elevated_candidates)
 
             # Continuous Progressive Sentry Loop:
-            # While an elevated clinical state persists or an active scenario is running,
-            # re-evaluate telemetry every 11 seconds and advance to the next progressive recommendation stage!
+            # While an elevated clinical state persists, re-evaluate telemetry every 16 seconds
+            # and advance to the next progressive recommendation stage!
             now = time.time()
             is_any_elevated = any(s in ("WARNING", "CRITICAL") for s in self.last_severities.values())
-            is_active_scenario = self._active_scenario not in ("NOMINAL_CRUISE", "SCENARIO_2_WORKOUT_GATING", "")
 
-            if (is_any_elevated or is_active_scenario) and (now - self._last_progressive_dispatch_time >= self._progressive_interval_seconds):
+            if is_any_elevated and (now - self._last_progressive_dispatch_time >= self._progressive_interval_seconds):
                 self._last_progressive_dispatch_time = now
                 self._scenario_stage_index += 1
 
                 current_active_candidates = []
                 for ast_id, s in self.last_severities.items():
-                    if s in ("WARNING", "CRITICAL") or is_active_scenario:
+                    if s in ("WARNING", "CRITICAL"):
                         latest_pkt = self.buffers[ast_id].get_latest() if ast_id in self.buffers else None
                         if latest_pkt:
                             current_active_candidates.append({
@@ -287,9 +459,11 @@ class TelemetryFeeder:
             self.current_tick = (self.current_tick + 1) % self.total_ticks
             return dispatched_packets[0] if dispatched_packets else None
         else:
-            packet = self.records[self.current_tick % len(self.records)]
-            self.current_tick = (self.current_tick + 1) % len(self.records)
+            raw_pkt = self.records[self.current_tick % len(self.records)]
+            packet = dict(raw_pkt)
             ast_id = packet["astronaut_id"]
+            self._apply_scenario_telemetry(packet, ast_id)
+            self.current_tick = (self.current_tick + 1) % len(self.records)
             mission_state = packet["mission_state"]
 
             if ast_id in self.buffers:
@@ -303,7 +477,7 @@ class TelemetryFeeder:
             packet["confidence"] = confidence
 
             prev_sev = self.last_severities.get(ast_id, "NOMINAL")
-            if severity in ("WARNING", "CRITICAL") and (prev_sev != severity or severity == "CRITICAL"):
+            if severity in ("WARNING", "CRITICAL") and prev_sev != severity:
                 self._stage_and_coalesce_alerts([{
                     "ast_id": ast_id,
                     "packet": packet,

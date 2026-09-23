@@ -205,6 +205,7 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
               border: `1px solid ${borderColor}`,
               borderRadius: 'var(--hud-radius-card)',
               overflow: 'hidden',
+              boxSizing: 'border-box',
               // Pulse red glow on critical
               boxShadow: isCritical
                 ? '0 0 0 1px rgba(239, 68, 68, 0.15), 0 2px 16px rgba(239, 68, 68, 0.08)'
@@ -219,11 +220,11 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
               style={{
                 width: '430px',
                 flexShrink: 0,
-                padding: '15px 18px',
+                padding: '12px 16px',
                 borderRight: '1px solid var(--hud-border-subtle)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '0',
+                justifyContent: 'space-between',
               }}
             >
               {/* Card header */}
@@ -232,9 +233,9 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   display: 'flex',
                   alignItems: 'baseline',
                   justifyContent: 'space-between',
-                  paddingBottom: '9px',
+                  paddingBottom: '7px',
                   borderBottom: '1px solid var(--hud-border-subtle)',
-                  marginBottom: '11px',
+                  marginBottom: '8px',
                 }}
               >
                 <div>
@@ -270,8 +271,8 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   display: 'grid',
                   gridTemplateColumns: '1fr 1fr',
                   columnGap: '14px',
-                  rowGap: '10px',
-                  marginBottom: '11px',
+                  rowGap: '6px',
+                  marginBottom: '8px',
                 }}
               >
                 {/* Heart Rate */}
@@ -297,7 +298,7 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                     <span
                       className="font-mono-tabular"
                       style={{
-                        fontSize: '22px',
+                        fontSize: '20px',
                         fontWeight: 700,
                         color:
                           (telemetry?.heart_rate ?? 62) > 100
@@ -335,7 +336,7 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   >
                     <span
                       className="font-mono-tabular"
-                      style={{ fontSize: '22px', fontWeight: 700, color: '#ffffff' }}
+                      style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff' }}
                     >
                       {telemetry ? telemetry.hrv_rmssd.toFixed(0) : '65'}
                     </span>
@@ -369,7 +370,7 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                     <span
                       className="font-mono-tabular"
                       style={{
-                        fontSize: '22px',
+                        fontSize: '20px',
                         fontWeight: 700,
                         color:
                           (telemetry?.spo2 ?? 98) < 95
@@ -407,7 +408,7 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   >
                     <span
                       className="font-mono-tabular"
-                      style={{ fontSize: '22px', fontWeight: 700, color: '#ffffff' }}
+                      style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff' }}
                     >
                       {telemetry ? telemetry.core_temp.toFixed(1) : '36.8'}
                     </span>
@@ -424,8 +425,8 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   background: 'rgba(255,255,255,0.025)',
                   border: '1px solid var(--hud-border-subtle)',
                   borderRadius: '4px',
-                  padding: '6px 8px',
-                  marginBottom: '9px',
+                  padding: '5px 8px',
+                  marginBottom: '8px',
                   fontSize: '10px',
                 }}
               >
@@ -668,8 +669,9 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  paddingTop: '7px',
+                  paddingTop: '6px',
                   borderTop: '1px solid var(--hud-border-subtle)',
+                  marginTop: '8px',
                 }}
               >
                 <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.75)' }}>
@@ -706,9 +708,10 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
               style={{
                 flex: 1,
                 minWidth: 0,
+                minHeight: 0,
                 display: 'flex',
                 flexDirection: 'column',
-                padding: '10px 12px',
+                padding: '10px 12px 12px',
                 gap: '0',
               }}
             >
@@ -723,6 +726,7 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
+                  flexShrink: 0,
                 }}
               >
                 <span>BIOMETRIC WAVEFORM</span>
@@ -738,12 +742,11 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                 </span>
               </div>
 
-              {/* ECG row canvas — fills remaining height */}
-              <div style={{ flex: 1, minHeight: 0 }}>
+              {/* ECG row canvas — fills remaining column height flush to the bottom */}
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                 <EcgRowCanvas
                   astronautId={crew.id}
                   altAstronautId={crew.altId}
-                  height={130}
                 />
               </div>
             </div>

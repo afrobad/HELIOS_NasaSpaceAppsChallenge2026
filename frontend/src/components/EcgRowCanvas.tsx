@@ -5,8 +5,8 @@ import type { TelemetryPacket } from '../types/telemetry';
 interface EcgRowCanvasProps {
   astronautId: string;
   altAstronautId?: string;
-  /** CSS height of the canvas wrapper (default 110px) */
-  height?: number;
+  /** Optional fixed CSS height. If omitted, flex-fills available space */
+  height?: number | string;
 }
 
 // ─── Physiological waveform math (same precision as full TelemetryCanvas) ───
@@ -48,11 +48,23 @@ function calcPpg(phi: number): number {
 const BUF = 600;
 const ERASE = 20;
 
+function createInitialWaves() {
+  const ecg = new Float32Array(BUF);
+  const ppg = new Float32Array(BUF);
+  for (let i = 0; i < BUF; i++) {
+    const phase = (i / BUF) * 4.2 * (62 / 60);
+    ecg[i] = calcLeadII(phase);
+    ppg[i] = calcPpg(phase);
+  }
+  return { ecg, ppg };
+}
+
 export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
   astronautId,
   altAstronautId,
-  height = 110,
+  height,
 }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dprRef = useRef<number>(window.devicePixelRatio || 1);
 
@@ -61,18 +73,15 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
     sweepIndex: 0,
     phase: 0.0,
     lastTime: performance.now(),
-    ecg: new Float32Array(BUF).fill(NaN),
-    ppg: new Float32Array(BUF).fill(NaN),
+    ...createInitialWaves(),
   });
 
   // Live numeric stats for overlay labels (updated at 10 Hz via interval, not RAF)
   const [stats, setStats] = useState({ hr: 62, spo2: 98.2, rhythm: 'NSR' });
 
-  // Reset waveform buffers on astronaut switch
+  // On astronaut switch, reset sweep index smoothly without zeroing out existing waves
   useEffect(() => {
     const w = waveRef.current;
-    w.ecg.fill(NaN);
-    w.ppg.fill(NaN);
     w.sweepIndex = 0;
     w.phase = 0.0;
     w.lastTime = performance.now();
@@ -119,8 +128,14 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
     const render = (now: number) => {
       const w = waveRef.current;
       const dpr = dprRef.current;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const W = canvas.width / dpr;
       const H = canvas.height / dpr;
+
+      if (W <= 0 || H <= 0) {
+        animId = requestAnimationFrame(render);
+        return;
+      }
 
       const dt = Math.min((now - w.lastTime) / 1000, 0.08);
       w.lastTime = now;
@@ -237,8 +252,12 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
       animId = requestAnimationFrame(render);
     };
 
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
     const resize = () => {
-      const rect = canvas.getBoundingClientRect();
+      const rect = container.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
       const dpr = window.devicePixelRatio || 1;
       dprRef.current = dpr;
       canvas.width = Math.round(rect.width * dpr);
@@ -248,11 +267,16 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
     };
 
     resize();
+    const ro = new ResizeObserver(() => {
+      resize();
+    });
+    ro.observe(container);
     window.addEventListener('resize', resize);
     animId = requestAnimationFrame(render);
 
     return () => {
       cancelAnimationFrame(animId);
+      ro.disconnect();
       window.removeEventListener('resize', resize);
     };
   }, []);
@@ -262,8 +286,10 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
   return (
     <div
       style={{
+        width: '100%',
+        height: height !== undefined ? (typeof height === 'number' ? `${height}px` : height) : '100%',
         flex: 1,
-        minWidth: 0,
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
         gap: 0,
@@ -275,7 +301,7 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '5px 10px 4px',
+          padding: '4px 10px',
           background: 'rgba(13, 16, 23, 0.85)',
           borderBottom: '1px solid #1a2030',
           borderRadius: '6px 6px 0 0',
@@ -336,7 +362,7 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
             <span
               className="font-mono-tabular"
               style={{
-                fontSize: '16px',
+                fontSize: '15px',
                 fontWeight: 800,
                 color: isAbnormal ? '#f59e0b' : '#ffffff',
               }}
@@ -350,7 +376,7 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
             <span
               className="font-mono-tabular"
               style={{
-                fontSize: '13px',
+                fontSize: '12px',
                 fontWeight: 700,
                 color: stats.spo2 < 95 ? 'var(--hud-critical)' : '#94a3b8',
               }}
@@ -373,22 +399,32 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
         </div>
       </div>
 
-      {/* Canvas */}
+      {/* Canvas container — fills remaining height completely, perfectly flush */}
       <div
+        ref={containerRef}
         style={{
           position: 'relative',
           width: '100%',
-          height: `${height}px`,
+          flex: 1,
+          minHeight: 0,
           background: '#0d1017',
           borderRadius: '0 0 6px 6px',
           overflow: 'hidden',
           border: '1px solid #1c212e',
           borderTop: 'none',
+          boxSizing: 'border-box',
         }}
       >
         <canvas
           ref={canvasRef}
-          style={{ width: '100%', height: '100%', display: 'block' }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            display: 'block',
+          }}
         />
       </div>
     </div>

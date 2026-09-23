@@ -53,45 +53,47 @@ class SentryMatrixEngine:
         # 3A. Hypokalemia & Arrhythmogenic Risk (ARF) & Dynamic Fridericia QTc
         if "potassium" in telemetry:
             arf, qtc, _ = ComputationalBiomarkers.calculate_arrhythmogenic_risk(hr, k_val)
-            telemetry["computed_arf"] = arf
-            telemetry["computed_qtc"] = qtc
+            telemetry["computed_arf"] = max(arf, float(telemetry.get("computed_arf", 0.0)))
+            telemetry["computed_qtc"] = max(qtc, float(telemetry.get("computed_qtc", 0.0)))
             # Only trigger hypokalemic arrhythmia emergency if potassium is depleted or workout is NOT active
-            if (arf >= 1.6 or qtc >= 485.0) and (k_val < 3.5 or not is_workout_gated):
+            if (telemetry["computed_arf"] >= 1.6 or telemetry["computed_qtc"] >= 485.0) and (k_val < 3.5 or not is_workout_gated):
                 return (
                     "CRITICAL",
                     0.95,
-                    f"Ventricular Arrhythmia Risk: Severe hypokalemic QTc prolongation ({qtc:.1f}ms, K+={k_val:.2f} mmol/L, ARF={arf:.2f})."
+                    f"Ventricular Arrhythmia Risk: Severe hypokalemic QTc prolongation ({telemetry['computed_qtc']:.1f}ms, K+={k_val:.2f} mmol/L, ARF={telemetry['computed_arf']:.2f})."
                 )
 
         if is_workout_gated and k_val >= 3.5:
             return ("NOMINAL", 0.90, "Active workout session; exercise-induced tachycardia gated.")
 
-        # 2B. Microgravity Venous Stasis & Thrombosis Risk Metric (TRM)
-        if "hematocrit" in telemetry and "platelet_count" in telemetry:
-            hct = float(telemetry["hematocrit"])
-            plt = float(telemetry["platelet_count"])
-            il6 = float(telemetry.get("il_6", 6.2))
-            trm, _ = ComputationalBiomarkers.calculate_venous_thrombosis_risk(hct, plt, il6, spo2)
-            telemetry["computed_trm"] = trm
-            if trm >= 2.2:
-                return (
-                    "CRITICAL",
-                    0.94,
-                    f"Thrombosis Alert: Acute cephalic venous stasis & hypercoagulability (TRM={trm:.2f}, Hct={hct:.1f}%, Platelets={plt:.0f}k)."
-                )
-
-        # 2C. Early Sepsis Prediction Index (EPI)
+        # 2B. Early Sepsis Prediction Index (EPI) — evaluated BEFORE TRM because
+        # elevated IL-6 in sepsis/cytokine storm also inflates TRM artificially.
+        # Correct clinical reason must be EPI, not thrombosis, when immune surge drives both.
         if "il_6" in telemetry and "wbc_count" in telemetry:
             il6 = float(telemetry["il_6"])
             wbc = float(telemetry["wbc_count"])
             base_hrv = baseline.get("hrv_rmssd", {}).get("mean", 65.0)
             epi, _ = ComputationalBiomarkers.calculate_early_sepsis_index(il6, wbc, hrv, base_hrv)
-            telemetry["computed_epi"] = epi
-            if epi >= 1.5:
+            telemetry["computed_epi"] = max(epi, float(telemetry.get("computed_epi", 0.0)))
+            if telemetry["computed_epi"] >= 1.5:
                 return (
                     "CRITICAL",
                     0.93,
-                    f"Early Sepsis Cascade: Acute presymptomatic immune surge & autonomic uncoupling (EPI={epi:.2f}, IL-6={il6:.1f} pg/mL, WBC={wbc:.1f}k)."
+                    f"Early Sepsis Cascade: Acute presymptomatic immune surge & autonomic uncoupling (EPI={telemetry['computed_epi']:.2f}, IL-6={il6:.1f} pg/mL, WBC={wbc:.1f}k)."
+                )
+
+        # 2C. Microgravity Venous Stasis & Thrombosis Risk Metric (TRM)
+        if "hematocrit" in telemetry and "platelet_count" in telemetry:
+            hct = float(telemetry["hematocrit"])
+            plt = float(telemetry["platelet_count"])
+            il6 = float(telemetry.get("il_6", 6.2))
+            trm, _ = ComputationalBiomarkers.calculate_venous_thrombosis_risk(hct, plt, il6, spo2)
+            telemetry["computed_trm"] = max(trm, float(telemetry.get("computed_trm", 0.0)))
+            if telemetry["computed_trm"] >= 2.2:
+                return (
+                    "CRITICAL",
+                    0.94,
+                    f"Thrombosis Alert: Acute cephalic venous stasis & hypercoagulability (TRM={telemetry['computed_trm']:.2f}, Hct={hct:.1f}%, Platelets={plt:.0f}k)."
                 )
 
         # 2D. Acute Solar Particle Event & Radiation Biodosimetry (RSI & Andrews Model)
@@ -99,13 +101,13 @@ class SentryMatrixEngine:
             rad_flux = float(telemetry.get("radiation_flux", 0.05))
             lympho = float(telemetry.get("lymphocyte_count", 2.2))
             rsi, dose_gy, _ = ComputationalBiomarkers.calculate_radiation_biodosimetry(rad_flux, lympho)
-            telemetry["computed_rsi"] = rsi
-            telemetry["radiation_dose_gy"] = dose_gy
-            if rsi >= 1.8 or dose_gy >= 1.5:
+            telemetry["computed_rsi"] = max(rsi, float(telemetry.get("computed_rsi", 0.0)))
+            telemetry["radiation_dose_gy"] = max(dose_gy, float(telemetry.get("radiation_dose_gy", 0.0)))
+            if telemetry["computed_rsi"] >= 1.8 or (telemetry["radiation_dose_gy"] >= 1.5 and rad_flux >= 10.0):
                 return (
                     "CRITICAL",
                     0.96,
-                    f"Radiation Emergency: Acute Solar Particle Event & Lymphocyte Depletion (Dose={dose_gy:.2f} Gy, RSI={rsi:.2f}, Flux={rad_flux:.0f} mGy/h). Evacuate to Storm Shelter!"
+                    f"Radiation Emergency: Acute Solar Particle Event & Lymphocyte Depletion (Dose={telemetry['radiation_dose_gy']:.2f} Gy, RSI={telemetry['computed_rsi']:.2f}, Flux={rad_flux:.0f} mGy/h). Evacuate to Storm Shelter!"
                 )
 
         # 3. ACTIVITY GATING: Check if cardiac exertion should be gated

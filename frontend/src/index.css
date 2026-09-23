@@ -1,5 +1,5 @@
-/* Google Fonts fallback for Tomorrow */
-@import url('https://fonts.googleapis.com/css2?family=Tomorrow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&display=swap');
+/* Google Fonts fallback for Orbitron and Tomorrow */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=Tomorrow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&display=swap');
 
 /* Local Font-Face declarations for offline spaceflight operation */
 @font-face {
@@ -37,15 +37,15 @@
    AEROSPACE MISSION CONTROL HUD — MINIMAL HIGH-CONTRAST GRAY & ORANGE
    ========================================================================= */
 :root {
-  /* Minimal Darkish & Grayish Surfaces */
-  --hud-bg-space: #090b0e;
-  --hud-bg-panel: #11141c;
-  --hud-bg-card: #151923;
-  --hud-bg-card-hover: #1a1f2b;
-  --hud-bg-card-active: #1f2535;
-  --hud-bg-input: #0d0f15;
-  --hud-border: #222836;
-  --hud-border-subtle: rgba(255, 255, 255, 0.05);
+  /* Minimal Darkish & Grayish Surfaces with Black Shades */
+  --hud-bg-space: #070707;
+  --hud-bg-panel: #111111;
+  --hud-bg-card: #161616;
+  --hud-bg-card-hover: #1f1f1f;
+  --hud-bg-card-active: #262626;
+  --hud-bg-input: #0e0e0e;
+  --hud-border: #262626;
+  --hud-border-subtle: rgba(255, 255, 255, 0.07);
 
   /* High-Contrast Orange Accent & Status Palette */
   --hud-orange: #ff7700;
@@ -58,11 +58,12 @@
   --hud-warning: #ff7700;
   --hud-critical: #ef4444;
   --hud-critical-subtle: rgba(239, 68, 68, 0.14);
-  --hud-cyan: #38bdf8;
+  --hud-cyan: #e2e8f0;
 
-  /* Typography: Tomorrow Font with High-Contrast White Shading Hierarchy */
+  /* Typography: Orbitron for Brand Hero & Tomorrow for HUD metrics */
+  --hud-font-brand: 'Orbitron', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --hud-font-sans: 'Tomorrow', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --hud-font-mono: 'Tomorrow', ui-monospace, Menlo, Monaco, monospace;
+  --hud-font-mono: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
   --hud-text-primary: #ffffff;      /* 100% Crisp White for values & headers */
   --hud-text-secondary: #e2e8f0;    /* 90% White for subheads & essential metrics */
@@ -213,4 +214,42 @@ html, body, #root {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+/* Dynamic Equalizer Bar Animations & Tooltip Transition */
+@keyframes hudFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hudBarPulse1 {
+  0%, 100% { transform: scaleY(0.28); }
+  50% { transform: scaleY(1.0); }
+}
+@keyframes hudBarPulse2 {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1.0); }
+}
+@keyframes hudBarPulse3 {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(0.8); }
+}
+
+.hud-bar-anim-1 {
+  transform-origin: bottom;
+  animation: hudBarPulse1 0.45s ease-in-out infinite;
+}
+.hud-bar-anim-2 {
+  transform-origin: bottom;
+  animation: hudBarPulse2 0.38s ease-in-out infinite;
+}
+.hud-bar-anim-3 {
+  transform-origin: bottom;
+  animation: hudBarPulse3 0.52s ease-in-out infinite;
 }

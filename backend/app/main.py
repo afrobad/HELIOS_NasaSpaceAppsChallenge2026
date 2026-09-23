@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .db.database import init_database
 from .db.repository import TelemetryRepository
 from .core.baselines import BaselineManager
+from .core.lab_assay_manager import lab_assay_manager
 from .streaming.websocket_manager import WebSocketManager
 from .streaming.telemetry_feeder import TelemetryFeeder
 from .ai.decision_engine import DecisionEngine
@@ -141,6 +142,24 @@ def get_latest_all_telemetry() -> Dict[str, Any]:
     for ast_id in ast_ids:
         data[ast_id] = get_latest_or_seed_telemetry(ast_id)
     return {"telemetry": data}
+
+
+@app.get("/api/telemetry/lab-assays/{astronaut_id}")
+def get_crew_lab_assays(astronaut_id: str, timepoint: str = "R+1") -> Dict[str, Any]:
+    """Returns 100% authentic NASA OSDR spaceflight laboratory panels (OSD-569 CBC, OSD-575 CMP, CV, Immune)."""
+    canonical_id = resolve_astronaut_id(astronaut_id)
+    return lab_assay_manager.get_crew_full_lab_profile(canonical_id, timepoint=timepoint)
+
+
+@app.get("/api/telemetry/lab-assays")
+def get_all_crew_lab_assays(timepoint: str = "R+1") -> Dict[str, Any]:
+    """Returns authentic NASA OSDR spaceflight laboratory panels for all crew members."""
+    if not baseline_mgr:
+        raise HTTPException(status_code=500, detail="Baseline manager uninitialized.")
+    result = {}
+    for ast_id in baseline_mgr.get_astronaut_ids():
+        result[ast_id] = lab_assay_manager.get_crew_full_lab_profile(ast_id, timepoint=timepoint)
+    return {"lab_assays": result}
 
 
 @app.get("/api/alerts")

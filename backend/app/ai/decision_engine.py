@@ -182,25 +182,66 @@ class DecisionEngine:
         """Synthesizes the complete clinical decision record."""
         evidence = cls.calculate_evidence_and_confidence(telemetry, baseline, env_thresholds)
 
-        # Differential Diagnosis Synthesis
+        # Differential Diagnosis Synthesis for All 18 Scenarios
         reason_lower = (reason or "").lower()
-        scenario_lower = str(telemetry.get("scenario_phase", "")).lower()
+        sc_upper = str(telemetry.get("scenario_phase", "")).upper()
 
-        if "radiation" in reason_lower or "solar" in reason_lower or "storm" in scenario_lower or telemetry.get("computed_rsi", 0) >= 1.0:
-            diagnosis = "Solar Particle Event (SPE) Exposure & Prodromal Acute Radiation Syndrome (ARS)"
-            action = "Evacuate all crew immediately to the water-shielded storm shelter, administer prophylactic ondansetron (8 mg) for prodromal nausea, and initiate filgrastim (G-CSF) subcutaneous protocol for hematopoietic stem cell rescue."
-        elif "sepsis" in reason_lower or "sepsis" in scenario_lower or telemetry.get("computed_epi", 0) >= 0.9:
-            diagnosis = "Presymptomatic Immune Activation & Subclinical Inflammatory Sepsis Cascade"
-            action = "Begin IV crystalloid fluid resuscitation (500 mL bolus), obtain sterile blood cultures, and prepare empiric broad-spectrum antimicrobial prophylaxis."
-        elif "arrhythmia" in reason_lower or "hypokalemia" in reason_lower or telemetry.get("computed_arf", 0) >= 1.25:
-            diagnosis = "Microgravity Hypokalemia with Dynamic QTc Prolongation & Ventricular Vulnerability"
-            action = "Administer 40 mEq oral potassium replacement, attach 12-lead continuous ECG lead II rhythm strip, and restrict heavy EVA exertion."
-        elif "thrombosis" in reason_lower or "clot" in reason_lower or telemetry.get("computed_trm", 0) >= 1.5:
-            diagnosis = "Cephalic Microgravity Venous Stasis & Hypercoagulability (Internal Jugular Vein Thrombosis Risk)"
-            action = "Perform point-of-care duplex ultrasound of internal jugular and femoral veins, initiate prophylactic low-molecular-weight heparin, and apply lower body negative pressure (LBNP)."
+        if "SOLAR_RADIATION" in sc_upper or "SCENARIO_3_SOLAR" in sc_upper or "SCENARIO_8_SOLAR" in sc_upper or "radiation" in reason_lower or telemetry.get("computed_rsi", 0) >= 1.0:
+            diagnosis = "Solar Particle Event & High Radiation Exposure"
+            action = "Evacuate all crew to the water-shielded storm shelter, take protective medication, and monitor dosimeter badges."
+        elif "SEPSIS" in sc_upper or "SCENARIO_10_PRESYMPTOMATIC" in sc_upper or "SCENARIO_5_PRESYMPTOMATIC" in sc_upper or "sepsis" in reason_lower or telemetry.get("computed_epi", 0) >= 1.2:
+            diagnosis = "Early Immune Activation & Subclinical Infection Cascade"
+            action = "Start oral hydration, begin prophylactic medication, and schedule follow-up blood biomarker check in four hours."
+        elif "HYPOKALEMIA" in sc_upper or "SCENARIO_6_HYPOKALEMIA" in sc_upper or "arrhythmia" in reason_lower or "hypokalemia" in reason_lower or telemetry.get("computed_arf", 0) >= 1.25:
+            diagnosis = "Low Serum Potassium & Heart Rhythm Vulnerability"
+            action = "Drink oral potassium electrolyte pouch, attach continuous ECG lead II monitor, and pause heavy exercise."
+        elif "THROMBOSIS" in sc_upper or "SCENARIO_7_VENOUS" in sc_upper or "thrombosis" in reason_lower or "clot" in reason_lower or telemetry.get("computed_trm", 0) >= 1.5:
+            diagnosis = "Weightless Blood Sluggishness & Neck Vein Clot Risk"
+            action = "Put on thigh compression cuffs, drink 500 mL of water, and perform portable neck vein ultrasound."
+        elif "CO2_SCRUBBER" in sc_upper or "SCENARIO_1_CO2" in sc_upper:
+            diagnosis = "Elevated Cabin Carbon Dioxide / Scrubber Saturation"
+            action = "Switch to secondary air scrubber canisters, check module air circulation fans, and limit heavy physical work."
+        elif "DECOMPRESSION" in sc_upper or "SCENARIO_2_SLOW" in sc_upper:
+            diagnosis = "Cabin Pressure Drop & Hypoxia Alert"
+            action = "Put on supplemental oxygen masks immediately, locate module pressure seal, and secure bulkheads."
+        elif "AMMONIA" in sc_upper or "SCENARIO_4_AMMONIA" in sc_upper:
+            diagnosis = "Toxic Cabin Ammonia Coolant Ingress"
+            action = "Don emergency breathing masks immediately, isolate the external cooling loop, and seal module hatches."
+        elif "FIRE" in sc_upper or "SCENARIO_5_ELECTRICAL" in sc_upper:
+            diagnosis = "Avionics Electrical Smolder & Toxic Combustion Gas"
+            action = "Depower the affected electrical bus, isolate the electronics bay, and inspect with portable extinguisher."
+        elif "CARDIOVASCULAR_DECONDITIONING" in sc_upper or "SCENARIO_8_CARDIOVASCULAR" in sc_upper:
+            diagnosis = "Cardiovascular Deconditioning & Exercise Intolerance"
+            action = "Perform thirty minutes of cycle exercise, drink sodium electrolyte solution, and wear lower body compression."
+        elif "CORONARY_MICROVASCULAR" in sc_upper or "SCENARIO_9_CORONARY" in sc_upper:
+            diagnosis = "Cardiac Blood Vessel Stress & Autonomic Strain"
+            action = "Take one chewable baby aspirin, initiate continuous ECG telemetry, and enforce rest in crew quarters."
+        elif "LATENT_VIRUS" in sc_upper or "SCENARIO_11_LATENT" in sc_upper:
+            diagnosis = "Immune Suppression & Dormant Virus Reactivation"
+            action = "Administer prescribed antiviral medication, ensure adequate fluid intake, and schedule eight hours of rest."
+        elif "CYTOKINE_RELEASE" in sc_upper or "SCENARIO_12_CYTOKINE" in sc_upper:
+            diagnosis = "Hyperinflammatory Cytokine Surge"
+            action = "Administer anti-inflammatory medication, ensure continuous vital monitoring, and prepare IV fluid hydration."
+        elif "RADIATION_MARROW" in sc_upper or "SCENARIO_13_RADIATION" in sc_upper:
+            diagnosis = "Cumulative Radiation Exposure & Bone Marrow Suppression"
+            action = "Initiate immune support medication, maintain strict sterile hygiene protocols, and restrict spacewalks."
+        elif "NEPHROLITHIASIS" in sc_upper or "SCENARIO_14_NEPHROLITHIASIS" in sc_upper:
+            diagnosis = "Renal Calcium Excretion & Kidney Stone Risk"
+            action = "Increase hydration to three liters daily, take potassium citrate supplement, and monitor urine output."
+        elif "DEHYDRATION" in sc_upper or "SCENARIO_15_INTRAVASCULAR" in sc_upper:
+            diagnosis = "Circulating Blood Volume Deficit & Dehydration"
+            action = "Drink one liter of balanced electrolyte solution and rest in a recumbent position."
+        elif "HEPATIC" in sc_upper or "SCENARIO_16_HEPATIC" in sc_upper:
+            diagnosis = "Metabolic and Liver Clearance Stress"
+            action = "Review and adjust medication dosages, drink fresh electrolyte water, and schedule a rest cycle."
+        elif "SANS" in sc_upper or "SCENARIO_17_SPACE_VISION" in sc_upper:
+            diagnosis = "Spaceflight-Associated Neuro-ocular Syndrome (SANS)"
+            action = "Use lower body negative pressure device for one hour daily and perform portable eye ultrasound scan."
+        elif "FATIGUE" in sc_upper or "SCENARIO_18_CIRCADIAN" in sc_upper or "SCENARIO_1_BASELINE_DRIFT" in sc_upper:
+            diagnosis = "Circadian Misalignment & Cumulative Sleep Debt"
+            action = "Enforce eight hours of sleep cycle with dimmed cabin lighting and adjust duty shift schedule."
         elif severity == "CRITICAL":
-
-            diagnosis = "Acute Hypoxia & Microgravity Respiratory/Environmental Crisis"
+            diagnosis = "Acute Hypoxia & Microgravity Life-Support Crisis"
             action = "Don supplemental oxygen masks immediately and initiate emergency cabin air scrub."
         elif severity == "WARNING":
             if telemetry.get("cabin_co2", 0) >= 3.0:

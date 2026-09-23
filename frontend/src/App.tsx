@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { HeaderBar } from './components/HeaderBar';
 import { CrewGrid } from './components/CrewGrid';
-import { JarvisConsole } from './components/JarvisConsole';
 import { ScenarioController } from './components/ScenarioController';
-import { TriageModal } from './components/TriageModal';
+import { HealthTelemetryView } from './components/HealthTelemetryView';
 import { wsService } from './services/websocketService';
 import type { TelemetryPacket, AlertPayload } from './types/telemetry';
 
 export function App() {
+  const [activeView, setActiveView] = useState<'HUD' | 'HEALTH_TELEMETRY'>('HEALTH_TELEMETRY');
   const [connected, setConnected] = useState<boolean>(false);
   const [marsDelay, setMarsDelay] = useState<boolean>(false);
   const [telemetryMap, setTelemetryMap] = useState<Record<string, TelemetryPacket>>({});
@@ -84,45 +84,67 @@ export function App() {
   };
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px 32px' }}>
-      {/* Flight Header */}
-      <HeaderBar
-        connected={connected}
-        marsDelay={marsDelay}
-        onToggleMarsDelay={handleToggleMarsDelay}
-      />
+    <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '0 20px 32px' }}>
+      {/* Flight HUD View */}
+      {activeView === 'HUD' && (
+        <>
+          <HeaderBar
+            connected={connected}
+            marsDelay={marsDelay}
+            onToggleMarsDelay={handleToggleMarsDelay}
+            activeView={activeView}
+            onSelectView={(v) => setActiveView(v)}
+            latestAlert={latestAlert}
+            selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
+          />
 
-      {/* 4-Row Crew Biometric Telemetry Grid with Inline ECG per Astronaut */}
-      <CrewGrid
-        telemetryMap={telemetryMap}
-        onOpenTriage={(astId) => setActiveTriageAstronautId(astId)}
-      />
+          {/* Primary Flight HUD: 4-Row Crew Biometric Telemetry Grid with Inline ECG */}
+          <CrewGrid
+            telemetryMap={telemetryMap}
+            onOpenTriage={(astId) => {
+              setActiveTriageAstronautId(astId);
+              setActiveView('HEALTH_TELEMETRY');
+            }}
+          />
 
-      {/* JARVIS Audio & Voice Console */}
-      <JarvisConsole
-        latestAlert={latestAlert}
-        selectedAstronautId="AST-01_COMMANDER"
-      />
+          {/* Benchmark Scenario Jump Controller */}
+          <ScenarioController
+            currentScenario={currentScenario}
+            marsDelay={marsDelay}
+            onToggleMarsDelay={handleToggleMarsDelay}
+            onScenarioTriggered={(scenarioKey, telemetry) => {
+              setCurrentScenario(scenarioKey);
+              if (telemetry && Object.keys(telemetry).length > 0) {
+                bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...telemetry };
+                setTelemetryMap({ ...bufferedPacketsRef.current });
+              }
+            }}
+          />
+        </>
+      )}
 
-      {/* Benchmark Scenario Jump Controller */}
-      <ScenarioController
-        currentScenario={currentScenario}
-        marsDelay={marsDelay}
-        onToggleMarsDelay={handleToggleMarsDelay}
-        onScenarioTriggered={(scenarioKey, telemetry) => {
-          setCurrentScenario(scenarioKey);
-          if (telemetry && Object.keys(telemetry).length > 0) {
-            bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...telemetry };
-            setTelemetryMap({ ...bufferedPacketsRef.current });
-          }
-        }}
-      />
-
-      {/* Clinical Diagnostic Triage Modal Drawer */}
-      <TriageModal
-        astronautId={activeTriageAstronautId}
-        onClose={() => setActiveTriageAstronautId(null)}
-      />
+      {/* Comprehensive Health Telemetry & 10-Category Clinical Analysis Console */}
+      {activeView === 'HEALTH_TELEMETRY' && (
+        <HealthTelemetryView
+          initialAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
+          telemetryMap={telemetryMap}
+          marsDelay={marsDelay}
+          connected={connected}
+          latestAlert={latestAlert}
+          onToggleMarsDelay={handleToggleMarsDelay}
+          activeView={activeView}
+          onSelectView={(v) => {
+            setActiveView(v);
+            if (v === 'HUD') {
+              setActiveTriageAstronautId(null);
+            }
+          }}
+          onClose={() => {
+            setActiveView('HUD');
+            setActiveTriageAstronautId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

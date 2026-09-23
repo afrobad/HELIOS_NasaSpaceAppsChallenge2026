@@ -27,6 +27,7 @@ def run_master_test_suite():
         ("Contextual Activity & Workout Tachycardia Gating", "test_activity_gating"),
         ("Multi-Signal Sentry Matrix & Severity Ladder", "test_sentry_matrix"),
         ("Aerospace Computational Biomarkers & Risk Indices", "test_computational_biomarkers"),
+        ("NASA OSDR Laboratory Assays (119 Biomarkers)", "test_lab_assay_manager"),
         ("SQLite WAL Concurrency & Throughput Benchmark", "test_database_wal"),
         ("FastAPI REST & Telemetry Streaming Endpoints", "test_api_streaming"),
         ("JARVIS AI Decision Engine & Voice Warnings", "test_ai_infrastructure"),
