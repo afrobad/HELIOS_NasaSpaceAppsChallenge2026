@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # H.E.L.I.O.S
 ### Health Evaluation Logistic Intelligent Onboard System
@@ -16,7 +16,7 @@
 
 ---
 
-[Overview](#overview) · [Architecture](#architecture) · [Setup](#setup) · [How It Works](#how-it-works) · [Dataset](#dataset) · [API Reference](#api-reference)
+[Overview](#overview) · [Architecture](#architecture) · [Setup](#setup) · [How It Works](#how-it-works) · [Dataset](#dataset) · [API Reference](#api-reference) · [Documentation](#documentation)
 
 </div>
 
@@ -535,12 +535,25 @@ H.E.L.I.O.S/
 
 ---
 
+## Documentation
+
+Comprehensive project engineering and aerospace clinical documentation is organized in the [`/documentation`](documentation) directory:
+
+| Document | Focus & Scope |
+|---|---|
+| 📑 [Astronaut Health JARVIS System Documentation](documentation/Astronaut_Health_JARVIS_System_Documentation.md) | Full architectural specifications, clinical decision workflows, IMM/ExMC alignment, and mathematical sentry models. |
+| 🛡️ [NASA Flight Software Architecture Standard](documentation/NASA_Flight_Software_Architecture_Standard.md) | NASA-STD-8739.8 software engineering standards, memory boundedness, and high-reliability design patterns. |
+| 📊 [Dataset Coverage Analysis](documentation/dataset_coverage_analysis.md) | Breakdown of NASA OSDR OSD-575 / OSD-569 human spaceflight multi-omics and clinical chemistry panels. |
+| 📜 [Project Conversation Contexts & Architectural Journal](documentation/conv_contexts.md) | Complete chronological transcript, engineering rationale, and forensic development journal. |
+
+---
+
 ## Contributing
 
-This project was built for the **NASA Space Apps Challenge 2024** under the challenge:
+This project was built for the **NASA Space Apps Challenge 2026** under the challenge:
 > "Intelligent Onboard Health Monitoring for Deep-Space Missions"
 
-Contributions expanding dataset utilization are especially welcome. See [dataset_coverage_analysis.md](dataset_coverage_analysis.md) - 85% of NASA OSDR biomarkers are not yet integrated.
+Contributions expanding dataset utilization are especially welcome. See [dataset_coverage_analysis.md](documentation/dataset_coverage_analysis.md) - 85% of NASA OSDR biomarkers are documented for integration.
 
 **Priority contribution areas:**
 - `sleep_score` alerting: baseline data already in JSON
@@ -558,7 +571,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-Built for deep-space human health - NASA Space Apps Challenge 2024
+Built for deep-space human health - NASA Space Apps Challenge 2026
 
 **H.E.L.I.O.S** - Because in deep space, JARVIS is the only doctor on board.
 

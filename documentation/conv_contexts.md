@@ -3,7 +3,7 @@
 **Workspace Path:** `c:\Users\ZISHAN\Desktop\WORK\NSAC- PROJECT_1`  
 **Rule File:** [.agents/rules/conversation_context_logging.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/.agents/rules/conversation_context_logging.md)  
 **Global Rule:** [conversation_context_logging.md](file:///C:/Users/ZISHAN/.gemini/config/rules/conversation_context_logging.md)  
-**Last Updated:** 2026-09-24 04:55:00 (Local Time)
+**Last Updated:** 2026-09-24 05:00:00 (Local Time)
 
 ---
 
@@ -3008,4 +3008,41 @@
   - Synchronized across both `origin` (`zihaduzzamaan`) and `upstream` (`afrobad`) remotes.
 * **Key Files Created/Modified:**
   * [LICENSE](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/LICENSE)
-  * [conv_contexts.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/conv_contexts.md)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/conv_contexts.md)
+
+---
+
+## Turn 110: Project Documentation Reorganization & Multi-Remote Synchronization
+* **Date/Time:** 2026-09-24 05:00:00 (Local Time) / 23:00:00 UTC
+* **User Request & Intent:**
+  > *"the md files should be in a folder nammed documentation ,, then update the repos ,,"*
+* **Architectural Strategy & Confirmation**:
+  - Clarified organizational boundary via interactive modal: `README.md` retained at repository root to preserve the GitHub project homepage rendering, while all comprehensive technical, architectural, and logging documentation files are moved into the dedicated `/documentation` directory.
+* **Engineering Actions Delivered**:
+  1. **Documentation Directory Creation & Migration (`git mv`)**:
+     - Created `documentation/` folder.
+     - Migrated `Astronaut_Health_JARVIS_System_Documentation.md` -> `documentation/Astronaut_Health_JARVIS_System_Documentation.md`.
+     - Migrated `NASA_Flight_Software_Architecture_Standard.md` -> `documentation/NASA_Flight_Software_Architecture_Standard.md`.
+     - Migrated `dataset_coverage_analysis.md` -> `documentation/dataset_coverage_analysis.md`.
+     - Migrated `conv_contexts.md` -> `documentation/conv_contexts.md`.
+  2. **Rule & Path Alignment**:
+     - Updated `.agents/rules/conversation_context_logging.md` to reference `documentation/conv_contexts.md`.
+  3. **Root `README.md` Enhancement**:
+     - Added `[Documentation](#documentation)` link to the top quick-navigation bar.
+     - Added dedicated `## Documentation` table indexing all documents in `/documentation` with explicit descriptions.
+     - Updated contribution link to `documentation/dataset_coverage_analysis.md`.
+     - Synchronized challenge year designations to NASA Space Apps Challenge 2026.
+* **Git Commit & Multi-Remote Synchronization**:
+  - Staged all file renames and documentation updates (`git add .`).
+  - Committed with conventional message: `refactor(docs): organize markdown documentation into dedicated /documentation directory`.
+  - Pushed and synchronized across both GitHub remotes:
+    - `origin`: `zihaduzzamaan/H.E.L.I.O.S---Health-Evaluation-Logistic-Intelligent-Onboard-System-for-NASA`
+    - `upstream`: `afrobad/HELIOS_NasaSpaceAppsChallenge2026`
+* **Key Files Reorganized/Modified:**
+  * [README.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/README.md)
+  * [documentation/Astronaut_Health_JARVIS_System_Documentation.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/Astronaut_Health_JARVIS_System_Documentation.md)
+  * [documentation/NASA_Flight_Software_Architecture_Standard.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/NASA_Flight_Software_Architecture_Standard.md)
+  * [documentation/dataset_coverage_analysis.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/dataset_coverage_analysis.md)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/conv_contexts.md)
+  * [.agents/rules/conversation_context_logging.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/.agents/rules/conversation_context_logging.md)
+
