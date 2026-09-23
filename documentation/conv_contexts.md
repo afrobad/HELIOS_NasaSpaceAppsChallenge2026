@@ -3146,3 +3146,20 @@
      - Pushed to `origin` (`https://github.com/zihaduzzamaan/H.E.L.I.O.S---Health-Evaluation-Logistic-Intelligent-Onboard-System-for-NASA.git`).
      - Pushed to `upstream` (`https://github.com/afrobad/HELIOS_NasaSpaceAppsChallenge2026.git`).
 
+---
+
+## Turn 115: Cloud Operations — Domain Renaming & Custom Domain Configuration on Render
+* **Date/Time:** 2026-09-24 05:31:00 (Local Time) / 23:31:00 UTC
+* **User Request & Intent:**
+  > *"HOW CAN I CHANGE THE DOMAIN?"* (with screenshot showing live service `srv-daq5pu3tqb8s73efj3ng` at `https://h-e-l-i-o-s-health-evaluation-logistic.onrender.com`)
+* **Guidance & Operational Architecture**:
+  1. **Option 1: Shorten / Change Free Render Subdomain**:
+     - Service name determines the default `.onrender.com` subdomain.
+     - Changing the service name in **Settings** (e.g. to `helios-space` or `helios-nasa`) immediately changes the URL to `https://helios-space.onrender.com`.
+  2. **Option 2: Connect Custom Domain or Subdomain**:
+     - In **Settings** $\rightarrow$ **Custom Domains**, add custom domain (e.g. `helios.yourdomain.com`).
+     - Point DNS `CNAME` or `A` record (`216.24.57.1`) with automated Let's Encrypt SSL/TLS verification.
+* **Key Files Referenced:**
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/conv_contexts.md)
+
+
