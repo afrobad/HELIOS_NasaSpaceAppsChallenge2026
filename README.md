@@ -3,7 +3,7 @@
 # H.E.L.I.O.S
 ### Health Evaluation Logistic Intelligent Onboard System
 
-**NASA Space Apps Challenge 2024 - Deep-Space Crew Health Intelligence Platform**
+**NASA Space Apps Challenge 2026**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.124-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
