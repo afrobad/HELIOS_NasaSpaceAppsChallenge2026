@@ -1,0 +1,36 @@
+MIT License
+
+Copyright (c) 2026 Zihaduzzamaan, Afrobad, and The H.E.L.I.O.S Development Team
+Project: Health Evaluation Logistic Intelligent Onboard System (H.E.L.I.O.S)
+Event: NASA International Space Apps Challenge 2026
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+### AEROSPACE RESEARCH & DEMONSTRATION NOTICE
+
+1. **Competition & Research Context**:
+   This software was engineered as an autonomous spaceflight physiological monitoring, mathematical sentry, and clinical AI voice advisory demonstrator for the **NASA International Space Apps Challenge 2026**.
+
+2. **Non-Clinical / Research Prototype Disclaimer**:
+   H.E.L.I.O.S is a technological prototype and engineering proof-of-concept designed to illustrate offline autonomous medical decision-support during deep-space communication latency (e.g., Earth-Mars transit). This software is NOT certified as a medical device by the United States Food and Drug Administration (FDA), European Medicines Agency (EMA), or any equivalent regulatory body. It is not intended to replace certified medical practitioners, flight surgeons, or certified ground-support clinical protocols.
+
+3. **Data Attribution**:
+   Physiological baselines, assay reference distributions, and biomarker metrics are derived from publicly accessible open science datasets provided by the **NASA Open Science Data Repository (OSDR)** (including OSD-575 and OSD-569 from the SpaceX Inspiration4 SOMA spaceflight research collection) and published spaceflight physiology literature.

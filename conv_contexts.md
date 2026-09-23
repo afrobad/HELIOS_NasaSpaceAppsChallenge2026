@@ -3,7 +3,7 @@
 **Workspace Path:** `c:\Users\ZISHAN\Desktop\WORK\NSAC- PROJECT_1`  
 **Rule File:** [.agents/rules/conversation_context_logging.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/.agents/rules/conversation_context_logging.md)  
 **Global Rule:** [conversation_context_logging.md](file:///C:/Users/ZISHAN/.gemini/config/rules/conversation_context_logging.md)  
-**Last Updated:** 2026-09-24 04:52:00 (Local Time)
+**Last Updated:** 2026-09-24 04:55:00 (Local Time)
 
 ---
 
@@ -2987,5 +2987,25 @@
   * `upstream`: `https://github.com/afrobad/HELIOS_NasaSpaceAppsChallenge2026.git` (synchronized)
   * [conv_contexts.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/conv_contexts.md)
 
+---
 
-
+## Turn 109: Professional Open-Source License & Clinical Research Notice Integration
+* **Date/Time:** 2026-09-24 04:55:00 (Local Time) / 22:55:00 UTC
+* **User Request & Intent:**
+  > *"add a solid licence of the project in github. must be professional"*
+* **Engineering Actions Delivered**:
+  1. **Professional MIT License Specification ([LICENSE](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/LICENSE))**:
+     - Configured standard SPDX-compliant **MIT License** recognized natively by GitHub's license identification system.
+     - Formalized copyright attribution: `Copyright (c) 2026 Zihaduzzamaan, Afrobad, and The H.E.L.I.O.S Development Team`.
+     - Specified event attribution: `NASA International Space Apps Challenge 2026`.
+  2. **Aerospace Research & Medical Diagnostic Notice**:
+     - Appended formal aerospace and healthcare software clauses:
+       - **Competition & Research Context**: Acknowledges development as an autonomous deep-space physiological monitoring and clinical voice advisory demonstrator for NASA Space Apps Challenge 2026.
+       - **Non-Clinical / Research Prototype Disclaimer**: Explicitly states that H.E.L.I.O.S is an engineering proof-of-concept for deep-space latency environments and is not an FDA/EMA-cleared diagnostic device for clinical treatment without medical oversight.
+       - **NASA Open Science Data Attribution**: Accords scientific attribution to NASA Open Science Data Repository (OSDR OSD-575 and OSD-569 / Inspiration4 SOMA spaceflight collection).
+* **Git Commit & Dual Remote Push**:
+  - Committed `LICENSE` and updated `conv_contexts.md`.
+  - Synchronized across both `origin` (`zihaduzzamaan`) and `upstream` (`afrobad`) remotes.
+* **Key Files Created/Modified:**
+  * [LICENSE](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/LICENSE)
+  * [conv_contexts.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/conv_contexts.md)
