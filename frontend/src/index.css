@@ -1,0 +1,216 @@
+/* Google Fonts fallback for Tomorrow */
+@import url('https://fonts.googleapis.com/css2?family=Tomorrow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&display=swap');
+
+/* Local Font-Face declarations for offline spaceflight operation */
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+}
+
+/* =========================================================================
+   AEROSPACE MISSION CONTROL HUD — MINIMAL HIGH-CONTRAST GRAY & ORANGE
+   ========================================================================= */
+:root {
+  /* Minimal Darkish & Grayish Surfaces */
+  --hud-bg-space: #090b0e;
+  --hud-bg-panel: #11141c;
+  --hud-bg-card: #151923;
+  --hud-bg-card-hover: #1a1f2b;
+  --hud-bg-card-active: #1f2535;
+  --hud-bg-input: #0d0f15;
+  --hud-border: #222836;
+  --hud-border-subtle: rgba(255, 255, 255, 0.05);
+
+  /* High-Contrast Orange Accent & Status Palette */
+  --hud-orange: #ff7700;
+  --hud-orange-bright: #ff881a;
+  --hud-orange-subtle: rgba(255, 119, 0, 0.12);
+  --hud-orange-border: rgba(255, 119, 0, 0.4);
+
+  --hud-nominal: #10b981;
+  --hud-nominal-subtle: rgba(16, 185, 129, 0.12);
+  --hud-warning: #ff7700;
+  --hud-critical: #ef4444;
+  --hud-critical-subtle: rgba(239, 68, 68, 0.14);
+  --hud-cyan: #38bdf8;
+
+  /* Typography: Tomorrow Font with High-Contrast White Shading Hierarchy */
+  --hud-font-sans: 'Tomorrow', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --hud-font-mono: 'Tomorrow', ui-monospace, Menlo, Monaco, monospace;
+
+  --hud-text-primary: #ffffff;      /* 100% Crisp White for values & headers */
+  --hud-text-secondary: #e2e8f0;    /* 90% White for subheads & essential metrics */
+  --hud-text-muted: #94a3b8;        /* Light Gray for labels & units */
+  --hud-text-dim: #64748b;          /* Mid Gray for metadata */
+
+  /* Minimal Clean Geometry (Subtle 8px/12px Radii, Zero Bulky Capsules) */
+  --hud-radius-panel: 12px;
+  --hud-radius-card: 10px;
+  --hud-radius-btn: 6px;
+
+  /* Snappy Transitions */
+  --hud-transition-fast: 120ms ease;
+  --hud-transition-smooth: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Base Reset & Universal Tabular Number Guarantee */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  background-color: var(--hud-bg-space);
+  color: var(--hud-text-primary);
+  font-family: var(--hud-font-sans);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: 0.02em;
+  overflow-x: hidden;
+}
+
+/* Monospace Tabular Number Guarantee across all numerical readouts */
+.font-mono-tabular,
+.tabular-nums {
+  font-family: var(--hud-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.01em;
+}
+
+/* Minimal Matte Panel (Clean Surface, Zero Blur Over-processing, Hairline Border) */
+.hud-panel {
+  background: var(--hud-bg-panel);
+  border: 1px solid var(--hud-border);
+  border-radius: var(--hud-radius-panel);
+  padding: 16px 18px;
+  transition: border-color var(--hud-transition-fast);
+}
+
+/* Minimal Clean Buttons (Zero Bulky Glow, High Contrast) */
+.hud-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px 14px;
+  min-height: 32px;
+  border-radius: var(--hud-radius-btn);
+  border: 1px solid var(--hud-border);
+  background: var(--hud-bg-card);
+  color: var(--hud-text-secondary);
+  font-family: var(--hud-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--hud-transition-fast);
+  user-select: none;
+}
+
+.hud-btn:hover:not(:disabled) {
+  background: var(--hud-bg-card-hover);
+  color: #ffffff;
+  border-color: #475569;
+}
+
+.hud-btn-active {
+  background: var(--hud-orange) !important;
+  color: #ffffff !important;
+  border-color: var(--hud-orange) !important;
+  font-weight: 700 !important;
+}
+
+.hud-btn-orange {
+  background: var(--hud-orange-subtle);
+  color: var(--hud-orange);
+  border-color: var(--hud-orange-border);
+}
+
+.hud-btn-orange:hover:not(:disabled) {
+  background: var(--hud-orange);
+  color: #ffffff;
+}
+
+.hud-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Minimal Inline Status Text (No Bulky Container Boxes) */
+.hud-status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.status-dot-nominal {
+  background: var(--hud-nominal);
+}
+
+.status-dot-warning {
+  background: var(--hud-orange);
+}
+
+.status-dot-critical {
+  background: var(--hud-critical);
+}
+
+.status-dot-cyan {
+  background: var(--hud-cyan);
+}
+
+.status-dot-muted {
+  background: var(--hud-text-dim);
+}
+
+/* Clean Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--hud-bg-space);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--hud-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}

@@ -1,0 +1,45 @@
+# ── Python ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+.venv/
+venv/
+env/
+.env
+
+# ── Node / Frontend ──────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.log
+npm-debug.log*
+
+# ── Database / WAL (large binary, not for git) ───────
+data/astronaut_health.db
+data/astronaut_health.db-shm
+data/astronaut_health.db-wal
+astronaut_health.db
+astronaut_health.db-shm
+astronaut_health.db-wal
+
+# ── IDE / OS ─────────────────────────────────────────
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# ── Secrets ──────────────────────────────────────────
+.env
+.env.local
+*.pem
+*.key
+
+# ── AGY / IDE internals ──────────────────────────────
+.agents/
