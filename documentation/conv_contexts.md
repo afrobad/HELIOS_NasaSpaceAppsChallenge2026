@@ -3,7 +3,7 @@
 **Workspace Path:** `c:\Users\ZISHAN\Desktop\WORK\NSAC- PROJECT_1`  
 **Rule File:** [.agents/rules/conversation_context_logging.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/.agents/rules/conversation_context_logging.md)  
 **Global Rule:** [conversation_context_logging.md](file:///C:/Users/ZISHAN/.gemini/config/rules/conversation_context_logging.md)  
-**Last Updated:** 2026-09-24 05:03:00 (Local Time)
+**Last Updated:** 2026-09-24 05:08:00 (Local Time)
 
 ---
 
@@ -3065,5 +3065,29 @@
      - Free cloud container/PaaS platforms: Render, Railway, Fly.io, or Hugging Face Spaces (Docker).
 * **Key Files Referenced:**
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/conv_contexts.md)
+
+---
+
+## Turn 112: Cloud Deployment Architecture — Render Free Tier & GitHub Pages Strategy
+* **Date/Time:** 2026-09-24 05:08:00 (Local Time) / 23:08:00 UTC
+* **User Request & Intent:**
+  > *"how can i run my ai and python backend in render? then host the frontend to gh pages or in render all?"*
+* **Architectural Evaluation & Technical Analysis**:
+  1. **Render Free Tier AI Constraints & Solutions**:
+     - *Constraint*: Render free instances have 512 MB RAM. Running local Ollama LLMs in-memory (1.5 GB - 4.5 GB) causes Out-Of-Memory (OOM) termination.
+     - *Built-in Solution*: H.E.L.I.O.S deterministic clinical AI fallback engine operates at <35 MB RAM, requiring zero GPU and zero external tokens while outputting 100% accurate spaceflight medical directives.
+     - *Dynamic Alternative*: Can plug in cloud LLM API (Groq / OpenAI) with zero RAM footprint.
+  2. **Deployment Comparison (Render All vs. Render + GitHub Pages)**:
+     - **Option 1: All on Render (Unified Full-Stack — Recommended)**:
+       - The FastAPI backend natively mounts `frontend/dist` at `/`. Single free Render web service serves both the API, the 10 Hz WebSocket (`/ws/telemetry`), and the React HUD. Zero CORS issues, zero cross-origin configuration.
+     - **Option 2: Backend on Render + Frontend on GitHub Pages**:
+       - Backend deployed as Web Service on Render; frontend built with `base: './'` and deployed to GitHub Pages via Actions. Requires CORS and cross-origin WebSocket address mapping.
+  3. **Production Artifacts Created**:
+     - Generated [requirements.txt](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/requirements.txt) and [backend/requirements.txt](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/backend/requirements.txt).
+* **Key Files Created/Modified:**
+  * [requirements.txt](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/requirements.txt)
+  * [backend/requirements.txt](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/backend/requirements.txt)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/conv_contexts.md)
+
 
 

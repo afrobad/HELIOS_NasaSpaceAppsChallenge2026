@@ -1,0 +1,11 @@
+# H.E.L.I.O.S - NASA Astronaut Health Monitoring System
+# Python Backend Dependencies for Render & Production
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+numpy>=1.26.0
+httpx>=0.27.0
+aiohttp>=3.9.0
+edge-tts>=7.0.0
+pydantic>=2.8.0
+websockets>=12.0
