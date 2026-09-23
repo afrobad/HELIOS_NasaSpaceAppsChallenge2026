@@ -13,6 +13,7 @@ interface HealthTelemetryViewProps {
   activeView?: 'HUD' | 'HEALTH_TELEMETRY';
   onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY') => void;
   latestAlert?: AlertPayload | null;
+  onAstronautChange?: (astronautId: string) => void;
 }
 
 interface CrewMeta {
@@ -67,10 +68,18 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
   activeView,
   onSelectView,
   latestAlert,
+  onAstronautChange,
 }) => {
   const [selectedId, setSelectedId] = useState<string>(
     initialAstronautId || 'AST-01_COMMANDER'
   );
+
+  // Synchronize when parent route changes (e.g. back/forward navigation)
+  useEffect(() => {
+    if (initialAstronautId && initialAstronautId !== selectedId) {
+      setSelectedId(initialAstronautId);
+    }
+  }, [initialAstronautId]);
 
   const [deviceFilter, setDeviceFilter] = useState<'ALL' | 'WEARABLE' | 'LAB' | 'ENGINE'>('ALL');
   const [labProfile, setLabProfile] = useState<CrewFullLabProfile | null>(null);
@@ -358,7 +367,10 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
               return (
                 <button
                   key={crew.id}
-                  onClick={() => setSelectedId(crew.id)}
+                  onClick={() => {
+                    setSelectedId(crew.id);
+                    onAstronautChange?.(crew.id);
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

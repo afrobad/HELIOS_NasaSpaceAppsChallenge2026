@@ -1,0 +1,28 @@
+# Render Infrastructure as Code (Blueprint) for H.E.L.I.O.S
+# Health Evaluation Logistic Intelligent Onboard System (NASA Space Apps Challenge 2026)
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: helios-spaceflight-hud
+    env: python
+    region: oregon # or ohio, frankfurt, singapore
+    plan: free # Can run smoothly on free tier with DETERMINISTIC_FALLBACK_ACTIVE
+    buildCommand: |
+      # 1. Build high-performance React Flight HUD & Telemetry SPA
+      cd frontend && npm ci && npm run build && cd ..
+      # 2. Install lightweight Python aerospace backend dependencies
+      pip install -r requirements.txt
+    startCommand: cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/telemetry/latest-all
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: NODE_VERSION
+        value: 20.12.0
+      - key: DETERMINISTIC_FALLBACK_ACTIVE
+        value: "true"
+      # Optional: set GROQ_API_KEY or OPENAI_API_KEY in Render dashboard for cloud LLM reasoning with 0MB RAM overhead
+      - key: GROQ_API_KEY
+        sync: false

@@ -1,22 +1,50 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { HeaderBar } from './components/HeaderBar';
 import { CrewGrid } from './components/CrewGrid';
 import { ScenarioController } from './components/ScenarioController';
 import { HealthTelemetryView } from './components/HealthTelemetryView';
 import { wsService } from './services/websocketService';
+import {
+  parseCurrentRoute,
+  navigateTo,
+  getSlugFromAstronautId,
+} from './services/routerService';
 import type { TelemetryPacket, AlertPayload } from './types/telemetry';
 
 export function App() {
-  const [activeView, setActiveView] = useState<'HUD' | 'HEALTH_TELEMETRY'>('HEALTH_TELEMETRY');
+  // Parse initial route: default root '/' opens HUD; '/telemetry/:name' opens Health Telemetry
+  const initialRoute = parseCurrentRoute();
+  const [activeView, setActiveView] = useState<'HUD' | 'HEALTH_TELEMETRY'>(initialRoute.view);
+  const [activeTriageAstronautId, setActiveTriageAstronautId] = useState<string | null>(
+    initialRoute.view === 'HEALTH_TELEMETRY' ? initialRoute.astronautId : null
+  );
+
   const [connected, setConnected] = useState<boolean>(false);
   const [marsDelay, setMarsDelay] = useState<boolean>(false);
   const [telemetryMap, setTelemetryMap] = useState<Record<string, TelemetryPacket>>({});
   const [latestAlert, setLatestAlert] = useState<AlertPayload | null>(null);
-  const [activeTriageAstronautId, setActiveTriageAstronautId] = useState<string | null>(null);
   const [currentScenario, setCurrentScenario] = useState<string>('NOMINAL_CRUISE');
 
   // Buffer recent packets to update React state smoothly at 10 Hz
   const bufferedPacketsRef = useRef<Record<string, TelemetryPacket>>({});
+
+  // Synchronize browser history / URL with application view
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = parseCurrentRoute();
+      setActiveView(route.view);
+      if (route.view === 'HEALTH_TELEMETRY') {
+        setActiveTriageAstronautId(route.astronautId);
+      } else {
+        setActiveTriageAstronautId(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   useEffect(() => {
     // 0. Seed initial telemetry data immediately so metrics are never empty on load
@@ -83,9 +111,46 @@ export function App() {
     }
   };
 
+  // Navigation Handlers with instant browser URL synchronization
+  const handleOpenTriage = useCallback((astId: string) => {
+    const slug = getSlugFromAstronautId(astId);
+    setActiveTriageAstronautId(astId);
+    setActiveView('HEALTH_TELEMETRY');
+    navigateTo(`/telemetry/${slug}`);
+  }, []);
+
+  const handleSelectView = useCallback(
+    (view: 'HUD' | 'HEALTH_TELEMETRY') => {
+      if (view === 'HUD') {
+        setActiveView('HUD');
+        setActiveTriageAstronautId(null);
+        navigateTo('/');
+      } else {
+        const targetId = activeTriageAstronautId || 'AST-01_COMMANDER';
+        const slug = getSlugFromAstronautId(targetId);
+        setActiveView('HEALTH_TELEMETRY');
+        setActiveTriageAstronautId(targetId);
+        navigateTo(`/telemetry/${slug}`);
+      }
+    },
+    [activeTriageAstronautId]
+  );
+
+  const handleCloseTelemetry = useCallback(() => {
+    setActiveView('HUD');
+    setActiveTriageAstronautId(null);
+    navigateTo('/');
+  }, []);
+
+  const handleAstronautChange = useCallback((astId: string) => {
+    const slug = getSlugFromAstronautId(astId);
+    setActiveTriageAstronautId(astId);
+    navigateTo(`/telemetry/${slug}`);
+  }, []);
+
   return (
     <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '0 20px 32px' }}>
-      {/* Flight HUD View */}
+      {/* Flight HUD View (Default Home Page) */}
       {activeView === 'HUD' && (
         <>
           <HeaderBar
@@ -93,7 +158,7 @@ export function App() {
             marsDelay={marsDelay}
             onToggleMarsDelay={handleToggleMarsDelay}
             activeView={activeView}
-            onSelectView={(v) => setActiveView(v)}
+            onSelectView={handleSelectView}
             latestAlert={latestAlert}
             selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
           />
@@ -101,10 +166,7 @@ export function App() {
           {/* Primary Flight HUD: 4-Row Crew Biometric Telemetry Grid with Inline ECG */}
           <CrewGrid
             telemetryMap={telemetryMap}
-            onOpenTriage={(astId) => {
-              setActiveTriageAstronautId(astId);
-              setActiveView('HEALTH_TELEMETRY');
-            }}
+            onOpenTriage={handleOpenTriage}
           />
 
           {/* Benchmark Scenario Jump Controller */}
@@ -133,16 +195,9 @@ export function App() {
           latestAlert={latestAlert}
           onToggleMarsDelay={handleToggleMarsDelay}
           activeView={activeView}
-          onSelectView={(v) => {
-            setActiveView(v);
-            if (v === 'HUD') {
-              setActiveTriageAstronautId(null);
-            }
-          }}
-          onClose={() => {
-            setActiveView('HUD');
-            setActiveTriageAstronautId(null);
-          }}
+          onSelectView={handleSelectView}
+          onClose={handleCloseTelemetry}
+          onAstronautChange={handleAstronautChange}
         />
       )}
     </div>

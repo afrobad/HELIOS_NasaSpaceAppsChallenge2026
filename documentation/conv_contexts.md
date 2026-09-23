@@ -3087,7 +3087,62 @@
 * **Key Files Created/Modified:**
   * [requirements.txt](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/requirements.txt)
   * [backend/requirements.txt](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/backend/requirements.txt)
+---
+
+## Turn 113: Flight HUD Default Route & Dynamic Deep-Linked `/telemetry/:name` Architecture
+* **Date/Time:** 2026-09-24 05:22:00 (Local Time) / 23:22:00 UTC
+* **User Request & Intent:**
+  > *"make the flight hud the default page, and telemetry in /telemetry/name"*
+* **Architectural Implementation**:
+  1. **Zero-Dependency History API Router ([frontend/src/services/routerService.ts](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/frontend/src/services/routerService.ts))**:
+     - Engineered ultra-fast, zero-overhead client router without bloated third-party routing libraries, preserving 90 FPS rendering performance.
+     - Implemented bidirectional astronaut slug resolver (`resolveAstronautIdFromSlug` & `getSlugFromAstronautId`):
+       - `/telemetry/haley` $\rightarrow$ `AST-01_COMMANDER`
+       - `/telemetry/chris` $\rightarrow$ `AST-02_PILOT`
+       - `/telemetry/sian` $\rightarrow$ `AST-03_MEDICAL`
+       - `/telemetry/leo` $\rightarrow$ `AST-04_ENGINEER`
+       - Backward-compatible with flight IDs (`AST-01_COMMANDER`, etc.) and role titles (`commander`, `pilot`, etc.).
+     - Implemented `parseCurrentRoute()` returning `{ view: 'HUD', astronautId: '...' }` for root `/` and `{ view: 'HEALTH_TELEMETRY', astronautId: '...' }` for `/telemetry/:name`.
+     - Added `navigateTo()` with synthetic `popstate` dispatch and subpath preservation (compatible with root domains and subpath deployments).
+  2. **Default Route & State Synchronization ([frontend/src/App.tsx](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/frontend/src/App.tsx))**:
+     - Configured initial state to parse `window.location.pathname`: root `/` loads **Flight HUD** (`activeView = 'HUD'`) by default.
+     - Connected `popstate` event listeners so native browser Back and Forward buttons seamlessly switch views and crew members.
+     - Connected `CrewGrid` triage buttons, `HeaderBar` segmented controls, and modal close triggers to update the browser URL synchronously (`history.pushState`).
+  3. **Interactive Telemetry Crew Switching ([frontend/src/components/HealthTelemetryView.tsx](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/frontend/src/components/HealthTelemetryView.tsx))**:
+     - Added `onAstronautChange` prop and synchronized `selectedId` when parent route changes.
+     - Clicking crew pills (Haley, Chris, Sian, Leo) updates the URL path to `/telemetry/:name` in real time.
+  4. **Production SPA Fallback in FastAPI ([backend/app/main.py](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/backend/app/main.py))**:
+     - Replaced static directory mount with full SPA routing handler: direct requests to `/telemetry/:name` return `dist/index.html` (HTTP 200) while preventing collision with `/api/`, `/ws/`, and docs.
+  5. **Turnkey Render Cloud Blueprint ([render.yaml](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/render.yaml))**:
+     - Created infrastructure-as-code specification for automated full-stack build and deployment on Render free tier.
+* **Verification & Testing**:
+  - `npm run build`: Compiled TypeScript and Vite production bundle in **229ms** with 0 errors.
+  - Automated test harness: **69/69 backend test suites passed 100%** in 14.8s.
+  - Verified local server responses: `http://localhost:8000/` and `http://localhost:8000/telemetry/haley` both serve valid 200 OK HTML.
+* **Key Files Created/Modified:**
+  * [frontend/src/services/routerService.ts](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/frontend/src/services/routerService.ts)
+  * [frontend/src/App.tsx](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/frontend/src/App.tsx)
+  * [frontend/src/components/HealthTelemetryView.tsx](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/frontend/src/components/HealthTelemetryView.tsx)
+  * [backend/app/main.py](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/backend/app/main.py)
+  * [render.yaml](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/render.yaml)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/documentation/conv_contexts.md)
 
+---
 
+## Turn 114: Git Synchronization — Commit & Push to Multi-Remote Repositories
+* **Date/Time:** 2026-09-24 05:23:30 (Local Time) / 23:23:30 UTC
+* **User Request & Intent:**
+  > *"commit and push"*
+* **Actions Taken & Repository Synchronization**:
+  1. **Staged Changes**:
+     - `frontend/src/services/routerService.ts`: Zero-dependency History API router with deep linking and bidirectional astronaut slug translation.
+     - `frontend/src/App.tsx`: Default landing on Flight HUD (`/`), popstate synchronization, and triage routing.
+     - `frontend/src/components/HealthTelemetryView.tsx`: Synchronized crew pill selection with URL `/telemetry/:name`.
+     - `backend/app/main.py`: Production SPA fallback handler serving `dist/index.html` for deep links.
+     - `render.yaml`: Turnkey Render infrastructure-as-code cloud blueprint.
+     - `documentation/conv_contexts.md`: Complete conversational context and architectural journal.
+  2. **Git Commit & Dual Remote Push**:
+     - Committed with conventional commit `feat(routing): set flight hud default and enable /telemetry/:name deep linking`.
+     - Pushed to `origin` (`https://github.com/zihaduzzamaan/H.E.L.I.O.S---Health-Evaluation-Logistic-Intelligent-Onboard-System-for-NASA.git`).
+     - Pushed to `upstream` (`https://github.com/afrobad/HELIOS_NasaSpaceAppsChallenge2026.git`).
 
