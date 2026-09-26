@@ -149,7 +149,7 @@ class OllamaClient:
                 valid_sentences.append(s + ".")
 
         if len(valid_sentences) >= 2:
-            return f"{valid_sentences[0]} {valid_sentences[1]}"
+            return " ".join(valid_sentences[:4])
         elif len(valid_sentences) == 1:
             return f"{valid_sentences[0]} Maintain telemetry monitoring and follow mission protocol."
 

@@ -17,12 +17,17 @@ load_dotenv(find_dotenv(usecwd=True))
 
 JARVIS_GEMINI_SYSTEM_INSTRUCTION = (
     "You are JARVIS, an autonomous aerospace medical officer and life-support intelligence aboard a deep-space spacecraft. "
-    "Your communication standard is inspired by NASA flight surgeons and JARVIS: calm, highly intelligent, precise, and authoritative. "
-    "RULES:\n"
-    "1. You must address the astronaut by their specific name (e.g. 'Doctor Sian', 'Commander Haley', 'Pilot Chris', 'Specialist Leo').\n"
-    "2. ALWAYS state what actually happened clinically, citing specific biometric values and physiological markers (e.g., serum potassium, QTc interval, SpO2, heart rate, cabin CO2, radiation flux).\n"
-    "3. Provide exactly two concise sentences: Sentence 1 states the diagnosis and live biometrics. Sentence 2 gives the actionable clinical countermeasure.\n"
-    "4. Do NOT include markdown, asterisks, bullet points, numbered lists, or prefixes like 'JARVIS:'. Output plain spoken text only."
+    "Your communication standard is inspired by NASA flight surgeons and JARVIS: calm, highly intelligent, precise, and reassuring. "
+    "CRITICAL RULES FOR NATURAL SPOKEN VOICE PACING:\n"
+    "1. Address the astronaut by their specific name (e.g. 'Doctor Sian', 'Commander Haley', 'Pilot Chris', 'Specialist Leo').\n"
+    "2. NEVER speak in long run-on compound sentences or large paragraphs. Never use more than 14 words in any single sentence.\n"
+    "3. Deliver information ONE BY ONE in 3 to 4 short, distinct sentences with clear full stops (periods):\n"
+    "   - Sentence 1: State the immediate observation calmly.\n"
+    "   - Sentence 2: State the primary biometric numbers driving the alert (e.g. potassium, oxygen, heart rate, or radiation).\n"
+    "   - Sentence 3: Connect what these numbers mean clinically.\n"
+    "   - Sentence 4: State the calm, practical countermeasure or recommendation.\n"
+    "4. Every sentence MUST end with a full stop (period) so your speech synthesizer breathes and pauses naturally between thoughts.\n"
+    "5. Do NOT include markdown, asterisks, bullet points, numbered lists, or prefixes like 'JARVIS:'. Output plain spoken text only."
 )
 
 
@@ -96,7 +101,7 @@ class GeminiClient:
             f"Live Biometrics: HR={hr} bpm, HRV={hrv} ms, SpO2={spo2}%, Potassium={k} mmol/L, "
             f"Cabin CO2={co2} mmHg, QTc={qtc} ms, ARF={arf}, TRM={trm}, EPI={epi}, RSI={rsi}, Flux={rad_flux} mGy/h.\n"
             f"Context: {stage_context}\n\n"
-            f"Generate the exact two-sentence conversational spoken statement for JARVIS to speak right now."
+            f"Generate the natural spoken statement for JARVIS right now, using 3 to 4 short, crisp sentences (max 14 words each) with clear full stops so you pause naturally between observations."
         )
 
     async def generate_clinical_triage(
@@ -199,18 +204,19 @@ class GeminiClient:
         asyncio.create_task(_run_pregen())
 
     def _clean_gemini_output(self, text: str, required_name: str) -> str:
-        """Cleans markdown, formatting artifacts, and ensures exactly 2 spoken sentences."""
+        """Cleans markdown, formatting artifacts, and preserves natural 3-4 sentence pacing."""
         cleaned = re.sub(r"\*\*|\*|`|#|\"", "", text).strip()
         cleaned = re.sub(r"^(?:JARVIS:|AI:|Response:|Directive:)\s*", "", cleaned, flags=re.IGNORECASE).strip()
 
         # Split on sentence boundaries
         sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", cleaned) if s.strip()]
-        if len(sentences) >= 2:
-            final_text = f"{sentences[0]} {sentences[1]}"
-        elif len(sentences) == 1:
-            final_text = sentences[0]
-        else:
-            final_text = cleaned
+        # Preserve up to 4 clean sentences
+        if len(sentences) > 4:
+            sentences = sentences[:4]
+
+        final_text = " ".join(sentences)
+        if not final_text.endswith((".", "!", "?")):
+            final_text += "."
 
         # Ensure astronaut name is present
         if required_name and required_name.lower() not in final_text.lower():

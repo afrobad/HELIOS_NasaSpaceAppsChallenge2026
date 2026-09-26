@@ -327,8 +327,10 @@ def build_clinical_reason_script(
             qtc_match = re.search(r"([0-9.]+)\s*ms", reason)
             qtc_val = qtc_match.group(1) if qtc_match else "480"
         return (
-            f"{clean_name}, cardiac monitoring detects acute hypokalemia with serum potassium dropped to {k_val} millimoles per liter and QTc widening to {qtc_val} milliseconds. "
-            f"I advise immediately consuming an oral potassium electrolyte pouch and resting in your quarters."
+            f"{clean_name}, your cardiac monitoring detects acute hypokalemia. "
+            f"Serum potassium has dropped to {k_val} millimoles per liter. "
+            f"Your Q-T interval is prolonged at {qtc_val} milliseconds. "
+            f"Please consume an oral potassium electrolyte pouch and rest in your quarters."
         )
 
     # 2. Cabin CO2 Pocketing & Ambient Life Support
@@ -340,12 +342,15 @@ def build_clinical_reason_script(
         spo2_val = t.get("spo2")
         if spo2_val and float(spo2_val) < 92.0:
             return (
-                f"Emergency, {clean_name}! Cabin carbon dioxide has surged to {co2_val} millimeters of mercury with blood oxygen dropping to {spo2_val} percent. "
-                f"I advise putting on your emergency oxygen mask and verifying compartment hatch seals immediately."
+                f"Emergency, {clean_name}. Cabin carbon dioxide has surged to {co2_val} millimeters of mercury. "
+                f"Your blood oxygen is dropping at {spo2_val} percent. "
+                f"This indicates acute hypercapnic hypoxia. "
+                f"Please don your emergency oxygen mask and verify compartment seals immediately."
             )
         return (
             f"Caution, {clean_name}. Cabin sensors detect carbon dioxide pocketing at {co2_val} millimeters of mercury. "
-            f"I advise switching to the backup air scrubber loop and increasing cabin ventilation."
+            f"Atmospheric scrubbing is insufficient in this sector. "
+            f"I advise switching to the backup air scrubber and increasing cabin ventilation."
         )
 
     # 3. Severe Hypoxia / Low Oxygen
@@ -355,8 +360,9 @@ def build_clinical_reason_script(
             sp_match = re.search(r"([0-9.]+)\s*%", reason)
             spo2_val = sp_match.group(1) if sp_match else "88"
         return (
-            f"Emergency, {clean_name}! Pulse oximetry indicates blood oxygen saturation has fallen to {spo2_val} percent. "
-            f"I advise immediately donning your supplemental oxygen mask and checking suit seal integrity."
+            f"Emergency, {clean_name}. Pulse oximetry indicates blood oxygen has fallen to {spo2_val} percent. "
+            f"This requires immediate respiratory intervention. "
+            f"Please don your supplemental oxygen mask and check suit seal integrity now."
         )
 
     # 4. Presymptomatic Sepsis / Immune Cytokine Storm
@@ -366,16 +372,20 @@ def build_clinical_reason_script(
             il6_match = re.search(r"IL-6=?([0-9.]+)", reason)
             il6_val = il6_match.group(1) if il6_match else "115"
         return (
-            f"{clean_name}, point-of-care biosensors detect a presymptomatic immune surge with interleukin-6 elevated to {il6_val} picograms per milliliter. "
-            f"I advise resting in your sleep quarters and starting an intravenous hydration infusion before symptoms progress."
+            f"{clean_name}, biosensors detect a presymptomatic immune surge. "
+            f"Interleukin-6 has elevated to {il6_val} picograms per milliliter. "
+            f"This pattern points to early sepsis before physical symptoms appear. "
+            f"I advise resting in your quarters and starting an intravenous hydration infusion."
         )
 
     # 5. Cephalic Venous Stasis & Thrombosis Risk
     if any(k in r_lower for k in ("thrombosis", "venous stasis", "hypercoagul", "trm")):
         hct_val = t.get("hematocrit", "48")
         return (
-            f"{clean_name}, vascular Doppler sensors detect cephalic venous stasis and hemoconcentration at {hct_val} percent hematocrit. "
-            f"I advise donning your lower-body compression cuffs and consuming an oral hydration solution to restore venous flow."
+            f"{clean_name}, Doppler sensors detect cephalic venous stasis. "
+            f"Blood is pooling in your neck veins from microgravity, with hematocrit at {hct_val} percent. "
+            f"This increases acute thrombosis risk. "
+            f"Please don your lower-body compression cuffs and drink hydration solution."
         )
 
     # 6. Solar Particle Event & Radiation Dosimetry
@@ -385,8 +395,10 @@ def build_clinical_reason_script(
             f_match = re.search(r"Flux=?([0-9.]+)", reason)
             flux_val = f_match.group(1) if f_match else "340"
         return (
-            f"Urgent alert, {clean_name}! External biodosimeters detect a severe solar particle event with cosmic flux at {flux_val} milligray per hour. "
-            f"I advise taking your prescribed radioprotective medication and evacuating to the water-shielded storm shelter immediately."
+            f"Urgent alert, {clean_name}. External biodosimeters detect a severe solar particle event. "
+            f"Cosmic flux has reached {flux_val} milligray per hour. "
+            f"Active proton counts are breaching exterior safety thresholds. "
+            f"Take your prescribed radioprotective medication and evacuate to the storm shelter immediately."
         )
 
     # 7. Cardiovascular Strain / Baseline Fatigue Drift
@@ -396,8 +408,10 @@ def build_clinical_reason_script(
             hr_match = re.search(r"([0-9.]+)\s*bpm", reason)
             hr_val = hr_match.group(1) if hr_match else "85"
         return (
-            f"{clean_name}, your autonomic vitals show accumulated physiological fatigue with resting heart rate elevated at {hr_val} beats per minute. "
-            f"I advise pausing heavy mission activities, hydrating, and taking a scheduled rest period."
+            f"{clean_name}, your autonomic vitals show accumulated physiological strain. "
+            f"Resting heart rate has drifted up to {hr_val} beats per minute. "
+            f"Neuro-fatigue reserves are significantly depleted. "
+            f"I advise pausing mission tasks, hydrating, and taking a scheduled rest period."
         )
 
     return None
