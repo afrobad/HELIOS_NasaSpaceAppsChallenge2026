@@ -11,6 +11,9 @@ import time
 import asyncio
 from typing import Dict, Any, Optional
 import httpx
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv(usecwd=True))
 
 JARVIS_GEMINI_SYSTEM_INSTRUCTION = (
     "You are JARVIS, an autonomous aerospace medical officer and life-support intelligence aboard a deep-space spacecraft. "
@@ -32,11 +35,17 @@ class GeminiClient:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "gemini-1.5-flash",
-        timeout_seconds: float = 2.5
+        model: str = "gemini-3.5-flash-lite",
+        timeout_seconds: float = 5.5
     ):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
         self.model = model
+        self.models_fallback = [
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-flash-lite-latest",
+            "gemini-3-flash-preview"
+        ]
         self.timeout_seconds = timeout_seconds
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
         # In-memory pipeline cache for lookahead double-buffered messages: (key -> payload)
@@ -124,30 +133,36 @@ class GeminiClient:
             },
             "generationConfig": {
                 "temperature": 0.25,
-                "maxOutputTokens": 100,
+                "maxOutputTokens": 1000,
                 "topP": 0.95
             }
         }
 
+        models_to_try = [self.model] + [m for m in self.models_fallback if m != self.model]
         start_t = time.time()
         try:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                res = await client.post(url, json=payload)
-                if res.status_code == 200:
-                    data = res.json()
-                    candidates = data.get("candidates", [])
-                    if candidates:
-                        parts = candidates[0].get("content", {}).get("parts", [])
-                        if parts:
-                            raw_text = parts[0].get("text", "").strip()
-                            clean_text = self._clean_gemini_output(raw_text, astronaut_name)
-                            dur_ms = round((time.time() - start_t) * 1000, 1)
-                            return {
-                                "spoken_text": clean_text,
-                                "source": f"GEMINI_{self.model.upper()}",
-                                "is_fallback": False,
-                                "duration_ms": dur_ms
-                            }
+                for model_name in models_to_try:
+                    url = f"{self.base_url}/{model_name}:generateContent?key={self.api_key}"
+                    try:
+                        res = await client.post(url, json=payload)
+                        if res.status_code == 200:
+                            data = res.json()
+                            candidates = data.get("candidates", [])
+                            if candidates:
+                                parts = candidates[0].get("content", {}).get("parts", [])
+                                if parts:
+                                    raw_text = parts[0].get("text", "").strip()
+                                    clean_text = self._clean_gemini_output(raw_text, astronaut_name)
+                                    dur_ms = round((time.time() - start_t) * 1000, 1)
+                                    return {
+                                        "spoken_text": clean_text,
+                                        "source": f"GEMINI_{model_name.upper()}",
+                                        "is_fallback": False,
+                                        "duration_ms": dur_ms
+                                    }
+                    except Exception:
+                        continue
         except Exception:
             pass
 

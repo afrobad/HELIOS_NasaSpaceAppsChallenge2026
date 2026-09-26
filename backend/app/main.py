@@ -7,6 +7,10 @@ Hosts REST management APIs, JARVIS voice query endpoints, and the high-frequency
 import asyncio
 from contextlib import asynccontextmanager
 from typing import Dict, Any, Optional
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv(usecwd=True))
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Response, Query
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -97,8 +101,14 @@ async def get_ai_status() -> Dict[str, Any]:
     """Returns the operational status of the local AI inference engine and voice subsystem."""
     client = ollama_client or OllamaClient()
     health = await client.check_health()
+    gemini_status = {
+        "available": voice_engine.gemini.is_available() if voice_engine else False,
+        "model": voice_engine.gemini.model if voice_engine else None,
+        "models_fallback": voice_engine.gemini.models_fallback if voice_engine else []
+    }
     return {
         "ai_engine": health,
+        "gemini": gemini_status,
         "cooldown_seconds": voice_engine.cooldown_seconds if voice_engine else 30.0,
         "anti_chatter_active": True
     }
