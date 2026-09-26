@@ -32,10 +32,10 @@ class VoiceEngine:
     }
 
     AUDIO_PROFILES = {
-        "CRITICAL": {"rate": 1.15, "pitch": 1.06, "volume": 1.0, "voice": "en-GB"},
-        "WARNING": {"rate": 0.98, "pitch": 0.94, "volume": 0.95, "voice": "en-GB"},
-        "INFO": {"rate": 1.0, "pitch": 0.96, "volume": 0.90, "voice": "en-GB"},
-        "NOMINAL": {"rate": 1.0, "pitch": 0.95, "volume": 0.85, "voice": "en-GB"}
+        "CRITICAL": {"rate": 0.90, "pitch": 1.00, "volume": 1.0, "voice": "en-GB"},
+        "WARNING": {"rate": 0.93, "pitch": 0.97, "volume": 0.98, "voice": "en-GB"},
+        "INFO": {"rate": 0.98, "pitch": 0.97, "volume": 0.90, "voice": "en-GB"},
+        "NOMINAL": {"rate": 1.00, "pitch": 0.95, "volume": 0.85, "voice": "en-GB"}
     }
 
     def __init__(
@@ -498,10 +498,10 @@ class VoiceEngine:
     _audio_cache: Dict[str, bytes] = {}
 
     SEVERITY_PROSODY = {
-        "CRITICAL": {"rate": "+20%", "pitch": "+5Hz"},
-        "WARNING": {"rate": "+12%", "pitch": "+2Hz"},
-        "INFO": {"rate": "+6%", "pitch": "+0Hz"},
-        "NOMINAL": {"rate": "+2%", "pitch": "-1Hz"}
+        "CRITICAL": {"rate": "-6%", "pitch": "+1Hz"},  # Slower, calm, authoritative, high-clarity enunciation for emergency directives
+        "WARNING": {"rate": "-3%", "pitch": "-1Hz"},   # Measured, focused advisory delivery
+        "INFO": {"rate": "+0%", "pitch": "-1Hz"},      # Natural conversational cadence
+        "NOMINAL": {"rate": "+2%", "pitch": "-2Hz"}    # Relaxed, warm baseline tone
     }
 
     @staticmethod

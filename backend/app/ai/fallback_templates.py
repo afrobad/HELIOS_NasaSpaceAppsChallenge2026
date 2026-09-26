@@ -292,7 +292,7 @@ PROGRESSIVE_SCENARIO_SCRIPTS: Dict[str, list] = {
     "SCENARIO_8_SOLAR_RADIATION_STORM": [
         "Urgent alert, {name}! A solar particle storm is approaching our spacecraft. I advise taking your radiation medication and heading to the storm shelter right now!",
         "Radiation dosimetry update, {name}: external proton flux has reached peak storm intensity. I advise remaining firmly inside the storm shelter core behind the water shielding.",
-        "Storm telemetry check, {name}: active radiation counters indicate secondary shielding is holding securely. I advise remaining sheltered until ground sensors confirm the particle wave has passed."
+        "All crew stations, storm telemetry confirms secondary shielding is holding securely. I advise remaining sheltered until exterior sensors confirm the particle wave has passed."
     ]
 }
 

@@ -465,20 +465,23 @@ class AudioService {
       await new Promise((resolve) => setTimeout(resolve, toneDuration));
     }
 
-    // Emotional Prosody Calibration
+    // Emotional Prosody Calibration: Measured, calm, authoritative delivery
     let targetRate = item.config?.rate ?? 1.0;
-    let targetPitch = 1.0;
+    let targetPitch = item.config?.pitch ?? 1.0;
     let targetVolume = item.config?.volume ?? 0.95;
 
     if (severity === 'CRITICAL') {
-      targetRate = 1.08;
+      targetRate = item.config?.rate ?? 0.90;
+      targetPitch = item.config?.pitch ?? 1.00;
       targetVolume = 1.0;
     } else if (severity === 'WARNING') {
-      targetRate = 1.04;
+      targetRate = item.config?.rate ?? 0.93;
+      targetPitch = item.config?.pitch ?? 0.97;
       targetVolume = 0.98;
     } else {
-      targetRate = 1.0;
-      targetVolume = 0.95;
+      targetRate = item.config?.rate ?? 1.0;
+      targetPitch = item.config?.pitch ?? 0.96;
+      targetVolume = 0.92;
     }
 
     // 4. Fetch neural audio blob with generous 8000ms budget — prevents accidental fallback to robotic desktop voice

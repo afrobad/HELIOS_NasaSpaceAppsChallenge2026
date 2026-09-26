@@ -295,9 +295,9 @@ async def get_synthesized_voice(
     Cache hits return the full pre-synthesized audio in a single pass (~0 ms synthesis cost).
 
     Severity calibrates tone, pitch, and cadence:
-      - NOMINAL: Warm, relaxed, reassuring conversational cadence (+2% rate, -1Hz pitch)
-      - WARNING: Attentive, focused advisory delivery (+12% rate, +2Hz pitch)
-      - CRITICAL: Brisk, urgent emergency directive (+20% rate, +5Hz pitch)
+      - NOMINAL: Warm, relaxed, reassuring conversational cadence (+2% rate, -2Hz pitch)
+      - WARNING: Attentive, focused advisory delivery (-3% rate, -1Hz pitch)
+      - CRITICAL: Calm, authoritative, deliberate emergency directive (-6% rate, +1Hz pitch)
     """
     from fastapi.responses import StreamingResponse as FastAPIStreamingResponse
     clean = text.strip()
