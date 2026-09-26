@@ -1,6 +1,7 @@
 import React from 'react';
 import type { TelemetryPacket } from '../types/telemetry';
 import { EcgRowCanvas } from './EcgRowCanvas';
+import { getAstronautOsdrProfile } from './HealthTelemetryView';
 
 interface CrewGridProps {
   telemetryMap: Record<string, TelemetryPacket>;
@@ -188,6 +189,18 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
         const isWarning = severity === 'WARNING';
         const isCritical = severity === 'CRITICAL';
 
+        const profile = getAstronautOsdrProfile(crew.id);
+        const isHypokalemia = (telemetry?.potassium !== undefined && (telemetry.potassium < 3.3 || telemetry.potassium > 5.5)) ||
+          ((telemetry?.scenario_phase?.includes('HYPOKALEMIA')) ?? false);
+        const isInflammationSpike = (telemetry?.il_6 !== undefined && telemetry.il_6 > 12.0) ||
+          ((telemetry?.scenario_phase?.includes('AMMONIA') || telemetry?.scenario_phase?.includes('SMOLDER') || telemetry?.scenario_phase?.includes('SEPSIS')) ?? false);
+        const isHematocritShift = (telemetry?.hematocrit !== undefined && Math.abs(telemetry.hematocrit - 44.2) > 4.5);
+
+        const potassiumVal: number = (isHypokalemia && telemetry?.potassium !== undefined) ? telemetry.potassium : profile.k;
+        const il6Val: number = (isInflammationSpike && telemetry?.il_6 !== undefined) ? telemetry.il_6 : profile.il6;
+        const hctVal: number = (isHematocritShift && telemetry?.hematocrit !== undefined) ? telemetry.hematocrit : profile.hct;
+        const wbcVal: number = (isInflammationSpike && telemetry?.wbc_count !== undefined) ? telemetry.wbc_count : profile.wbc;
+
         const borderColor = isCritical
           ? 'var(--hud-critical)'
           : isWarning
@@ -301,12 +314,12 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                         fontSize: '20px',
                         fontWeight: 700,
                         color:
-                          (telemetry?.heart_rate ?? 62) > 100
+                          (telemetry?.heart_rate ?? profile.restHr) > 100
                             ? 'var(--hud-orange)'
                             : '#ffffff',
                       }}
                     >
-                      {telemetry ? telemetry.heart_rate.toFixed(0) : '62'}
+                      {telemetry ? telemetry.heart_rate.toFixed(0) : profile.restHr.toFixed(0)}
                     </span>
                     <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.75)' }}>
                       BPM
@@ -338,7 +351,7 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                       className="font-mono-tabular"
                       style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff' }}
                     >
-                      {telemetry ? telemetry.hrv_rmssd.toFixed(0) : '65'}
+                      {telemetry ? telemetry.hrv_rmssd.toFixed(0) : profile.restHrv.toFixed(0)}
                     </span>
                     <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.75)' }}>
                       ms
@@ -373,12 +386,12 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                         fontSize: '20px',
                         fontWeight: 700,
                         color:
-                          (telemetry?.spo2 ?? 98) < 95
+                          (telemetry?.spo2 ?? profile.restSpo2) < 95
                             ? 'var(--hud-critical)'
                             : '#ffffff',
                       }}
                     >
-                      {telemetry ? telemetry.spo2.toFixed(1) : '98.2'}
+                      {telemetry ? telemetry.spo2.toFixed(1) : profile.restSpo2.toFixed(1)}
                     </span>
                     <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.75)' }}>
                       %
@@ -410,7 +423,7 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                       className="font-mono-tabular"
                       style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff' }}
                     >
-                      {telemetry ? telemetry.core_temp.toFixed(1) : '36.8'}
+                      {telemetry ? telemetry.core_temp.toFixed(1) : profile.restTemp.toFixed(1)}
                     </span>
                     <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.75)' }}>
                       °C
@@ -523,14 +536,14 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                         fontSize: '13px',
                         fontWeight: 700,
                         color:
-                          (telemetry?.potassium ?? 4.2) < 3.5
+                          potassiumVal < 3.5
                             ? 'var(--hud-critical)'
-                            : (telemetry?.potassium ?? 4.2) < 3.8
+                            : potassiumVal < 3.8
                             ? 'var(--hud-orange)'
                             : '#ffffff',
                       }}
                     >
-                      {telemetry?.potassium ? telemetry.potassium.toFixed(2) : '4.20'}
+                      {potassiumVal.toFixed(2)}
                     </div>
                   </div>
                   <div>
@@ -541,14 +554,14 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                         fontSize: '13px',
                         fontWeight: 700,
                         color:
-                          (telemetry?.il_6 ?? 6.2) >= 15.0
+                          il6Val >= 15.0
                             ? 'var(--hud-critical)'
-                            : (telemetry?.il_6 ?? 6.2) >= 10.0
+                            : il6Val >= 10.0
                             ? 'var(--hud-orange)'
                             : '#ffffff',
                       }}
                     >
-                      {telemetry?.il_6 ? telemetry.il_6.toFixed(1) : '6.2'}
+                      {il6Val.toFixed(1)}
                     </div>
                   </div>
                   <div>
@@ -559,14 +572,14 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                         fontSize: '13px',
                         fontWeight: 700,
                         color:
-                          (telemetry?.hematocrit ?? 44.0) >= 50.0
+                          hctVal >= 50.0
                             ? 'var(--hud-critical)'
-                            : (telemetry?.hematocrit ?? 44.0) >= 48.0
+                            : hctVal >= 48.0
                             ? 'var(--hud-orange)'
                             : '#ffffff',
                       }}
                     >
-                      {telemetry?.hematocrit ? telemetry.hematocrit.toFixed(1) : '44.0'}
+                      {hctVal.toFixed(1)}
                       <span style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(148, 163, 184, 0.75)', marginLeft: '1px' }}>%</span>
                     </div>
                   </div>
@@ -578,15 +591,14 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                         fontSize: '13px',
                         fontWeight: 700,
                         color:
-                          (telemetry?.wbc_count ?? 6.8) >= 14.0 ||
-                          (telemetry?.wbc_count ?? 6.8) < 3.0
+                          wbcVal >= 14.0 || wbcVal < 3.0
                             ? 'var(--hud-critical)'
-                            : (telemetry?.wbc_count ?? 6.8) >= 11.0
+                            : wbcVal >= 11.0
                             ? 'var(--hud-orange)'
                             : '#ffffff',
                       }}
                     >
-                      {telemetry?.wbc_count ? telemetry.wbc_count.toFixed(1) : '6.8'}
+                      {wbcVal.toFixed(1)}
                       <span style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(148, 163, 184, 0.75)', marginLeft: '1px' }}>k</span>
                     </div>
                   </div>

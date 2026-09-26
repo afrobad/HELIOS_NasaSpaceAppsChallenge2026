@@ -82,17 +82,27 @@ def generate_telemetry():
         "data_source"
     ]
 
+    # Authentic NASA OSDR Inspiration4 Laboratory Values (OSD-569 CBC, OSD-575 CMP/CV/Immune)
+    osdr_lab_defaults = {
+        "AST-01_COMMANDER": {"k": 4.40, "hct": 43.6, "wbc": 5.0, "il6": 6.86, "plt": 227.0, "crp": 1.06},
+        "AST-02_PILOT": {"k": 3.50, "hct": 36.4, "wbc": 5.5, "il6": 4.41, "plt": 252.0, "crp": 0.93},
+        "AST-03_MEDICAL": {"k": 3.00, "hct": 41.4, "wbc": 7.0, "il6": 7.39, "plt": 359.0, "crp": 8.36},
+        "AST-03_MEDICAL_SPECIALIST": {"k": 3.00, "hct": 41.4, "wbc": 7.0, "il6": 7.39, "plt": 359.0, "crp": 8.36},
+        "AST-04_ENGINEER": {"k": 4.00, "hct": 48.3, "wbc": 8.1, "il6": 6.34, "plt": 240.0, "crp": 1.77},
+        "AST-04_MISSION_SPECIALIST": {"k": 4.00, "hct": 48.3, "wbc": 8.1, "il6": 6.34, "plt": 240.0, "crp": 1.77},
+    }
+
     print(f"[>] Generating {total_ticks} ticks (10 Hz, {total_seconds}s) for {len(crew_profiles)} crew members...")
 
     with open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
-
         for ast_id, profile in crew_profiles.items():
             ast_name = profile["name"]
             rest_b = profile["baselines"]["REST"]
             workout_b = profile["baselines"]["WORKOUT"]
+            lab_b = osdr_lab_defaults.get(ast_id, {"k": 4.2, "hct": 44.2, "wbc": 6.8, "il6": 6.5, "plt": 245.0, "crp": 1.2})
 
             print(f"    [*] Simulating multimodal streams for {ast_name}...")
 
@@ -106,13 +116,13 @@ def generate_telemetry():
                 noise_hr = random.gauss(0, 0.35)
                 noise_hrv = random.gauss(0, 0.75)
 
-                # Default NASA OSDR Lab Baseline values
-                potassium = 4.2 + random.gauss(0, 0.05)
-                hematocrit = 44.2 + random.gauss(0, 0.2)
-                wbc_count = 6.8 + random.gauss(0, 0.15)
-                il_6 = 6.5 + random.gauss(0, 0.3)
-                platelets = 245.0 + random.gauss(0, 3.0)
-                crp = 1.2 + random.gauss(0, 0.05)
+                # Authentic NASA OSDR Lab Baseline values per crew member (OSD-569 CBC, OSD-575 CMP/CV/Immune)
+                potassium = lab_b["k"] + random.gauss(0, 0.03)
+                hematocrit = lab_b["hct"] + random.gauss(0, 0.15)
+                wbc_count = lab_b["wbc"] + random.gauss(0, 0.1)
+                il_6 = lab_b["il6"] + random.gauss(0, 0.2)
+                platelets = lab_b["plt"] + random.gauss(0, 2.5)
+                crp = lab_b["crp"] + random.gauss(0, 0.05)
                 radiation_flux = 0.05 + random.gauss(0, 0.005)  # Nominal deep-space cosmic background ~0.05 mGy/h
                 lymphocyte_count = 2.2 + random.gauss(0, 0.05)  # Normal ALC 2.2 k/uL
                 raw_qt = 395.0

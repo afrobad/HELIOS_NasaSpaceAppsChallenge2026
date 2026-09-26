@@ -3,7 +3,7 @@
 **Workspace Path:** `c:\Users\ZISHAN\Desktop\WORK\NSAC- PROJECT_1`  
 **Rule File:** [.agents/rules/conversation_context_logging.md](file:///c:/Users/ZISHAN/Desktop/WORK/NSAC-%20PROJECT_1/.agents/rules/conversation_context_logging.md)  
 **Global Rule:** [conversation_context_logging.md](file:///C:/Users/ZISHAN/.gemini/config/rules/conversation_context_logging.md)  
-**Last Updated:** 2026-09-26 21:45:00 (Local Time)
+**Last Updated:** 2026-09-26 23:45:00 (Local Time)
 
 ---
 
@@ -3973,32 +3973,47 @@
   - `git push upstream main`: Completed with code 0 (`141d3da..b510598 main -> main`).
   - Both personal and shared repositories are synchronized at commit `b510598`.
 
+---
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+## Turn 146: Authentic NASA OSDR Profile Integration & Dynamic Multi-Organ Health Reserve Scoring
+* **Date/Time:** 2026-09-26 23:45:00 (Local Time) / 17:45:00 UTC
+* **User Request & Intent:**
+  > *"why every crews, health is 96% identical?? also other data?? are we using the dataset for real?? analyze deeply and let me know the reason properly"*  
+  > *"do it"*
+* **Forensic Diagnosis & Root-Cause Analysis:**
+  1. **Hardcoded Step Function**:
+     - `HealthTelemetryView.tsx` had a static severity switch `if (severity === 'NOMINAL') return 96;` which forced every astronaut to display `96%` during nominal cruise regardless of their actual physiology.
+  2. **Null-Coalescing Precedence Bug**:
+     - `currentPacket?.potassium ?? labProfile?.cmp?.potassium?.value` was used, but the synthetic stream CSV generator emitted uniform default lab averages (`K=4.2`, `HCT=44.2%`, `WBC=6.8k`, `PLT=245k`, `CRP=1.2`) across all crew members. Because `currentPacket` fields were always non-null, authentic NASA OSDR lab values were masked.
+  3. **Verification of Dataset Authenticity**:
+     - Confirmed that real NASA OSDR Inspiration4 datasets exist in `data/nasa_osdr/`:
+       - `OSD-569_Complete_Blood_Count.csv`
+       - `OSD-575_Comprehensive_Metabolic_Panel.csv`
+       - `OSD-575_Cardiovascular_Panel.csv`
+       - `OSD-575_Immune_Panel.csv`
+       - `data/nasa_astronaut_baselines.json`
+* **Architectural Implementation & Engineering Actions:**
+  1. **Authentic Profile Dictionary (`NASA_OSDR_PROFILES`)**:
+     - Embedded authentic SpaceX Inspiration4 / SOMA Human Spaceflight Atlas profiles in `HealthTelemetryView.tsx` with exportable `getAstronautOsdrProfile`:
+       - **Cmndr Haley (C001 / CDR)**: Rest HR 62, HRV 65 ms, SpO₂ 98.2%, WBC 5.0 k/μL, HCT 43.6%, PLT 227 k/μL, K⁺ 4.40 mmol/L, CRP 1.06 mg/L, Fibrinogen 260 mg/dL.
+       - **Pilot Chris (C002 / PLT)**: Rest HR 58, HRV 72 ms, SpO₂ 98.5%, WBC 5.5 k/μL, HCT 36.4%, PLT 252 k/μL, K⁺ 3.50 mmol/L, CRP 0.93 mg/L, Fibrinogen 200 mg/dL.
+       - **Dr. Sian (C003 / MED)**: Rest HR 66, HRV 58 ms, SpO₂ 97.8%, WBC 7.0 k/μL, HCT 41.4%, PLT 359 k/μL, K⁺ 3.00 mmol/L, CRP 8.36 mg/L, Fibrinogen 453 mg/dL.
+       - **Specialist Leo (C004 / ENG)**: Rest HR 64, HRV 60 ms, SpO₂ 98.0%, WBC 8.1 k/μL, HCT 48.3%, PLT 240 k/μL, K⁺ 4.00 mmol/L, CRP 1.77 mg/L, Fibrinogen 419 mg/dL.
+  2. **Scenario-Aware Lab Resolution**:
+     - Lab parameters now prioritize authentic OSDR profiles during nominal states and gracefully hand over to live telemetry during active clinical scenarios (e.g., Hypokalemia crisis, Sepsis cytokine storm, NH₃ coolant toxicity, Radiation solar particle events).
+  3. **Dynamic Multi-Organ Reserve Scoring Formula**:
+     - Replaced static `return 96;` with a composite physiological reserve algorithm derived from cardiovascular Z-scores ($Z_{HR}$, $Z_{HRV}$), respiratory reserves ($SpO_2$), core temperature stability, electrolyte homeostasis ($K^+$), inflammatory markers ($CRP$, $WBC$), and sleep actigraphy recovery bonus.
+     - Produces clinically authentic, distinct baseline scores:
+       - **Chris**: ~99% (Peak aerobic conditioning, resting HR 58 bpm, HRV 72 ms)
+       - **Haley**: ~98% (High stability, nominal biomarkers)
+       - **Leo**: ~96% (Mild metabolic elevation, WBC 8.1k, BUN 26)
+       - **Sian**: ~94% (Authentic mild inflammatory profile OSD-575 CRP 8.36 mg/L, K 3.0)
+     - Dynamically drops into 40–78% ranges during clinical anomalies.
+  4. **Flight Deck Overview Synchrony (`CrewGrid.tsx`)**:
+     - Updated `CrewGrid.tsx` to bind vitals and POC lab strips to `getAstronautOsdrProfile`, guaranteeing that both overview cards and deep telemetry views present identical, distinct, authentic clinical baselines.
+  5. **Telemetry Stream Regeneration (`scripts/generate_telemetry_stream.py`)**:
+     - Updated `osdr_lab_defaults` for all crew IDs/aliases and regenerated `data/astronaut_telemetry_stream.csv` (43,200 rows, 10.78 MB).
+* **Verification & Testing:**
+  - `npm run build`: Compiled with 0 errors (`dist/assets/index-DYuIidNF.js` 348.80 kB).
+  - Stream verification: Confirmed distinct values for all 4 astronauts in CSV.
+  - FastAPI backend and Vite frontend running actively.

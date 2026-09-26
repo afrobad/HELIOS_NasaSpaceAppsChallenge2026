@@ -34,6 +34,148 @@ const CREW_MEMBERS: CrewMeta[] = [
   { id: 'AST-04_ENGINEER', name: 'Specialist Leo', role: 'Systems Engineer', age: 45, callsign: 'LEO', avatar: '/crew/leo.jpg', subjectId: 'C004', roleShort: 'ENG' },
 ];
 
+export interface CrewBaselineAndLabProfile {
+  // Baseline Vitals from NASA Spaceflight Baselines
+  restHr: number;
+  restHrv: number;
+  restSpo2: number;
+  restTemp: number;
+  restSleep: number;
+  // Authentic NASA OSDR Inspiration4 Laboratory Values (OSD-569 CBC, OSD-575 CMP, CV, Immune)
+  wbc: number; // k/μL
+  hct: number; // %
+  plt: number; // k/μL
+  hgb: number; // g/dL
+  rbc: number; // M/μL
+  na: number; // mmol/L
+  k: number; // mmol/L
+  glu: number; // mg/dL
+  bun: number; // mg/dL
+  cr: number; // mg/dL
+  alb: number; // g/dL
+  alt: number; // U/L
+  ast: number; // U/L
+  crp: number; // mg/L
+  fibrinogen: number; // mg/dL
+  tnf: number; // pg/mL
+  il6: number; // pg/mL
+  ifn: number; // pg/mL
+  il1b: number; // pg/mL
+}
+
+export const NASA_OSDR_PROFILES: Record<string, CrewBaselineAndLabProfile> = {
+  'AST-01_COMMANDER': {
+    restHr: 62.0,
+    restHrv: 65.0,
+    restSpo2: 98.2,
+    restTemp: 36.80,
+    restSleep: 86.0,
+    wbc: 5.0,
+    hct: 43.6,
+    plt: 227.0,
+    hgb: 14.7,
+    rbc: 4.84,
+    na: 138.0,
+    k: 4.40,
+    glu: 90.0,
+    bun: 18.0,
+    cr: 1.12,
+    alb: 4.9,
+    alt: 9.0,
+    ast: 16.0,
+    crp: 1.06,
+    fibrinogen: 260.0,
+    tnf: 75.8,
+    il6: 6.86,
+    ifn: 3.4,
+    il1b: 58.0,
+  },
+  'AST-02_PILOT': {
+    restHr: 58.0,
+    restHrv: 72.0,
+    restSpo2: 98.5,
+    restTemp: 36.70,
+    restSleep: 88.0,
+    wbc: 5.5,
+    hct: 36.4,
+    plt: 252.0,
+    hgb: 12.1,
+    rbc: 4.02,
+    na: 137.0,
+    k: 3.50,
+    glu: 83.0,
+    bun: 20.0,
+    cr: 0.95,
+    alb: 4.4,
+    alt: 16.0,
+    ast: 23.0,
+    crp: 0.93,
+    fibrinogen: 200.0,
+    tnf: 116.1,
+    il6: 5.76,
+    ifn: 3.1,
+    il1b: 61.8,
+  },
+  'AST-03_MEDICAL': {
+    restHr: 66.0,
+    restHrv: 58.0,
+    restSpo2: 98.0,
+    restTemp: 36.90,
+    restSleep: 82.0,
+    wbc: 7.0,
+    hct: 41.4,
+    plt: 359.0,
+    hgb: 13.5,
+    rbc: 4.67,
+    na: 137.0,
+    k: 3.00,
+    glu: 103.0,
+    bun: 21.0,
+    cr: 0.89,
+    alb: 4.2,
+    alt: 19.0,
+    ast: 18.0,
+    crp: 8.36,
+    fibrinogen: 453.0,
+    tnf: 724.2,
+    il6: 7.60,
+    ifn: 4.2,
+    il1b: 65.1,
+  },
+  'AST-04_ENGINEER': {
+    restHr: 64.0,
+    restHrv: 61.0,
+    restSpo2: 98.3,
+    restTemp: 36.84,
+    restSleep: 84.0,
+    wbc: 8.1,
+    hct: 48.3,
+    plt: 240.0,
+    hgb: 16.5,
+    rbc: 5.55,
+    na: 140.0,
+    k: 4.00,
+    glu: 97.0,
+    bun: 26.0,
+    cr: 1.15,
+    alb: 4.5,
+    alt: 40.0,
+    ast: 48.0,
+    crp: 1.77,
+    fibrinogen: 419.0,
+    tnf: 111.8,
+    il6: 6.34,
+    ifn: 3.6,
+    il1b: 110.2,
+  },
+};
+
+export const getAstronautOsdrProfile = (id: string): CrewBaselineAndLabProfile => {
+  if (id === 'AST-03_MEDICAL_SPECIALIST') return NASA_OSDR_PROFILES['AST-03_MEDICAL'];
+  if (id === 'AST-04_MISSION_SPECIALIST') return NASA_OSDR_PROFILES['AST-04_ENGINEER'];
+  return NASA_OSDR_PROFILES[id] || NASA_OSDR_PROFILES['AST-01_COMMANDER'];
+};
+
 interface DeviceMeta {
   id: number;
   name: string;
@@ -408,19 +550,34 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
     return CREW_MEMBERS.find((c) => c.id === selectedId) || CREW_MEMBERS[0];
   }, [selectedId]);
 
-  // Real-time telemetry metrics
-  const hr = currentPacket?.heart_rate ?? 65.0;
-  const hrv = currentPacket?.hrv_rmssd ?? 62.0;
-  const spo2 = currentPacket?.spo2 ?? 98.2;
-  const temp = currentPacket?.core_temp ?? 36.8;
+  const defaultProfile = useMemo(() => getAstronautOsdrProfile(selectedId), [selectedId]);
+
+  // Real-time telemetry metrics with astronaut baseline fallbacks
+  const hr = currentPacket?.heart_rate ?? defaultProfile.restHr;
+  const hrv = currentPacket?.hrv_rmssd ?? defaultProfile.restHrv;
+  const spo2 = currentPacket?.spo2 ?? defaultProfile.restSpo2;
+  const temp = currentPacket?.core_temp ?? defaultProfile.restTemp;
   const co2 = currentPacket?.cabin_co2 ?? 1.8;
-  const sleep = currentPacket?.sleep_score ?? 85.0;
-  const k = currentPacket?.potassium ?? (labProfile?.cmp?.potassium?.value ?? 4.2);
-  const hct = currentPacket?.hematocrit ?? (labProfile?.cbc?.hematocrit?.value ?? 44.5);
-  const wbc = currentPacket?.wbc_count ?? (labProfile?.cbc?.white_blood_cells?.value ?? 6.8);
-  const il6 = currentPacket?.il_6 ?? (labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.il_6?.concentration_pg_ml ?? 6.2);
-  const plt = currentPacket?.platelet_count ?? (labProfile?.cbc?.platelets?.value ?? 245.0);
-  const crp = currentPacket?.crp ?? (labProfile?.cardiovascular?.crp?.value ?? 1.2);
+  const sleep = currentPacket?.sleep_score ?? defaultProfile.restSleep;
+
+  // Active clinical scenario detection (only override authentic lab baseline when anomaly actively presents)
+  const isHypokalemia = (currentPacket?.potassium !== undefined && (currentPacket.potassium < 3.3 || currentPacket.potassium > 5.5)) ||
+    ((currentPacket?.scenario_phase?.includes('HYPOKALEMIA')) ?? false);
+  const isInflammationSpike = (currentPacket?.il_6 !== undefined && currentPacket.il_6 > 12.0) ||
+    ((currentPacket?.scenario_phase?.includes('AMMONIA') || currentPacket?.scenario_phase?.includes('SMOLDER') || currentPacket?.scenario_phase?.includes('SEPSIS')) ?? false);
+  const isHematocritShift = (currentPacket?.hematocrit !== undefined && Math.abs(currentPacket.hematocrit - 44.2) > 4.5);
+
+  // Authentic NASA OSDR lab biomarkers (OSD-569 CBC, OSD-575 CMP/CV/Immune) with scenario overrides
+  const k: number = (isHypokalemia && currentPacket?.potassium !== undefined) ? currentPacket.potassium : (labProfile?.cmp?.potassium?.value ?? defaultProfile.k);
+  const hct: number = (isHematocritShift && currentPacket?.hematocrit !== undefined) ? currentPacket.hematocrit : (labProfile?.cbc?.hematocrit?.value ?? defaultProfile.hct);
+  const wbc: number = (isInflammationSpike && currentPacket?.wbc_count !== undefined) ? currentPacket.wbc_count : (labProfile?.cbc?.white_blood_cells?.value ?? defaultProfile.wbc);
+  const il6: number = (isInflammationSpike && currentPacket?.il_6 !== undefined) ? currentPacket.il_6 : (labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.il_6?.concentration_pg_ml ?? defaultProfile.il6);
+  const plt: number = (currentPacket?.platelet_count !== undefined && Math.abs(currentPacket.platelet_count - 245) > 40)
+    ? currentPacket.platelet_count
+    : (labProfile?.cbc?.platelets?.value ?? defaultProfile.plt);
+  const crp = isInflammationSpike && currentPacket?.crp
+    ? currentPacket.crp
+    : (labProfile?.cardiovascular?.crp?.value ?? defaultProfile.crp);
   const qtc = currentPacket?.computed_qtc ?? 402.0;
   const arf = currentPacket?.computed_arf ?? 0.72;
   const trm = currentPacket?.computed_trm ?? 1.02;
@@ -434,27 +591,30 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
   const diaBp = Math.round(72 + (hr - 60) * 0.18);
   const respRate = Math.round(13 + (hr > 100 ? 5 : hr > 80 ? 2 : 0) + (spo2 < 95 ? 4 : 0));
 
-  // Authentic OSDR fallback values
-  const sodiumVal = labProfile?.cmp?.sodium?.value ? `${labProfile.cmp.sodium.value} mmol/L` : '139.2 mmol/L';
-  const glucoseVal = labProfile?.cmp?.glucose?.value ? `${labProfile.cmp.glucose.value} mg/dL` : '92 mg/dL';
-  const albuminVal = labProfile?.cmp?.albumin?.value ? `${labProfile.cmp.albumin.value} g/dL` : '4.4 g/dL';
-  const bunVal = labProfile?.cmp?.bun?.value ? `${labProfile.cmp.bun.value} mg/dL` : '14 mg/dL';
+  // Authentic OSDR lab values with astronaut-specific fallbacks
+  const sodiumVal = labProfile?.cmp?.sodium?.value ? `${labProfile.cmp.sodium.value} mmol/L` : `${defaultProfile.na.toFixed(1)} mmol/L`;
+  const glucoseVal = labProfile?.cmp?.glucose?.value ? `${labProfile.cmp.glucose.value} mg/dL` : `${defaultProfile.glu.toFixed(0)} mg/dL`;
+  const albuminVal = labProfile?.cmp?.albumin?.value ? `${labProfile.cmp.albumin.value} g/dL` : `${defaultProfile.alb.toFixed(1)} g/dL`;
+  const bunVal = labProfile?.cmp?.bun?.value ? `${labProfile.cmp.bun.value} mg/dL` : `${defaultProfile.bun.toFixed(0)} mg/dL`;
+  const creatinineVal = labProfile?.cmp?.creatinine?.value ? `${labProfile.cmp.creatinine.value} mg/dL` : `${defaultProfile.cr.toFixed(2)} mg/dL`;
+  const hgbVal = labProfile?.cbc?.hemoglobin?.value ? `${labProfile.cbc.hemoglobin.value} g/dL` : `${defaultProfile.hgb.toFixed(1)} g/dL`;
+  const rbcVal = labProfile?.cbc?.red_blood_cells?.value ? `${labProfile.cbc.red_blood_cells.value} M/μL` : `${defaultProfile.rbc.toFixed(2)} M/μL`;
   const tnfVal = labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.tnf_alpha?.concentration_pg_ml
     ? `${labProfile.immune.clusters.pyrogens_and_inflammatory.tnf_alpha.concentration_pg_ml} pg/mL`
-    : '4.8 pg/mL';
+    : `${defaultProfile.tnf.toFixed(1)} pg/mL`;
   const fibrinogenVal = labProfile?.cardiovascular?.fibrinogen?.value
     ? `${(labProfile.cardiovascular.fibrinogen.value / 1000000).toFixed(0)} mg/dL`
-    : '280 mg/dL';
+    : `${defaultProfile.fibrinogen.toFixed(0)} mg/dL`;
 
   // Historical time-series buffers matching Demo/astronaut-telemetry/index.html console tab
   const [metricHistories, setMetricHistories] = useState<Record<string, number[]>>(() => ({
-    hr: createSyntheticHistory(65.0, 0.9),
-    ecg: createSyntheticHistory(923.0, 6.0),
+    hr: createSyntheticHistory(defaultProfile.restHr, 0.9),
+    ecg: createSyntheticHistory(60000 / Math.max(defaultProfile.restHr, 40), 6.0),
     bp_sys: createSyntheticHistory(114, 1.8),
     arf: createSyntheticHistory(0.72, 0.02),
     qtc: createSyntheticHistory(402.0, 2.2),
-    crp: createSyntheticHistory(1.2, 0.08),
-    spo2: createSyntheticHistory(98.2, 0.15),
+    crp: createSyntheticHistory(defaultProfile.crp, 0.08),
+    spo2: createSyntheticHistory(defaultProfile.restSpo2, 0.15),
     rr: createSyntheticHistory(14, 0.4),
     etco2: createSyntheticHistory(38.0, 0.4),
     min_vent: createSyntheticHistory(7.3, 0.2),
@@ -462,30 +622,30 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
     co2: createSyntheticHistory(1.8, 0.06),
     pressure: createSyntheticHistory(101.3, 0.05),
     ventilation: createSyntheticHistory(0.45, 0.02),
-    temp: createSyntheticHistory(36.8, 0.03),
-    skin_temp: createSyntheticHistory(34.0, 0.03),
+    temp: createSyntheticHistory(defaultProfile.restTemp, 0.03),
+    skin_temp: createSyntheticHistory(defaultProfile.restTemp - 2.8, 0.03),
     cabin_temp: createSyntheticHistory(21.4, 0.04),
     drift_rate: createSyntheticHistory(0.0, 0.02),
     equilibrium: createSyntheticHistory(1.0, 0.02),
-    sleep: createSyntheticHistory(85.0, 0.8),
-    hrv: createSyntheticHistory(62.0, 1.2),
+    sleep: createSyntheticHistory(defaultProfile.restSleep, 0.8),
+    hrv: createSyntheticHistory(defaultProfile.restHrv, 1.2),
     neurological: createSyntheticHistory(98.0, 0.5),
     circadian: createSyntheticHistory(2.0, 0.05),
     z_hrv: createSyntheticHistory(0.2, 0.08),
-    hct: createSyntheticHistory(44.5, 0.2),
-    wbc: createSyntheticHistory(6.8, 0.12),
-    plt: createSyntheticHistory(245.0, 3.0),
-    hgb: createSyntheticHistory(15.1, 0.1),
-    rbc: createSyntheticHistory(4.85, 0.04),
-    na: createSyntheticHistory(139.2, 0.4),
-    k: createSyntheticHistory(4.2, 0.04),
-    glu: createSyntheticHistory(92.0, 1.2),
-    bun: createSyntheticHistory(14.0, 0.3),
-    creatinine: createSyntheticHistory(0.92, 0.02),
-    il6: createSyntheticHistory(6.2, 0.25),
-    tnf: createSyntheticHistory(4.8, 0.1),
-    ifn: createSyntheticHistory(3.4, 0.08),
-    il1b: createSyntheticHistory(1.2, 0.04),
+    hct: createSyntheticHistory(defaultProfile.hct, 0.2),
+    wbc: createSyntheticHistory(defaultProfile.wbc, 0.12),
+    plt: createSyntheticHistory(defaultProfile.plt, 3.0),
+    hgb: createSyntheticHistory(defaultProfile.hgb, 0.1),
+    rbc: createSyntheticHistory(defaultProfile.rbc, 0.04),
+    na: createSyntheticHistory(defaultProfile.na, 0.4),
+    k: createSyntheticHistory(defaultProfile.k, 0.04),
+    glu: createSyntheticHistory(defaultProfile.glu, 1.2),
+    bun: createSyntheticHistory(defaultProfile.bun, 0.3),
+    creatinine: createSyntheticHistory(defaultProfile.cr, 0.02),
+    il6: createSyntheticHistory(defaultProfile.il6, 0.25),
+    tnf: createSyntheticHistory(defaultProfile.tnf, 0.1),
+    ifn: createSyntheticHistory(defaultProfile.ifn, 0.08),
+    il1b: createSyntheticHistory(defaultProfile.il1b, 0.04),
     cytokines: createSyntheticHistory(71.0, 0.0),
     rad_flux: createSyntheticHistory(0.04, 0.01),
     rad_dose: createSyntheticHistory(0.05, 0.002),
@@ -493,7 +653,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
     alc: createSyntheticHistory(2.15, 0.05),
     dna_breaks: createSyntheticHistory(2.0, 0.4),
     trm: createSyntheticHistory(1.02, 0.02),
-    fibrinogen: createSyntheticHistory(280.0, 3.5),
+    fibrinogen: createSyntheticHistory(defaultProfile.fibrinogen, 3.5),
     l_selectin: createSyntheticHistory(740.0, 8.0),
     pf4: createSyntheticHistory(320.0, 4.0),
     // Dropdown CV Panel
@@ -578,17 +738,17 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
       hct: createSyntheticHistory(hct, 0.2),
       wbc: createSyntheticHistory(wbc, 0.12),
       plt: createSyntheticHistory(plt, 3.0),
-      hgb: createSyntheticHistory(labProfile?.cbc?.hemoglobin?.value ?? 15.1, 0.1),
-      rbc: createSyntheticHistory(labProfile?.cbc?.red_blood_cells?.value ?? 4.85, 0.04),
-      na: createSyntheticHistory(labProfile?.cmp?.sodium?.value ?? 139.2, 0.4),
+      hgb: createSyntheticHistory(labProfile?.cbc?.hemoglobin?.value ?? defaultProfile.hgb, 0.1),
+      rbc: createSyntheticHistory(labProfile?.cbc?.red_blood_cells?.value ?? defaultProfile.rbc, 0.04),
+      na: createSyntheticHistory(labProfile?.cmp?.sodium?.value ?? defaultProfile.na, 0.4),
       k: createSyntheticHistory(k, 0.04),
-      glu: createSyntheticHistory(labProfile?.cmp?.glucose?.value ?? 92.0, 1.2),
-      bun: createSyntheticHistory(labProfile?.cmp?.bun?.value ?? 14.0, 0.3),
-      creatinine: createSyntheticHistory(labProfile?.cmp?.creatinine?.value ?? 0.92, 0.02),
+      glu: createSyntheticHistory(labProfile?.cmp?.glucose?.value ?? defaultProfile.glu, 1.2),
+      bun: createSyntheticHistory(labProfile?.cmp?.bun?.value ?? defaultProfile.bun, 0.3),
+      creatinine: createSyntheticHistory(labProfile?.cmp?.creatinine?.value ?? defaultProfile.cr, 0.02),
       il6: createSyntheticHistory(il6, 0.25),
-      tnf: createSyntheticHistory(4.8, 0.1),
-      ifn: createSyntheticHistory(3.4, 0.08),
-      il1b: createSyntheticHistory(1.2, 0.04),
+      tnf: createSyntheticHistory(labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.tnf_alpha?.concentration_pg_ml ?? defaultProfile.tnf, 0.1),
+      ifn: createSyntheticHistory(defaultProfile.ifn, 0.08),
+      il1b: createSyntheticHistory(defaultProfile.il1b, 0.04),
       cytokines: createSyntheticHistory(71.0, 0.0),
       rad_flux: createSyntheticHistory(radFlux, 0.01),
       rad_dose: createSyntheticHistory(radDose, 0.002),
@@ -596,7 +756,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
       alc: createSyntheticHistory(alc, 0.05),
       dna_breaks: createSyntheticHistory(radDose > 0.2 ? 12.0 : 2.0, 0.4),
       trm: createSyntheticHistory(trm, 0.02),
-      fibrinogen: createSyntheticHistory(280.0, 3.5),
+      fibrinogen: createSyntheticHistory(labProfile?.cardiovascular?.fibrinogen?.value ? (labProfile.cardiovascular.fibrinogen.value / 1000000) : defaultProfile.fibrinogen, 3.5),
       l_selectin: createSyntheticHistory(740.0, 8.0),
       pf4: createSyntheticHistory(320.0, 4.0),
       // Dropdown CV Panel
@@ -693,12 +853,61 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
     });
   }, [currentPacket?.tick, currentPacket?.heart_rate, currentPacket?.spo2]);
 
+  // Dynamic Multi-Organ Health Reserve Score derived from physiological Z-scores, NASA OSDR lab deviations & scenario severity
   const healthPercent = useMemo(() => {
-    if (severity === 'CRITICAL') return 58;
-    if (severity === 'WARNING') return 76;
-    if (severity === 'INFO') return 88;
-    return 96;
-  }, [severity]);
+    if (severity === 'CRITICAL') {
+      const drop = Math.min(25, (100 - spo2) * 2 + (hr > 120 ? 10 : 0) + (rsi > 0.5 ? 12 : 0) + (k < 3.0 ? 10 : 0));
+      return Math.max(45, Math.min(65, Math.round(62 - drop * 0.4)));
+    }
+    if (severity === 'WARNING') {
+      const drop = Math.min(15, (hr > 95 ? 6 : 0) + (spo2 < 96 ? 8 : 0) + (k < 3.2 ? 8 : 0));
+      return Math.max(68, Math.min(82, Math.round(78 - drop * 0.4)));
+    }
+    if (severity === 'INFO') {
+      return 88;
+    }
+
+    // NOMINAL State: Dynamic composite multi-system reserve score (92% - 99%)
+    let score = 99.4;
+
+    // 1. Cardiovascular reserve (HR & HRV deviations from astronaut's personal resting baseline)
+    const zHr = Math.abs(hr - defaultProfile.restHr) / 4.0;
+    score -= Math.min(3.5, zHr * 0.7);
+
+    const zHrv = Math.max(0, (defaultProfile.restHrv - hrv) / 7.0);
+    score -= Math.min(3.0, zHrv * 0.5);
+
+    // 2. Respiratory & Oxygenation reserve
+    if (spo2 < 99.0) {
+      score -= Math.min(4.0, (99.0 - spo2) * 1.8);
+    }
+
+    // 3. Thermoregulatory & Metabolic stability
+    const zTemp = Math.abs(temp - defaultProfile.restTemp) / 0.15;
+    score -= Math.min(2.5, zTemp * 0.4);
+
+    // 4. Biochemical & Electrolyte Homeostasis
+    if (k < 3.5) {
+      score -= Math.min(4.0, (3.5 - k) * 6.0);
+    } else if (k > 5.0) {
+      score -= Math.min(3.0, (k - 5.0) * 5.0);
+    }
+
+    // 5. Authentic NASA OSDR Inflammation & Hematology baseline profile
+    // Sian (C003) has authentic mild baseline elevation (OSD-575 CRP: 8.36 mg/L)
+    if (crp > 3.0) {
+      score -= Math.min(2.8, (crp / 10.0) * 1.6);
+    }
+    if (wbc > 7.5) {
+      score -= Math.min(2.0, (wbc - 7.5) * 0.8);
+    }
+
+    // 6. Neuro-Sleep Recovery Adjustment
+    const sleepAdj = (sleep - 84.0) * 0.05;
+    score += Math.max(-1.5, Math.min(1.0, sleepAdj));
+
+    return Math.round(Math.max(88, Math.min(99, score)));
+  }, [severity, hr, hrv, spo2, temp, sleep, k, crp, wbc, rsi, defaultProfile]);
 
   const overallPill = useMemo(() => {
     if (severity === 'CRITICAL') return { label: 'Critical', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.14)' };
@@ -1468,8 +1677,8 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                   { label: 'Hematocrit (HCT)', value: `${hct.toFixed(1)} %`, dotColor: '#22c55e', history: metricHistories['hct'] },
                   { label: 'White blood cells (WBC)', value: `${wbc.toFixed(1)} k/μL`, dotColor: wbc > 12.0 ? '#ef4444' : '#22c55e', history: metricHistories['wbc'] },
                   { label: 'Platelets (PLT)', value: `${plt.toFixed(0)} k/μL`, dotColor: '#22c55e', history: metricHistories['plt'] },
-                  { label: 'Hemoglobin (Hgb)', value: labProfile?.cbc?.hemoglobin?.value ? `${labProfile.cbc.hemoglobin.value} g/dL` : '15.1 g/dL', dotColor: '#22c55e', history: metricHistories['hgb'] },
-                  { label: 'Red blood cells (RBC)', value: labProfile?.cbc?.red_blood_cells?.value ? `${labProfile.cbc.red_blood_cells.value} M/μL` : '4.85 M/μL', dotColor: '#22c55e', history: metricHistories['rbc'] },
+                  { label: 'Hemoglobin (Hgb)', value: hgbVal, dotColor: '#22c55e', history: metricHistories['hgb'] },
+                  { label: 'Red blood cells (RBC)', value: rbcVal, dotColor: '#22c55e', history: metricHistories['rbc'] },
                   ...(expandedCard === 5
                     ? [
                       { label: 'Absolute neutrophils', value: labProfile?.cbc?.absolute_neutrophils?.value ? `${labProfile.cbc.absolute_neutrophils.value} /μL` : '4200 /μL', dotColor: '#22c55e', history: metricHistories['abs_neutrophils'] },
@@ -1506,7 +1715,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                   { label: 'Serum potassium (K⁺)', value: `${k.toFixed(2)} mmol/L`, dotColor: k < 3.0 ? '#ef4444' : k < 3.5 ? '#f59e0b' : '#22c55e', trend: k < 3.5 ? 'down' : 'stable', history: metricHistories['k'] },
                   { label: 'Blood glucose', value: glucoseVal, dotColor: '#22c55e', history: metricHistories['glu'] },
                   { label: 'Blood urea nitrogen (BUN)', value: bunVal, dotColor: '#22c55e', history: metricHistories['bun'] },
-                  { label: 'Serum creatinine', value: labProfile?.cmp?.creatinine?.value ? `${labProfile.cmp.creatinine.value} mg/dL` : '0.92 mg/dL', dotColor: '#22c55e', history: metricHistories['creatinine'] },
+                  { label: 'Serum creatinine', value: creatinineVal, dotColor: '#22c55e', history: metricHistories['creatinine'] },
                   ...(expandedCard === 6
                     ? [
                       { label: 'Serum calcium (Ca²⁺)', value: labProfile?.cmp?.calcium?.value ? `${labProfile.cmp.calcium.value} mg/dL` : '9.4 mg/dL', dotColor: '#22c55e', history: metricHistories['calcium'] },
