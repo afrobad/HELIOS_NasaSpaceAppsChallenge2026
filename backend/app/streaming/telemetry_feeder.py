@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 from ..core.circular_buffer import BoundedTelemetryBuffer
 from ..core.baselines import BaselineManager
 from ..core.sentry_matrix import SentryMatrixEngine
+from ..core.zscore_evaluator import ZScoreEvaluator
 from ..db.repository import TelemetryRepository
 from ..ai.decision_engine import DecisionEngine
 from ..ai.voice_engine import VoiceEngine
@@ -384,7 +385,15 @@ class TelemetryFeeder:
             for ast_id, crew_recs in self.records_by_astronaut.items():
                 if not crew_recs:
                     continue
-                raw_pkt = crew_recs[self.current_tick % len(crew_recs)]
+
+                # When NOMINAL_CRUISE is active, stay strictly within the 1200 ticks of baseline cruise
+                # so the background loop never drifts into offline scenarios (workout/fatigue/hypokalemia) on its own!
+                if self._active_scenario == "NOMINAL_CRUISE":
+                    nominal_span = min(1200, len(crew_recs))
+                    raw_pkt = crew_recs[self.current_tick % nominal_span]
+                else:
+                    raw_pkt = crew_recs[self.current_tick % len(crew_recs)]
+
                 packet = dict(raw_pkt)
                 self._apply_scenario_telemetry(packet, ast_id)
                 mission_state = packet["mission_state"]
@@ -396,6 +405,15 @@ class TelemetryFeeder:
                 # 2. Evaluate Tier 1 Sentry Matrix
                 baseline = self.baseline_mgr.get_astronaut_baseline(ast_id, mission_state)
                 env = self.baseline_mgr.environmental_baselines
+
+                # Dynamic real-time calculation of z_score_hr and z_score_hrv against personal baseline
+                hr_stat = baseline.get("heart_rate", {"mean": 62.0, "std": 3.8})
+                hrv_stat = baseline.get("hrv_rmssd", {"mean": 65.0, "std": 7.5})
+                current_hr = float(packet.get("heart_rate", hr_stat.get("mean", 62.0)))
+                current_hrv = float(packet.get("hrv_rmssd", hrv_stat.get("mean", 65.0)))
+                packet["z_score_hr"] = ZScoreEvaluator.compute_z_score(current_hr, hr_stat.get("mean", 62.0), hr_stat.get("std", 3.8))
+                packet["z_score_hrv"] = ZScoreEvaluator.compute_z_score(current_hrv, hrv_stat.get("mean", 65.0), hrv_stat.get("std", 7.5))
+
                 severity, confidence, reason = SentryMatrixEngine.evaluate_state(packet, baseline, env)
 
                 # Update packet with evaluated severity
@@ -459,7 +477,12 @@ class TelemetryFeeder:
             self.current_tick = (self.current_tick + 1) % self.total_ticks
             return dispatched_packets[0] if dispatched_packets else None
         else:
-            raw_pkt = self.records[self.current_tick % len(self.records)]
+            if self._active_scenario == "NOMINAL_CRUISE":
+                nominal_span = min(1200, len(self.records))
+                raw_pkt = self.records[self.current_tick % nominal_span]
+            else:
+                raw_pkt = self.records[self.current_tick % len(self.records)]
+
             packet = dict(raw_pkt)
             ast_id = packet["astronaut_id"]
             self._apply_scenario_telemetry(packet, ast_id)
@@ -471,6 +494,14 @@ class TelemetryFeeder:
 
             baseline = self.baseline_mgr.get_astronaut_baseline(ast_id, mission_state)
             env = self.baseline_mgr.environmental_baselines
+
+            hr_stat = baseline.get("heart_rate", {"mean": 62.0, "std": 3.8})
+            hrv_stat = baseline.get("hrv_rmssd", {"mean": 65.0, "std": 7.5})
+            current_hr = float(packet.get("heart_rate", hr_stat.get("mean", 62.0)))
+            current_hrv = float(packet.get("hrv_rmssd", hrv_stat.get("mean", 65.0)))
+            packet["z_score_hr"] = ZScoreEvaluator.compute_z_score(current_hr, hr_stat.get("mean", 62.0), hr_stat.get("std", 3.8))
+            packet["z_score_hrv"] = ZScoreEvaluator.compute_z_score(current_hrv, hrv_stat.get("mean", 65.0), hrv_stat.get("std", 7.5))
+
             severity, confidence, reason = SentryMatrixEngine.evaluate_state(packet, baseline, env)
 
             packet["evaluated_severity"] = severity

@@ -54,8 +54,8 @@ const renderMissionBadge = (stateRaw?: string) => {
     },
     REST: {
       color: '#94a3b8',
-      border: 'rgba(148,163,184,0.25)',
-      bg: 'rgba(148,163,184,0.08)',
+      border: 'rgba(148,163,184,0.12)',
+      bg: 'rgba(30, 41, 59, 0.90)',
       label: 'REST',
       iconPath: 'M22 12h-4l-3 9L9 3l-3 9H2',
     },
@@ -67,7 +67,7 @@ const renderMissionBadge = (stateRaw?: string) => {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '4px',
-        padding: '2px 6px',
+        padding: '2px 7px',
         borderRadius: '4px',
         fontSize: '10px',
         fontWeight: 700,
@@ -95,14 +95,14 @@ const renderSeverityBadge = (severityRaw: string) => {
           display: 'inline-flex',
           alignItems: 'center',
           gap: '4px',
-          padding: '2px 6px',
+          padding: '2px 7px',
           borderRadius: '4px',
           fontSize: '10px',
           fontWeight: 700,
           letterSpacing: '0.04em',
           color: '#ef4444',
-          border: '1px solid rgba(239,68,68,0.45)',
-          background: 'rgba(239,68,68,0.12)',
+          border: '1px solid rgba(239, 68, 68, 0.30)',
+          background: 'rgba(239, 68, 68, 0.35)',
           whiteSpace: 'nowrap',
         }}
       >
@@ -122,14 +122,14 @@ const renderSeverityBadge = (severityRaw: string) => {
           display: 'inline-flex',
           alignItems: 'center',
           gap: '4px',
-          padding: '2px 6px',
+          padding: '2px 7px',
           borderRadius: '4px',
           fontSize: '10px',
           fontWeight: 700,
           letterSpacing: '0.04em',
-          color: '#ff7700',
-          border: '1px solid rgba(255,119,0,0.4)',
-          background: 'rgba(255,119,0,0.1)',
+          color: '#ff881a',
+          border: '1px solid rgba(255, 119, 0, 0.28)',
+          background: 'rgba(255, 119, 0, 0.32)',
           whiteSpace: 'nowrap',
         }}
       >
@@ -148,14 +148,14 @@ const renderSeverityBadge = (severityRaw: string) => {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '4px',
-        padding: '2px 6px',
+        padding: '2px 7px',
         borderRadius: '4px',
         fontSize: '10px',
         fontWeight: 700,
         letterSpacing: '0.04em',
-        color: '#10b981',
-        border: '1px solid rgba(16,185,129,0.35)',
-        background: 'rgba(16,185,129,0.08)',
+        color: '#34d399',
+        border: '1px solid rgba(16, 185, 129, 0.25)',
+        background: 'rgba(16, 185, 129, 0.32)',
         whiteSpace: 'nowrap',
       }}
     >
@@ -422,12 +422,12 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
               {/* POC Labs biomarker strip */}
               <div
                 style={{
-                  background: 'rgba(255,255,255,0.025)',
-                  border: '1px solid var(--hud-border-subtle)',
-                  borderRadius: '4px',
-                  padding: '5px 8px',
+                  background: 'rgba(0, 0, 0, 0.42)',
+                  border: '1px solid rgba(148, 163, 184, 0.18)',
+                  borderRadius: '6px',
+                  padding: '8px 10px',
                   marginBottom: '8px',
-                  fontSize: '10px',
+                  boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.45)',
                 }}
               >
                 <div
@@ -435,14 +435,21 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: '4px',
-                    color: 'var(--hud-text-dim)',
-                    fontWeight: 700,
-                    letterSpacing: '0.04em',
+                    marginBottom: '6px',
                     gap: '6px',
                   }}
                 >
-                  <span style={{ whiteSpace: 'nowrap', fontSize: '10px', color: 'rgba(148, 163, 184, 0.8)' }}>POC LABS</span>
+                  <span
+                    style={{
+                      whiteSpace: 'nowrap',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      letterSpacing: '0.05em',
+                      color: 'rgba(148, 163, 184, 0.85)',
+                    }}
+                  >
+                    POC LABS
+                  </span>
                   {telemetry?.computed_rsi &&
                   (telemetry.computed_rsi >= 0.35 ||
                     (telemetry.radiation_flux && telemetry.radiation_flux >= 10.0)) ? (
@@ -453,9 +460,9 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                           telemetry.computed_rsi >= 1.0
                             ? 'var(--hud-critical)'
                             : 'var(--hud-orange)',
-                        fontWeight: 800,
+                        fontWeight: 700,
                         whiteSpace: 'nowrap',
-                        fontSize: '10px',
+                        fontSize: '11px',
                       }}
                     >
                       RSI {telemetry.computed_rsi.toFixed(2)}
@@ -465,9 +472,9 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                       className="font-mono-tabular"
                       style={{
                         color: 'var(--hud-critical)',
-                        fontWeight: 800,
+                        fontWeight: 700,
                         whiteSpace: 'nowrap',
-                        fontSize: '10px',
+                        fontSize: '11px',
                       }}
                     >
                       EPI {telemetry.computed_epi.toFixed(2)}
@@ -475,13 +482,25 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   ) : (
                     <span
                       style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
                         color: 'var(--hud-nominal)',
                         fontWeight: 600,
                         whiteSpace: 'nowrap',
-                        fontSize: '10px',
+                        fontSize: '11px',
                       }}
                     >
-                      NOMINAL
+                      <span
+                        style={{
+                          width: '5px',
+                          height: '5px',
+                          borderRadius: '50%',
+                          backgroundColor: 'var(--hud-nominal)',
+                          display: 'inline-block',
+                        }}
+                      />
+                      In Range
                     </span>
                   )}
                 </div>
@@ -491,17 +510,17 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(4, 1fr)',
-                    gap: '4px',
+                    gap: '6px',
                     textAlign: 'left',
-                    marginBottom: '4px',
-                    fontSize: '9px',
+                    marginBottom: '6px',
                   }}
                 >
                   <div>
-                    <div style={{ color: 'var(--hud-text-dim)' }}>K⁺</div>
+                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>K⁺</div>
                     <div
                       className="font-mono-tabular"
                       style={{
+                        fontSize: '13px',
                         fontWeight: 700,
                         color:
                           (telemetry?.potassium ?? 4.2) < 3.5
@@ -515,10 +534,11 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--hud-text-dim)' }}>IL-6</div>
+                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>IL-6</div>
                     <div
                       className="font-mono-tabular"
                       style={{
+                        fontSize: '13px',
                         fontWeight: 700,
                         color:
                           (telemetry?.il_6 ?? 6.2) >= 15.0
@@ -532,10 +552,11 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--hud-text-dim)' }}>HCT</div>
+                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>HCT</div>
                     <div
                       className="font-mono-tabular"
                       style={{
+                        fontSize: '13px',
                         fontWeight: 700,
                         color:
                           (telemetry?.hematocrit ?? 44.0) >= 50.0
@@ -545,14 +566,16 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                             : '#ffffff',
                       }}
                     >
-                      {telemetry?.hematocrit ? telemetry.hematocrit.toFixed(1) : '44.0'}%
+                      {telemetry?.hematocrit ? telemetry.hematocrit.toFixed(1) : '44.0'}
+                      <span style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(148, 163, 184, 0.75)', marginLeft: '1px' }}>%</span>
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--hud-text-dim)' }}>WBC</div>
+                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>WBC</div>
                     <div
                       className="font-mono-tabular"
                       style={{
+                        fontSize: '13px',
                         fontWeight: 700,
                         color:
                           (telemetry?.wbc_count ?? 6.8) >= 14.0 ||
@@ -563,7 +586,8 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                             : '#ffffff',
                       }}
                     >
-                      {telemetry?.wbc_count ? telemetry.wbc_count.toFixed(1) : '6.8'}k
+                      {telemetry?.wbc_count ? telemetry.wbc_count.toFixed(1) : '6.8'}
+                      <span style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(148, 163, 184, 0.75)', marginLeft: '1px' }}>k</span>
                     </div>
                   </div>
                 </div>
@@ -573,18 +597,18 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(4, 1fr)',
-                    gap: '4px',
+                    gap: '6px',
                     textAlign: 'left',
-                    borderTop: '1px solid rgba(255,255,255,0.05)',
-                    paddingTop: '4px',
-                    fontSize: '9px',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    paddingTop: '6px',
                   }}
                 >
                   <div>
-                    <div style={{ color: 'var(--hud-text-dim)' }}>FLUX</div>
+                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>FLUX</div>
                     <div
                       className="font-mono-tabular"
                       style={{
+                        fontSize: '13px',
                         fontWeight: 700,
                         color:
                           (telemetry?.radiation_flux ?? 0.05) >= 100.0
@@ -602,10 +626,11 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--hud-text-dim)' }}>ALC</div>
+                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>ALC</div>
                     <div
                       className="font-mono-tabular"
                       style={{
+                        fontSize: '13px',
                         fontWeight: 700,
                         color:
                           (telemetry?.lymphocyte_count ?? 2.2) < 1.0
@@ -621,10 +646,11 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--hud-text-dim)' }}>DOSE</div>
+                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>DOSE</div>
                     <div
                       className="font-mono-tabular"
                       style={{
+                        fontSize: '13px',
                         fontWeight: 700,
                         color:
                           (telemetry?.radiation_dose_gy ?? 0) >= 1.0
@@ -635,15 +661,17 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                       }}
                     >
                       {telemetry?.radiation_dose_gy !== undefined
-                        ? `${telemetry.radiation_dose_gy.toFixed(2)}Gy`
-                        : '0.00Gy'}
+                        ? `${telemetry.radiation_dose_gy.toFixed(2)}`
+                        : '0.00'}
+                      <span style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(148, 163, 184, 0.75)', marginLeft: '1px' }}>Gy</span>
                     </div>
                   </div>
                   <div>
-                    <div style={{ color: 'var(--hud-text-dim)' }}>PLT</div>
+                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>PLT</div>
                     <div
                       className="font-mono-tabular"
                       style={{
+                        fontSize: '13px',
                         fontWeight: 700,
                         color:
                           (telemetry?.platelet_count ?? 240.0) >= 380.0 ||
@@ -657,13 +685,13 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                       {telemetry?.platelet_count
                         ? telemetry.platelet_count.toFixed(0)
                         : '240'}
-                      k
+                      <span style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(148, 163, 184, 0.75)', marginLeft: '1px' }}>k</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Bottom: Z-score + Triage button */}
+              {/* Bottom: Z-score + Telemetry / Triage action button */}
               <div
                 style={{
                   display: 'flex',
@@ -671,22 +699,50 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   alignItems: 'center',
                   paddingTop: '6px',
                   borderTop: '1px solid var(--hud-border-subtle)',
-                  marginTop: '8px',
+                  marginTop: '6px',
                 }}
               >
                 <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.75)' }}>
-                  {telemetry && Math.abs(telemetry.z_score_hr) >= 1.5 ? (
+                  {telemetry &&
+                  Math.abs(telemetry.z_score_hr) >= 2.0 &&
+                  !(telemetry.mission_state === 'WORKOUT' && severity === 'NOMINAL') ? (
                     <span
                       className="font-mono-tabular"
-                      style={{ color: 'var(--hud-orange)', fontWeight: 600 }}
+                      style={{
+                        color:
+                          Math.abs(telemetry.z_score_hr) >= 3.0
+                            ? 'var(--hud-critical)'
+                            : 'var(--hud-orange)',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
                     >
-                      Δ{' '}
-                      {telemetry.z_score_hr >= 0
-                        ? `+${telemetry.z_score_hr.toFixed(1)}σ`
-                        : `${telemetry.z_score_hr.toFixed(1)}σ`}
+                      <span>
+                        {telemetry.z_score_hr >= 0 ? '▲ HR Elevated' : '▼ HR Depressed'}
+                      </span>
+                      <span style={{ fontSize: '10px', opacity: 0.85 }}>
+                        (
+                        {telemetry.z_score_hr >= 0
+                          ? `+${telemetry.z_score_hr.toFixed(1)}σ`
+                          : `${telemetry.z_score_hr.toFixed(1)}σ`}
+                        )
+                      </span>
                     </span>
                   ) : (
-                    <span>BASELINE</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <span
+                        style={{
+                          width: '4px',
+                          height: '4px',
+                          borderRadius: '50%',
+                          backgroundColor: 'rgba(148, 163, 184, 0.5)',
+                          display: 'inline-block',
+                        }}
+                      />
+                      Baseline Calibrated
+                    </span>
                   )}
                 </div>
 
@@ -696,9 +752,45 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                     onOpenTriage(crew.id);
                   }}
                   className="hud-btn"
-                  style={{ padding: '3px 10px', minHeight: '24px', fontSize: '10px' }}
+                  style={{
+                    padding: '4px 12px',
+                    minHeight: '26px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    borderRadius: '4px',
+                    background: isCritical
+                      ? 'rgba(239, 68, 68, 0.25)'
+                      : isWarning
+                      ? 'rgba(255, 119, 0, 0.25)'
+                      : 'rgba(255, 255, 255, 0.08)',
+                    border: isCritical
+                      ? '1px solid rgba(239, 68, 68, 0.60)'
+                      : isWarning
+                      ? '1px solid rgba(255, 119, 0, 0.60)'
+                      : '1px solid rgba(148, 163, 184, 0.35)',
+                    color: isCritical
+                      ? '#fca5a5'
+                      : isWarning
+                      ? '#fdba74'
+                      : '#f1f5f9',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.35)',
+                    transition: 'all 0.15s ease',
+                  }}
                 >
-                  TRIAGE
+                  {isCritical || isWarning ? (
+                    <>
+                      <span>Triage Alert</span>
+                      <span style={{ fontSize: '11px' }}>→</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Telemetry</span>
+                      <span style={{ fontSize: '11px', opacity: 0.85 }}>→</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

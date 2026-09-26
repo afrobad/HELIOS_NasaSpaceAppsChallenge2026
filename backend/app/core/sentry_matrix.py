@@ -160,6 +160,8 @@ class SentryMatrixEngine:
         z_scores = ZScoreEvaluator.evaluate_telemetry_point(telemetry, baseline)
         z_hr = z_scores.get("z_heart_rate", 0.0)
         z_hrv = z_scores.get("z_hrv_rmssd", 0.0)
+        telemetry["z_score_hr"] = z_hr
+        telemetry["z_score_hrv"] = z_hrv
         co2_warn = env_thresholds.get("cabin_co2_mmhg", {}).get("warning_threshold", 3.0)
 
         # Level 2 WARNING Conditions: 2+ correlated deviations or CO2 warning

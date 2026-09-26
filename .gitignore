@@ -28,6 +28,9 @@ data/astronaut_health.db-wal
 astronaut_health.db
 astronaut_health.db-shm
 astronaut_health.db-wal
+*.db-wal
+*.db-shm
+data/*.db*
 
 # ── IDE / OS ─────────────────────────────────────────
 .vscode/

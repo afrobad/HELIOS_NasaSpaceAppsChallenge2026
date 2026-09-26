@@ -541,6 +541,7 @@ Comprehensive project engineering and aerospace clinical documentation is organi
 
 | Document | Focus & Scope |
 |---|---|
+| 🌟 [Project Master Documentation](documentation/PROJECT_MASTER_DOCUMENTATION.md) | **Unified master guide**: deep-space reality, stack breakdown, 149 NASA OSDR biomarkers, 18 flight scenario calculations, and verification. |
 | 📑 [Astronaut Health JARVIS System Documentation](documentation/Astronaut_Health_JARVIS_System_Documentation.md) | Full architectural specifications, clinical decision workflows, IMM/ExMC alignment, and mathematical sentry models. |
 | 🛡️ [NASA Flight Software Architecture Standard](documentation/NASA_Flight_Software_Architecture_Standard.md) | NASA-STD-8739.8 software engineering standards, memory boundedness, and high-reliability design patterns. |
 | 📊 [Dataset Coverage Analysis](documentation/dataset_coverage_analysis.md) | Breakdown of NASA OSDR OSD-575 / OSD-569 human spaceflight multi-omics and clinical chemistry panels. |

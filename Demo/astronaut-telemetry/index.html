@@ -1,0 +1,194 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Astronaut Health Telemetry Simulation</title>
+<style>
+:root{--bg:#f3f5f9;--card:#fff;--ink:#0e1a2b;--mut:#5a6a80;--line:#dde3ec;--acc:#2456d8;--ok:#15935a;--warn:#c47a06;--bad:#d32f2f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a1220;--card:#121c2f;--ink:#e6edf7;--mut:#8b9bb3;--line:#22304a;--acc:#5b8cff;--ok:#38d68a;--warn:#f0b040;--bad:#ff6b6b}}
+:root[data-theme="dark"]{--bg:#0a1220;--card:#121c2f;--ink:#e6edf7;--mut:#8b9bb3;--line:#22304a;--acc:#5b8cff;--ok:#38d68a;--warn:#f0b040;--bad:#ff6b6b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+small,.mut{color:var(--mut);font-size:11px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 10px}
+button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 14px;background:var(--bg);border-bottom:1px solid var(--line)}
+@media(min-width:700px){.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5}}
+.top h1{font-size:16px;margin:0;flex:1 1 100%}
+.grp2{display:flex;flex-wrap:wrap;gap:6px}
+#dv{margin-left:auto;border-color:var(--acc);color:var(--acc);font-weight:600}
+.grid,.grid5{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;padding:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.card h3{margin:0 0 6px;font-size:14px}
+.row{display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--line);font-size:13px}
+.n{flex:1}.val{font-variant-numeric:tabular-nums;font-weight:600}
+.sl{width:64px;text-align:right}.sp{color:var(--acc)}
+.d{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--ok);flex:none}
+.d.s1{background:var(--warn)}.d.s2{background:var(--bad)}
+.tag{font-size:9px;padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
+.tC{color:var(--acc)}.tP{color:var(--warn)}.tS{color:var(--ok)}
+.split{display:grid;grid-template-columns:230px 1fr;gap:12px;padding:14px}
+.side{display:flex;flex-direction:column;gap:6px}.side button{text-align:left;display:flex;flex-direction:column}.side button.on small{color:#fff}
+@media(max-width:700px){.split{grid-template-columns:1fr}.side{flex-direction:row;overflow-x:auto}.side button{white-space:nowrap}}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;align-content:start}
+.big{font-size:28px;font-weight:700;margin:6px 0}
+.wrap{overflow-x:auto;padding:14px}
+table{width:100%;border-collapse:collapse;font-size:13px;background:var(--card)}
+th,td{padding:6px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.grp td{background:var(--bg);font-weight:700}
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;padding:14px;align-items:start}
+.lane h2{font-size:15px;margin:0;display:flex;flex-direction:column}.lane .card{margin-top:10px}
+.ringrow{display:flex;gap:10px;align-items:center}.ringrow h3{display:flex;flex-direction:column;margin:0}
+.ring{--p:100;width:44px;height:44px;border-radius:50%;background:conic-gradient(var(--ok) calc(var(--p)*1%),var(--line) 0);display:grid;place-items:center}
+.ring span{width:34px;height:34px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-size:16px}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px;margin-top:10px}
+.chip{border:1px solid var(--line);border-left:3px solid var(--ok);border-radius:8px;padding:5px 7px;display:flex;flex-direction:column;font-size:11px}
+.chip b{font-size:14px}.chip.s1{border-left-color:var(--warn)}.chip.s2{border-left-color:var(--bad)}
+.chip.fl{animation:fl .9s}@keyframes fl{from{background:var(--acc)}}
+footer{padding:0 14px 14px}pre{white-space:pre-wrap;word-break:break-all;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;margin:4px 0}
+#dr{position:fixed;top:0;right:0;bottom:0;width:min(380px,92vw);transform:translateX(105%);transition:transform .25s;background:var(--card);border-left:1px solid var(--line);overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:20;box-sizing:border-box}
+#dr.open{transform:none}
+.dh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.dh h2{margin:0;font-size:16px;display:flex;flex-direction:column}
+#dr h3{font-size:13px;margin:16px 0 6px}.dev{border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin-bottom:6px;display:flex;flex-direction:column}
+.sc{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1 1 100%}
+.kpi{padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+#ra{font-weight:600}#ra.wr{border-color:var(--warn);color:var(--warn)}#ra.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+.md{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:30;justify-content:center;overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.md.open{display:flex}.mb{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;width:min(720px,100%);margin:auto 0;box-sizing:border-box}
+.al{border-left:4px solid var(--warn);padding:6px 12px;margin:12px 0;background:var(--bg);border-radius:8px}.al.s2{border-left-color:var(--bad)}
+.al ol{margin:4px 0;padding-left:20px}.al p{margin:4px 0}.al b{display:flex;flex-direction:column}
+@media(min-width:1000px){body{padding-right:320px}#dr{transform:none;width:320px;z-index:6}#dv,#dx{display:none}}
+</style></head><body>
+<header class="top"><h1>🛰️ Astronaut Health Telemetry <small>· simulated devices · time compressed for demo</small></h1>
+<div class="grp2" id="tabs"></div><span class="kpi" id="mon"></span><button id="ra"></button><button id="dv">📡 Devices</button><div class="sc"><b>Scenario</b><div class="grp2" id="modes"></div></div><div class="sc mut" id="scn"></div></header>
+<main id="app"></main>
+<footer><small>Latest telemetry packet (Telemetry Processor output)</small><pre id="pkt"></pre>
+<small>Physiological simulation: baselines + coupled state effects + mean-reverting noise. No real data.</small></footer>
+<aside id="dr"></aside><div class="md" id="md"></div>
+<script>
+const $=s=>document.querySelector(s);
+const CATS=[['❤️','Cardiovascular'],['🫁','Respiratory'],['🌡️','Temperature'],['🧠','Neurological'],['💧','Hydration / Circulation'],['⚡','Metabolic'],['🏃','Physical Capability'],['😴','Sleep / Fatigue'],['🦴','Bone / Musculoskeletal'],['☢️','Radiation']];
+const DEV={a:'Astroskin',b:'LifeGuard / CPOD',c:'SpaceWear',d:'ECG / wearable ECG sensor',e:'Pulse oximeter / PPG sensor',f:'Blood-pressure monitor',g:'Respiratory inductance plethysmography (RIP) belt',h:'Capnograph / capnometer',i:'PUMA metabolic analyzer',j:'Core-temperature sensor / T-Mini',k:'EEG system / EEG headband',l:'IMU / accelerometer',m:'Actiwatch / actigraph',n:'Continuous glucose monitor (CGM)',o:'Bioimpedance system',p:'Blood chemistry analyzer',q:'Blood-gas analyzer',r:'Urinalysis system',s:'EMG system',t:'Dynamometer / force measurement system',u:'DXA / bone-density scanner',v:'ARED instrumentation',w:'Radiation dosimeter',x:'Particle radiation detector'};
+const RM={b:'e',c:'f',d:'i',e:'j',f:'k',g:'l',h:'m',i:'s',j:'t',k:'v',l:'o',m:'r',n:'p',o:'u',p:'w',q:'x'},OV={ecg:'d',arr:'b',rr:'g',vent:'g',co2:'h',skin:'c',glu:'n',ph:'q'};
+// scenario vectors: [activity,stress,sleep,solarFlare,microgravity,isolation,deepSpaceRadiation]
+const SC=[['Rest',[0,0,0,0,0,0,0],'Resting crew member, baseline values'],
+['Sleep',[0,0,1,0,0,0,0],'Sleep period: lower heart rate and temperature, sleep metrics active'],
+['Exercise',[1,.2,0,0,0,0,0],'ARED / treadmill session: heart, breathing, temperature and loading rise'],
+['Stress',[.1,1,0,0,0,.3,0],'Acute stress event: cardiovascular and cognitive load'],
+['Microgravity (LEO)',[0,.1,0,0,1,.3,.2],'Low Earth orbit: fluid shift, bone and muscle loss, mild radiation'],
+['Moon expedition',[.4,.2,0,0,.6,.5,.5],'About 1/6 g, no atmosphere: partial unloading, higher radiation'],
+['Mars expedition',[.4,.4,0,0,.8,.9,.8],'Months-long transit + surface stay: long isolation, high cumulative radiation'],
+['Saturn moon (Titan)',[.3,.5,0,0,.9,1,.7],'Years-long transit: extreme isolation, communication delay, low gravity'],
+['Uranus moon (Titania)',[.3,.7,0,0,1,1,1],'Longest mission: deep-space radiation, isolation, delay, prolonged unloading'],
+['Radiation exposure',[0,.3,0,.7,.3,.3,.8],'Heavy particle exposure (galactic cosmic rays + particle events)'],
+['Solar flare',[0,.3,0,1,0,.2,.3],'Solar particle event: radiation spike, shelter required']];
+const MD={},SN={};SC.forEach(x=>{MD[x[0]]=x[1];SN[x[0]]=x[2]});
+// effects of [microgravity, isolation, deep-space radiation] by metric
+const FX2={hr:[-4,4,0],bp:[-6,6,0],perf:[-.4,-.2,0],arr:[.2,1,.6],rr:[0,1,0],eeg:[-.4,.4,-.3],cons:[0,-.1,-.2],cog:[-3,-8,-4],rsp:[10,25,12],crd:[-8,-2,0],bw:[-3,0,0],bv:[-.5,0,0],uo:[10,-5,0],mass:[-1.5,-1,0],gfr:[-4,0,-6],glu:[4,10,0],k:[0,.1,0],bto:[.25,0,.05],met:[-4,-3,0],act:[-40,-30,0],mob:[-10,-3,0],exc:[-8,-2,0],grip:[-5,-1,0],emg:[-8,-2,0],sdur:[-1,-.8,-.2],sstg:[-4,-6,0],sq:[-8,-12,-3],fat:[.6,1.6,.8],circ:[.5,1,0],bmd:[-.04,0,-.01],mm:[-1.5,-.3,0],load:[-.1,0,0],dr:[0,0,25],sp:[0,0,.6],cr:[0,0,1.4],np:[0,0,5]};
+// [threat if below baseline, threat if above baseline]
+const KB={ecg:['Very long R-R: bradycardia or conduction block','Short R-R: tachycardia or cardiac strain'],hr:['Bradycardia: dizziness and fainting risk','Tachycardia: dehydration, infection, stress or arrhythmia risk'],bp:['Hypotension: orthostatic intolerance, fainting','Hypertension: stroke and cardiac strain risk'],arr:['','Frequent ectopic beats: arrhythmia risk from stress, electrolytes or radiation'],perf:['Poor peripheral perfusion: shock, cold stress or fluid shift','Vasodilation: heat load or fever'],spo2:['Hypoxemia: low cabin O₂, CO₂ build-up or lung problem',''],rr:['Slow breathing: sedation, CO₂ retention','Fast breathing: exertion, hypoxia, high CO₂ or anxiety'],o2:['Low cabin O₂: hypoxia risk','High O₂: fire hazard and oxygen toxicity'],co2:['Possible sensor or scrubber fault','CO₂ build-up: headache, confusion, poor judgment'],vent:['Hypoventilation: CO₂ retention','Hyperventilation or high exertion demand'],core:['Hypothermia risk','Hyperthermia, heat stroke or fever'],skin:['Cold exposure or poor perfusion','Heat load or suit thermal issue'],eeg:['Brain slowing: drowsiness, hypoxia, fatigue','Fast activity: stress, anxiety, seizure risk'],cons:['Reduced alertness: hypoxia, CO₂ toxicity or medical emergency',''],cog:['Cognitive decline: fatigue, isolation, CO₂ or radiation effects',''],rsp:['','Slow reactions: fatigue, stress or hypoxia; higher task-error risk'],crd:['Poor coordination: vestibular disturbance, fatigue, muscle loss',''],bw:['Dehydration','Fluid overload or fluid shift toward the head'],mass:['Weight loss: under-nutrition or muscle loss','Weight gain or fluid retention'],bv:['Reduced blood volume: orthostatic intolerance','Volume overload'],uo:['Low output: dehydration, kidney stress, stone risk','High output: diuresis from fluid shift'],gfr:['Reduced kidney filtration: dehydration, stones, kidney injury','Hyperfiltration: recheck hydration'],glu:['Hypoglycemia: weakness and confusion','Hyperglycemia: stress response or insulin resistance'],na:['Hyponatremia: confusion, nausea','Hypernatremia: dehydration'],k:['Hypokalemia: arrhythmia and cramps','Hyperkalemia: dangerous arrhythmia'],ph:['Acidosis: CO₂ retention or metabolic stress','Alkalosis: hyperventilation'],met:['Low metabolic rate: under-fueling or hypothermia','High rate: exertion, fever or stress'],act:['Low activity: deconditioning, bone and muscle loss','Overexertion'],mob:['Reduced mobility: stiffness, deconditioning, injury risk',''],exc:['Reduced aerobic capacity: cardiovascular deconditioning',''],emg:['Weak muscle activation: atrophy','High muscle tension: strain or overexertion'],grip:['Loss of muscle strength (sarcopenia)',''],sdur:['Sleep deprivation: errors, mood and immune impact','Oversleeping: illness or low mood'],sstg:['Poor sleep architecture',''],sq:['Poor sleep quality: noise, circadian misalignment, stress',''],fat:['','High fatigue: performance and safety risk'],circ:['Phase advance','Circadian misalignment: insomnia and mood problems'],bmd:['Bone loss: fracture and kidney-stone risk',''],bto:['Low bone turnover','High bone resorption: rapid bone loss'],mm:['Muscle atrophy',''],load:['Too little skeletal loading: faster bone and muscle loss','Overload: stress-fracture and injury risk'],td:['','Cumulative dose nearing limit: cancer, cataract, CNS risk'],dr:['','High dose rate: acute radiation exposure risk'],sp:['','Solar particle event: acute radiation syndrome risk'],cr:['','Elevated cosmic rays: chronic cancer, CNS and cardiovascular risk'],np:['','Neutron exposure: high biological damage, tissue injury']};
+// [steps if below baseline, steps if above baseline], separated by |
+const ACT=[['Sit or lie down; raise legs if dizzy|Check pulse manually and recheck BP after 5 min|Drink 250-500 mL fluid, review medications|Contact the flight surgeon if HR is under 40, fainting or chest pain occurs','Stop activity and rest 10 min; breathe slowly|Drink water; avoid caffeine|Recheck with a second device or manual pulse|Contact the flight surgeon if high at rest, palpitations, chest pain or irregular rhythm persist'],
+['Check cabin O₂/CO₂ and scrubber status now|Move to a fresh-air module; sit upright and breathe slowly|Recheck SpO₂ on another finger or sensor|Contact the flight surgeon and prepare supplemental O₂ if SpO₂ stays under 92%','Stop exertion; breathe in slow 4-6 s cycles|Check CO₂ scrubber, fans and filters|Move to a well-ventilated module|Escalate if headache or confusion appears or CO₂ stays above the limit'],
+['Add insulation or raise cabin/suit heat|Warm drinks; remove wet garments|Recheck core temperature after 15 min|Escalate if core is under 36 °C or shivering persists','Stop exercise; cool the suit or cabin|Drink fluids|Check for fever and take antipyretic per protocol|Escalate if core is above 38.5 °C or confusion appears'],
+['Stop hazardous tasks and secure yourself|Check cabin O₂/CO₂ and sleep debt|Rest briefly, then repeat the cognitive test|Alert a crewmate and ground immediately if responsiveness drops','Pause the task; do 5 min of controlled breathing|Reduce stimulation and caffeine|Retest after rest|Escalate if persistent or seizure-like signs occur'],
+['Drink 500 mL electrolyte fluid over 30 min|Review water and salt intake|Log urine color and volume|Escalate if urine output is under 25 mL/h or dizziness persists','Check fluid intake and facial puffiness (fluid shift)|Use lower-body negative pressure or leg exercise per protocol|Monitor weight and BP|Escalate if swelling or breathlessness appears'],
+['Take 15 g fast carbohydrate if glucose is low; correct electrolytes per protocol|Recheck in 15 min|Review meal and exercise timing|Escalate if confusion, weakness or arrhythmia occurs','Rest, hydrate and reduce stress|Avoid sugar load|Recheck with a fresh sample|Escalate if glucose exceeds 180 mg/dL or electrolytes are far out of range'],
+['Schedule an extra resistive or aerobic session|Check for pain or injury|Do a mobility and stretching routine|Escalate if strength or mobility keeps falling','Reduce load and take a rest day|Stretch, hydrate, eat protein|Check exercise form and equipment settings|Escalate if pain or sustained strain occurs'],
+['Protect an 8 h sleep window; dim lights and reduce noise|Use eye mask and earplugs; keep a fixed schedule|Avoid caffeine 6 h before sleep|Report to the flight surgeon if under 5.5 h for 2+ nights','Adjust schedule and use bright light in the morning|Take short naps (max 20 min)|Report mood and fatigue to ground|Hand off critical tasks if fatigue stays high'],
+['Add resistive exercise (ARED) sessions|Review vitamin D, calcium and protein intake|Track with DXA and bone markers|Ask the flight surgeon about bone-protective medication','Reduce excess load and rest|Check for pain or fracture signs|Review calcium and vitamin D|Escalate if pain or markers stay high'],
+['Verify the dosimeter is working|Recalibrate or swap the unit|Cross-check with a second detector|Log the event','Move to the shielded storm shelter (water and supply walls)|Limit EVA and time in exposed areas|Log the dose and follow the cumulative-limit plan|Contact ground; watch for nausea, fatigue or skin redness']];
+const fl=()=>MM.filter(m=>st(m)>0).sort((a,b)=>st(b)-st(a));
+function hdr(){const on=MM.filter(m=>now-m.l<=(m.t=='C'?3:m.t=='P'?PI*2:SI*2)).length,f=fl(),r=$('#ra');$('#mon').innerHTML=`Monitored <b>${on}/${MM.length}</b>`;r.className=f.some(m=>st(m)==2)?'bad':f.length?'wr':'';r.innerHTML=`⚠ Risk alerts <b>${f.length}</b>`;$('#scn').textContent=mode+' — '+SN[mode]}
+function devs(){const ks=Object.keys(DEV);$('#dr').innerHTML=`<div class="dh"><h2>Devices<small>${ks.length} devices · ${MM.length} metrics</small></h2><button id="dx">✕ Close</button></div>`+ks.map(k=>{const a=MM.filter(m=>m.d==k),w=Math.max(0,...a.map(st)),ty=[...new Set(a.map(m=>m.t))].map(t=>({C:'Continuous',P:'Periodic',S:'Scheduled'}[t])).join(' + ');return `<div class="dev"><b><i class="d s${w}"></i> ${DEV[k]}</b><small>${ty}</small><small>${a.map(m=>m.n).join(' · ')}</small></div>`}).join('')}
+function modal(){const f=fl();$('#md').innerHTML=`<div class="mb"><div class="dh"><h2>Risk alerts (${f.length})<small>Deviation from baseline · snapshot ${new Date().toLocaleTimeString()} · ${mode}</small></h2><div><button id="mr">↻ Refresh</button> <button id="mx">✕ Close</button></div></div>`+(f.length?f.map(m=>{const hi=m.v>m.b,sv=st(m),k=KB[m.id]||['',''];return `<div class="al s${sv}"><b>${dot(m)} ${m.n}: ${fv(m)} ${m.u}<small>${hi?'▲ above':'▼ below'} baseline (${m.b}) · normal ${m.lo} to ${m.hi} · ${['','WATCH','ALERT'][sv]} · ${DEV[m.d]}</small></b><p><u>Potential threat:</u> ${k[hi?1:0]||'Atypical deviation: verify the sensor first, then treat as a real change.'}</p><u>Recommended actions:</u><ol>${ACT[m.c][hi?1:0].split('|').map(x=>`<li>${x}</li>`).join('')}</ol></div>`}).join(''):'<p>All metrics are near baseline. No risks detected.</p>')+'<small>Educational simulation only, not medical advice. In a real mission, follow flight-surgeon protocols.</small></div>'}
+// cat,id,name,unit,type(C/P/S),baseline,noise,normalLo,normalHi,device,effects[activity,stress,sleep,solarFlare]
+const M=[
+[0,'ecg','ECG (R-R interval)','ms','C',833,8,600,1200,'a'],
+[0,'hr','Heart rate','bpm','C',72,1.2,40,130,'a',[45,18,-14,0]],
+[0,'bp','Blood pressure','mmHg','P',118,3,90,150,'c',[22,15,-10,0]],
+[0,'arr','Arrhythmia (PVC burden)','ev/h','C',1.5,.4,-1,10,'a',[2,4,-.5,1]],
+[0,'perf','Peripheral perfusion','PI %','C',3.2,.1,1,6,'b',[-.6,-.8,.4,0]],
+[1,'spo2','SpO₂','%','C',98,.2,92,101,'b',[-1.2,-.5,-.3,0]],
+[1,'rr','Respiratory rate','br/min','C',15,.5,8,32,'a',[12,4,-3,0]],
+[1,'o2','O₂ (cabin)','%','C',21,.04,19.5,23.5,'d'],
+[1,'co2','CO₂ (cabin)','mmHg','C',3.2,.08,0,5.3,'d',[.5,0,.2,0]],
+[1,'vent','Ventilation','L/min','C',7.5,.4,4,40,'d',[20,5,-2,0]],
+[2,'core','Core temperature','°C','C',37,.04,36,38.5,'e',[.9,.2,-.4,0]],
+[2,'skin','Skin temperature','°C','C',33.5,.12,30,36,'a',[.8,-.5,.4,0]],
+[3,'eeg','EEG dominant freq','Hz','C',10,.25,3,14,'f',[1,1.5,-5,0]],
+[3,'cons','Consciousness (GCS)','GCS','C',14.9,.04,12,15.5,'f',[0,0,-1.2,0]],
+[3,'cog','Cognitive performance','%','P',92,1.5,60,100,'f',[-3,-8,-15,-2]],
+[3,'rsp','Response ability (reaction)','ms','P',260,8,180,350,'f',[10,35,60,10]],
+[3,'crd','Coordination','%','P',94,1,70,102,'g',[-2,-6,-10,0]],
+[4,'bw','Body water','%','P',60,.2,50,66,'l',[-.6,-.3,0,0]],
+[4,'mass','Body mass','kg','S',75,.1,68,82,'l'],
+[4,'bv','Blood volume','L','P',4.9,.04,4.2,5.7,'l',[-.1,0,0,0]],
+[4,'uo','Urine output','mL/h','P',60,4,25,130,'m',[-15,-10,-25,0]],
+[4,'gfr','Renal function (eGFR)','mL/min','P',100,1.5,75,125,'m'],
+[5,'glu','Glucose','mg/dL','C',92,2,65,125,'n',[-10,15,-5,0]],
+[5,'na','Sodium','mmol/L','P',140,.5,133,147,'n'],
+[5,'k','Potassium','mmol/L','P',4.2,.06,3.4,5.1,'n',[.1,.15,0,0]],
+[5,'ph','Blood gases (pH)','pH','P',7.4,.008,7.33,7.47,'n',[-.02,-.01,0,0]],
+[5,'met','Metabolic rate','kcal/h','C',75,2.5,50,300,'d',[130,25,-15,0]],
+[6,'act','Activity','cnt/min','C',120,12,-50,700,'g',[500,50,-100,0]],
+[6,'mob','Mobility (range of motion)','%','P',90,.8,75,101,'g'],
+[6,'exc','Exercise capacity','mL/kg/min','S',42,.3,34,56,'k'],
+[6,'emg','Muscle activity (EMG)','µV','C',40,4,5,260,'i',[150,20,-25,0]],
+[6,'grip','Muscle strength (grip)','kg','S',45,.4,36,56,'j'],
+[7,'sdur','Sleep duration','h','S',7,.15,5.5,9,'h'],
+[7,'sstg','Sleep stages (REM+deep)','%','S',45,1,30,60,'h'],
+[7,'sq','Sleep quality','%','S',85,1.5,65,101,'h'],
+[7,'fat','Fatigue index','/10','P',3,.2,-1,7,'h',[1.5,1.5,-2.5,0]],
+[7,'circ','Circadian rhythm shift','h','P',0,.1,-2,2,'h'],
+[8,'bmd','Bone mineral density','g/cm²','S',1.2,.004,1.03,1.4,'o'],
+[8,'bto','Bone turnover (CTX)','ng/mL','S',.4,.02,.1,.8,'n'],
+[8,'mm','Muscle mass','kg','S',32,.1,26,38,'o'],
+[8,'load','Muscle/bone loading','×BW','C',.15,.03,-1,2.6,'k',[1.6,0,-.05,0]],
+[9,'td','Total dose','mSv','C',12.4,0,0,50,'p'],
+[9,'dr','Dose rate','µSv/h','C',22,1.2,0,60,'p',[0,0,0,140]],
+[9,'sp','Solar particles','pfu','C',.3,.04,-1,10,'q',[0,0,0,60]],
+[9,'cr','Cosmic radiation','p/cm²/s','C',2.4,.08,1,4,'q'],
+[9,'np','Neutron / particle exposure','µSv/h','C',5,.3,0,15,'q',[0,0,0,15]]];
+const DEC={td:3,bmd:3,bto:2,load:2,sp:2,arr:1},PI=10,SI=30;
+const MM=M.map(r=>({c:r[0],id:r[1],n:r[2],u:r[3],t:r[4],b:r[5],z:r[6],lo:r[7],hi:r[8],d:OV[r[1]]||RM[r[9]]||r[9],fx:r[10]||[0,0,0,0],x:r[5],v:r[5],h:[r[5]],l:0,nx:Math.ceil(Math.random()*(r[4]=='P'?PI:SI))})),B={};
+MM.forEach(m=>B[m.id]=m);
+const CS=MM.filter(m=>m.t=='C'),by=c=>MM.filter(m=>m.c==c);
+let now=0,paused=false,ui=0,sel=0,pkt=null,mode='Rest';
+const K=['act','str','slp','flr','grv','iso','rad'],S={},T={};K.forEach(k=>S[k]=T[k]=0);
+const g=()=>(Math.random()+Math.random()+Math.random()-1.5)*1.6;
+const fv=m=>m.id=='bp'?Math.round(m.v)+'/'+Math.round(m.v*.65):m.v.toFixed(DEC[m.id]??(m.b>=50?0:m.b>=10?1:m.b>=1?2:3));
+const st=m=>{const v=m.v,e=(m.hi-m.lo)*.08;return v<m.lo||v>m.hi?2:v<m.lo+e||v>m.hi-e?1:0};
+function pk(m){pkt={astronautId:'AST-001',category:CATS[m.c][1],metric:m.n,value:fv(m),unit:m.u,timestamp:new Date().toISOString(),device:DEV[m.d]+' (simulated)',measurementType:{C:'continuous',P:'periodic',S:'scheduled'}[m.t],status:['NORMAL','WATCH','ALERT'][st(m)]}}
+const push=m=>{m.h.push(m.v);if(m.h.length>40)m.h.shift()};
+function step(){now++;K.forEach(k=>S[k]+=(T[k]-S[k])*.15);
+MM.forEach(m=>{
+ if(m.id=='td')m.x+=B.dr.x*8e-5;
+ else if(m.id=='ecg')m.x=60000/B.hr.x*(1+g()*.004);
+ else{const tg=m.b+m.fx.reduce((a,f,i)=>a+f*S[K[i]],0)+(FX2[m.id]||[]).reduce((a,f,i)=>a+f*S[K[4+i]],0);m.x+=(tg-m.x)*.2+g()*m.z*(m.t=='C'?1:.4)}
+ if(m.t=='C'){m.v=m.x;m.l=now;push(m)}
+ else if(now>=m.nx){m.v=m.x+g()*m.z*.3;m.l=now;m.nx=now+(m.t=='P'?PI:SI);push(m);pk(m)}});
+pk(CS[now%CS.length])}
+const sp=(h,w=64,ht=20)=>{if(h.length<2)return'';const a=Math.min(...h),b=Math.max(...h),r=b-a||1;return `<svg class="sp" viewBox="0 0 ${w} ${ht}" preserveAspectRatio="none" style="width:${w>100?'100%':w+'px'};height:${ht}px"><polyline fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke" points="${h.map((y,i)=>(i*w/(h.length-1)).toFixed(1)+','+(ht-2-(y-a)/r*(ht-4)).toFixed(1)).join(' ')}"/></svg>`};
+const nx=m=>m.t=='C'?'live':'next '+Math.max(0,m.nx-now)+'s';
+const tg=m=>`<span class="tag t${m.t}">${{C:'CONT',P:'PERIODIC',S:'SCHEDULED'}[m.t]}</span>`;
+const dot=m=>`<i class="d s${st(m)}"></i>`;
+const U1=()=>'<div class="grid">'+CATS.map((c,i)=>`<section class="card"><h3>${c[0]} ${c[1]}</h3>`+by(i).map(m=>`<div class="row">${dot(m)}<span class="n">${m.n} ${tg(m)}</span><span class="val">${fv(m)} <small>${m.u}</small></span><span class="sl">${m.t=='C'?sp(m.h):'<small>'+nx(m)+'</small>'}</span></div>`).join('')+'</section>').join('')+'</div>';
+const U2=()=>`<div class="split"><nav class="side">`+CATS.map((c,i)=>{const bad=by(i).filter(m=>st(m)>0).length;return `<button data-c="${i}" class="${sel==i?'on':''}">${c[0]} ${c[1]}<small>${bad?bad+' flagged':'all normal'}</small></button>`}).join('')+`</nav><div class="tiles">`+by(sel).map(m=>`<div class="card"><div class="mut">${m.n} ${tg(m)}</div><div class="big">${dot(m)} ${fv(m)} <small>${m.u}</small></div>${sp(m.h,220,48)}<small>${DEV[m.d]} · ${m.t=='C'?'streaming 1 Hz':nx(m)}</small></div>`).join('')+'</div></div>';
+const U3=()=>'<div class="wrap"><table><thead><tr><th>Metric<th>Value<th>Mode<th>Device<th>Sample<th>Status</tr></thead>'+CATS.map((c,i)=>`<tbody><tr class="grp"><td colspan="6">${c[0]} ${c[1]}</tr>`+by(i).map(m=>`<tr><td>${m.n}<td class="val">${fv(m)} <small>${m.u}</small><td>${tg(m)}<td>${DEV[m.d]}<td>${m.t=='C'?'live':(now-m.l)+'s ago · '+nx(m)}<td>${dot(m)} ${['Normal','Watch','Alert'][st(m)]}</tr>`).join('')+'</tbody>').join('')+'</table></div>';
+const LN={C:['Continuous','streams every 1 s'],P:['Periodic','sampled every ~10 s (demo time)'],S:['Scheduled / long-term','assessed every ~30 s (demo time)']};
+const U4=()=>'<div class="lanes">'+['C','P','S'].map(t=>`<div class="lane"><h2>${LN[t][0]}<small>${LN[t][1]}</small></h2>`+CATS.map((c,i)=>{const a=by(i).filter(m=>m.t==t);return a.length?`<div class="card"><h3>${c[0]} ${c[1]}</h3>`+a.map(m=>`<div class="row">${dot(m)}<span class="n">${m.n}</span><span class="val">${fv(m)} <small>${m.u}</small></span></div>`).join('')+'</div>':''}).join('')+'</div>').join('')+'</div>';
+const U5=()=>'<div class="grid5">'+CATS.map((c,i)=>{const a=by(i),ok=a.filter(m=>st(m)==0).length/a.length*100;return `<section class="card"><div class="ringrow"><div class="ring" style="--p:${ok}"><span>${c[0]}</span></div><h3>${c[1]}<small>${Math.round(ok)}% in range</small></h3></div><div class="chips">`+a.map(m=>`<div class="chip s${st(m)} ${now-m.l<1&&m.t!='C'?'fl':''}"><small>${m.n}</small><b>${fv(m)}</b><small>${m.u}</small></div>`).join('')+'</div></section>'}).join('')+'</div>';
+const UIS=[['Console',U1],['Focus',U2],['Matrix',U3],['Lanes',U4],['Pulse',U5]];
+function mark(){document.querySelectorAll('[data-u]').forEach(b=>b.classList.toggle('on',+b.dataset.u==ui));document.querySelectorAll('[data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m==mode))}
+function render(){hdr();devs();$('#app').innerHTML=UIS[ui][1]();$('#pkt').textContent=pkt?JSON.stringify(pkt):''}
+$('#tabs').innerHTML=UIS.map((u,i)=>`<button data-u="${i}">UI ${i+1} · ${u[0]}</button>`).join('');
+$('#modes').innerHTML=Object.keys(MD).map(k=>`<button data-m="${k}">${k}</button>`).join('')+'<button id="ps">⏸ Pause</button>';
+$('#dv').textContent='📡 Devices ('+Object.keys(DEV).length+')';
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+ if(d.u!=null)ui=+d.u;if(d.c!=null)sel=+d.c;
+ if(d.m){mode=d.m;K.forEach((k,i)=>T[k]=MD[mode][i])}
+ if(b.id=='ps'){paused=!paused;b.textContent=paused?'▶ Resume':'⏸ Pause'}
+ if(b.id=='ra'||b.id=='mr'){modal();$('#md').classList.add('open')}if(b.id=='mx')$('#md').classList.remove('open');if(b.id=='dv')$('#dr').classList.add('open');if(b.id=='dx')$('#dr').classList.remove('open');
+ mark();render()});
+$('#md').addEventListener('click',e=>{if(e.target.id=='md')e.currentTarget.classList.remove('open')});
+for(let i=0;i<30;i++)step();
+mark();render();
+setInterval(()=>{if(!paused)step();render()},1000);
+</script></body></html>
