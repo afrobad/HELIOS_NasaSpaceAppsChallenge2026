@@ -171,8 +171,10 @@ class TelemetryFeeder:
 
     def _apply_scenario_telemetry(self, packet: Dict[str, Any], ast_id: str) -> None:
         """Dynamically shapes packet biometrics and lab values when any of the 18 spaceflight scenarios are active."""
-        sc = self._active_scenario
-        if not sc or sc == "NOMINAL_CRUISE":
+        sc = self._active_scenario or "NOMINAL_CRUISE"
+        # Always unify scenario_phase across all 4 crew members so WebSocket HUD never has conflicting phases
+        packet["scenario_phase"] = sc
+        if sc == "NOMINAL_CRUISE":
             return
 
         is_primary = (ast_id in ("AST-01_COMMANDER", "AST-01", "COMMANDER"))

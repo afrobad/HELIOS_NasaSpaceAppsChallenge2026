@@ -221,6 +221,9 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
   const handleTrigger = async (key: string) => {
     setTriggeringKey(key);
     audioService.stopSpeaking();
+    if (onScenarioTriggered) {
+      onScenarioTriggered(key);
+    }
     try {
       if (key === 'SCENARIO_4_DEEP_SPACE_BLACKOUT') {
         onToggleMarsDelay(true);
@@ -231,8 +234,8 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
       const res = await fetch(`/api/scenario/${key}`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json().catch(() => null);
-        if (onScenarioTriggered) {
-          onScenarioTriggered(key, data?.telemetry);
+        if (data?.telemetry && onScenarioTriggered) {
+          onScenarioTriggered(key, data.telemetry);
         }
       }
     } catch {

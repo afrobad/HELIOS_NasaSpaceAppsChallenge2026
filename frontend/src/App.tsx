@@ -77,7 +77,7 @@ export function App() {
       bufferedPacketsRef.current[packet.astronaut_id] = packet;
 
       if (packet.scenario_phase) {
-        setCurrentScenario(packet.scenario_phase);
+        setCurrentScenario((prev) => (prev === packet.scenario_phase ? prev : packet.scenario_phase));
       }
     });
 
