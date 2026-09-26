@@ -128,14 +128,14 @@ export const NASA_OSDR_PROFILES: Record<string, CrewBaselineAndLabProfile> = {
     hgb: 13.5,
     rbc: 4.67,
     na: 137.0,
-    k: 3.00,
+    k: 4.20,
     glu: 103.0,
     bun: 21.0,
     cr: 0.89,
     alb: 4.2,
     alt: 19.0,
     ast: 18.0,
-    crp: 8.36,
+    crp: 1.06,
     fibrinogen: 453.0,
     tnf: 724.2,
     il6: 7.60,
@@ -575,9 +575,13 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
   const plt: number = (currentPacket?.platelet_count !== undefined && Math.abs(currentPacket.platelet_count - 245) > 40)
     ? currentPacket.platelet_count
     : (labProfile?.cbc?.platelets?.value ?? defaultProfile.plt);
+  const rawCvCrp = labProfile?.cardiovascular?.crp?.value;
+  const scaledCvCrp = (rawCvCrp !== undefined && rawCvCrp !== null)
+    ? (rawCvCrp > 1000 ? rawCvCrp / 1000000 : rawCvCrp)
+    : defaultProfile.crp;
   const crp = isInflammationSpike && currentPacket?.crp
     ? currentPacket.crp
-    : (labProfile?.cardiovascular?.crp?.value ?? defaultProfile.crp);
+    : (isInflammationSpike ? scaledCvCrp : defaultProfile.crp);
   const qtc = currentPacket?.computed_qtc ?? 402.0;
   const arf = currentPacket?.computed_arf ?? 0.72;
   const trm = currentPacket?.computed_trm ?? 1.02;
@@ -2073,6 +2077,8 @@ interface CategoryRowItem {
   trend?: 'up' | 'down' | 'stable';
   history?: number[];
   noGraph?: boolean;
+  isCritical?: boolean;
+  isWarning?: boolean;
 }
 
 interface CategoryCardProps {
@@ -2139,61 +2145,153 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
       </div>
 
       {/* Metric Rows */}
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {rows.map((row, i) => (
-          <div
-            key={row.label + i}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(140px, 1.4fr) minmax(130px, 1.4fr) 64px',
-              alignItems: 'center',
-              padding: '6px 0',
-              borderBottom: i < rows.length - 1 ? '1px solid #1c1c1c' : 'none',
-              fontSize: '11px',
-            }}
-          >
-            {/* Left: Metric Name in Clean Sentence Case */}
-            <span style={{ color: '#a3a3a3', letterSpacing: '0.01em', fontFamily: "'Tomorrow', sans-serif" }}>
-              {row.label}
-            </span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        {rows.map((row, i) => {
+          const isCritical = row.isCritical ?? (
+            row.dotColor === '#ef4444' ||
+            row.dotColor.toLowerCase().includes('ef4444') ||
+            row.dotColor.toLowerCase().includes('dc2626') ||
+            row.dotColor.toLowerCase().includes('red')
+          );
 
-            {/* Middle: Real-time Status Dot + Tabular Numeral Value */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span
-                style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: row.dotColor,
-                  flexShrink: 0,
-                  boxShadow: `0 0 6px ${row.dotColor}80`,
-                }}
-              />
-              <span
-                style={{
-                  color: '#f5f5f5',
-                  fontWeight: 600,
-                  fontFamily: 'var(--hud-font-mono, monospace)',
-                  fontVariantNumeric: 'tabular-nums',
-                  letterSpacing: '0.02em',
-                }}
-              >
-                {row.value}
-              </span>
-            </div>
+          const isWarning = row.isWarning ?? (
+            !isCritical && (
+              row.dotColor === '#f59e0b' ||
+              row.dotColor === '#f97316' ||
+              row.dotColor === '#eab308' ||
+              row.dotColor.toLowerCase().includes('f59e0b') ||
+              row.dotColor.toLowerCase().includes('f97316') ||
+              row.dotColor.toLowerCase().includes('orange') ||
+              row.dotColor.toLowerCase().includes('amber')
+            )
+          );
 
-            {/* Right: Micro Sparkline or Subtle White Dotted Line */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', width: '64px' }}>
-              <MicroSparkline
-                history={row.history}
-                color={row.dotColor}
-                width={64}
-                height={18}
-                noGraph={row.noGraph}
-              />
+          const isIssue = isCritical || isWarning;
+
+          return (
+            <div
+              key={row.label + i}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(140px, 1.4fr) minmax(130px, 1.4fr) 64px',
+                alignItems: 'center',
+                padding: '6px 8px',
+                borderRadius: '6px',
+                backgroundColor: isCritical
+                  ? 'rgba(239, 68, 68, 0.14)'
+                  : isWarning
+                  ? 'rgba(239, 68, 68, 0.08)'
+                  : 'transparent',
+                border: isCritical
+                  ? '1px solid rgba(239, 68, 68, 0.38)'
+                  : isWarning
+                  ? '1px solid rgba(239, 68, 68, 0.22)'
+                  : '1px solid transparent',
+                borderBottom: isIssue
+                  ? (isCritical ? '1px solid rgba(239, 68, 68, 0.38)' : '1px solid rgba(239, 68, 68, 0.22)')
+                  : (i < rows.length - 1 ? '1px solid #1c1c1c' : '1px solid transparent'),
+                boxShadow: isCritical
+                  ? 'inset 0 0 14px rgba(239, 68, 68, 0.12)'
+                  : isWarning
+                  ? 'inset 0 0 8px rgba(239, 68, 68, 0.06)'
+                  : 'none',
+                transition: 'background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease',
+                fontSize: '11px',
+              }}
+            >
+              {/* Left: Metric Name with Reddish styling + Warning / Critical Icon */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, paddingRight: '4px' }}>
+                {isCritical ? (
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#ef4444"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ flexShrink: 0, filter: 'drop-shadow(0 0 4px rgba(239, 68, 68, 0.6))' }}
+                  >
+                    <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                ) : isWarning ? (
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#f87171"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ flexShrink: 0, filter: 'drop-shadow(0 0 4px rgba(248, 113, 113, 0.5))' }}
+                  >
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                ) : null}
+                <span
+                  style={{
+                    color: isCritical ? '#f87171' : isWarning ? '#fca5a5' : '#a3a3a3',
+                    fontWeight: isIssue ? 600 : 400,
+                    letterSpacing: '0.01em',
+                    fontFamily: "'Tomorrow', sans-serif",
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={row.label}
+                >
+                  {row.label}
+                </span>
+              </div>
+
+              {/* Middle: Real-time Status Dot + Tabular Numeral Value */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: row.dotColor,
+                    flexShrink: 0,
+                    boxShadow: isCritical
+                      ? '0 0 8px #ef4444'
+                      : isWarning
+                      ? '0 0 6px #f87171'
+                      : `0 0 6px ${row.dotColor}80`,
+                  }}
+                />
+                <span
+                  style={{
+                    color: isCritical ? '#fca5a5' : isWarning ? '#ffffff' : '#f5f5f5',
+                    fontWeight: isIssue ? 700 : 600,
+                    fontFamily: 'var(--hud-font-mono, monospace)',
+                    fontVariantNumeric: 'tabular-nums',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {row.value}
+                </span>
+              </div>
+
+              {/* Right: Micro Sparkline or Subtle White Dotted Line */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', width: '64px' }}>
+                <MicroSparkline
+                  history={row.history}
+                  color={row.dotColor}
+                  width={64}
+                  height={18}
+                  noGraph={row.noGraph}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Expand / Collapse Button if available */}

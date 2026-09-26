@@ -14,6 +14,7 @@ from typing import AsyncGenerator, Dict, Any, List, Optional
 
 from .decision_engine import DecisionEngine
 from .ollama_client import OllamaClient
+from .gemini_client import GeminiClient
 from .fallback_templates import get_fallback_script, get_progressive_script
 
 
@@ -37,8 +38,14 @@ class VoiceEngine:
         "NOMINAL": {"rate": 1.0, "pitch": 0.95, "volume": 0.85, "voice": "en-GB"}
     }
 
-    def __init__(self, ollama_client: Optional[OllamaClient] = None, cooldown_seconds: float = 30.0):
+    def __init__(
+        self,
+        ollama_client: Optional[OllamaClient] = None,
+        gemini_client: Optional[GeminiClient] = None,
+        cooldown_seconds: float = 30.0
+    ):
         self.ollama = ollama_client or OllamaClient()
+        self.gemini = gemini_client or GeminiClient()
         self.cooldown_seconds = cooldown_seconds
         # astronaut_id -> {"timestamp": float, "severity": str, "count": int}
         self._last_alert_state: Dict[str, Dict[str, Any]] = {}
@@ -128,30 +135,56 @@ class VoiceEngine:
         Constructs the complete JARVIS Voice Warning payload.
         Consults Ollama with sub-1500ms fallback, or delivers progressive follow-up script.
         """
-        if stage_index > 0:
-            speech_raw = get_progressive_script(
-                scenario_key=scenario_phase or reason,
-                severity=severity,
-                astronaut_name=astronaut_name,
-                astronaut_id=astronaut_id,
-                stage_index=stage_index
-            )
-            triage_res = {
-                "spoken_text": speech_raw,
-                "source": f"progressive_sentry_stage_{stage_index}",
-                "is_fallback": True,
-                "duration_ms": 0.5
-            }
-        else:
-            # 1. Fetch AI or deterministic 2-sentence script
-            triage_res = await self.ollama.generate_clinical_triage(
+        triage_res = None
+
+        # Priority 1: High-Speed Gemini API (if configured / available)
+        if self.gemini.is_available():
+            triage_res = await self.gemini.generate_clinical_triage(
                 astronaut_name=astronaut_name,
                 telemetry=telemetry,
                 severity=severity,
                 reason=reason,
-                scenario_phase=scenario_phase
+                stage_index=stage_index
             )
+
+        # Priority 2: Local Ollama AI or Deterministic Clinical Reason Engine
+        if not triage_res:
+            if stage_index > 0:
+                speech_raw = get_progressive_script(
+                    scenario_key=scenario_phase or reason,
+                    severity=severity,
+                    astronaut_name=astronaut_name,
+                    astronaut_id=astronaut_id,
+                    stage_index=stage_index,
+                    reason=reason,
+                    telemetry=telemetry
+                )
+                triage_res = {
+                    "spoken_text": speech_raw,
+                    "source": f"progressive_sentry_stage_{stage_index}",
+                    "is_fallback": True,
+                    "duration_ms": 0.5
+                }
+            else:
+                triage_res = await self.ollama.generate_clinical_triage(
+                    astronaut_name=astronaut_name,
+                    telemetry=telemetry,
+                    severity=severity,
+                    reason=reason,
+                    scenario_phase=scenario_phase
+                )
+
         speech_text = self.phonetically_normalize_for_tts(triage_res["spoken_text"])
+
+        # Speculative lookahead pipeline: while this message transmits/speaks, pre-generate Stage N+1
+        if self.gemini.is_available():
+            self.gemini.queue_lookahead_pregeneration(
+                astronaut_name=astronaut_name,
+                telemetry=telemetry,
+                severity=severity,
+                reason=reason,
+                next_stage_index=stage_index + 1
+            )
 
         # 2. Package tone, audio settings, and visualizer tokens
         tone = self.TONE_MAPPINGS.get(severity, "none")

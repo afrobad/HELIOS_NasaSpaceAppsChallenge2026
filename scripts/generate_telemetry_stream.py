@@ -86,8 +86,8 @@ def generate_telemetry():
     osdr_lab_defaults = {
         "AST-01_COMMANDER": {"k": 4.40, "hct": 43.6, "wbc": 5.0, "il6": 6.86, "plt": 227.0, "crp": 1.06},
         "AST-02_PILOT": {"k": 3.50, "hct": 36.4, "wbc": 5.5, "il6": 4.41, "plt": 252.0, "crp": 0.93},
-        "AST-03_MEDICAL": {"k": 3.00, "hct": 41.4, "wbc": 7.0, "il6": 7.39, "plt": 359.0, "crp": 8.36},
-        "AST-03_MEDICAL_SPECIALIST": {"k": 3.00, "hct": 41.4, "wbc": 7.0, "il6": 7.39, "plt": 359.0, "crp": 8.36},
+        "AST-03_MEDICAL": {"k": 4.20, "hct": 41.4, "wbc": 7.0, "il6": 7.39, "plt": 359.0, "crp": 1.06},
+        "AST-03_MEDICAL_SPECIALIST": {"k": 4.20, "hct": 41.4, "wbc": 7.0, "il6": 7.39, "plt": 359.0, "crp": 1.06},
         "AST-04_ENGINEER": {"k": 4.00, "hct": 48.3, "wbc": 8.1, "il6": 6.34, "plt": 240.0, "crp": 1.77},
         "AST-04_MISSION_SPECIALIST": {"k": 4.00, "hct": 48.3, "wbc": 8.1, "il6": 6.34, "plt": 240.0, "crp": 1.77},
     }
@@ -294,7 +294,7 @@ def generate_telemetry():
 
                 # TRM (Thrombosis Risk Metric)
                 hct_f = max(1.0, hematocrit / 44.0)
-                plt_f = max(1.0, platelets / 240.0)
+                plt_f = max(1.0, platelets / 380.0)
                 computed_trm = round(min(5.0, (math.pow(hct_f, 2.5) * plt_f * math.sqrt(max(1.0, il_6 / 10.0))) / (target_spo2 / 98.5)), 2)
 
                 # Andrews Kinetic Biodosimetry & Radiation Sickness Index (RSI)

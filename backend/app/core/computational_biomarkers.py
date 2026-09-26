@@ -111,7 +111,7 @@ class ComputationalBiomarkers:
         and vascular endothelial cytokine irritation.
         """
         hct_factor = max(1.0, hematocrit_pct / 44.0)
-        plt_factor = max(1.0, platelet_k_ul / 240.0)
+        plt_factor = max(1.0, platelet_k_ul / 380.0)
         il6_factor = max(1.0, il_6_pg_ml / 10.0)
         o2_attenuation = max(0.8, spo2 / 98.5)
 

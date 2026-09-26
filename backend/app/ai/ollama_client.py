@@ -348,7 +348,9 @@ class OllamaClient:
         deterministic_script = get_fallback_script(
             scenario_phase or "",
             severity,
-            astronaut_name=astronaut_name
+            astronaut_name=astronaut_name,
+            reason=reason,
+            telemetry=telemetry
         )
         prompt = build_clinical_prompt(astronaut_name, telemetry, severity, reason)
         timeout = 1.0 if severity == "CRITICAL" else (1.2 if severity == "WARNING" else self.timeout_seconds)

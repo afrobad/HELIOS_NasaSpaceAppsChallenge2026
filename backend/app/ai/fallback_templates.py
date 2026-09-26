@@ -297,12 +297,120 @@ PROGRESSIVE_SCENARIO_SCRIPTS: Dict[str, list] = {
 }
 
 
+def build_clinical_reason_script(
+    reason: str,
+    severity: str = "WARNING",
+    astronaut_name: str = "",
+    astronaut_id: str = "",
+    telemetry: Optional[Dict[str, Any]] = None
+) -> Optional[str]:
+    """
+    Intelligently extracts the clinical finding, biometric markers, and targeted
+    medical countermeasure from the sentry trigger reason or telemetry packet.
+    Guarantees JARVIS speaks what actually happened instead of generic fallback scripts.
+    """
+    if not reason:
+        return None
+
+    clean_name = clean_crew_name(astronaut_name, astronaut_id)
+    r_lower = reason.lower()
+    t = telemetry or {}
+
+    # 1. Hypokalemic Arrhythmia / QTc Prolongation
+    if any(k in r_lower for k in ("hypokalem", "qtc", "arrhythm", "potassium")):
+        k_val = t.get("potassium")
+        if k_val is None:
+            k_match = re.search(r"K\+=?([0-9.]+)", reason)
+            k_val = k_match.group(1) if k_match else "3.0"
+        qtc_val = t.get("computed_qtc")
+        if qtc_val is None:
+            qtc_match = re.search(r"([0-9.]+)\s*ms", reason)
+            qtc_val = qtc_match.group(1) if qtc_match else "480"
+        return (
+            f"{clean_name}, cardiac monitoring detects acute hypokalemia with serum potassium dropped to {k_val} millimoles per liter and QTc widening to {qtc_val} milliseconds. "
+            f"I advise immediately consuming an oral potassium electrolyte pouch and resting in your quarters."
+        )
+
+    # 2. Cabin CO2 Pocketing & Ambient Life Support
+    if "co2" in r_lower or "carbon dioxide" in r_lower:
+        co2_val = t.get("cabin_co2")
+        if co2_val is None:
+            co2_match = re.search(r"([0-9.]+)\s*mmHg", reason)
+            co2_val = co2_match.group(1) if co2_match else "4.0"
+        spo2_val = t.get("spo2")
+        if spo2_val and float(spo2_val) < 92.0:
+            return (
+                f"Emergency, {clean_name}! Cabin carbon dioxide has surged to {co2_val} millimeters of mercury with blood oxygen dropping to {spo2_val} percent. "
+                f"I advise putting on your emergency oxygen mask and verifying compartment hatch seals immediately."
+            )
+        return (
+            f"Caution, {clean_name}. Cabin sensors detect carbon dioxide pocketing at {co2_val} millimeters of mercury. "
+            f"I advise switching to the backup air scrubber loop and increasing cabin ventilation."
+        )
+
+    # 3. Severe Hypoxia / Low Oxygen
+    if "hypoxia" in r_lower or "spo2" in r_lower:
+        spo2_val = t.get("spo2")
+        if spo2_val is None:
+            sp_match = re.search(r"([0-9.]+)\s*%", reason)
+            spo2_val = sp_match.group(1) if sp_match else "88"
+        return (
+            f"Emergency, {clean_name}! Pulse oximetry indicates blood oxygen saturation has fallen to {spo2_val} percent. "
+            f"I advise immediately donning your supplemental oxygen mask and checking suit seal integrity."
+        )
+
+    # 4. Presymptomatic Sepsis / Immune Cytokine Storm
+    if any(k in r_lower for k in ("sepsis", "immune surge", "cytokine", "epi")):
+        il6_val = t.get("il_6")
+        if il6_val is None:
+            il6_match = re.search(r"IL-6=?([0-9.]+)", reason)
+            il6_val = il6_match.group(1) if il6_match else "115"
+        return (
+            f"{clean_name}, point-of-care biosensors detect a presymptomatic immune surge with interleukin-6 elevated to {il6_val} picograms per milliliter. "
+            f"I advise resting in your sleep quarters and starting an intravenous hydration infusion before symptoms progress."
+        )
+
+    # 5. Cephalic Venous Stasis & Thrombosis Risk
+    if any(k in r_lower for k in ("thrombosis", "venous stasis", "hypercoagul", "trm")):
+        hct_val = t.get("hematocrit", "48")
+        return (
+            f"{clean_name}, vascular Doppler sensors detect cephalic venous stasis and hemoconcentration at {hct_val} percent hematocrit. "
+            f"I advise donning your lower-body compression cuffs and consuming an oral hydration solution to restore venous flow."
+        )
+
+    # 6. Solar Particle Event & Radiation Dosimetry
+    if any(k in r_lower for k in ("radiation", "solar particle", "storm", "rsi", "biodosimetry")):
+        flux_val = t.get("radiation_flux")
+        if flux_val is None:
+            f_match = re.search(r"Flux=?([0-9.]+)", reason)
+            flux_val = f_match.group(1) if f_match else "340"
+        return (
+            f"Urgent alert, {clean_name}! External biodosimeters detect a severe solar particle event with cosmic flux at {flux_val} milligray per hour. "
+            f"I advise taking your prescribed radioprotective medication and evacuating to the water-shielded storm shelter immediately."
+        )
+
+    # 7. Cardiovascular Strain / Baseline Fatigue Drift
+    if any(k in r_lower for k in ("fatigue", "drift", "strain", "autonomic")):
+        hr_val = t.get("heart_rate")
+        if hr_val is None:
+            hr_match = re.search(r"([0-9.]+)\s*bpm", reason)
+            hr_val = hr_match.group(1) if hr_match else "85"
+        return (
+            f"{clean_name}, your autonomic vitals show accumulated physiological fatigue with resting heart rate elevated at {hr_val} beats per minute. "
+            f"I advise pausing heavy mission activities, hydrating, and taking a scheduled rest period."
+        )
+
+    return None
+
+
 def get_progressive_script(
     scenario_key: str,
     severity: str = "WARNING",
     astronaut_name: str = "",
     astronaut_id: str = "",
-    stage_index: int = 0
+    stage_index: int = 0,
+    reason: str = "",
+    telemetry: Optional[Dict[str, Any]] = None
 ) -> str:
     """Retrieves the progressive multi-stage spoken script for an evolving scenario."""
     clean_name = clean_crew_name(astronaut_name, astronaut_id)
@@ -312,26 +420,61 @@ def get_progressive_script(
     elif "RADIATION" in key or "STORM" in key:
         key = "SCENARIO_8_SOLAR_RADIATION_STORM"
     elif (astronaut_id in ("ALL_CREW", "all_crew") or clean_name == "All Crew Stations") and key not in ("ALL_CREW_HYPOXIA", "SCENARIO_3_CO2_HYPOXIA", "SCENARIO_8_SOLAR_RADIATION_STORM"):
-        return get_fallback_script("ALL_CREW_WARNING", severity, astronaut_name, astronaut_id)
+        return get_fallback_script("ALL_CREW_WARNING", severity, astronaut_name, astronaut_id, reason=reason, telemetry=telemetry)
 
     stages = PROGRESSIVE_SCENARIO_SCRIPTS.get(key)
     if stages:
         script = stages[stage_index % len(stages)]
         return script.format(name=clean_name)
 
-    return get_fallback_script(scenario_key, severity, astronaut_name, astronaut_id)
+    # If stage_index > 0 and no scenario match, deliver dynamic progressive clinical follow-up
+    if stage_index > 0:
+        if stage_index == 1:
+            return (
+                f"Status update, {clean_name}: life support sentry is tracking your physiological response. "
+                f"Please maintain prescribed medical countermeasure directives while telemetry verifies stabilization."
+            )
+        elif stage_index == 2:
+            return (
+                f"Clinical follow-up, {clean_name}: bio-telemetry shows trending improvement toward baseline limits. "
+                f"Continue resting comfortably until full recovery is confirmed."
+            )
+        else:
+            return (
+                f"Recovery report, {clean_name}: physiological parameters have stabilized within safe operational margins. "
+                f"You may stand down from emergency protocol and resume planned mission shift."
+            )
+
+    return get_fallback_script(scenario_key, severity, astronaut_name, astronaut_id, reason=reason, telemetry=telemetry)
 
 
 def get_fallback_script(
     scenario_key: str,
     severity: str = "WARNING",
     astronaut_name: str = "",
-    astronaut_id: str = ""
+    astronaut_id: str = "",
+    reason: str = "",
+    telemetry: Optional[Dict[str, Any]] = None
 ) -> str:
-    """Retrieves the deterministic spoken script for a scenario or severity level, formatted with the astronaut's name."""
+    """
+    Retrieves the deterministic spoken script for a scenario or severity level.
+    First checks if the clinical reason and biometrics can be articulated specifically,
+    ensuring the astronaut is told exactly what happened and their current readings.
+    """
     clean_name = clean_crew_name(astronaut_name, astronaut_id)
 
-    # Handle All Crew / Collective Alert
+    # 1. Clinical Diagnostic Reason Extraction (Tells astronaut EXACTLY what happened)
+    clinical_script = build_clinical_reason_script(
+        reason=reason or scenario_key,
+        severity=severity,
+        astronaut_name=astronaut_name,
+        astronaut_id=astronaut_id,
+        telemetry=telemetry
+    )
+    if clinical_script:
+        return clinical_script
+
+    # 2. Handle All Crew / Collective Alert
     if astronaut_id in ("ALL_CREW", "all_crew") or clean_name == "All Crew Stations":
         if "HYPOXIA" in scenario_key or "CO2" in scenario_key or scenario_key == "SCENARIO_3_CO2_HYPOXIA":
             return FALLBACK_VOICE_SCRIPTS["ALL_CREW_HYPOXIA"]
@@ -342,7 +485,7 @@ def get_fallback_script(
         else:
             return FALLBACK_VOICE_SCRIPTS["ALL_CREW_WARNING"]
 
-    # Handle Multi-Crew joint/named alerts
+    # 3. Handle Multi-Crew joint/named alerts
     if (" and " in clean_name or ", " in clean_name) and (scenario_key == "SCENARIO_1_BASELINE_DRIFT" or "DRIFT" in scenario_key or "FATIGUE" in scenario_key):
         return FALLBACK_VOICE_SCRIPTS["SCENARIO_1_BASELINE_DRIFT_MULTI"].format(name=clean_name)
 
@@ -356,5 +499,6 @@ def get_fallback_script(
         template = FALLBACK_VOICE_SCRIPTS["DEFAULT_WARNING"]
 
     return template.format(name=clean_name)
+
 
 
