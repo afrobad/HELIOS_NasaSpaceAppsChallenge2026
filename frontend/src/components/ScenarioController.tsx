@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { audioService } from '../services/audioService';
 
 interface ScenarioControllerProps {
   currentScenario: string;
@@ -219,6 +220,7 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
 
   const handleTrigger = async (key: string) => {
     setTriggeringKey(key);
+    audioService.stopSpeaking();
     try {
       if (key === 'SCENARIO_4_DEEP_SPACE_BLACKOUT') {
         onToggleMarsDelay(true);

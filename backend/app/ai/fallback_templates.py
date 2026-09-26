@@ -429,19 +429,43 @@ def get_progressive_script(
     """Retrieves the progressive multi-stage spoken script for an evolving scenario."""
     clean_name = clean_crew_name(astronaut_name, astronaut_id)
     key = scenario_key or ""
-    if "HYPOXIA" in key or "CO2" in key:
-        key = "ALL_CREW_HYPOXIA" if (astronaut_id in ("ALL_CREW", "all_crew") or clean_name == "All Crew Stations") else "SCENARIO_3_CO2_HYPOXIA"
-    elif "RADIATION" in key or "STORM" in key:
-        key = "SCENARIO_8_SOLAR_RADIATION_STORM"
-    elif (astronaut_id in ("ALL_CREW", "all_crew") or clean_name == "All Crew Stations") and key not in ("ALL_CREW_HYPOXIA", "SCENARIO_3_CO2_HYPOXIA", "SCENARIO_8_SOLAR_RADIATION_STORM"):
-        return get_fallback_script("ALL_CREW_WARNING", severity, astronaut_name, astronaut_id, reason=reason, telemetry=telemetry)
+    is_all_crew = (astronaut_id in ("ALL_CREW", "all_crew") or clean_name == "All Crew Stations")
 
-    stages = PROGRESSIVE_SCENARIO_SCRIPTS.get(key)
-    if stages:
-        script = stages[stage_index % len(stages)]
+    # 1. Match direct key or mapped alias from PROGRESSIVE_SCENARIO_SCRIPTS
+    target_stages = None
+    if key in PROGRESSIVE_SCENARIO_SCRIPTS:
+        target_stages = PROGRESSIVE_SCENARIO_SCRIPTS[key]
+    else:
+        # Check aliases or keyword matches
+        for cand_key, stages in PROGRESSIVE_SCENARIO_SCRIPTS.items():
+            if cand_key == key or (cand_key and cand_key in key):
+                target_stages = stages
+                break
+        if not target_stages:
+            if "AMMONIA" in key:
+                target_stages = PROGRESSIVE_SCENARIO_SCRIPTS.get("SCENARIO_4_AMMONIA_COOLANT_LEAK")
+            elif "RADIATION" in key or "STORM" in key:
+                target_stages = PROGRESSIVE_SCENARIO_SCRIPTS.get("SCENARIO_3_SOLAR_RADIATION_STORM")
+            elif "DECOMPRESSION" in key:
+                target_stages = PROGRESSIVE_SCENARIO_SCRIPTS.get("SCENARIO_2_SLOW_DECOMPRESSION_HYPOXIA")
+            elif "FIRE" in key or "SMOLDER" in key:
+                target_stages = PROGRESSIVE_SCENARIO_SCRIPTS.get("SCENARIO_5_ELECTRICAL_FIRE_SMOLDER")
+            elif "HYPOKALEMIA" in key or "ARRHYTHMIA" in key or "POTASSIUM" in key:
+                target_stages = PROGRESSIVE_SCENARIO_SCRIPTS.get("SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA")
+            elif "THROMBOSIS" in key:
+                target_stages = PROGRESSIVE_SCENARIO_SCRIPTS.get("SCENARIO_7_VENOUS_THROMBOSIS_RISK")
+            elif "SEPSIS" in key:
+                target_stages = PROGRESSIVE_SCENARIO_SCRIPTS.get("SCENARIO_10_PRESYMPTOMATIC_SEPSIS")
+            elif "CO2" in key or "HYPOXIA" in key or "SCRUBBER" in key:
+                target_stages = PROGRESSIVE_SCENARIO_SCRIPTS.get("SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH")
+
+    if target_stages:
+        script = target_stages[stage_index % len(target_stages)]
+        if is_all_crew and "Commander {name}" in script:
+            script = script.replace("Commander {name}", "All stations")
         return script.format(name=clean_name)
 
-    # If stage_index > 0 and no scenario match, deliver dynamic progressive clinical follow-up
+    # 2. If stage_index > 0 and no scenario match, deliver dynamic progressive clinical follow-up
     if stage_index > 0:
         if stage_index == 1:
             return (

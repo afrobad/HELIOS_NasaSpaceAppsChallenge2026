@@ -364,11 +364,12 @@ export const JarvisConsole: React.FC<JarvisConsoleProps> = ({
     const pending = pendingObservedAlertRef.current;
     if (pending && pending.speech_text) {
       const pendingAdvice = extractAdviceBody(pending.speech_text);
-      if (pendingAdvice && pendingAdvice === lastSpokenAdviceBodyRef.current) {
+      const isProgressive = ((pending as any).stage_index || 0) > 0;
+      if (!isProgressive && pendingAdvice && pendingAdvice === lastSpokenAdviceBodyRef.current) {
         pendingObservedAlertRef.current = null;
       } else if (pending.speech_text !== activeSpeechTextRef.current) {
         pendingObservedAlertRef.current = null;
-        // Wait for 3.5s quiet break after voice transmission before playing follow-up
+        // Wait for 1.8s quiet break after voice transmission before playing follow-up
         setTimeout(() => {
           if (!isSpeakingRef.current) {
             speakStatement(
@@ -380,7 +381,7 @@ export const JarvisConsole: React.FC<JarvisConsoleProps> = ({
               }
             );
           }
-        }, 3500);
+        }, 1800);
         return;
       }
     }
@@ -401,11 +402,13 @@ export const JarvisConsole: React.FC<JarvisConsoleProps> = ({
     // Prevent duplicate triggers of identical text
     if (alertText === activeSpeechTextRef.current) return;
 
+    const isProgressive = ((latestAlert as any).stage_index || 0) > 0;
+
     // Semantic deduplication: if the core clinical advice is identical to what was recently spoken (< 8 seconds),
     // update the display banner with the latest multi-crew names without re-speaking identical advice over TTS
     const incomingAdvice = extractAdviceBody(alertText);
     const timeSinceLastSpoken = Date.now() - lastSpokenTimestampRef.current;
-    if (incomingAdvice && incomingAdvice === lastSpokenAdviceBodyRef.current && timeSinceLastSpoken < 8000) {
+    if (!isProgressive && incomingAdvice && incomingAdvice === lastSpokenAdviceBodyRef.current && timeSinceLastSpoken < 8000) {
       setActiveSpeech(alertText);
       activeSpeechTextRef.current = alertText;
       return;
@@ -416,8 +419,13 @@ export const JarvisConsole: React.FC<JarvisConsoleProps> = ({
       (latestAlert.severity === 'CRITICAL' && activeSeverity !== 'CRITICAL') ||
       (latestAlert.severity === 'WARNING' && activeSeverity === 'NOMINAL');
 
-    if (isEmergency && (isHigherPriority || !isSpeakingRef.current || activeSeverity === 'NOMINAL')) {
-      // PREEMPT IMMEDIATELY: Stop any nominal speech or chatter, sound the alert tone, and speak the emergency
+    if (isEmergency && (isHigherPriority || !isSpeakingRef.current || activeSeverity === 'NOMINAL' || isProgressive)) {
+      if (isSpeakingRef.current && !isHigherPriority) {
+        // Buffer sequential follow-up stage or same-priority alert for playback as soon as active sentence finishes
+        pendingObservedAlertRef.current = latestAlert;
+        return;
+      }
+      // PREEMPT IMMEDIATELY: Stop any nominal speech or lower-priority chatter, sound the alert tone, and speak
       audioService.stopSpeaking();
       pendingObservedAlertRef.current = null;
       speakStatement(

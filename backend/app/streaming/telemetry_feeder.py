@@ -123,8 +123,8 @@ class TelemetryFeeder:
         self._active_scenario: str = "NOMINAL_CRUISE"
         self._scenario_stage_index: int = 0
         self._last_progressive_dispatch_time: float = 0.0
-        # 16.0s interval guarantees ~8.0s speaking + a calm 3.5s to 4s quiet break before next progressive stage
-        self._progressive_interval_seconds: float = 16.0
+        # 8.0s interval guarantees ~4.5s speaking + a calm 3.5s quiet break before next progressive stage
+        self._progressive_interval_seconds: float = 8.0
 
     SCENARIO_OFFSETS: Dict[str, int] = {
         # ── CSV NOMINAL_CRUISE zone: rows 0–1199 per astronaut ──
@@ -139,9 +139,9 @@ class TelemetryFeeder:
         "SCENARIO_5_ELECTRICAL_FIRE_SMOLDER": 400,
 
         # ── Cardiovascular Scenarios (6–9) ──
-        # Scenarios 6 & 7 were already correct; keep them. 8 & 9 → NOMINAL base.
-        "SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA": 7565,   # correct (lands in CSV HYPOKALEMIA zone)
-        "SCENARIO_7_VENOUS_THROMBOSIS_RISK": 8585,   # correct (lands in CSV THROMBOSIS zone)
+        # Placed in NOMINAL cruise zone so _apply_scenario_telemetry exclusively shapes primary crew
+        "SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA": 450,
+        "SCENARIO_7_VENOUS_THROMBOSIS_RISK": 475,
         "SCENARIO_8_CARDIOVASCULAR_DECONDITIONING": 500,
         "SCENARIO_9_CORONARY_MICROVASCULAR_STRESS": 600,
 
@@ -349,6 +349,8 @@ class TelemetryFeeder:
             if self._coalesce_timer_task and not self._coalesce_timer_task.done():
                 self._coalesce_timer_task.cancel()
                 self._coalesce_timer_task = None
+            if self.voice_engine:
+                self.voice_engine.reset_suppression_cooldowns()
             return True
         return False
 
@@ -416,9 +418,10 @@ class TelemetryFeeder:
 
                 severity, confidence, reason = SentryMatrixEngine.evaluate_state(packet, baseline, env)
 
-                # Update packet with evaluated severity
+                # Update packet with evaluated severity and clinical trigger reason
                 packet["evaluated_severity"] = severity
                 packet["confidence"] = confidence
+                packet["trigger_reason"] = reason
 
                 # 3. Check for Proactive Alert Escalation
                 prev_sev = self.last_severities.get(ast_id, "NOMINAL")
@@ -447,7 +450,7 @@ class TelemetryFeeder:
                 self._stage_and_coalesce_alerts(elevated_candidates)
 
             # Continuous Progressive Sentry Loop:
-            # While an elevated clinical state persists, re-evaluate telemetry every 16 seconds
+            # While an elevated clinical state persists, re-evaluate telemetry every 8 seconds
             # and advance to the next progressive recommendation stage!
             now = time.time()
             is_any_elevated = any(s in ("WARNING", "CRITICAL") for s in self.last_severities.values())
@@ -461,12 +464,13 @@ class TelemetryFeeder:
                     if s in ("WARNING", "CRITICAL"):
                         latest_pkt = self.buffers[ast_id].get_latest() if ast_id in self.buffers else None
                         if latest_pkt:
+                            clinical_reason = latest_pkt.get("trigger_reason") or f"Progressive Sentry Advisory (Stage {self._scenario_stage_index})"
                             current_active_candidates.append({
                                 "ast_id": ast_id,
                                 "packet": latest_pkt,
                                 "severity": latest_pkt.get("evaluated_severity", "WARNING"),
                                 "confidence": latest_pkt.get("confidence", 0.92),
-                                "reason": f"Progressive Sentry Advisory (Stage {self._scenario_stage_index})",
+                                "reason": clinical_reason,
                                 "baseline": self.baseline_mgr.get_astronaut_baseline(ast_id, latest_pkt.get("mission_state", "REST")),
                                 "env": self.baseline_mgr.environmental_baselines
                             })

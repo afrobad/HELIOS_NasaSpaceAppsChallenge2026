@@ -204,7 +204,8 @@ class VoiceEngine:
             "duration_ms": triage_res["duration_ms"],
             "reason": reason,
             "audio_config": audio_profile,
-            "visualizer_tokens": visualizer
+            "visualizer_tokens": visualizer,
+            "stage_index": stage_index
         }
 
         # Update cooldown tracker
@@ -266,7 +267,8 @@ class VoiceEngine:
             "duration_ms": triage_res["duration_ms"],
             "reason": reason,
             "audio_config": audio_profile,
-            "visualizer_tokens": visualizer
+            "visualizer_tokens": visualizer,
+            "stage_index": stage_index
         }
 
         for ast_id in astronaut_ids:
@@ -326,7 +328,8 @@ class VoiceEngine:
             "duration_ms": triage_res["duration_ms"],
             "reason": reason,
             "audio_config": audio_profile,
-            "visualizer_tokens": visualizer
+            "visualizer_tokens": visualizer,
+            "stage_index": stage_index
         }
 
         for ast_id in astronaut_ids:
@@ -387,7 +390,8 @@ class VoiceEngine:
             "duration_ms": triage_res["duration_ms"],
             "reason": reason,
             "audio_config": audio_profile,
-            "visualizer_tokens": visualizer
+            "visualizer_tokens": visualizer,
+            "stage_index": stage_index
         }
 
         self.record_alert_dispatched("ALL_CREW", severity)
