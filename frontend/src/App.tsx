@@ -3,6 +3,7 @@ import { HeaderBar } from './components/HeaderBar';
 import { CrewGrid } from './components/CrewGrid';
 import { ScenarioController } from './components/ScenarioController';
 import { HealthTelemetryView } from './components/HealthTelemetryView';
+import { SpaceBackground } from './components/SpaceBackground';
 import { wsService } from './services/websocketService';
 import {
   parseCurrentRoute,
@@ -149,8 +150,12 @@ export function App() {
   }, []);
 
   return (
-    <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '0 20px 32px' }}>
-      {/* Flight HUD View (Default Home Page) */}
+    <>
+      {/* GPU-Composited Photorealistic Earth Orbital Space Background */}
+      <SpaceBackground activeView={activeView} />
+
+      <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '0 20px 32px', position: 'relative', zIndex: 1 }}>
+        {/* Flight HUD View (Default Home Page) */}
       {activeView === 'HUD' && (
         <>
           <HeaderBar
@@ -167,20 +172,6 @@ export function App() {
           <CrewGrid
             telemetryMap={telemetryMap}
             onOpenTriage={handleOpenTriage}
-          />
-
-          {/* Benchmark Scenario Jump Controller */}
-          <ScenarioController
-            currentScenario={currentScenario}
-            marsDelay={marsDelay}
-            onToggleMarsDelay={handleToggleMarsDelay}
-            onScenarioTriggered={(scenarioKey, telemetry) => {
-              setCurrentScenario(scenarioKey);
-              if (telemetry && Object.keys(telemetry).length > 0) {
-                bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...telemetry };
-                setTelemetryMap({ ...bufferedPacketsRef.current });
-              }
-            }}
           />
         </>
       )}
@@ -200,8 +191,23 @@ export function App() {
           onAstronautChange={handleAstronautChange}
         />
       )}
+
+      {/* Global Scenario Controller (Floating Action Pill + Aerospace Modal) */}
+      <ScenarioController
+        currentScenario={currentScenario}
+        marsDelay={marsDelay}
+        onToggleMarsDelay={handleToggleMarsDelay}
+        onScenarioTriggered={(scenarioKey, telemetry) => {
+          setCurrentScenario(scenarioKey);
+          if (telemetry && Object.keys(telemetry).length > 0) {
+            bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...telemetry };
+            setTelemetryMap({ ...bufferedPacketsRef.current });
+          }
+        }}
+      />
     </div>
-  );
+  </>
+);
 }
 
 export default App;

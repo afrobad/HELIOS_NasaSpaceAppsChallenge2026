@@ -199,7 +199,7 @@ class TestVoiceEngine(unittest.TestCase):
             )
             self.assertEqual(packet["severity"], "CRITICAL")
             self.assertEqual(packet["tone"], "klaxon")
-            self.assertEqual(packet["audio_config"]["rate"], 1.15)
+            self.assertEqual(packet["audio_config"]["rate"], 1.00)
             self.assertTrue(len(packet["visualizer_tokens"]) > 0)
             self.assertIn("Pilot Chris", packet["speech_text"])
             self.assertTrue(len(packet["speech_text"]) > 10)

@@ -25,6 +25,41 @@ DEFAULT_CSV_PATH = os.path.join(
     "astronaut_telemetry_stream.csv"
 )
 
+ASTRONAUT_ALIAS_MAP: Dict[str, str] = {
+    "crew_1": "AST-01_COMMANDER",
+    "commander": "AST-01_COMMANDER",
+    "c001": "AST-01_COMMANDER",
+    "ast-01_commander": "AST-01_COMMANDER",
+    "ast-01": "AST-01_COMMANDER",
+    "crew_2": "AST-02_PILOT",
+    "pilot": "AST-02_PILOT",
+    "c002": "AST-02_PILOT",
+    "ast-02_pilot": "AST-02_PILOT",
+    "ast-02": "AST-02_PILOT",
+    "crew_3": "AST-03_MEDICAL",
+    "medical": "AST-03_MEDICAL",
+    "doctor": "AST-03_MEDICAL",
+    "c003": "AST-03_MEDICAL",
+    "ast-03_medical": "AST-03_MEDICAL",
+    "ast-03_medical_specialist": "AST-03_MEDICAL",
+    "ast-03": "AST-03_MEDICAL",
+    "crew_4": "AST-04_ENGINEER",
+    "engineer": "AST-04_ENGINEER",
+    "specialist": "AST-04_ENGINEER",
+    "c004": "AST-04_ENGINEER",
+    "ast-04_engineer": "AST-04_ENGINEER",
+    "ast-04_mission_specialist": "AST-04_ENGINEER",
+    "ast-04": "AST-04_ENGINEER",
+}
+
+
+def resolve_astronaut_id(raw_id: Optional[str]) -> str:
+    """Normalizes friendly astronaut aliases to canonical IDs."""
+    if not raw_id:
+        return "AST-01_COMMANDER"
+    cleaned = raw_id.strip()
+    return ASTRONAUT_ALIAS_MAP.get(cleaned.lower(), cleaned)
+
 
 class TelemetryFeeder:
     """10 Hz continuous stream feeder."""
@@ -49,6 +84,9 @@ class TelemetryFeeder:
         self.records_by_astronaut: Dict[str, List[Dict[str, Any]]] = {}
         self.buffers: Dict[str, BoundedTelemetryBuffer] = {}
         self.last_severities: Dict[str, str] = {}
+
+        # Individual vs Universal Scenario Target Tracking
+        self._target_astronaut_id: Optional[str] = "AST-01_COMMANDER"
 
         # Alert Coalescing Staging Buffer (Temporal Multi-Crew Aggregation)
         self._staged_candidates: List[Dict[str, Any]] = []
@@ -177,7 +215,10 @@ class TelemetryFeeder:
         if sc == "NOMINAL_CRUISE":
             return
 
-        is_primary = (ast_id in ("AST-01_COMMANDER", "AST-01", "COMMANDER"))
+        target_id = self._target_astronaut_id or "AST-01_COMMANDER"
+        is_target = (resolve_astronaut_id(ast_id) == resolve_astronaut_id(target_id))
+        if self._target_astronaut_id:
+            packet["target_astronaut_id"] = resolve_astronaut_id(self._target_astronaut_id)
 
         if sc in ("SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH", "SCENARIO_3_CO2_HYPOXIA"):
             packet["cabin_co2"] = 4.25
@@ -216,7 +257,7 @@ class TelemetryFeeder:
             packet["scenario_phase"] = "SCENARIO_5_ELECTRICAL_FIRE_SMOLDER"
 
         elif sc == "SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA":
-            if is_primary:
+            if is_target:
                 packet["potassium"] = 2.95
                 packet["computed_qtc"] = 492.0
                 packet["computed_arf"] = 1.75
@@ -224,7 +265,7 @@ class TelemetryFeeder:
                 packet["scenario_phase"] = "SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA"
 
         elif sc == "SCENARIO_7_VENOUS_THROMBOSIS_RISK":
-            if is_primary:
+            if is_target:
                 packet["hematocrit"] = 52.5
                 packet["platelet_count"] = 385.0
                 packet["il_6"] = 18.5
@@ -232,14 +273,14 @@ class TelemetryFeeder:
                 packet["scenario_phase"] = "SCENARIO_7_VENOUS_THROMBOSIS_RISK"
 
         elif sc == "SCENARIO_8_CARDIOVASCULAR_DECONDITIONING":
-            if is_primary:
+            if is_target:
                 packet["heart_rate"] = 98.0
                 packet["hrv_rmssd"] = 18.0
                 packet["hematocrit"] = 36.0
                 packet["scenario_phase"] = "SCENARIO_8_CARDIOVASCULAR_DECONDITIONING"
 
         elif sc == "SCENARIO_9_CORONARY_MICROVASCULAR_STRESS":
-            if is_primary:
+            if is_target:
                 packet["heart_rate"] = 96.0
                 packet["crp"] = 6.8
                 # potassium=3.6 drives the sentry's live QTc recalculation to ~462ms (>450 WARNING),
@@ -249,7 +290,7 @@ class TelemetryFeeder:
                 packet["scenario_phase"] = "SCENARIO_9_CORONARY_MICROVASCULAR_STRESS"
 
         elif sc in ("SCENARIO_10_PRESYMPTOMATIC_SEPSIS", "SCENARIO_5_PRESYMPTOMATIC_SEPSIS"):
-            if is_primary:
+            if is_target:
                 packet["il_6"] = 125.0
                 packet["wbc_count"] = 14.5
                 packet["crp"] = 16.5
@@ -258,7 +299,7 @@ class TelemetryFeeder:
                 packet["scenario_phase"] = "SCENARIO_10_PRESYMPTOMATIC_SEPSIS"
 
         elif sc == "SCENARIO_11_LATENT_VIRUS_REACTIVATION":
-            if is_primary:
+            if is_target:
                 packet["il_6"] = 22.0
                 packet["lymphocyte_count"] = 1.4
                 packet["heart_rate"] = 78.0
@@ -266,7 +307,7 @@ class TelemetryFeeder:
                 packet["scenario_phase"] = "SCENARIO_11_LATENT_VIRUS_REACTIVATION"
 
         elif sc == "SCENARIO_12_CYTOKINE_RELEASE_STORM":
-            if is_primary:
+            if is_target:
                 packet["il_6"] = 195.0
                 packet["wbc_count"] = 16.8
                 packet["crp"] = 24.0
@@ -276,7 +317,7 @@ class TelemetryFeeder:
                 packet["scenario_phase"] = "SCENARIO_12_CYTOKINE_RELEASE_STORM"
 
         elif sc == "SCENARIO_13_RADIATION_MARROW_EXHAUSTION":
-            if is_primary:
+            if is_target:
                 packet["lymphocyte_count"] = 0.52
                 packet["wbc_count"] = 2.4
                 packet["radiation_dose_gy"] = 0.95
@@ -284,40 +325,55 @@ class TelemetryFeeder:
                 packet["scenario_phase"] = "SCENARIO_13_RADIATION_MARROW_EXHAUSTION"
 
         elif sc == "SCENARIO_14_NEPHROLITHIASIS":
-            if is_primary:
+            if is_target:
                 packet["heart_rate"] = 88.0
                 packet["hrv_rmssd"] = 28.0
                 packet["scenario_phase"] = "SCENARIO_14_NEPHROLITHIASIS"
 
         elif sc == "SCENARIO_15_INTRAVASCULAR_DEHYDRATION":
-            if is_primary:
+            if is_target:
                 packet["hematocrit"] = 52.0
                 packet["heart_rate"] = 92.0
                 packet["hrv_rmssd"] = 22.0
                 packet["scenario_phase"] = "SCENARIO_15_INTRAVASCULAR_DEHYDRATION"
 
         elif sc == "SCENARIO_16_HEPATIC_METABOLIC_DYSFUNCTION":
-            if is_primary:
+            if is_target:
                 packet["scenario_phase"] = "SCENARIO_16_HEPATIC_METABOLIC_DYSFUNCTION"
 
         elif sc == "SCENARIO_17_SPACE_VISION_SANS":
-            if is_primary:
+            if is_target:
                 packet["cabin_co2"] = 3.6
                 packet["platelet_count"] = 290.0
                 packet["scenario_phase"] = "SCENARIO_17_SPACE_VISION_SANS"
 
         elif sc in ("SCENARIO_18_CIRCADIAN_FATIGUE_DRIFT", "SCENARIO_1_BASELINE_DRIFT"):
-            if is_primary:
+            if is_target:
                 packet["sleep_score"] = 42.0
                 packet["heart_rate"] = float(packet.get("heart_rate", 65.0)) + 14.0
                 packet["hrv_rmssd"] = 22.0
                 packet["scenario_phase"] = "SCENARIO_18_CIRCADIAN_FATIGUE_DRIFT"
 
 
-    def jump_to_scenario(self, scenario_phase: str) -> bool:
+    def jump_to_scenario(self, scenario_phase: str, target_astronaut_id: Optional[str] = None) -> bool:
         """Jumps playback index directly to active scenario phase onset for instant demonstration."""
         found = False
         target_tick = 0
+        if target_astronaut_id:
+            self._target_astronaut_id = resolve_astronaut_id(target_astronaut_id)
+        elif scenario_phase in (
+            "NOMINAL_CRUISE",
+            "SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH",
+            "SCENARIO_2_SLOW_DECOMPRESSION_HYPOXIA",
+            "SCENARIO_3_SOLAR_RADIATION_STORM",
+            "SCENARIO_4_AMMONIA_COOLANT_LEAK",
+            "SCENARIO_5_ELECTRICAL_FIRE_SMOLDER",
+        ):
+            self._target_astronaut_id = None
+        else:
+            if not self._target_astronaut_id:
+                self._target_astronaut_id = "AST-01_COMMANDER"
+
         if scenario_phase in self.SCENARIO_OFFSETS:
             target_tick = self.SCENARIO_OFFSETS[scenario_phase] % max(self.total_ticks, 1)
             found = True
@@ -356,9 +412,9 @@ class TelemetryFeeder:
             return True
         return False
 
-    async def jump_to_scenario_and_broadcast(self, scenario_phase: str) -> Dict[str, Any]:
+    async def jump_to_scenario_and_broadcast(self, scenario_phase: str, target_astronaut_id: Optional[str] = None) -> Dict[str, Any]:
         """Jumps playback index, flushes buffers, immediately steps a tick and broadcasts to HUD clients."""
-        success = self.jump_to_scenario(scenario_phase)
+        success = self.jump_to_scenario(scenario_phase, target_astronaut_id=target_astronaut_id)
         if not success:
             return {}
 

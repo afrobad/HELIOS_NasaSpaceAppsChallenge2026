@@ -1001,8 +1001,8 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 9000,
-        backgroundColor: '#070707',
+        zIndex: 10,
+        backgroundColor: 'transparent',
         color: '#f8fafc',
         fontFamily: 'var(--hud-font-sans, "Tomorrow", system-ui, sans-serif)',
         display: 'flex',
@@ -1018,9 +1018,9 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100%',
-          borderLeft: '1px solid #1a1a1a',
-          borderRight: '1px solid #1a1a1a',
-          backgroundColor: '#070707',
+          borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+          backgroundColor: 'transparent',
         }}
       >
         {/* ── UNIFIED MAIN HEADER WITH BRAND LOGO & SYSTEM CONTROLS ──────── */}
@@ -1029,9 +1029,10 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
             position: 'sticky',
             top: 0,
             zIndex: 100,
-            background: 'rgba(10, 10, 10, 0.96)',
+            background: 'rgba(10, 12, 18, 0.85)',
             backdropFilter: 'blur(16px)',
-            borderBottom: '1px solid #1f1f1f',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
             padding: '0 24px',
           }}
         >
@@ -1050,7 +1051,9 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
         <div
           style={{
             padding: '12px 24px 0 24px',
-            background: 'linear-gradient(180deg, #0e121a 0%, #07090d 100%)',
+            background: 'linear-gradient(180deg, rgba(14, 18, 26, 0.82) 0%, rgba(7, 9, 13, 0.88) 100%)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
             borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
             display: 'flex',
             alignItems: 'flex-end',
@@ -1865,8 +1868,10 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
           {/* Right Column: Dedicated Full-Height Sidebar */}
           <aside
             style={{
-              backgroundColor: '#0c0c0c',
-              borderLeft: '1px solid #1e1e1e',
+              backgroundColor: 'rgba(10, 13, 19, 0.80)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
               padding: '20px 18px',
               display: 'flex',
               flexDirection: 'column',
@@ -2101,8 +2106,10 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   return (
     <div
       style={{
-        backgroundColor: '#121212',
-        border: '1px solid #242424',
+        backgroundColor: 'rgba(15, 18, 26, 0.82)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.10)',
         borderRadius: '12px',
         padding: '16px',
         display: 'flex',

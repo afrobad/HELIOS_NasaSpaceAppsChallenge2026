@@ -152,7 +152,7 @@ class SentryMatrixEngine:
             return (
                 "WARNING",
                 0.88,
-                f"Microgravity Venous Stasis: Hypercoagulable risk profile (TRM={trm:.2f}, Hct={hct:.1f}%)."
+                f"Microgravity Venous Stasis & Thrombosis Risk: Hypercoagulable risk profile (TRM={trm:.2f}, Hct={hct:.1f}%)."
             )
 
 

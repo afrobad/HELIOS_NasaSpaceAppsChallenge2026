@@ -182,18 +182,22 @@ def get_recent_alerts(limit: int = 20) -> Dict[str, Any]:
 
 
 @app.post("/api/scenario/{scenario_key}")
-async def trigger_scenario(scenario_key: str) -> Dict[str, Any]:
+async def trigger_scenario(
+    scenario_key: str,
+    astronaut_id: Optional[str] = Query(None)
+) -> Dict[str, Any]:
     """Jumps telemetry playback to trigger a competition demonstration scenario and returns instant telemetry."""
     if not feeder:
         raise HTTPException(status_code=500, detail="Feeder uninitialized.")
 
-    latest_telemetry = await feeder.jump_to_scenario_and_broadcast(scenario_key)
-    if not latest_telemetry and not feeder.jump_to_scenario(scenario_key):
+    latest_telemetry = await feeder.jump_to_scenario_and_broadcast(scenario_key, target_astronaut_id=astronaut_id)
+    if not latest_telemetry and not feeder.jump_to_scenario(scenario_key, target_astronaut_id=astronaut_id):
         raise HTTPException(status_code=404, detail=f"Scenario key '{scenario_key}' not found.")
 
     return {
         "status": "SCENARIO_TRIGGERED",
         "scenario": scenario_key,
+        "target_astronaut_id": feeder._target_astronaut_id,
         "current_index": feeder.current_index,
         "telemetry": latest_telemetry
     }

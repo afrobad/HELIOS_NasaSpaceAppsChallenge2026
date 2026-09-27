@@ -27,7 +27,7 @@ data/astronaut_health.db-shm
 data/astronaut_health.db-wal
 astronaut_health.db
 astronaut_health.db-shm
-astronaut_health.db-wal
+astronaut_health.db-waol
 *.db-wal
 *.db-shm
 data/*.db*

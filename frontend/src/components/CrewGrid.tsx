@@ -101,9 +101,9 @@ const renderSeverityBadge = (severityRaw: string) => {
           fontSize: '10px',
           fontWeight: 700,
           letterSpacing: '0.04em',
-          color: '#ef4444',
-          border: '1px solid rgba(239, 68, 68, 0.30)',
-          background: 'rgba(239, 68, 68, 0.35)',
+          color: '#facc15',
+          border: '1px solid rgba(250, 204, 21, 0.40)',
+          background: 'rgba(250, 204, 21, 0.18)',
           whiteSpace: 'nowrap',
         }}
       >
@@ -128,9 +128,9 @@ const renderSeverityBadge = (severityRaw: string) => {
           fontSize: '10px',
           fontWeight: 700,
           letterSpacing: '0.04em',
-          color: '#ff881a',
-          border: '1px solid rgba(255, 119, 0, 0.28)',
-          background: 'rgba(255, 119, 0, 0.32)',
+          color: '#fde047',
+          border: '1px solid rgba(250, 204, 21, 0.45)',
+          background: 'rgba(250, 204, 21, 0.16)',
           whiteSpace: 'nowrap',
         }}
       >
@@ -202,9 +202,9 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
         const wbcVal: number = (isInflammationSpike && telemetry?.wbc_count !== undefined) ? telemetry.wbc_count : profile.wbc;
 
         const borderColor = isCritical
-          ? 'var(--hud-critical)'
+          ? '#facc15'
           : isWarning
-          ? 'rgba(255, 119, 0, 0.45)'
+          ? 'rgba(250, 204, 21, 0.65)'
           : 'var(--hud-border)';
 
         return (
@@ -219,11 +219,11 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
               borderRadius: 'var(--hud-radius-card)',
               overflow: 'hidden',
               boxSizing: 'border-box',
-              // Pulse red glow on critical
+              // Yellow glow on critical / warning
               boxShadow: isCritical
-                ? '0 0 0 1px rgba(239, 68, 68, 0.15), 0 2px 16px rgba(239, 68, 68, 0.08)'
+                ? '0 0 0 1px rgba(250, 204, 21, 0.35), 0 2px 16px rgba(250, 204, 21, 0.15)'
                 : isWarning
-                ? '0 0 0 1px rgba(255, 119, 0, 0.10)'
+                ? '0 0 0 1px rgba(250, 204, 21, 0.20)'
                 : 'none',
               transition: 'box-shadow 200ms ease, border-color 200ms ease',
             }}
@@ -774,19 +774,19 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                     gap: '5px',
                     borderRadius: '4px',
                     background: isCritical
-                      ? 'rgba(239, 68, 68, 0.25)'
+                      ? 'rgba(250, 204, 21, 0.20)'
                       : isWarning
-                      ? 'rgba(255, 119, 0, 0.25)'
+                      ? 'rgba(250, 204, 21, 0.14)'
                       : 'rgba(255, 255, 255, 0.08)',
                     border: isCritical
-                      ? '1px solid rgba(239, 68, 68, 0.60)'
+                      ? '1px solid rgba(250, 204, 21, 0.65)'
                       : isWarning
-                      ? '1px solid rgba(255, 119, 0, 0.60)'
+                      ? '1px solid rgba(250, 204, 21, 0.45)'
                       : '1px solid rgba(148, 163, 184, 0.35)',
                     color: isCritical
-                      ? '#fca5a5'
+                      ? '#fde047'
                       : isWarning
-                      ? '#fdba74'
+                      ? '#facc15'
                       : '#f1f5f9',
                     boxShadow: '0 1px 2px rgba(0, 0, 0, 0.35)',
                     transition: 'all 0.15s ease',

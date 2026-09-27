@@ -138,12 +138,12 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const priorityTheme = useMemo(() => {
     if (activeSeverity === 'CRITICAL') {
       return {
-        color: '#ef4444',
-        border: 'rgba(239, 68, 68, 0.18)',
-        bg: 'rgba(239, 68, 68, 0.05)',
-        innerBg: 'rgba(239, 68, 68, 0.04)',
-        badgeBg: 'rgba(239, 68, 68, 0.18)',
-        glow: '0 16px 36px -4px rgba(0, 0, 0, 0.9), 0 0 12px -4px rgba(239, 68, 68, 0.12)',
+        color: '#facc15',
+        border: 'rgba(250, 204, 21, 0.25)',
+        bg: 'rgba(250, 204, 21, 0.05)',
+        innerBg: 'rgba(250, 204, 21, 0.04)',
+        badgeBg: 'rgba(250, 204, 21, 0.18)',
+        glow: '0 16px 36px -4px rgba(0, 0, 0, 0.9), 0 0 12px -4px rgba(250, 204, 21, 0.18)',
       };
     }
     if (activeSeverity === 'WARNING') {
@@ -536,9 +536,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             width: '30px',
             height: '30px',
             borderRadius: '6px',
-            border: audioEngaged ? '1px solid rgba(255, 119, 0, 0.35)' : '1px solid #222222',
-            background: audioEngaged ? 'rgba(255, 119, 0, 0.12)' : '#111111',
-            color: audioEngaged ? '#ff7700' : '#666666',
+            border: audioEngaged ? '1px solid rgba(250, 204, 21, 0.45)' : '1px solid #222222',
+            background: audioEngaged ? 'rgba(250, 204, 21, 0.14)' : '#111111',
+            color: audioEngaged ? '#facc15' : '#666666',
             cursor: 'pointer',
             transition: 'all 0.15s ease',
           }}
@@ -575,18 +575,18 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               flexShrink: 0,
               boxSizing: 'border-box',
               border: isSpeaking
-                ? '1px solid #ff7700'
+                ? '1.5px solid #facc15'
                 : showJarvisTooltip
                 ? '1px solid #383838'
                 : '1px solid #222222',
               background: isSpeaking
-                ? 'rgba(255, 119, 0, 0.18)'
+                ? 'rgba(250, 204, 21, 0.16)'
                 : showJarvisTooltip
                 ? '#161616'
                 : '#0e0e0e',
-              color: isSpeaking ? '#ff881a' : showJarvisTooltip ? '#e5e5e5' : '#6b7280',
+              color: isSpeaking ? '#fde047' : showJarvisTooltip ? '#e5e5e5' : '#6b7280',
               cursor: 'pointer',
-              boxShadow: isSpeaking ? '0 0 12px rgba(255, 119, 0, 0.35)' : 'none',
+              boxShadow: isSpeaking ? '0 0 12px rgba(250, 204, 21, 0.35)' : 'none',
               transition: 'all 0.15s ease',
             }}
             title={
@@ -597,7 +597,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 : 'JARVIS Standby · Ollama Offline'
             }
           >
-            {/* Animated Equalizer Bars - Muted dark gray on inactive, vibrant pulsing orange on active */}
+            {/* Animated Equalizer Bars - Muted dark gray on inactive, vibrant pulsing yellow on active */}
             <div
               style={{
                 width: '12px',
@@ -614,7 +614,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 style={{
                   width: '2px',
                   height: '14px',
-                  backgroundColor: isSpeaking ? '#ff7700' : '#404040',
+                  backgroundColor: isSpeaking ? '#facc15' : '#404040',
                   borderRadius: '1px',
                   transform: isSpeaking ? undefined : 'scaleY(0.25)',
                   transformOrigin: 'bottom',
@@ -626,7 +626,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 style={{
                   width: '2px',
                   height: '14px',
-                  backgroundColor: isSpeaking ? '#ff7700' : '#404040',
+                  backgroundColor: isSpeaking ? '#facc15' : '#404040',
                   borderRadius: '1px',
                   transform: isSpeaking ? undefined : 'scaleY(0.4)',
                   transformOrigin: 'bottom',
@@ -638,7 +638,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 style={{
                   width: '2px',
                   height: '14px',
-                  backgroundColor: isSpeaking ? '#ff7700' : '#404040',
+                  backgroundColor: isSpeaking ? '#facc15' : '#404040',
                   borderRadius: '1px',
                   transform: isSpeaking ? undefined : 'scaleY(0.25)',
                   transformOrigin: 'bottom',
@@ -656,7 +656,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 flex: 1,
                 textAlign: 'center',
                 fontFamily: "'Tomorrow', sans-serif",
-                color: isSpeaking ? '#ff881a' : showJarvisTooltip ? '#e5e5e5' : '#6b7280',
+                color: isSpeaking ? '#fde047' : showJarvisTooltip ? '#e5e5e5' : '#6b7280',
               }}
             >
               JARVIS
@@ -678,8 +678,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   width: '5px',
                   height: '5px',
                   borderRadius: '50%',
-                  backgroundColor: isSpeaking ? '#ff7700' : ollamaOnline ? '#4b5563' : '#262626',
-                  boxShadow: isSpeaking ? '0 0 7px #ff7700' : 'none',
+                  backgroundColor: isSpeaking ? '#facc15' : ollamaOnline ? '#4b5563' : '#262626',
+                  boxShadow: isSpeaking ? '0 0 7px #facc15' : 'none',
                   transition: 'all 0.2s ease',
                 }}
               />
