@@ -32,14 +32,14 @@ The system is built for **total communication blackout** scenarios (e.g., Mars t
 
 | Capability | Description |
 |---|---|
-| 🫀 **Live ECG + Vitals** | Continuous Lead II ECG, SpO2 pleth, HR, HRV, core temp per astronaut at 60-90 FPS |
-| 🧠 **AI Sentry Engine** | Multi-biomarker fusion: EPI (sepsis), ARF (arrhythmia), TRM (thrombosis), RSI (radiation) |
-| 🔊 **JARVIS Voice Console** | Spoken health advisories via local Ollama LLM + Microsoft Edge Neural TTS |
-| 📡 **10 Hz WebSocket Stream** | Real NASA OSDR-derived telemetry replayed at physiological fidelity |
-| 🚨 **3-Tier Alert System** | NOMINAL to WARNING to CRITICAL with progressive multi-stage directives |
-| 🏥 **Triage Modal** | Full clinical biomarker panel for any crew member on demand |
-| 🌌 **Mars Delay Mode** | Simulates 4-24 minute one-way communication delay to Earth |
-| 🔌 **Offline-First** | Ollama LLM + Edge TTS with zero cloud dependency |
+| <img src="assets/icons/activity.svg" width="16" height="16" valign="middle" /> &nbsp; **Live ECG + Vitals** | Continuous Lead II ECG, SpO2 pleth, HR, HRV, core temp per astronaut at 60-90 FPS |
+| <img src="assets/icons/brain.svg" width="16" height="16" valign="middle" /> &nbsp; **AI Sentry Engine** | Multi-biomarker fusion: EPI (sepsis), ARF (arrhythmia), TRM (thrombosis), RSI (radiation) |
+| <img src="assets/icons/volume-2.svg" width="16" height="16" valign="middle" /> &nbsp; **JARVIS Voice Console** | Spoken health advisories via local Ollama LLM + Microsoft Edge Neural TTS |
+| <img src="assets/icons/radio.svg" width="16" height="16" valign="middle" /> &nbsp; **10 Hz WebSocket Stream** | Real NASA OSDR-derived telemetry replayed at physiological fidelity |
+| <img src="assets/icons/shield-alert.svg" width="16" height="16" valign="middle" /> &nbsp; **3-Tier Alert System** | NOMINAL to WARNING to CRITICAL with progressive multi-stage directives |
+| <img src="assets/icons/stethoscope.svg" width="16" height="16" valign="middle" /> &nbsp; **Triage Modal** | Full clinical biomarker panel for any crew member on demand |
+| <img src="assets/icons/orbit.svg" width="16" height="16" valign="middle" /> &nbsp; **Mars Delay Mode** | Simulates 4-24 minute one-way communication delay to Earth |
+| <img src="assets/icons/shield-check.svg" width="16" height="16" valign="middle" /> &nbsp; **Offline-First** | Ollama LLM + Edge TTS with zero cloud dependency |
 
 ---
 
@@ -228,11 +228,11 @@ The HUD will be available at `http://localhost:3000`
 
 Open `http://localhost:3000` in your browser. You should see:
 
-- ✅ Header shows `ONLINE` status with a green indicator
-- ✅ 4 crew rows with live fluctuating vitals (HR, HRV, SpO2, Core Temp)
-- ✅ 4 ECG waveforms running in real-time at 60+ FPS
-- ✅ JARVIS console initializes and begins loading
-- ✅ POC Labs panel showing biomarker values (K+, IL-6, WBC, Hct)
+- <img src="assets/icons/check-circle.svg" width="14" height="14" valign="middle" /> &nbsp; Header shows `ONLINE` status with a green indicator
+- <img src="assets/icons/check-circle.svg" width="14" height="14" valign="middle" /> &nbsp; 4 crew rows with live fluctuating vitals (HR, HRV, SpO2, Core Temp)
+- <img src="assets/icons/check-circle.svg" width="14" height="14" valign="middle" /> &nbsp; 4 ECG waveforms running in real-time at 60+ FPS
+- <img src="assets/icons/check-circle.svg" width="14" height="14" valign="middle" /> &nbsp; JARVIS console initializes and begins loading
+- <img src="assets/icons/check-circle.svg" width="14" height="14" valign="middle" /> &nbsp; POC Labs panel showing biomarker values (K+, IL-6, WBC, Hct)
 
 Check AI status:
 ```bash
@@ -541,11 +541,11 @@ Comprehensive project engineering and aerospace clinical documentation is organi
 
 | Document | Focus & Scope |
 |---|---|
-| 🌟 [Project Master Documentation](documentation/PROJECT_MASTER_DOCUMENTATION.md) | **Unified master guide**: deep-space reality, stack breakdown, 149 NASA OSDR biomarkers, 18 flight scenario calculations, and verification. |
-| 📑 [Astronaut Health JARVIS System Documentation](documentation/Astronaut_Health_JARVIS_System_Documentation.md) | Full architectural specifications, clinical decision workflows, IMM/ExMC alignment, and mathematical sentry models. |
-| 🛡️ [NASA Flight Software Architecture Standard](documentation/NASA_Flight_Software_Architecture_Standard.md) | NASA-STD-8739.8 software engineering standards, memory boundedness, and high-reliability design patterns. |
-| 📊 [Dataset Coverage Analysis](documentation/dataset_coverage_analysis.md) | Breakdown of NASA OSDR OSD-575 / OSD-569 human spaceflight multi-omics and clinical chemistry panels. |
-| 📜 [Project Conversation Contexts & Architectural Journal](documentation/conv_contexts.md) | Complete chronological transcript, engineering rationale, and forensic development journal. |
+| <img src="assets/icons/book-open.svg" width="16" height="16" valign="middle" /> &nbsp; [Project Master Documentation](documentation/PROJECT_MASTER_DOCUMENTATION.md) | **Unified master guide**: deep-space reality, stack breakdown, 149 NASA OSDR biomarkers, 18 flight scenario calculations, and verification. |
+| <img src="assets/icons/file-text.svg" width="16" height="16" valign="middle" /> &nbsp; [Astronaut Health JARVIS System Documentation](documentation/Astronaut_Health_JARVIS_System_Documentation.md) | Full architectural specifications, clinical decision workflows, IMM/ExMC alignment, and mathematical sentry models. |
+| <img src="assets/icons/shield.svg" width="16" height="16" valign="middle" /> &nbsp; [NASA Flight Software Architecture Standard](documentation/NASA_Flight_Software_Architecture_Standard.md) | NASA-STD-8739.8 software engineering standards, memory boundedness, and high-reliability design patterns. |
+| <img src="assets/icons/bar-chart.svg" width="16" height="16" valign="middle" /> &nbsp; [Dataset Coverage Analysis](documentation/dataset_coverage_analysis.md) | Breakdown of NASA OSDR OSD-575 / OSD-569 human spaceflight multi-omics and clinical chemistry panels. |
+| <img src="assets/icons/history.svg" width="16" height="16" valign="middle" /> &nbsp; [Project Conversation Contexts & Architectural Journal](documentation/conv_contexts.md) | Complete chronological transcript, engineering rationale, and forensic development journal. |
 
 ---
 
