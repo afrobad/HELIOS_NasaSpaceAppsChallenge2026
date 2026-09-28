@@ -460,7 +460,10 @@ def get_progressive_script(
                 target_stages = PROGRESSIVE_SCENARIO_SCRIPTS.get("SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH")
 
     if target_stages:
-        script = target_stages[stage_index % len(target_stages)]
+        # Clamp to at most stage 1 (ongoing monitoring) — never stage 2+ which says "situation resolved".
+        # Stage 2 scripts are written for manual resolution events, not for continuous active scenarios.
+        max_safe_stage = min(stage_index, max(0, len(target_stages) - 2))
+        script = target_stages[max_safe_stage]
         if is_all_crew and "Commander {name}" in script:
             script = script.replace("Commander {name}", "All stations")
         return script.format(name=clean_name)

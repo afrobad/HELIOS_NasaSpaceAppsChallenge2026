@@ -39,8 +39,8 @@ class TestAlertCoalescing(unittest.TestCase):
         names = format_crew_names_list(["Commander Haley", "Doctor Sian", "Pilot Chris"])
         script = get_fallback_script("SCENARIO_1_BASELINE_DRIFT", "WARNING", astronaut_name=names)
         self.assertIn("Commander Haley, Doctor Sian, and Pilot Chris", script)
-        self.assertIn("bodies are showing elevated fatigue", script)
-        self.assertIn("synchronized ten-minute rest", script)
+        self.assertIn("physiological strain", script)
+        self.assertIn("scheduled rest period", script)
 
     def test_multi_crew_voice_warning(self):
         """Verifies voice engine packages 3-crew warning and sets cooldown for all members."""

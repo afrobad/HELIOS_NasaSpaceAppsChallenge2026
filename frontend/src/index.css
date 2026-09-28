@@ -1,36 +1,135 @@
 /* Google Fonts fallback for Orbitron and Tomorrow */
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=Tomorrow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&display=swap');
 
-/* Local Font-Face declarations for offline spaceflight operation */
+/* =========================================================================
+   LOCAL SPACEFLIGHT FONT DECLARATIONS: TOMORROW (100% OFFLINE)
+   Directory: /fonts/tomorrow/
+   ========================================================================= */
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-Thin.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-ThinItalic.ttf') format('truetype');
+  font-weight: 100;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-ExtraLight.ttf') format('truetype');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-ExtraLightItalic.ttf') format('truetype');
+  font-weight: 200;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-LightItalic.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
 @font-face {
   font-family: 'Tomorrow';
   src: url('/fonts/tomorrow/Tomorrow-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
 }
 @font-face {
   font-family: 'Tomorrow';
   src: url('/fonts/tomorrow/Tomorrow-Medium.ttf') format('truetype');
   font-weight: 500;
   font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-MediumItalic.ttf') format('truetype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
 }
 @font-face {
   font-family: 'Tomorrow';
   src: url('/fonts/tomorrow/Tomorrow-SemiBold.ttf') format('truetype');
   font-weight: 600;
   font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-SemiBoldItalic.ttf') format('truetype');
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
 }
 @font-face {
   font-family: 'Tomorrow';
   src: url('/fonts/tomorrow/Tomorrow-Bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-BoldItalic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
 }
 @font-face {
   font-family: 'Tomorrow';
   src: url('/fonts/tomorrow/Tomorrow-ExtraBold.ttf') format('truetype');
   font-weight: 800;
   font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-ExtraBoldItalic.ttf') format('truetype');
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tomorrow';
+  src: url('/fonts/tomorrow/Tomorrow-BlackItalic.ttf') format('truetype');
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
 }
 
 /* =========================================================================
@@ -61,8 +160,8 @@
   --hud-cyan: #38bdf8;
 
   /* Typography: Orbitron for Brand Hero & Tomorrow for HUD metrics */
-  --hud-font-brand: 'Orbitron', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --hud-font-sans: 'Tomorrow', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --hud-font-brand: 'Orbitron', 'Tomorrow', sans-serif;
+  --hud-font-sans: 'Tomorrow', sans-serif;
   --hud-font-mono: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
   --hud-text-primary: #ffffff;      /* 100% Crisp White for values & headers */
@@ -316,7 +415,48 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .hud-earth-orbital-container,
   .hud-earth-atmosphere-corona,
-  .hud-deep-starfield {
+  .hud-deep-starfield,
+  .jarvis-live-ticker {
     animation: none !important;
   }
 }
+
+/* =========================================================================
+   JARVIS Dedicated Live Transmission HUD: AI Word-by-Word Streaming Fade
+   ========================================================================= */
+@keyframes jarvisAiWordFade {
+  0% {
+    opacity: 0;
+    transform: translateY(2px);
+    filter: blur(1.5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.jarvis-word-item {
+  display: inline-block;
+  animation: jarvisAiWordFade 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity, filter;
+}
+
+@keyframes jarvisCursorPulse {
+  0%, 100% {
+    opacity: 0.95;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 0.15;
+    transform: scaleY(0.65);
+  }
+}
+
+.jarvis-pulse-cursor {
+  animation: jarvisCursorPulse 0.75s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+

@@ -20,7 +20,7 @@ export interface SpeechQueueItem {
   callbacks?: {
     onStart?: () => void;
     onEnd?: () => void;
-    onWord?: (wordIndex: number) => void;
+    onWord?: (wordIndex: number, progress?: number) => void;
   };
   priority: number; // 3: CRITICAL, 2: WARNING, 1: NOMINAL / Query
   timestamp: number;
@@ -45,6 +45,7 @@ class AudioService {
   private activeItem: SpeechQueueItem | null = null;
   private recentSpoken: Map<string, number> = new Map();
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+  private listeners: Set<(state: { isTransmitting: boolean; isSpeaking: boolean }) => void> = new Set();
 
   constructor() {
     this.initVoices();
@@ -102,6 +103,23 @@ class AudioService {
       !!this.currentUtterance ||
       (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking)
     );
+  }
+
+  public isTransmitting(): boolean {
+    return this.isProcessingQueue;
+  }
+
+  public onStateChange(listener: (state: { isTransmitting: boolean; isSpeaking: boolean }) => void): () => void {
+    this.listeners.add(listener);
+    listener({ isTransmitting: this.isTransmitting(), isSpeaking: this.isSpeaking() });
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notifyListeners(): void {
+    const state = { isTransmitting: this.isTransmitting(), isSpeaking: this.isSpeaking() };
+    this.listeners.forEach((listener) => listener(state));
   }
 
   /**
@@ -188,71 +206,91 @@ class AudioService {
   }
 
   /**
-   * CRITICAL: Urgent dual-pulsed aerospace alarm.
+   * CRITICAL: Aviation-grade MASTER WARNING — dual sawtooth pulse klaxon.
+   * Modeled after ISS emergency and aircraft GPWS warning tones.
+   * Two sharp bursts with a hard-cut gap for maximum urgency.
    */
   private playCriticalKlaxon(): void {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    const filter = this.ctx.createBiquadFilter();
 
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(620, now);
-    osc.frequency.exponentialRampToValueAtTime(820, now + 0.12);
-    osc.frequency.exponentialRampToValueAtTime(620, now + 0.24);
-    osc.frequency.exponentialRampToValueAtTime(820, now + 0.36);
+    // Two-pulse klaxon: burst → silence → burst (like GPWS / ISS alarm)
+    const pulses = [
+      { startOffset: 0.00, duration: 0.22 },
+      { startOffset: 0.29, duration: 0.22 },
+    ];
 
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1600, now);
-    filter.Q.setValueAtTime(1.5, now);
+    pulses.forEach(({ startOffset, duration }) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      const distortion = this.ctx!.createWaveShaper();
 
-    gain.gain.setValueAtTime(0.01, now);
-    gain.gain.linearRampToValueAtTime(0.16, now + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      // Sawtooth wave — harsh, cutting, impossible to miss
+      osc.type = 'sawtooth';
+      // Rapid pitch sweep up then down within each burst for siren character
+      osc.frequency.setValueAtTime(520, now + startOffset);
+      osc.frequency.linearRampToValueAtTime(880, now + startOffset + duration * 0.5);
+      osc.frequency.linearRampToValueAtTime(520, now + startOffset + duration);
 
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.ctx.destination);
+      // Mild waveshaper to add bite without distortion
+      const curve = new Float32Array(256);
+      for (let i = 0; i < 256; i++) {
+        const x = (i * 2) / 256 - 1;
+        curve[i] = Math.sign(x) * (1 - Math.exp(-Math.abs(x) * 5)) * 0.85;
+      }
+      distortion.curve = curve;
 
-    osc.start(now);
-    osc.stop(now + 0.48);
+      // Hard attack, sustained, hard cut off
+      gain.gain.setValueAtTime(0.001, now + startOffset);
+      gain.gain.linearRampToValueAtTime(0.26, now + startOffset + 0.012);
+      gain.gain.setValueAtTime(0.26, now + startOffset + duration - 0.02);
+      gain.gain.linearRampToValueAtTime(0.001, now + startOffset + duration);
+
+      osc.connect(distortion);
+      distortion.connect(gain);
+      gain.connect(this.ctx!.destination);
+
+      osc.start(now + startOffset);
+      osc.stop(now + startOffset + duration + 0.02);
+    });
   }
 
   /**
-   * WARNING: Clear, polite, two-tone ascending flight advisory chime (587 Hz D5 -> 880 Hz A5).
+   * WARNING: NASA/CAPCOM-style authoritative caution tone.
+   * Descending two-note pattern (high→low) — unmistakable and professional.
+   * Used in actual mission control for non-emergency flight advisories.
    */
   private playWarningChime(): void {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
-    const notes = [
-      { freq: 587.33, start: 0, dur: 0.22, vol: 0.12 },
-      { freq: 880.00, start: 0.08, dur: 0.32, vol: 0.14 }
-    ];
+    // Note 1: High tone — sharp, attention-grabbing
+    const osc1 = this.ctx.createOscillator();
+    const gain1 = this.ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(960, now);
+    gain1.gain.setValueAtTime(0.001, now);
+    gain1.gain.linearRampToValueAtTime(0.20, now + 0.015);
+    gain1.gain.setValueAtTime(0.20, now + 0.10);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
+    osc1.connect(gain1);
+    gain1.connect(this.ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.22);
 
-    notes.forEach((n) => {
-      const osc = this.ctx!.createOscillator();
-      const gain = this.ctx!.createGain();
-      const filter = this.ctx!.createBiquadFilter();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(n.freq, now + n.start);
-
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(2000, now);
-
-      gain.gain.setValueAtTime(0.001, now + n.start);
-      gain.gain.linearRampToValueAtTime(n.vol, now + n.start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + n.start + n.dur);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx!.destination);
-
-      osc.start(now + n.start);
-      osc.stop(now + n.start + n.dur + 0.05);
-    });
+    // Note 2: Low tone — authoritative resolution drop
+    const osc2 = this.ctx.createOscillator();
+    const gain2 = this.ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(640, now + 0.18);
+    gain2.gain.setValueAtTime(0.001, now + 0.18);
+    gain2.gain.linearRampToValueAtTime(0.17, now + 0.195);
+    gain2.gain.setValueAtTime(0.17, now + 0.30);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.44);
+    osc2.connect(gain2);
+    gain2.connect(this.ctx.destination);
+    osc2.start(now + 0.18);
+    osc2.stop(now + 0.46);
   }
 
   /**
@@ -281,24 +319,29 @@ class AudioService {
     });
   }
 
+  /**
+   * BEEP: Crisp radio-click acknowledgment tone (ATC/CAPCOM channel open).
+   * 1200 Hz clean sine with sharp envelope — sounds like a real radio handset.
+   */
   private playBeep(): void {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(528, now);
-
-    gain.gain.setValueAtTime(0.01, now);
-    gain.gain.linearRampToValueAtTime(0.08, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.22);
+    // Two very short click-in pulses (like keying a radio mic)
+    [0, 0.11].forEach((offset) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1200, now + offset);
+      gain.gain.setValueAtTime(0.001, now + offset);
+      gain.gain.linearRampToValueAtTime(0.13, now + offset + 0.008);
+      gain.gain.setValueAtTime(0.13, now + offset + 0.055);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.085);
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.09);
+    });
   }
 
   private findNaturalJarvisVoice(): SpeechSynthesisVoice | null {
@@ -344,7 +387,7 @@ class AudioService {
     callbacks?: {
       onStart?: () => void;
       onEnd?: () => void;
-      onWord?: (wordIndex: number) => void;
+      onWord?: (wordIndex: number, progress?: number) => void;
     };
     priority?: number;
   }): void {
@@ -431,6 +474,7 @@ class AudioService {
     }
 
     this.isProcessingQueue = true;
+    this.notifyListeners();
     const item = this.queue.shift()!;
     this.activeItem = item;
 
@@ -507,17 +551,53 @@ class AudioService {
       audio.playbackRate = targetRate;
       this.currentAudio = audio;
 
+      // Ensure audio metadata is loaded before starting playback
+      await new Promise<void>((resolve) => {
+        if (audio.readyState >= 1) return resolve();
+        audio.onloadedmetadata = () => resolve();
+        setTimeout(resolve, 300);
+      });
+
+      // Get exact microsecond-precise duration via Web Audio API decodeAudioData
+      let exactDuration = 0;
+      try {
+        this.initAudioContext();
+        if (this.ctx) {
+          if (this.ctx.state === 'suspended') {
+            await this.ctx.resume();
+          }
+          const arrayBuffer = await blob.arrayBuffer();
+          const decoded = await new Promise<AudioBuffer>((resolve, reject) => {
+            const res = this.ctx!.decodeAudioData(arrayBuffer.slice(0), resolve, reject);
+            if (res && typeof (res as Promise<AudioBuffer>).then === 'function') {
+              (res as Promise<AudioBuffer>).then(resolve).catch(reject);
+            }
+          });
+          if (decoded && isFinite(decoded.duration) && decoded.duration > 0) {
+            exactDuration = decoded.duration;
+          }
+        }
+      } catch {
+        // Fallback to estimation or audio element duration if decode fails
+      }
+
       const words = spokenText.split(/\s+/).filter(Boolean);
-      let lastReportedWordIndex = -1;
-      let wordProgressTimer: ReturnType<typeof setInterval> | null = null;
+      // Fast, natural aerospace speech pace (~240 WPM = ~230ms per word)
+      const estimatedSec = Math.max(1.2, words.length * 0.23);
+      const totalDuration = (exactDuration > 0 && isFinite(exactDuration))
+        ? exactDuration
+        : (isFinite(audio.duration) && audio.duration > 0 ? audio.duration : estimatedSec);
+
+      let lastReportedProgress = -1;
+      let progressTimer: ReturnType<typeof setInterval> | null = null;
 
       let completed = false;
       const cleanupAndNext = () => {
         if (completed) return;
         completed = true;
-        if (wordProgressTimer) {
-          clearInterval(wordProgressTimer);
-          wordProgressTimer = null;
+        if (progressTimer) {
+          clearInterval(progressTimer);
+          progressTimer = null;
         }
         if (this.currentAudio === audio) {
           this.currentAudio = null;
@@ -537,45 +617,42 @@ class AudioService {
         this.breakTimer = setTimeout(() => {
           this.breakTimer = null;
           this.isProcessingQueue = false;
+          this.notifyListeners();
           this.processQueue();
         }, AudioService.INTER_TRANSMISSION_PAUSE_MS);
       };
 
-      // Real-time word-by-word synchronization with audio playback
-      audio.ontimeupdate = () => {
-        if (!audio.duration || audio.duration === 0) return;
-        const progress = Math.min(1.0, audio.currentTime / audio.duration);
-        const wordIdx = Math.min(words.length - 1, Math.floor(progress * words.length));
-        if (wordIdx > lastReportedWordIndex) {
-          lastReportedWordIndex = wordIdx;
-          item.callbacks?.onWord?.(wordIdx);
+      const syncPlaybackProgress = () => {
+        if (!audio || audio.paused || audio.ended) return;
+        const liveDur = (isFinite(audio.duration) && audio.duration > 0) ? audio.duration : 0;
+        const dur = (exactDuration > 0 && isFinite(exactDuration))
+          ? exactDuration
+          : (liveDur > 0 ? liveDur : totalDuration);
+
+        // Account for trailing silence (speech finishes ~0.4s to 0.6s before audio ends)
+        const activeSpeechDuration = Math.max(0.6, dur - 0.45);
+        // +180ms vocalization lead ensures the word appears immediately as vocalization starts
+        const progress = Math.min(1.0, (audio.currentTime + 0.18) / activeSpeechDuration);
+        if (progress > lastReportedProgress) {
+          lastReportedProgress = progress;
+          const wordIdx = Math.min(words.length - 1, Math.floor(progress * words.length));
+          item.callbacks?.onWord?.(wordIdx, progress);
         }
       };
 
-      // onplay fires the moment audio actually begins — starts word streaming
+      audio.ontimeupdate = syncPlaybackProgress;
+
       audio.onplay = () => {
         item.callbacks?.onStart?.();
-
-        // Smooth high-resolution word ticker ensuring steady word-by-word streaming
-        const estDuration = audio.duration || (words.length * 0.35);
-        const msPerWord = Math.max(160, (estDuration * 1000) / Math.max(words.length, 1));
-        let curIdx = 0;
-        wordProgressTimer = setInterval(() => {
-          if (audio.paused || audio.ended) {
-            if (wordProgressTimer) clearInterval(wordProgressTimer);
-            return;
-          }
-          if (curIdx < words.length) {
-            if (curIdx > lastReportedWordIndex) {
-              lastReportedWordIndex = curIdx;
-              item.callbacks?.onWord?.(curIdx);
-            }
-            curIdx++;
-          }
-        }, msPerWord);
+        // High-frequency 40ms sync locked directly to audio.currentTime
+        progressTimer = setInterval(syncPlaybackProgress, 40);
       };
 
-      audio.onended = cleanupAndNext;
+      audio.onended = () => {
+        item.callbacks?.onWord?.(words.length - 1, 1.0);
+        cleanupAndNext();
+      };
+
       audio.onerror = (e) => {
         console.error('Playback error on neural audio blob:', e);
         cleanupAndNext();
@@ -609,6 +686,7 @@ class AudioService {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       this.isProcessingQueue = false;
       this.activeItem = null;
+      this.notifyListeners();
       return;
     }
 
@@ -630,23 +708,37 @@ class AudioService {
     const words = spokenText.split(/\s+/).filter(Boolean);
     let wordCount = 0;
     let boundaryFired = false;
-    let fallbackWordIdx = 0;
-    const msPerWord = Math.max(160, Math.round(330 / targetRate));
+    // Calibrate Web Speech pacing: ~210ms per word with +120ms anticipation
+    const msPerWord = Math.max(130, Math.round(210 / targetRate));
+    const totalEstimatedMs = Math.max(400, (words.length * msPerWord) - 250);
     let speechTimer: ReturnType<typeof setInterval> | null = null;
+    let startTime = 0;
 
-    utterance.onboundary = () => {
+    utterance.onboundary = (e: SpeechSynthesisEvent) => {
       boundaryFired = true;
-      item.callbacks?.onWord?.(wordCount++);
+      if (e.name === 'word' && typeof e.charIndex === 'number') {
+        const textBefore = spokenText.slice(0, e.charIndex);
+        const wordIdx = textBefore.trim().split(/\s+/).filter(Boolean).length;
+        const charProgress = spokenText.length > 0 ? Math.min(1.0, (e.charIndex + 4) / spokenText.length) : 0;
+        item.callbacks?.onWord?.(wordIdx, charProgress);
+      } else {
+        const progress = Math.min(1.0, (wordCount + 1) / Math.max(words.length, 1));
+        item.callbacks?.onWord?.(wordCount++, progress);
+      }
     };
 
     utterance.onstart = () => {
       item.callbacks?.onStart?.();
-      // Backup timer in case browser does not support utterance onboundary
+      startTime = Date.now();
+      // Continuous progress timer in case browser does not support onboundary
       speechTimer = setInterval(() => {
-        if (!boundaryFired && fallbackWordIdx < words.length) {
-          item.callbacks?.onWord?.(fallbackWordIdx++);
+        if (!boundaryFired && startTime > 0) {
+          const elapsed = Date.now() - startTime + 120;
+          const progress = Math.min(0.99, elapsed / totalEstimatedMs);
+          const targetWordIdx = Math.min(words.length - 1, Math.floor(progress * words.length));
+          item.callbacks?.onWord?.(targetWordIdx, progress);
         }
-      }, msPerWord);
+      }, 40);
     };
 
     const handleComplete = () => {
@@ -661,6 +753,7 @@ class AudioService {
       this.currentUtterance = null;
       this.activeItem = null;
       this.lastTransmissionEndTime = Date.now();
+      item.callbacks?.onWord?.(words.length - 1, 1.0);
       item.callbacks?.onEnd?.();
 
       // Enforce 3.5s quiet break after voice transmission before next queued transmission begins
@@ -670,6 +763,7 @@ class AudioService {
       this.breakTimer = setTimeout(() => {
         this.breakTimer = null;
         this.isProcessingQueue = false;
+        this.notifyListeners();
         this.processQueue();
       }, AudioService.INTER_TRANSMISSION_PAUSE_MS);
     };
@@ -696,7 +790,7 @@ class AudioService {
     callbacks?: {
       onStart?: () => void;
       onEnd?: () => void;
-      onWord?: (wordIndex: number) => void;
+      onWord?: (wordIndex: number, progress?: number) => void;
     }
   ): void {
     this.queueSpeech({
@@ -740,6 +834,7 @@ class AudioService {
     this.activeItem = null;
     this.isProcessingQueue = false;
     this.queue = [];
+    this.notifyListeners();
   }
 
   public isInTransmissionBreak(): boolean {

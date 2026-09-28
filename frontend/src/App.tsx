@@ -154,7 +154,7 @@ export function App() {
       {/* GPU-Composited Photorealistic Earth Orbital Space Background */}
       <SpaceBackground activeView={activeView} />
 
-      <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '0 20px 32px', position: 'relative', zIndex: 1 }}>
+      <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '0 20px 72px', position: 'relative', zIndex: 1 }}>
         {/* Flight HUD View (Default Home Page) */}
       {activeView === 'HUD' && (
         <>
@@ -178,18 +178,29 @@ export function App() {
 
       {/* Comprehensive Health Telemetry & 10-Category Clinical Analysis Console */}
       {activeView === 'HEALTH_TELEMETRY' && (
-        <HealthTelemetryView
-          initialAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
-          telemetryMap={telemetryMap}
-          marsDelay={marsDelay}
-          connected={connected}
-          latestAlert={latestAlert}
-          onToggleMarsDelay={handleToggleMarsDelay}
-          activeView={activeView}
-          onSelectView={handleSelectView}
-          onClose={handleCloseTelemetry}
-          onAstronautChange={handleAstronautChange}
-        />
+        <>
+          {/* JARVIS fixed bottom bar on telemetry page — jarvisOnly skips the top nav */}
+          <HeaderBar
+            jarvisOnly
+            connected={connected}
+            latestAlert={latestAlert}
+            selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
+            activeView={activeView}
+            onSelectView={handleSelectView}
+          />
+          <HealthTelemetryView
+            initialAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
+            telemetryMap={telemetryMap}
+            marsDelay={marsDelay}
+            connected={connected}
+            latestAlert={latestAlert}
+            onToggleMarsDelay={handleToggleMarsDelay}
+            activeView={activeView}
+            onSelectView={handleSelectView}
+            onClose={handleCloseTelemetry}
+            onAstronautChange={handleAstronautChange}
+          />
+        </>
       )}
 
       {/* Global Scenario Controller (Floating Action Pill + Aerospace Modal) */}

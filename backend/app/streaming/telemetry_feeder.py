@@ -161,8 +161,10 @@ class TelemetryFeeder:
         self._active_scenario: str = "NOMINAL_CRUISE"
         self._scenario_stage_index: int = 0
         self._last_progressive_dispatch_time: float = 0.0
-        # 8.0s interval guarantees ~4.5s speaking + a calm 3.5s quiet break before next progressive stage
-        self._progressive_interval_seconds: float = 8.0
+        # 25.0s: allows initial TTS (~8-10s) + inter-transmission break (3.5s) + meaningful quiet gap
+        self._progressive_interval_seconds: float = 25.0
+        # Max 1 follow-up message per scenario activation — prevents infinite voice spam
+        self._max_progressive_stages: int = 1
 
     SCENARIO_OFFSETS: Dict[str, int] = {
         # ── CSV NOMINAL_CRUISE zone: rows 0–1199 per astronaut ──
@@ -508,33 +510,37 @@ class TelemetryFeeder:
                 self._stage_and_coalesce_alerts(elevated_candidates)
 
             # Continuous Progressive Sentry Loop:
-            # While an elevated clinical state persists, re-evaluate telemetry every 8 seconds
-            # and advance to the next progressive recommendation stage!
+            # While an elevated clinical state persists, fire one contextual follow-up after
+            # _progressive_interval_seconds. Hard-capped at _max_progressive_stages to prevent
+            # infinite voice spam and false "stabilizing" messages.
             now = time.time()
             is_any_elevated = any(s in ("WARNING", "CRITICAL") for s in self.last_severities.values())
 
             if is_any_elevated and (now - self._last_progressive_dispatch_time >= self._progressive_interval_seconds):
                 self._last_progressive_dispatch_time = now
-                self._scenario_stage_index += 1
 
-                current_active_candidates = []
-                for ast_id, s in self.last_severities.items():
-                    if s in ("WARNING", "CRITICAL"):
-                        latest_pkt = self.buffers[ast_id].get_latest() if ast_id in self.buffers else None
-                        if latest_pkt:
-                            clinical_reason = latest_pkt.get("trigger_reason") or f"Progressive Sentry Advisory (Stage {self._scenario_stage_index})"
-                            current_active_candidates.append({
-                                "ast_id": ast_id,
-                                "packet": latest_pkt,
-                                "severity": latest_pkt.get("evaluated_severity", "WARNING"),
-                                "confidence": latest_pkt.get("confidence", 0.92),
-                                "reason": clinical_reason,
-                                "baseline": self.baseline_mgr.get_astronaut_baseline(ast_id, latest_pkt.get("mission_state", "REST")),
-                                "env": self.baseline_mgr.environmental_baselines
-                            })
+                if self._scenario_stage_index < self._max_progressive_stages:
+                    self._scenario_stage_index += 1
 
-                if current_active_candidates:
-                    asyncio.create_task(self._dispatch_progressive_stage(current_active_candidates, self._scenario_stage_index))
+                    current_active_candidates = []
+                    for ast_id, s in self.last_severities.items():
+                        if s in ("WARNING", "CRITICAL"):
+                            latest_pkt = self.buffers[ast_id].get_latest() if ast_id in self.buffers else None
+                            if latest_pkt:
+                                clinical_reason = latest_pkt.get("trigger_reason") or f"Ongoing Sentry Monitoring (Stage {self._scenario_stage_index})"
+                                current_active_candidates.append({
+                                    "ast_id": ast_id,
+                                    "packet": latest_pkt,
+                                    "severity": latest_pkt.get("evaluated_severity", "WARNING"),
+                                    "confidence": latest_pkt.get("confidence", 0.92),
+                                    "reason": clinical_reason,
+                                    "baseline": self.baseline_mgr.get_astronaut_baseline(ast_id, latest_pkt.get("mission_state", "REST")),
+                                    "env": self.baseline_mgr.environmental_baselines
+                                })
+
+                    if current_active_candidates:
+                        asyncio.create_task(self._dispatch_progressive_stage(current_active_candidates, self._scenario_stage_index))
+                # else: max follow-up stages reached — JARVIS stays silent until scenario changes
 
             self.current_tick = (self.current_tick + 1) % self.total_ticks
             return dispatched_packets[0] if dispatched_packets else None

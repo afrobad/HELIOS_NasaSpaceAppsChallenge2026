@@ -84,14 +84,17 @@ class GeminiClient:
         stage_context = ""
         if stage_index > 0:
             stage_context = (
-                f"This is Progressive Follow-up Stage {stage_index} (16 seconds after initial detection). "
-                f"Give an updated situational status report on how the astronaut's condition is evolving, "
-                f"referencing ongoing stabilization or next medical protocol steps."
+                f"This is Progressive Follow-up Stage {stage_index} (approximately {stage_index * 25} seconds after initial detection). "
+                f"CRITICAL: The emergency condition is STILL ACTIVE. Biometrics confirm ongoing anomaly. "
+                f"Give a concise status report referencing the current live readings, "
+                f"and reinforce the prescribed countermeasure. "
+                f"Do NOT say the situation has improved, stabilized, or normalized. "
+                f"Do NOT use phrases like 'stabilizing', 'returning to normal', 'cleared', or 'safe levels'."
             )
         else:
             stage_context = (
                 "This is the immediate initial detection. Clearly state the exact physiological anomaly, "
-                "the key numbers, and the immediate countermeasure."
+                "the key live biometric numbers, and the immediate countermeasure."
             )
 
         return (
@@ -125,7 +128,6 @@ class GeminiClient:
             return None
 
         prompt = self._build_prompt(astronaut_name, telemetry, severity, reason, stage_index)
-        url = f"{self.base_url}/{self.model}:generateContent?key={self.api_key}"
 
         payload = {
             "contents": [
@@ -143,21 +145,23 @@ class GeminiClient:
             }
         }
 
-        models_to_try = [self.model] + [m for m in self.models_fallback if m != self.model]
+        models_to_try = list(dict.fromkeys([self.model] + self.models_fallback))
         start_t = time.time()
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                for model_name in models_to_try:
-                    url = f"{self.base_url}/{model_name}:generateContent?key={self.api_key}"
-                    try:
-                        res = await client.post(url, json=payload)
-                        if res.status_code == 200:
-                            data = res.json()
-                            candidates = data.get("candidates", [])
-                            if candidates:
-                                parts = candidates[0].get("content", {}).get("parts", [])
-                                if parts:
-                                    raw_text = parts[0].get("text", "").strip()
+
+        async def _try_model(model_name: str) -> Optional[Dict[str, Any]]:
+            """Fires a single Gemini model request. Returns None on any failure."""
+            url = f"{self.base_url}/{model_name}:generateContent?key={self.api_key}"
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                    res = await client.post(url, json=payload)
+                    if res.status_code == 200:
+                        data = res.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            parts = candidates[0].get("content", {}).get("parts", [])
+                            if parts:
+                                raw_text = parts[0].get("text", "").strip()
+                                if raw_text:
                                     clean_text = self._clean_gemini_output(raw_text, astronaut_name)
                                     dur_ms = round((time.time() - start_t) * 1000, 1)
                                     return {
@@ -166,8 +170,23 @@ class GeminiClient:
                                         "is_fallback": False,
                                         "duration_ms": dur_ms
                                     }
-                    except Exception:
-                        continue
+            except Exception:
+                pass
+            return None
+
+        # Parallel model racing: fire all variants simultaneously, return first success.
+        # This eliminates the latency penalty of sequential retries when the primary model
+        # is rate-limited or slow — whichever responds first wins.
+        try:
+            tasks = [asyncio.create_task(_try_model(m)) for m in models_to_try]
+            for coro in asyncio.as_completed([asyncio.ensure_future(t) for t in tasks]):
+                result = await coro
+                if result is not None:
+                    # Cancel remaining in-flight requests to save quota
+                    for t in tasks:
+                        if not t.done():
+                            t.cancel()
+                    return result
         except Exception:
             pass
 

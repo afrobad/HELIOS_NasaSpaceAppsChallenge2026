@@ -10,6 +10,8 @@ interface HeaderBarProps {
   onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY') => void;
   latestAlert?: AlertPayload | null;
   selectedAstronautId?: string;
+  /** When true, renders ONLY the fixed bottom JARVIS bar — no top navbar */
+  jarvisOnly?: boolean;
 }
 
 const getAstronautName = (id?: string): string => {
@@ -61,12 +63,14 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onSelectView,
   latestAlert,
   selectedAstronautId = 'AST-01_COMMANDER',
+  jarvisOnly = false,
 }) => {
   const [audioEngaged, setAudioEngaged] = useState<boolean>(true);
   const [metSeconds, setMetSeconds] = useState<number>(14 * 3600 + 43 * 60 + 18);
 
   // JARVIS in Header State
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [isTransmitting, setIsTransmitting] = useState<boolean>(false);
   const [activeSpeech, setActiveSpeech] = useState<string>(
     latestAlert?.speech_text || 'All systems nominal. Sentry telemetry active.'
   );
@@ -77,6 +81,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const [queryText, setQueryText] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [ollamaOnline, setOllamaOnline] = useState<boolean>(true);
+  const [displayedWordCount, setDisplayedWordCount] = useState<number>(0);
 
   const isSpeakingRef = useRef<boolean>(false);
   const activeSpeechTextRef = useRef<string>(activeSpeech);
@@ -84,6 +89,14 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const lastSpokenAdviceBodyRef = useRef<string>('');
   const lastSpokenTimestampRef = useRef<number>(0);
   const autoDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechWords = useMemo(() => {
+    return activeSpeech.split(/\s+/).filter(Boolean);
+  }, [activeSpeech]);
+  const speechWordsRef = useRef<string[]>(speechWords);
+
+  useEffect(() => {
+    speechWordsRef.current = speechWords;
+  }, [speechWords]);
 
   useEffect(() => {
     activeSpeechTextRef.current = activeSpeech;
@@ -134,6 +147,44 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       time: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`,
     };
   };
+
+  const transmissionTheme = useMemo(() => {
+    if (activeSeverity === 'CRITICAL') {
+      return {
+        bg: 'linear-gradient(90deg, rgba(225, 29, 72, 0.22) 0%, rgba(159, 18, 57, 0.14) 100%)',
+        border: '1px solid rgba(244, 63, 94, 0.55)',
+        glow: '0 4px 16px rgba(0, 0, 0, 0.65), 0 0 1px rgba(244, 63, 94, 0.35)',
+        accentColor: '#f43f5e',
+        textColor: '#cbd5e1',
+        latestWordColor: '#ffffff',
+        iconSrc: '/icons/critical.png',
+        iconAlt: 'Critical Severity Alert',
+      };
+    }
+    if (activeSeverity === 'WARNING') {
+      return {
+        bg: 'linear-gradient(90deg, rgba(245, 158, 11, 0.22) 0%, rgba(180, 83, 9, 0.14) 100%)',
+        border: '1px solid rgba(251, 191, 36, 0.55)',
+        glow: '0 4px 16px rgba(0, 0, 0, 0.65), 0 0 1px rgba(251, 191, 36, 0.35)',
+        accentColor: '#fbbf24',
+        textColor: '#cbd5e1',
+        latestWordColor: '#ffffff',
+        iconSrc: '/icons/warning.png',
+        iconAlt: 'Warning Severity Alert',
+      };
+    }
+    // NOMINAL / INFO
+    return {
+      bg: 'linear-gradient(90deg, rgba(14, 165, 233, 0.20) 0%, rgba(3, 105, 161, 0.12) 100%)',
+      border: '1px solid rgba(56, 189, 248, 0.5)',
+      glow: '0 4px 16px rgba(0, 0, 0, 0.65), 0 0 1px rgba(56, 189, 248, 0.3)',
+      accentColor: '#38bdf8',
+      textColor: '#cbd5e1',
+      latestWordColor: '#ffffff',
+      iconSrc: '/icons/heartbeat_blue.png',
+      iconAlt: 'Nominal Baseline Transmission',
+    };
+  }, [activeSeverity]);
 
   const priorityTheme = useMemo(() => {
     if (activeSeverity === 'CRITICAL') {
@@ -212,14 +263,30 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       },
       callbacks: {
         onStart: () => {
-          // Streaming begins the instant audio begins playing — lockstep sync
+          // Streaming begins the exact instant audio begins playing — lockstep sync
           isSpeakingRef.current = true;
           setIsSpeaking(true);
+          setIsTransmitting(true);
           setActiveSpeech(cleanText);
           activeSpeechTextRef.current = cleanText;
           setShowJarvisTooltip(true);
+
+          const words = cleanText.split(/\s+/).filter(Boolean);
+          speechWordsRef.current = words;
+          setDisplayedWordCount(1);
+        },
+        onWord: (_wordIndex: number, progress?: number) => {
+          const total = speechWordsRef.current.length;
+          if (typeof progress === 'number' && progress >= 0) {
+            const targetCount = Math.min(total, Math.max(1, Math.ceil(progress * total)));
+            setDisplayedWordCount((prev) => Math.max(prev, targetCount));
+          } else {
+            setDisplayedWordCount((prev) => Math.min(total, Math.max(prev, _wordIndex + 1)));
+          }
         },
         onEnd: () => {
+          const totalWords = activeSpeechTextRef.current.split(/\s+/).filter(Boolean).length;
+          setDisplayedWordCount(totalWords);
           handleSpeechFinished();
         },
       },
@@ -257,11 +324,12 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       }
     }
 
-    // Auto-hide tooltip 6 seconds after transmission ends
+    // Keep transmission navbar readable after transmission ends (12 seconds)
     if (autoDismissTimerRef.current) clearTimeout(autoDismissTimerRef.current);
     autoDismissTimerRef.current = setTimeout(() => {
       setShowJarvisTooltip(false);
-    }, 6000);
+      setIsTransmitting(false);
+    }, 12000);
   };
 
   // React to incoming WebSocket alerts
@@ -357,20 +425,178 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const targetCrewName = getAstronautName(latestAlert?.astronaut_id || selectedAstronautId);
 
-  return (
-    <header
+  // Retain references for backed-up tooltip/pod code
+  void priorityTheme;
+  void showJarvisTooltip;
+  void setShowJarvisTooltip;
+  void queryText;
+  void setQueryText;
+  void isProcessing;
+  void handleSendQuery;
+  void ollamaOnline;
+
+  // ── JARVIS FIXED BOTTOM BAR (shared across HUD and Telemetry views) ──
+  const jarvisBar = (
+    <div
+      className="jarvis-transmission-navbar"
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '14px 0',
-        borderBottom: '1px solid #1c1c1c',
-        marginBottom: '14px',
-        flexWrap: 'wrap',
-        gap: '12px',
-        position: 'relative',
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 9999,
+        // Slide up from below when transmitting, slide back down when not
+        transform: isTransmitting ? 'translateY(0)' : 'translateY(calc(100% + 2px))',
+        transition: 'transform 0.38s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.32s ease',
+        opacity: isTransmitting ? 1 : 0,
+        pointerEvents: isTransmitting ? 'auto' : 'none',
+        background: '#07080b',
+        borderTop: `2px solid ${transmissionTheme.accentColor}`,
+        boxShadow: `0 -4px 32px rgba(0, 0, 0, 0.85), 0 -1px 0 rgba(255,255,255,0.04), inset 0 1px 0 ${transmissionTheme.accentColor}22`,
+        boxSizing: 'border-box',
       }}
     >
+      {/* Inner container: same maxWidth and padding as main content area */}
+      <div
+        style={{
+          maxWidth: '1250px',
+          margin: '0 auto',
+          padding: '0 20px',
+          height: '56px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          boxSizing: 'border-box',
+          width: '100%',
+        }}
+      >
+        {/* PINNED LEFT: Severity Icon + JARVIS Label + Audio Bars */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '0 14px 0 0',
+            borderRight: 'rgba(255, 255, 255, 0.08) 1px solid',
+            flexShrink: 0,
+          }}
+        >
+          <img
+            src={transmissionTheme.iconSrc}
+            alt={transmissionTheme.iconAlt}
+            style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 0 5px rgba(0,0,0,0.7))' }}
+          />
+          <span
+            style={{
+              fontFamily: "'Orbitron', var(--hud-font-brand, system-ui, sans-serif)",
+              fontSize: '11px',
+              fontWeight: 900,
+              letterSpacing: '0.14em',
+              color: transmissionTheme.accentColor,
+              textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            JARVIS
+          </span>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '14px', width: '14px', flexShrink: 0 }}>
+            {(['hud-bar-anim-1', 'hud-bar-anim-2', 'hud-bar-anim-3'] as const).map((cls, i) => (
+              <span
+                key={i}
+                className={isSpeaking ? cls : ''}
+                style={{
+                  width: '2px',
+                  height: '14px',
+                  backgroundColor: transmissionTheme.accentColor,
+                  borderRadius: '1px',
+                  transform: isSpeaking ? undefined : `scaleY(${i === 1 ? 0.5 : 0.25})`,
+                  transformOrigin: 'bottom',
+                  transition: 'transform 0.2s ease',
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* MIDDLE: Streaming AI telemetry text */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '5px',
+            flex: 1,
+            minWidth: 0,
+            padding: '6px 14px',
+            backgroundColor: '#0c0d10',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: '6px',
+            boxShadow: 'inset 0 1px 4px rgba(0, 0, 0, 0.7)',
+            height: '38px',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+          }}
+        >
+          {speechWords.slice(0, displayedWordCount).map((word, idx) => {
+            const isLatest = isSpeaking && idx === displayedWordCount - 1;
+            return (
+              <span
+                key={`${idx}-${word}`}
+                className="jarvis-word-item"
+                style={{
+                  color: isLatest ? transmissionTheme.latestWordColor : transmissionTheme.textColor,
+                  fontFamily: "var(--hud-font-mono, 'Tomorrow', monospace)",
+                  fontSize: '12px',
+                  fontWeight: isLatest ? 700 : 500,
+                  letterSpacing: '0.02em',
+                  textShadow: isLatest ? `0 0 10px ${transmissionTheme.accentColor}` : 'none',
+                  transition: 'color 0.15s ease, text-shadow 0.15s ease',
+                }}
+              >
+                {formatChemicalSubscripts(word)}
+              </span>
+            );
+          })}
+          {isSpeaking && (
+            <span
+              className="jarvis-pulse-cursor"
+              style={{
+                display: 'inline-block',
+                width: '6px',
+                height: '13px',
+                backgroundColor: transmissionTheme.accentColor,
+                borderRadius: '1px',
+                marginLeft: '2px',
+                boxShadow: `0 0 8px ${transmissionTheme.accentColor}`,
+              }}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // When jarvisOnly: skip the top nav, return only the fixed JARVIS bar
+  if (jarvisOnly) {
+    return jarvisBar;
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+      {/* ── MAIN TOP NAVBAR CONTAINER ── */}
+      <header
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '14px 0',
+          borderBottom: '1px solid #1c1c1c',
+          marginBottom: '14px',
+          flexWrap: 'wrap',
+          gap: '12px',
+          position: 'relative',
+        }}
+      >
       {/* ── LEFT: HERO BRAND LOGO & MINIMAL VIEW SWITCHER ─────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         {/* Brand Logo Hero with Solid Look */}
@@ -559,7 +785,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           )}
         </button>
 
-        {/* ── JARVIS IN HEADER WITH VISUAL ACTIVE/INACTIVE CONTRAST ──────── */}
+        {/* ── BACKED-UP ORIGINAL JARVIS BUTTON POD & TOOLTIP (TEMPORARILY DISABLED AS REQUESTED; TOGGLE false TO true TO RESTORE) ── */}
+        {false && (
         <div style={{ position: 'relative' }}>
           {/* Header Button Pod: Clear Active vs Inactive State */}
           <button
@@ -864,9 +1091,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             </div>
           )}
         </div>
+        )}
       </div>
     </header>
-  );
+
+    {/* ── JARVIS FIXED BOTTOM TRANSMISSION BAR ── */}
+    {jarvisBar}
+  </div>
+);
 };
 
 export default HeaderBar;
+

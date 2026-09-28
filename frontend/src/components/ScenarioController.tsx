@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { audioService } from '../services/audioService';
 
@@ -9,6 +9,8 @@ interface ScenarioControllerProps {
   onScenarioTriggered?: (scenarioKey: string, telemetry?: Record<string, any>) => void;
 }
 
+export type MissionCohort = 'ALL' | 'ARTEMIS_I' | 'ARTEMIS_II';
+
 interface ScenarioMeta {
   key: string;
   label: string;
@@ -17,6 +19,8 @@ interface ScenarioMeta {
   description: string;
   severity: 'CRITICAL' | 'WARNING' | 'NOMINAL';
   physiologicalShift?: string;
+  artemisCohort: 'ARTEMIS_I' | 'ARTEMIS_II';
+  nasaCitation: string;
 }
 
 interface TooltipData {
@@ -27,10 +31,12 @@ interface TooltipData {
   description: string;
   severity: 'CRITICAL' | 'WARNING' | 'NOMINAL';
   physiologicalShift?: string;
+  artemisCohort?: 'ARTEMIS_I' | 'ARTEMIS_II';
+  nasaCitation?: string;
   x: number;
   y: number;
   caretOffset: number;
-  placement: 'top' | 'bottom';
+  placement: 'top' | 'bottom' | 'left' | 'right';
 }
 
 interface CrewProfile {
@@ -90,174 +96,210 @@ const CREW_PROFILES: CrewProfile[] = [
 const UNIVERSAL_SCENARIOS: ScenarioMeta[] = [
   {
     key: 'SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH',
-    label: '01 · CO₂ Scrubber Leak',
-    badge: 'CO₂: 4.25 mmHg · Limit Breach',
+    label: '01 · Carbon Dioxide Scrubber Failure',
+    badge: 'CO₂: 4.25 mmHg · Air Warning',
     category: 'ENVIRONMENT',
-    description: 'Cabin carbon dioxide climbs past safety limits (>4.0 mmHg). Immediate secondary scrubbers required.',
+    description: 'Orion air scrubber valve circuit failed, causing carbon dioxide to build up in the cabin. Astronauts put on emergency breathing masks and switch to backup lithium hydroxide filters.',
     severity: 'WARNING',
-    physiologicalShift: 'All Crew: Compensatory hyperventilation, SpO₂ dips to 96.2%, HR climbs to 82 bpm.',
+    physiologicalShift: 'Elevated carbon dioxide triggers mild blood acidification (respiratory acidosis), blood oxygen dips to 96.2%, and heart rate speeds to 82 bpm to compensate.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Inspection Report IG-24-011: Orion life-support air scrubber motor valve circuit failure.',
   },
   {
     key: 'SCENARIO_2_SLOW_DECOMPRESSION_HYPOXIA',
-    label: '02 · Cabin Decompression',
-    badge: 'SpO₂: 88.5% · Hypoxic Drop',
+    label: '02 · Cabin Air Leak & Decompression',
+    badge: 'SpO₂: 88.5% · Cabin 88.0 kPa',
     category: 'ENVIRONMENT',
-    description: 'Cabin atmospheric pressure drops; severe hypoxic cascade. Don oxygen masks and seal pressure bulkheads.',
+    description: 'Heat shield thermal damage caused a cabin pressure seal leak, dropping air pressure to 88.0 kPa. Astronauts put on pressurized oxygen masks and seal pressure hatches.',
     severity: 'CRITICAL',
-    physiologicalShift: 'All Crew: Critical hypoxia SpO₂ 88.5%, acute tachycardia HR 118 bpm, autonomic strain HRV 24 ms.',
+    physiologicalShift: 'Low air pressure starves the blood of oxygen (hypoxia dips SpO₂ to 88.5%), pulse races to 118 bpm, and body stress reserves drop sharply.',
+    artemisCohort: 'ARTEMIS_I',
+    nasaCitation: 'NASA Artemis I Post-Flight Report: Avcoat heat shield loss across >100 locations from trapped gas pressure.',
   },
   {
     key: 'SCENARIO_3_SOLAR_RADIATION_STORM',
-    label: '03 · Solar Radiation Storm',
-    badge: 'Flux: 85 mGy/h · Dose 0.75 Gy',
+    label: '03 · Deep-Space Solar Radiation Storm',
+    badge: 'Radiation: 85 mGy/h · Dose 0.75 Gy',
     category: 'ENVIRONMENT',
-    description: 'Energetic solar proton event; 0.75 Gy biodosimetry dose. Evacuate all crew to the water-shielded shelter.',
+    description: 'Orion flies through a powerful solar proton storm. Cabin sensors detect 85 mGy/h of cosmic radiation. Astronauts immediately take shelter behind protective water-storage walls.',
     severity: 'CRITICAL',
-    physiologicalShift: 'All Crew: Acute lymphocyte depletion to 0.85k, RSI 1.25, active biodosimetry tracking.',
+    physiologicalShift: 'Cosmic rays rapidly deplete protective white blood cells (lymphocytes drop to 0.85k), pushing the Radiation Sickness Index (RSI) to 1.25.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Exploration Medical Capability (ExMC) & Artemis Deep-Space Radiation Flight Rules.',
   },
   {
     key: 'SCENARIO_4_AMMONIA_COOLANT_LEAK',
-    label: '04 · Ammonia Coolant Breach',
-    badge: 'SpO₂: 89.5% · Toxic Ingress',
+    label: '04 · Toxic Cooling System Vapor Leak',
+    badge: 'SpO₂: 89.5% · Chemical Fumes',
     category: 'ENVIRONMENT',
-    description: 'External thermal coolant breach into cabin atmosphere; toxic aerosol blocks alveolar gas exchange.',
+    description: 'The external thermal cooling loop cracked, leaking toxic coolant vapor into the breathing cabin. Astronauts isolate ventilation ducts and don emergency breathing apparatus.',
     severity: 'CRITICAL',
-    physiologicalShift: 'All Crew: Chemical pneumonitis SpO₂ 89.5%, severe tachycardia HR 132 bpm, IL-6 inflammatory spike 28 pg/mL.',
+    physiologicalShift: 'Inhaling toxic fumes irritates lung airways (chemical pneumonitis), dropping blood oxygen to 89.5%, accelerating pulse to 132 bpm, and triggering body inflammation.',
+    artemisCohort: 'ARTEMIS_I',
+    nasaCitation: 'Orion Active Thermal Control System: Cabin Coolant Ingress Hazard Mitigation Protocol.',
   },
   {
     key: 'SCENARIO_5_ELECTRICAL_FIRE_SMOLDER',
-    label: '05 · Electrical Fire Smolder',
-    badge: 'Avionics Bay · CRP: 8.5 mg/L',
+    label: '05 · Electrical Wiring Smoke & Overheat',
+    badge: 'Avionics Bay · Smoke Irritation',
     category: 'ENVIRONMENT',
-    description: 'Smoldering wiring harness in avionics electronics bay; cut power bus and inspect panel with extinguisher.',
+    description: 'Cosmic radiation tripped electrical power breakers in the Service Module, causing wiring insulation in the equipment bay to overheat and release smoke into the cabin.',
     severity: 'WARNING',
-    physiologicalShift: 'All Crew: Particulate smoke ingress, SpO₂ 93.5%, HR 108 bpm, CRP systemic irritation 8.5 mg/L.',
+    physiologicalShift: 'Fine airborne smoke particles irritate respiratory airways, lowering blood oxygen to 93.5%, raising heart rate to 108 bpm, and elevating blood inflammation markers.',
+    artemisCohort: 'ARTEMIS_I',
+    nasaCitation: 'NASA Artemis I Flight Day 19 Anomaly: Power Distribution Unit uncommanded electrical switch trips.',
   },
 ];
 
-// ── Individual Crew Scenarios (Scenarios 6-18) ──
+// ── Individual Crew Scenarios (Scenarios 6-18: Artemis II Crewed Hazards) ──
 const INDIVIDUAL_SCENARIOS: ScenarioMeta[] = [
   // Cardiovascular & Electrophysiology
   {
     key: 'SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA',
-    label: '06 · Hypokalemic Arrhythmia',
-    badge: 'K⁺ 2.95 mmol/L · QTc 492ms',
+    label: '06 · Space Motion Sickness & Low Potassium',
+    badge: 'Potassium: 2.95 mmol/L · Heart Alert',
     category: 'CARDIO',
-    description: 'Potassium drops below safe threshold (2.95 mmol/L); dynamic QTc prolongation and ventricular flutter risk.',
+    description: 'Zero-gravity disorients the inner ear, triggering severe space adaptation sickness and repeated vomiting. This rapidly flushes vital potassium electrolytes from the body.',
     severity: 'WARNING',
-    physiologicalShift: 'Target: K+ 2.95 mmol/L, QTc widening to 492 ms, ARF 1.75, tachycardia drift HR 78 bpm.',
+    physiologicalShift: 'Critically low potassium (2.95 mmol/L) disrupts cardiac electrical timing, dangerously prolonging heart muscle recharge (QTc widens to 492 ms) with flutter risk.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Human Research Program: Space motion sickness and acute electrolyte depletion in the first 48 hours.',
   },
   {
     key: 'SCENARIO_7_VENOUS_THROMBOSIS_RISK',
-    label: '07 · Jugular Vein Thrombosis',
-    badge: 'Hct 52.5% · TRM 2.35 Clot Risk',
+    label: '07 · Neck Vein Stagnation & Blood Clot Risk',
+    badge: 'Blood Thickness 52.5% · Clot Risk: 2.35',
     category: 'CARDIO',
-    description: 'Cephalic fluid pooling in zero-G causes neck internal jugular vein flow stasis and acute thrombosis risk.',
+    description: 'Without gravity pulling blood toward the feet, fluid pools in the head and neck. Blood flow in the internal jugular neck vein stops moving, creating acute risk of a blood clot.',
     severity: 'WARNING',
-    physiologicalShift: 'Target: Hematocrit 52.5%, Platelet surge 385k, IL-6 18.5 pg/mL, TRM hypercoagulability 2.35.',
+    physiologicalShift: 'Blood plasma loss concentrates red cells (Hematocrit 52.5%) and clotting platelets surge (385k), raising Thrombosis Clot Risk Index to a dangerous 2.35.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA ISS Flight Findings: Microgravity jugular vein blood flow stagnation and ultrasound clot monitoring.',
   },
   {
     key: 'SCENARIO_8_CARDIOVASCULAR_DECONDITIONING',
-    label: '08 · Cardiac Deconditioning',
-    badge: 'HR 98 bpm · HRV 18ms',
+    label: '08 · High-G Re-Entry Gravity Blackout Strain',
+    badge: 'Heart Rate: 98 bpm · Stress Alert',
     category: 'CARDIO',
-    description: 'Microgravity cardiac atrophy and orthostatic intolerance; resting pulse spikes during light postural effort.',
+    description: 'Returning to Earth at Mach 32, the capsule pulls an intense 8G deceleration force. After days in zero-G, relaxed blood vessels allow blood to drain away from the brain into the legs.',
     severity: 'WARNING',
-    physiologicalShift: 'Target: Resting HR spikes to 98 bpm (Z > +4.0), HRV collapses to 18 ms, microvascular tone dip.',
+    physiologicalShift: 'Resting heart rate spikes to 98 bpm to force blood to the brain, heart rate variability collapses (HRV to 18 ms), and blood vessels struggle to maintain pressure.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA-STD-3001: High-G lunar re-entry deceleration and post-landing fainting tolerance standards.',
   },
   {
     key: 'SCENARIO_9_CORONARY_MICROVASCULAR_STRESS',
-    label: '09 · Coronary Microvascular Strain',
-    badge: 'CRP 6.8 mg/L · QTc 458ms',
+    label: '09 · Deep-Space Blood Vessel Stress',
+    badge: 'Vascular Inflammation: 6.8 · QTc 458ms',
     category: 'CARDIO',
-    description: 'Coronary microvascular strain and endothelial irritation; chewable baby aspirin and mandatory cabin rest.',
+    description: 'High mission cognitive workload combined with deep-space cosmic radiation irritates the delicate inner lining of heart blood vessels. Astronaut takes aspirin and rests.',
     severity: 'WARNING',
-    physiologicalShift: 'Target: HR 96 bpm, CRP systemic inflammatory drift 6.8 mg/L, QTc widens to 458 ms.',
+    physiologicalShift: 'Radiation oxidative stress inflames blood vessel walls, raising inflammatory markers (CRP to 6.8 mg/L) and delaying cardiac electrical recharge (QTc to 458 ms).',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Spaceflight Cardiovascular Health: Blood vessel oxidative stress under deep-space cosmic radiation.',
   },
 
   // Infection & Immune System
   {
     key: 'SCENARIO_10_PRESYMPTOMATIC_SEPSIS',
-    label: '10 · Presymptomatic Sepsis',
-    badge: 'IL-6 125 pg/mL · EPI 1.65 Alert',
+    label: '10 · Early Silent Bacterial Blood Infection',
+    badge: 'Immune Spike: 125 pg/mL · Sepsis Alert',
     category: 'IMMUNE',
-    description: 'Immune cytokine cascade surges hours ahead of fever; autonomic uncoupling precedes clinical sepsis.',
+    description: 'Microgravity weakens body immune barriers, allowing bacteria to enter the bloodstream. The body sounds an immune chemical alarm hours before any physical fever appears.',
     severity: 'CRITICAL',
-    physiologicalShift: 'Target: IL-6 surges to 125 pg/mL, WBC 14.5k, CRP 16.5 mg/L, Temp 37.8°C, EPI 1.65 (Critical Cascade).',
+    physiologicalShift: 'Immune alarm proteins surge (IL-6 jumps to 125 pg/mL) and white blood cells climb (14.5k), warning of severe bloodstream infection hours before fever develops.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Space Omics SOMA Dataset: Early subclinical immune cytokine dysregulation in spaceflight.',
   },
   {
     key: 'SCENARIO_11_LATENT_VIRUS_REACTIVATION',
-    label: '11 · Latent Virus Reactivation',
-    badge: 'IL-6 22 pg/mL · Lympho 1.4k',
+    label: '11 · Dormant Virus Reactivation',
+    badge: 'Immune Marker: 22 pg/mL · White Cells 1.4k',
     category: 'IMMUNE',
-    description: 'Deep-space cosmic radiation wakes dormant herpesvirus/EBV; start oral antivirals and dark rest schedule.',
+    description: 'Spaceflight stress hormones and radiation suppress immune defenses, allowing dormant childhood viruses (like chickenpox/herpes) to wake up and multiply in the body.',
     severity: 'WARNING',
-    physiologicalShift: 'Target: IL-6 22 pg/mL, Lymphocytes dip to 1.4k, resting pulse 78 bpm, EPI 0.95.',
+    physiologicalShift: 'Protective immune defense cells drop (lymphocytes down to 1.4k) and inflammatory signals rise (IL-6 to 22 pg/mL); astronaut begins oral antiviral medication.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Human Research Program: Latent herpesvirus reactivation and T-cell fatigue during long-duration flight.',
   },
   {
     key: 'SCENARIO_12_CYTOKINE_RELEASE_STORM',
-    label: '12 · Cytokine Storm Hyperdrive',
-    badge: 'IL-6 195 pg/mL · Temp 38.9°C',
+    label: '12 · Runaway Immune Cytokine Storm',
+    badge: 'Immune Surge: 195 pg/mL · Fever: 38.9°C',
     category: 'IMMUNE',
-    description: 'Acute systemic hyper-inflammatory overdrive; administer IV corticosteroids and cooling blanket.',
+    description: 'The astronaut immune system goes into overdrive, releasing a massive wave of inflammatory chemicals that attack the body own healthy organs. Requires emergency steroid medication.',
     severity: 'CRITICAL',
-    physiologicalShift: 'Target: Massive cytokine surge IL-6 195 pg/mL, WBC 16.8k, CRP 24.0 mg/L, Temp 38.9°C, HR 126 bpm.',
+    physiologicalShift: 'Massive inflammatory surge (IL-6 reaches 195 pg/mL), white blood cells spike to 16.8k, fever reaches 38.9°C, and pulse accelerates to 126 bpm.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Space Immunology: Hyper-inflammatory cytokine storm cascades triggered by microgravity and radiation.',
   },
   {
     key: 'SCENARIO_13_RADIATION_MARROW_EXHAUSTION',
-    label: '13 · Marrow Radiation Suppression',
-    badge: 'Lympho 0.52k · Dose 0.95 Gy',
+    label: '13 · Bone Marrow Radiation Suppression',
+    badge: 'White Cells: 0.52k · Radiation: 0.95 Gy',
     category: 'IMMUNE',
-    description: 'Hematopoietic bone marrow suppression following solar transit; absolute lymphocyte depletion under 0.6k.',
+    description: 'Heavy cosmic rays penetrate deep into bone marrow, damaging the body factory that creates blood cells. The astronaut immune defenses drop to dangerous lows.',
     severity: 'WARNING',
-    physiologicalShift: 'Target: Severe lymphocytopenia to 0.52k, WBC drops to 2.4k, absorbed radiation dose 0.95 Gy, RSI 1.45.',
+    physiologicalShift: 'Protective white blood cells drop dangerously low (lymphocytes down to 0.52k, total white cells to 2.4k), raising Radiation Sickness Index (RSI) to 1.45.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'Andrews Space Radiation Model: Bone marrow damage and white blood cell loss from cosmic radiation.',
   },
 
   // Metabolic, SANS & Fluids
   {
     key: 'SCENARIO_14_NEPHROLITHIASIS',
-    label: '14 · Renal Calculi (Kidney Stone)',
-    badge: 'Pain HR 88 bpm · HRV 28ms',
+    label: '14 · Microgravity Kidney Stone Attack',
+    badge: 'Pain Pulse: 88 bpm · Calcium High',
     category: 'METABOLIC',
-    description: 'Bone calcium loss in microgravity concentrates in renal tubules; drink 3 liters of fluid and take potassium citrate.',
+    description: 'In zero-gravity, bones rapidly shed calcium into the bloodstream. This excess calcium filters into the kidneys and crystallizes into a painful kidney stone.',
     severity: 'WARNING',
-    physiologicalShift: 'Target: Acute renal colic sympathetic pain HR 88 bpm, HRV drops to 28 ms, urine calcium concentration.',
+    physiologicalShift: 'Sharp kidney pain triggers a nervous system stress response (pulse rises to 88 bpm, stress reserves drop); astronaut hydrates heavily with potassium citrate.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Clinical Practice Guidelines: Microgravity bone calcium loss and kidney stone prevention.',
   },
   {
     key: 'SCENARIO_15_INTRAVASCULAR_DEHYDRATION',
-    label: '15 · Intravascular Dehydration',
-    badge: 'Hct 52.0% · TRM 1.95 Shift',
+    label: '15 · Dehydration & Blood Plasma Loss',
+    badge: 'Thick Blood: 52.0% · Clot Risk: 1.95',
     category: 'METABOLIC',
-    description: 'Blood plasma volume contracts and thickens; drink balanced electrolyte solution and lie in micro-G neutral posture.',
+    description: 'Because fluids shift toward the head in zero-G, the brain mistakenly senses excess water and turns off thirst. The astronaut body becomes severely dehydrated.',
     severity: 'WARNING',
-    physiologicalShift: 'Target: Hemoconcentration Hct 52.0%, compensatory tachycardia HR 92 bpm, HRV collapses to 22 ms.',
+    physiologicalShift: 'Loss of water shrinks blood volume and thickens blood (Hematocrit climbs to 52.0%), forcing the heart to beat faster (92 bpm) to pump viscous blood.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Space Physiology: Fluid shifts, thirst suppression, and blood volume contraction in weightlessness.',
   },
   {
     key: 'SCENARIO_16_HEPATIC_METABOLIC_DYSFUNCTION',
-    label: '16 · Hepatic Clearance Impairment',
-    badge: 'CYP450 Slowdown · T½ +35%',
+    label: '16 · Slowed Liver Medicine Breakdown',
+    badge: 'Liver Metabolism: -35% · Dose Warning',
     category: 'METABOLIC',
-    description: 'Liver CYP450 drug clearance slows under cosmic radiation and microgravity; adjust pharmaceutical dosing intervals.',
+    description: 'Microgravity and cosmic radiation slow down the liver primary drug-clearing enzymes. Medications stay in the body 35% longer, creating risk of accidental drug overdose.',
     severity: 'WARNING',
-    physiologicalShift: 'Target: Phase I/II hepatic clearance impairment; drug half-lives prolonged by ~35%.',
+    physiologicalShift: 'Liver drug breakdown slows by ~35%, extending medication lifetime in the bloodstream; medical officer must space medication doses further apart.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Space Pharmacology: Altered liver drug processing and metabolism on lunar and deep-space missions.',
   },
   {
     key: 'SCENARIO_17_SPACE_VISION_SANS',
-    label: '17 · Spaceflight Neuro-Ocular (SANS)',
-    badge: 'ONSD Elevated · ICP Congestion',
+    label: '17 · Space Vision Syndrome & Head Pressure',
+    badge: 'Optic Nerve Swelling · Head Pressure High',
     category: 'METABOLIC',
-    description: 'Cephalic venous congestion elevates optic nerve sheath diameter; initiate Lower Body Negative Pressure (LBNP).',
+    description: 'Weightlessness causes fluids to pool continuously in the head. The resulting high pressure behind the eyes squashes the optic nerve and blurs astronaut vision (SANS).',
     severity: 'WARNING',
-    physiologicalShift: 'Target: Optic sheath expansion, elevated intracranial compliance pressure, mild platelet reactivity 290k.',
+    physiologicalShift: 'Fluid pressure swells the optic nerve sheath behind the eye and increases skull pressure; astronaut uses negative-pressure leg suction to pull fluids down.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Human Research Program: Spaceflight-Associated Neuro-ocular Syndrome (SANS) visual impairment.',
   },
   {
     key: 'SCENARIO_18_CIRCADIAN_FATIGUE_DRIFT',
-    label: '18 · Circadian Sol Fatigue Drift',
-    badge: 'Sleep Index 42 · HR +14 bpm',
+    label: '18 · Lunar Orbit Sleep Loss & Exhaustion',
+    badge: 'Sleep Score: 42/100 · Heart Rate: +14 bpm',
     category: 'METABOLIC',
-    description: 'Cumulative sleep deficit on 24.6h Martian Sol; resting heart rate baseline drifts upward by +14 bpm.',
+    description: 'High-stress maneuvering near the Moon and constant spacecraft lighting disrupt the astronaut circadian sleep clock, causing chronic fatigue and cognitive exhaustion.',
     severity: 'WARNING',
-    physiologicalShift: 'Target: Sleep quality drops to 42, baseline HR climbs by +14 bpm, autonomic vagal suppression HRV 22 ms.',
+    physiologicalShift: 'Sleep quality drops to 42/100, resting baseline pulse rises by +14 bpm, and autonomic nervous system recovery collapses.',
+    artemisCohort: 'ARTEMIS_II',
+    nasaCitation: 'NASA Behavioral Health: Circadian rhythm disruption, sleep deprivation, and cardiac fatigue in lunar orbit.',
   },
 ];
 
@@ -265,22 +307,6 @@ const ALL_SCENARIOS = [...UNIVERSAL_SCENARIOS, ...INDIVIDUAL_SCENARIOS];
 
 type ScopeTab = 'UNIVERSAL' | 'INDIVIDUAL';
 type ClinicalCategory = 'ALL' | 'CARDIO' | 'IMMUNE' | 'METABOLIC';
-
-const formatCategoryShort = (cat?: string): string => {
-  if (!cat) return '';
-  switch (cat.toUpperCase()) {
-    case 'ENVIRONMENT':
-      return 'ENV';
-    case 'CARDIO':
-      return 'CARD';
-    case 'IMMUNE':
-      return 'IMM';
-    case 'METABOLIC':
-      return 'MET';
-    default:
-      return cat.toUpperCase();
-  }
-};
 
 export const ScenarioController: React.FC<ScenarioControllerProps> = ({
   currentScenario,
@@ -295,6 +321,24 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
   const [clinicalCategory, setClinicalCategory] = useState<ClinicalCategory>('ALL');
   const [triggeringKey, setTriggeringKey] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<TooltipData | null>(null);
+  const [isTransmitting, setIsTransmitting] = useState<boolean>(false);
+
+  const scrollBodyRef = useRef<HTMLDivElement>(null);
+
+  // Subscribe to JARVIS transmission state to slide button up/down
+  useEffect(() => {
+    const unsub = audioService.onStateChange((state) => {
+      setIsTransmitting(state.isTransmitting);
+    });
+    // Set initial state
+    setIsTransmitting(audioService.isTransmitting());
+    return unsub;
+  }, []);
+
+  // Auto-reset scroll position when switching tabs, categories, or crew members
+  useEffect(() => {
+    scrollBodyRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [scopeTab, clinicalCategory, selectedCrewId]);
 
   // Keyboard shortcut listener: [S] to toggle modal, [Escape] to close
   useEffect(() => {
@@ -333,40 +377,92 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
   const handleCardMouseEnter = (e: React.MouseEvent<HTMLElement>, sc: ScenarioMeta) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const cardCenterX = rect.left + rect.width / 2;
+    const cardCenterY = rect.top + rect.height / 2;
 
     const TOOLTIP_WIDTH = 340;
-    const TOOLTIP_ESTIMATED_HEIGHT = 210;
-    const VIEWPORT_PADDING = 16;
+    const TOOLTIP_ESTIMATED_HEIGHT = 310;
+    const VIEWPORT_PADDING = 14;
 
-    // Horizontal clamping to ensure tooltip never bleeds off viewport edges
-    const halfWidth = TOOLTIP_WIDTH / 2;
-    const minX = halfWidth + VIEWPORT_PADDING;
-    const maxX = window.innerWidth - halfWidth - VIEWPORT_PADDING;
-    const clampedX = Math.max(minX, Math.min(maxX, cardCenterX));
-
-    // Caret offset relative to tooltip center (clamped so it stays within rounded corners)
-    const rawOffset = cardCenterX - clampedX;
-    const maxCaretOffset = halfWidth - 24;
-    const caretOffset = Math.max(-maxCaretOffset, Math.min(maxCaretOffset, rawOffset));
-
-    // Vertical placement logic:
-    // Check available space above and below the card
+    // Available space in all 4 cardinal directions from the card
     const spaceAbove = rect.top - VIEWPORT_PADDING;
     const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_PADDING;
+    const spaceLeft = rect.left - VIEWPORT_PADDING;
+    const spaceRight = window.innerWidth - rect.right - VIEWPORT_PADDING;
 
-    let placement: 'top' | 'bottom' = 'top';
-    if (spaceAbove >= TOOLTIP_ESTIMATED_HEIGHT) {
-      // Plenty of room above card
+    const fitsTop = spaceAbove >= TOOLTIP_ESTIMATED_HEIGHT;
+    const fitsBottom = spaceBelow >= TOOLTIP_ESTIMATED_HEIGHT;
+    const fitsLeft = spaceLeft >= TOOLTIP_WIDTH;
+    const fitsRight = spaceRight >= TOOLTIP_WIDTH;
+
+    let placement: 'top' | 'bottom' | 'left' | 'right';
+
+    // 4-Way dynamic placement logic:
+    // If both top and bottom fit without touching header/screen edges, pick whichever has more room
+    if (fitsTop && fitsBottom) {
+      placement = spaceAbove >= spaceBelow ? 'top' : 'bottom';
+    } else if (fitsTop) {
       placement = 'top';
-    } else if (spaceBelow >= TOOLTIP_ESTIMATED_HEIGHT) {
-      // Room below card
+    } else if (fitsBottom) {
       placement = 'bottom';
     } else {
-      // Constrained on both: choose whichever side has more space
-      placement = spaceAbove >= spaceBelow ? 'top' : 'bottom';
+      // Both top and bottom touch or cross the screen limits!
+      // Dynamically place LEFT or RIGHT
+      if (fitsRight && fitsLeft) {
+        placement = spaceRight >= spaceLeft ? 'right' : 'left';
+      } else if (fitsRight) {
+        placement = 'right';
+      } else if (fitsLeft) {
+        placement = 'left';
+      } else {
+        // Fallback for compact viewports: pick orientation with maximum available clearance
+        const maxHoriz = Math.max(spaceLeft, spaceRight);
+        const maxVert = Math.max(spaceAbove, spaceBelow);
+        if (maxHoriz >= maxVert) {
+          placement = spaceRight >= spaceLeft ? 'right' : 'left';
+        } else {
+          placement = spaceBelow >= spaceAbove ? 'bottom' : 'top';
+        }
+      }
     }
 
-    const y = placement === 'top' ? rect.top - 8 : rect.bottom + 8;
+    let x = 0;
+    let y = 0;
+    let caretOffset = 0;
+
+    if (placement === 'top' || placement === 'bottom') {
+      const halfWidth = TOOLTIP_WIDTH / 2;
+      const minX = halfWidth + VIEWPORT_PADDING;
+      const maxX = window.innerWidth - halfWidth - VIEWPORT_PADDING;
+      const clampedX = Math.max(minX, Math.min(maxX, cardCenterX));
+
+      const rawOffset = cardCenterX - clampedX;
+      const maxCaretOffset = halfWidth - 24;
+      caretOffset = Math.max(-maxCaretOffset, Math.min(maxCaretOffset, rawOffset));
+      x = clampedX;
+
+      if (placement === 'top') {
+        y = Math.max(TOOLTIP_ESTIMATED_HEIGHT + VIEWPORT_PADDING, rect.top - 8);
+      } else {
+        y = Math.min(window.innerHeight - VIEWPORT_PADDING - TOOLTIP_ESTIMATED_HEIGHT, rect.bottom + 8);
+      }
+    } else {
+      // placement === 'left' or 'right'
+      const halfHeight = TOOLTIP_ESTIMATED_HEIGHT / 2;
+      const minY = halfHeight + VIEWPORT_PADDING;
+      const maxY = window.innerHeight - halfHeight - VIEWPORT_PADDING;
+      const clampedY = Math.max(minY, Math.min(maxY, cardCenterY));
+
+      const rawCaretY = cardCenterY - clampedY;
+      const maxCaretY = halfHeight - 24;
+      caretOffset = Math.max(-maxCaretY, Math.min(maxCaretY, rawCaretY));
+      y = clampedY;
+
+      if (placement === 'left') {
+        x = Math.max(TOOLTIP_WIDTH + VIEWPORT_PADDING, rect.left - 8);
+      } else {
+        x = Math.min(window.innerWidth - TOOLTIP_WIDTH - VIEWPORT_PADDING, rect.right + 8);
+      }
+    }
 
     setActiveTooltip({
       key: sc.key,
@@ -376,7 +472,9 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
       description: sc.description,
       severity: sc.severity,
       physiologicalShift: sc.physiologicalShift,
-      x: clampedX,
+      artemisCohort: sc.artemisCohort,
+      nasaCitation: sc.nasaCitation,
+      x,
       y,
       caretOffset,
       placement,
@@ -442,12 +540,14 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
         (s.key === 'SCENARIO_18_CIRCADIAN_FATIGUE_DRIFT' && currentScenario === 'SCENARIO_1_BASELINE_DRIFT')
     ) || {
       key: 'NOMINAL_CRUISE',
-      label: 'Nominal Cruise',
-      badge: 'Stable baseline',
+      label: 'Nominal Flight Cruise',
+      badge: 'Stable Baseline',
       category: 'ENVIRONMENT' as const,
-      description: 'All crew vitals within safe baseline range. Autonomous life-support systems green.',
+      description: 'All astronaut vitals are within safe baseline ranges. Spacecraft autonomous life-support systems are operating nominally.',
       severity: 'NOMINAL' as const,
-      physiologicalShift: 'All stations reporting baseline autonomic and metabolic homeostasis.',
+      physiologicalShift: 'Normal resting heart rate, oxygen levels, and metabolic balance across all crew members.',
+      artemisCohort: 'ARTEMIS_II' as const,
+      nasaCitation: 'NASA-STD-3001: Human Spaceflight Baseline Health Standards for nominal cruise.',
     };
 
   const isNominalActive = currentScenario === 'NOMINAL_CRUISE';
@@ -463,10 +563,11 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
 
   const activeTargetProfile = activeTargetCrewId ? CREW_PROFILES.find((c) => c.id === activeTargetCrewId) : null;
 
-  const filteredIndividualScenarios =
-    clinicalCategory === 'ALL'
-      ? INDIVIDUAL_SCENARIOS
-      : INDIVIDUAL_SCENARIOS.filter((s) => s.category === clinicalCategory);
+  const visibleUniversalScenarios = UNIVERSAL_SCENARIOS;
+
+  const filteredIndividualScenarios = INDIVIDUAL_SCENARIOS.filter(
+    (s) => clinicalCategory === 'ALL' || s.category === clinicalCategory
+  );
 
   return (
     <>
@@ -474,11 +575,11 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
       <button
         id="scenario-floating-trigger"
         onClick={() => setIsOpen(true)}
-        aria-label="Open Simulation Scenarios Modal"
-        title="Open Simulation Scenarios (Hotkey: S)"
+        aria-label="Open Possible Scenarios Modal"
+        title="Open Possible Scenarios (Hotkey: S)"
         style={{
           position: 'fixed',
-          bottom: '22px',
+          bottom: isTransmitting ? '78px' : '22px',
           right: '24px',
           zIndex: 9990,
           display: 'flex',
@@ -501,7 +602,7 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
             : activeSeverity === 'CRITICAL'
               ? '0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(244, 63, 94, 0.3)'
               : '0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(245, 158, 11, 0.3)',
-          transition: 'all var(--hud-transition-fast)',
+          transition: 'all var(--hud-transition-fast), bottom 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
           fontFamily: "'Tomorrow', sans-serif",
           userSelect: 'none',
         }}
@@ -519,29 +620,20 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
         }}
       >
         {/* Pulsing Status Beacon */}
-        <span
-          style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: activeThemeColor,
-            boxShadow: `0 0 8px ${activeThemeColor}`,
-            flexShrink: 0,
-          }}
-        />
+  
 
         {/* Text Details with Target Astronaut Label */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left', lineHeight: 1.2 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.04em', color: '#ffffff' }}>
+            <span style={{ fontSize: '11px', fontWeight: 730, letterSpacing: '0.2em', color: '#ffffff' }}>
               SCENARIOS
             </span>
             <span
               style={{
-                fontSize: '9px',
+                fontSize: '7px',
                 fontWeight: 700,
-                padding: '1px 5px',
-                borderRadius: '3px',
+                padding: '1.4px 5px',
+                borderRadius: '999px',
                 background: isNominalActive
                   ? 'rgba(16, 185, 129, 0.18)'
                   : activeSeverity === 'CRITICAL'
@@ -586,12 +678,12 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
         {/* Keycap Shortcut Indicator */}
         <span
           style={{
-            fontSize: '10px',
+            fontSize: '12px',
             fontWeight: 700,
             padding: '2px 6px',
-            borderRadius: '4px',
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid rgba(255, 255, 255, 0.16)',
+            borderRadius: '0px',
+            background: 'rgba(194, 194, 194, 0.08)',
+            border: '1px solid rgba(194, 194, 194, 0.16)',
             color: 'var(--hud-text-secondary)',
             marginLeft: '2px',
           }}
@@ -649,47 +741,82 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                 gap: '12px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.04em' }}>
-                  SIMULATION FLIGHT SCENARIOS
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  Possible Scenarios
+                </span>
+                <span style={{ fontSize: '10px', fontWeight: 400, color: '#879ebfff', letterSpacing: '0.02em' }}>
+                  Based on NASA spaceflight history &amp; ISS incident records
                 </span>
               </div>
+              
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 {/* Global Reset to Nominal Cruise */}
                 <button
                   onClick={() => handleTrigger('NOMINAL_CRUISE')}
                   className="hud-btn"
+                  title={isNominalActive ? 'All systems currently operating nominally' : 'Reset all systems and crew vitals back to nominal cruise'}
                   style={{
-                    padding: '5px 12px',
+                    padding: '6px 12px',
                     fontSize: '11px',
-                    fontWeight: 700,
-                    background: isNominalActive ? 'rgba(34, 197, 94, 0.12)' : 'rgba(255, 255, 255, 0.06)',
-                    color: isNominalActive ? '#4ade80' : '#f8fafc',
-                    border: isNominalActive ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(255, 255, 255, 0.15)',
+                    fontWeight: 500,
+                    letterSpacing: '0.02em',
+                    background: isNominalActive ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.05)',
+                    color: isNominalActive ? '#4ade80' : '#e2e8f0',
+                    border: isNominalActive ? '1px solid rgba(74, 222, 128, 0.30)' : '1px solid rgba(255, 255, 255, 0.16)',
+                    borderRadius: '6px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    cursor: 'pointer',
+                    cursor: isNominalActive ? 'default' : 'pointer',
                     transition: 'all 0.15s ease',
+                    fontFamily: "'Tomorrow', sans-serif",
                   }}
                   onMouseEnter={(e) => {
                     if (!isNominalActive) {
-                      e.currentTarget.style.background = 'rgba(34, 197, 94, 0.15)';
-                      e.currentTarget.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+                      e.currentTarget.style.background = 'rgba(34, 197, 94, 0.14)';
+                      e.currentTarget.style.borderColor = 'rgba(74, 222, 128, 0.45)';
                       e.currentTarget.style.color = '#4ade80';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isNominalActive) {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                      e.currentTarget.style.color = '#f8fafc';
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.16)';
+                      e.currentTarget.style.color = '#e2e8f0';
                     }
                   }}
                 >
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} />
-                  RESET ALL TO NOMINAL
+                  {isNominalActive ? (
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: '#4ade80',
+                        boxShadow: '0 0 6px rgba(74, 222, 128, 0.6)',
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                    />
+                  ) : (
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ flexShrink: 0, opacity: 0.9 }}
+                    >
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                    </svg>
+                  )}
+                  <span>{isNominalActive ? 'All Nominal' : 'Reset to Nominal'}</span>
                 </button>
 
                 {/* Modal Close Button */}
@@ -698,7 +825,7 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                     setIsOpen(false);
                     setActiveTooltip(null);
                   }}
-                  aria-label="Close Simulation Scenarios Modal"
+                  aria-label="Close Possible Scenarios Modal"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -734,10 +861,12 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
             <div
               style={{
                 display: 'flex',
-                background: 'rgba(0, 0, 0, 0.35)',
-                borderBottom: '1px solid var(--hud-border)',
+                background: 'rgba(0, 0, 0, 0.55)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                 padding: '6px 20px 0',
                 gap: '8px',
+                position: 'relative',
+                zIndex: 2,
               }}
             >
               <button
@@ -747,23 +876,34 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                   alignItems: 'center',
                   gap: '8px',
                   padding: '10px 20px',
+                  paddingBottom: scopeTab === 'UNIVERSAL' ? '11px' : '10px',
+                  marginBottom: scopeTab === 'UNIVERSAL' ? '-1px' : '0',
                   fontSize: '12px',
-                  fontWeight: scopeTab === 'UNIVERSAL' ? 800 : 600,
+                  fontWeight: scopeTab === 'UNIVERSAL' ? 600 : 500,
                   color: scopeTab === 'UNIVERSAL' ? '#ffffff' : '#64748b',
-                  background: scopeTab === 'UNIVERSAL' ? 'rgba(56, 189, 248, 0.16)' : 'transparent',
-                  borderTop: scopeTab === 'UNIVERSAL' ? '2px solid #38bdf8' : '2px solid transparent',
-                  borderLeft: scopeTab === 'UNIVERSAL' ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid transparent',
-                  borderRight: scopeTab === 'UNIVERSAL' ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid transparent',
-                  borderBottom: 'none',
-                  borderTopLeftRadius: '6px',
-                  borderTopRightRadius: '6px',
+                  background: scopeTab === 'UNIVERSAL' ? 'rgba(26, 35, 52, 0.98)' : 'transparent',
+                  border: 'none',
+                  borderBottom: scopeTab === 'UNIVERSAL' ? '1px solid rgba(26, 35, 52, 0.98)' : 'none',
+                  borderRadius: '6px 6px 0 0',
                   cursor: 'pointer',
                   fontFamily: "'Tomorrow', sans-serif",
                   letterSpacing: '0.03em',
                   transition: 'all 0.15s ease',
+                  position: 'relative',
+                  zIndex: scopeTab === 'UNIVERSAL' ? 3 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (scopeTab !== 'UNIVERSAL') {
+                    e.currentTarget.style.color = '#cbd5e1';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (scopeTab !== 'UNIVERSAL') {
+                    e.currentTarget.style.color = '#64748b';
+                  }
                 }}
               >
-                <span>UNIVERSAL SCENARIOS</span>
+                <span>UNIVERSAL</span>
               </button>
 
               <button
@@ -773,28 +913,166 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                   alignItems: 'center',
                   gap: '8px',
                   padding: '10px 20px',
+                  paddingBottom: scopeTab === 'INDIVIDUAL' ? '11px' : '10px',
+                  marginBottom: scopeTab === 'INDIVIDUAL' ? '-1px' : '0',
                   fontSize: '12px',
-                  fontWeight: scopeTab === 'INDIVIDUAL' ? 800 : 600,
+                  fontWeight: scopeTab === 'INDIVIDUAL' ? 600 : 500,
                   color: scopeTab === 'INDIVIDUAL' ? '#ffffff' : '#64748b',
-                  background: scopeTab === 'INDIVIDUAL' ? 'rgba(56, 189, 248, 0.16)' : 'transparent',
-                  borderTop: scopeTab === 'INDIVIDUAL' ? '2px solid #38bdf8' : '2px solid transparent',
-                  borderLeft: scopeTab === 'INDIVIDUAL' ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid transparent',
-                  borderRight: scopeTab === 'INDIVIDUAL' ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid transparent',
-                  borderBottom: 'none',
-                  borderTopLeftRadius: '6px',
-                  borderTopRightRadius: '6px',
+                  background: scopeTab === 'INDIVIDUAL' ? 'rgba(26, 35, 52, 0.98)' : 'transparent',
+                  border: 'none',
+                  borderBottom: scopeTab === 'INDIVIDUAL' ? '1px solid rgba(26, 35, 52, 0.98)' : 'none',
+                  borderRadius: '6px 6px 0 0',
                   cursor: 'pointer',
                   fontFamily: "'Tomorrow', sans-serif",
                   letterSpacing: '0.03em',
                   transition: 'all 0.15s ease',
+                  position: 'relative',
+                  zIndex: scopeTab === 'INDIVIDUAL' ? 3 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (scopeTab !== 'INDIVIDUAL') {
+                    e.currentTarget.style.color = '#cbd5e1';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (scopeTab !== 'INDIVIDUAL') {
+                    e.currentTarget.style.color = '#64748b';
+                  }
                 }}
               >
-                <span>INDIVIDUAL CREW SCENARIOS</span>
+                <span>INDIVIDUAL</span>
               </button>
             </div>
 
+            {/* ── Pinned Subheader for Individual View: Crew Selector & Clinical Category Tabs ── */}
+            {scopeTab === 'INDIVIDUAL' && (
+              <div
+                style={{
+                  padding: '12px 20px 10px',
+                  background: 'rgba(26, 35, 52, 0.98)',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  flexShrink: 0,
+                  zIndex: 2,
+                }}
+              >
+                {/* Crew Selector Deck */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.04em' }}>
+                      TARGET CREW MEMBER
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: '8px',
+                    }}
+                  >
+                    {CREW_PROFILES.map((crew) => {
+                      const isSelected = selectedCrewId === crew.id;
+                      return (
+                        <button
+                          key={crew.id}
+                          onClick={() => setSelectedCrewId(crew.id)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '9px',
+                            padding: '8px 12px',
+                            borderRadius: '7px',
+                            background: isSelected ? 'rgba(56, 189, 248, 0.08)' : 'rgba(11, 15, 25, 0.92)',
+                            border: isSelected ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid rgba(255, 255, 255, 0.11)',
+                            color: isSelected ? '#ffffff' : '#94a3b8',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'all 0.16s ease',
+                            fontFamily: "'Tomorrow', sans-serif",
+                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.35)',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: 500,
+                              padding: '2px 5px',
+                              borderRadius: '4px',
+                              background: isSelected ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.08)',
+                              border: isSelected ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid transparent',
+                              color: isSelected ? '#38bdf8' : '#cbd5e1',
+                              flexShrink: 0,
+                              letterSpacing: '0.02em',
+                            }}
+                          >
+                            {crew.callsign}
+                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+                            <span style={{ fontSize: '11px', fontWeight: isSelected ? 600 : 500, color: isSelected ? '#ffffff' : '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {crew.name}
+                            </span>
+                            <span style={{ fontSize: '9.5px', color: isSelected ? '#7dd3fc' : '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {crew.shortName}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Clinical Category Tabs */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '6px',
+                    overflowX: 'auto',
+                    paddingBottom: '2px',
+                    flexShrink: 0,
+                  }}
+                >
+                  {[
+                    { key: 'ALL' as const, label: 'All Anomalies', count: 13 },
+                    { key: 'CARDIO' as const, label: 'Cardiovascular', count: 4 },
+                    { key: 'IMMUNE' as const, label: 'Immunology', count: 4 },
+                    { key: 'METABOLIC' as const, label: 'Metabolic & SANS', count: 5 },
+                  ].map((tab) => {
+                    const isCatSelected = clinicalCategory === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => setClinicalCategory(tab.key)}
+                        style={{
+                          padding: '4px 11px',
+                          fontSize: '11px',
+                          fontWeight: isCatSelected ? 600 : 400,
+                          color: isCatSelected ? '#7dd3fc' : '#94a3b8',
+                          background: isCatSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(11, 15, 25, 0.75)',
+                          border: isCatSelected
+                            ? '1px solid rgba(56, 189, 248, 0.35)'
+                            : '1px solid rgba(255, 255, 255, 0.09)',
+                          borderRadius: '20px',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.15s ease',
+                          fontFamily: "'Tomorrow', sans-serif",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {tab.label} ({tab.count})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Modal Scrollable Body */}
             <div
+              ref={scrollBodyRef}
               onScroll={() => setActiveTooltip(null)}
               style={{
                 padding: '16px 20px',
@@ -803,6 +1081,7 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                 gap: '12px',
                 overflowY: 'auto',
                 flex: 1,
+                background: 'rgba(26, 35, 52, 0.98)',
               }}
             >
               {/* ── TAB 1: UNIVERSAL SCENARIOS (Spacecraft-Wide) ── */}
@@ -810,30 +1089,28 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                 <>
                   <div
                     style={{
-                      padding: '9px 14px',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: 'var(--hud-radius-btn)',
-                      fontSize: '11.5px',
-                      color: '#94a3b8',
+                      padding: '10px 14px',
+                      background: 'rgba(11, 15, 25, 0.92)',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      borderLeft: '3px solid #38bdf8',
+                      borderRadius: '6px',
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
+                      flexDirection: 'column',
+                      gap: '3px',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.35)',
                     }}
                   >
                     <span
                       style={{
                         color: '#ffffff',
-                        fontWeight: 800,
+                        fontWeight: 700,
                         fontSize: '11.5px',
-                        letterSpacing: '0.04em',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0,
+                        letterSpacing: '0.01em',
                       }}
                     >
-                      SPACECRAFT-WIDE EVENTS:
+                      Spacecraft-Wide Events
                     </span>
-                    <span style={{ color: '#94a3b8', fontSize: '11.5px', lineHeight: 1.4 }}>
+                    <span style={{ color: '#cbd5e1', fontSize: '11.5px', lineHeight: 1.45 }}>
                       Life-support and environmental emergencies propagate across cabin modules and evaluate all 4 crew stations simultaneously.
                     </span>
                   </div>
@@ -842,12 +1119,12 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
                       gap: '10px',
                       paddingRight: '2px',
                     }}
                   >
-                    {UNIVERSAL_SCENARIOS.map((sc) => {
+                    {visibleUniversalScenarios.map((sc) => {
                       const isActive =
                         currentScenario === sc.key ||
                         (sc.key === 'SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH' && currentScenario === 'SCENARIO_3_CO2_HYPOXIA') ||
@@ -868,90 +1145,59 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                             justifyContent: 'space-between',
                             padding: '12px 14px',
                             background: isActive
-                              ? (isScCritical ? 'rgba(244, 63, 94, 0.10)' : isScWarning ? 'rgba(245, 158, 11, 0.10)' : 'rgba(56, 189, 248, 0.10)')
-                              : 'rgba(255, 255, 255, 0.02)',
+                              ? (isScCritical ? 'rgba(244, 63, 94, 0.16)' : isScWarning ? 'rgba(245, 158, 11, 0.16)' : 'rgba(56, 189, 248, 0.16)')
+                              : 'rgba(11, 15, 25, 0.92)',
                             border: isActive
                               ? `1.5px solid ${cardThemeColor}`
-                              : '1px solid rgba(255, 255, 255, 0.08)',
+                              : '1px solid rgba(255, 255, 255, 0.11)',
                             borderRadius: '8px',
                             cursor: 'pointer',
                             textAlign: 'left',
                             transition: 'all 0.16s ease',
-                            minHeight: '84px',
-                            gap: '6px',
-                            boxShadow: isActive ? `0 0 16px ${cardThemeColor}40` : 'none',
+                            minHeight: '88px',
+                            gap: '8px',
+                            boxShadow: isActive ? `0 0 20px ${cardThemeColor}40` : '0 2px 8px rgba(0, 0, 0, 0.4)',
                             fontFamily: "'Tomorrow', sans-serif",
                           }}
                           onMouseEnter={(e) => {
                             if (!isActive) {
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.22)';
+                              e.currentTarget.style.background = 'rgba(16, 22, 36, 0.98)';
+                              e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+                              e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.55), 0 0 8px rgba(56, 189, 248, 0.15)';
                               e.currentTarget.style.transform = 'translateY(-1px)';
                             }
                             handleCardMouseEnter(e, sc);
                           }}
                           onMouseLeave={(e) => {
                             if (!isActive) {
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
-                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                              e.currentTarget.style.background = 'rgba(11, 15, 25, 0.92)';
+                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.11)';
+                              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.4)';
                               e.currentTarget.style.transform = 'none';
                             }
                             handleCardMouseLeave();
                           }}
                         >
-                          {/* Card Header: Title + Status */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
+                          {/* Card Header: Full Title + Active status */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', gap: '8px' }}>
                             <span
                               style={{
-                                fontSize: '12.5px',
-                                fontWeight: 700,
+                                fontSize: '13px',
+                                fontWeight: 600,
                                 color: '#ffffff',
-                                letterSpacing: '0.02em',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
+                                letterSpacing: '0.01em',
+                                lineHeight: '1.35',
+                                flex: 1,
+                                wordBreak: 'break-word',
                               }}
                             >
                               {sc.label}
                             </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
-                              {isTriggering ? (
-                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#38bdf8' }}>
-                                  [SYNCING]
-                                </span>
-                              ) : isActive ? (
-                                <span
-                                  style={{
-                                    fontSize: '9.5px',
-                                    fontWeight: 800,
-                                    color: '#030712',
-                                    background: cardThemeColor,
-                                    padding: '1px 7px',
-                                    borderRadius: '3px',
-                                    border: `1px solid ${cardThemeColor}`,
-                                    letterSpacing: '0.04em',
-                                  }}
-                                >
-                                  ● ACTIVE
-                                </span>
-                              ) : (
-                                <span
-                                  style={{
-                                    fontSize: '9.5px',
-                                    fontWeight: 600,
-                                    color: '#94a3b8',
-                                    background: 'rgba(255, 255, 255, 0.05)',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    padding: '1px 6px',
-                                    borderRadius: '3px',
-                                    letterSpacing: '0.03em',
-                                    textTransform: 'uppercase',
-                                  }}
-                                >
-                                  {formatCategoryShort(sc.category)}
-                                </span>
-                              )}
-                            </div>
+                            {isTriggering ? (
+                              <span style={{ fontSize: '9px', fontWeight: 800, color: '#38bdf8', flexShrink: 0 }}>
+                                [SYNCING]
+                              </span>
+                            ) : null}
                           </div>
 
                           {/* Plain-English Description */}
@@ -961,21 +1207,22 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                                 margin: 0,
                                 fontSize: '12px',
                                 lineHeight: '1.45',
-                                color: '#94a3b8',
+                                color: '#cbd5e1',
                                 display: '-webkit-box',
                                 WebkitLineClamp: 2,
                                 WebkitBoxOrient: 'vertical',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 transition: 'color 0.15s ease',
+                                fontFamily: "'Tomorrow', sans-serif",
                               }}
                             >
                               {sc.description}
                             </p>
                           </div>
 
-                          {/* Subtle Monospace Telemetry Marker */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '2px' }}>
+                          {/* Subtle Monospace Telemetry Marker + Artemis Badge Bottom Right */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '4px' }}>
                             <span
                               style={{
                                 fontSize: '10.5px',
@@ -987,22 +1234,38 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                             >
                               {sc.badge}
                             </span>
-                            {isScCritical && !isActive && (
-                              <img
-                                src="/icons/critical.png"
-                                alt="Critical"
-                                title="Critical Severity"
-                                style={{ width: '14px', height: '14px', objectFit: 'contain', flexShrink: 0 }}
-                              />
-                            )}
-                            {isScWarning && !isActive && (
-                              <img
-                                src="/icons/warning.png"
-                                alt="Warning"
-                                title="Warning Severity"
-                                style={{ width: '14px', height: '14px', objectFit: 'contain', flexShrink: 0 }}
-                              />
-                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                              <span
+                                style={{
+                                  fontSize: '8.5px',
+                                  fontWeight: 700,
+                                  color: sc.artemisCohort === 'ARTEMIS_I' ? '#38bdf8' : '#fbbf24',
+                                  background: sc.artemisCohort === 'ARTEMIS_I' ? 'rgba(56, 189, 248, 0.14)' : 'rgba(251, 191, 36, 0.14)',
+                                  border: `1px solid ${sc.artemisCohort === 'ARTEMIS_I' ? 'rgba(56, 189, 248, 0.35)' : 'rgba(251, 191, 36, 0.35)'}`,
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  letterSpacing: '0.04em',
+                                }}
+                              >
+                                {sc.artemisCohort === 'ARTEMIS_I' ? 'ARTEMIS I' : 'ARTEMIS II'}
+                              </span>
+                              {isScCritical && (
+                                <img
+                                  src="/icons/critical.png"
+                                  alt="Critical"
+                                  title="Critical Severity"
+                                  style={{ width: '14px', height: '14px', objectFit: 'contain', flexShrink: 0 }}
+                                />
+                              )}
+                              {isScWarning && (
+                                <img
+                                  src="/icons/warning.png"
+                                  alt="Warning"
+                                  title="Warning Severity"
+                                  style={{ width: '14px', height: '14px', objectFit: 'contain', flexShrink: 0 }}
+                                />
+                              )}
+                            </div>
                           </div>
                         </button>
                       );
@@ -1011,266 +1274,143 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                 </>
               )}
 
-              {/* ── TAB 2: INDIVIDUAL CREW SCENARIOS (Targeted Clinical) ── */}
+              {/* ── TAB 2: INDIVIDUAL CREW SCENARIOS (Targeted Clinical Grid) ── */}
               {scopeTab === 'INDIVIDUAL' && (
-                <>
-                  {/* Crew Selector Deck */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.04em' }}>
-                        TARGET CREW MEMBER
-                      </span>
-                    </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+                    gap: '10px',
+                    paddingRight: '2px',
+                  }}
+                >
+                  {filteredIndividualScenarios.map((sc) => {
+                    const isKeyActive =
+                      currentScenario === sc.key ||
+                      (sc.key === 'SCENARIO_10_PRESYMPTOMATIC_SEPSIS' && currentScenario === 'SCENARIO_5_PRESYMPTOMATIC_SEPSIS') ||
+                      (sc.key === 'SCENARIO_18_CIRCADIAN_FATIGUE_DRIFT' && currentScenario === 'SCENARIO_1_BASELINE_DRIFT');
 
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(4, 1fr)',
-                        gap: '8px',
-                      }}
-                    >
-                      {CREW_PROFILES.map((crew) => {
-                        const isSelected = selectedCrewId === crew.id;
-                        return (
-                          <button
-                            key={crew.id}
-                            onClick={() => setSelectedCrewId(crew.id)}
+                    const isTargetActive = isKeyActive && activeTargetCrewId === selectedCrewId;
+                    const isTriggering = triggeringKey === sc.key;
+                    const isScCritical = sc.severity === 'CRITICAL';
+                    const isScWarning = sc.severity === 'WARNING';
+                    const cardThemeColor = isScCritical ? '#f43f5e' : (isScWarning ? '#f59e0b' : '#38bdf8');
+
+                    return (
+                      <button
+                        key={sc.key}
+                        onClick={() => handleTrigger(sc.key, selectedCrewId)}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          padding: '12px 14px',
+                          background: isTargetActive
+                            ? (isScCritical ? 'rgba(244, 63, 94, 0.16)' : isScWarning ? 'rgba(245, 158, 11, 0.16)' : 'rgba(56, 189, 248, 0.16)')
+                            : 'rgba(11, 15, 25, 0.92)',
+                          border: isTargetActive
+                            ? `1.5px solid ${cardThemeColor}`
+                            : '1px solid rgba(255, 255, 255, 0.11)',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.16s ease',
+                          minHeight: '88px',
+                          gap: '8px',
+                          boxShadow: isTargetActive ? `0 0 20px ${cardThemeColor}40` : '0 2px 8px rgba(0, 0, 0, 0.4)',
+                          fontFamily: "'Tomorrow', sans-serif",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isTargetActive) {
+                            e.currentTarget.style.background = 'rgba(16, 22, 36, 0.98)';
+                            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+                            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.55), 0 0 8px rgba(56, 189, 248, 0.15)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                          }
+                          handleCardMouseEnter(e, sc);
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isTargetActive) {
+                            e.currentTarget.style.background = 'rgba(11, 15, 25, 0.92)';
+                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.11)';
+                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.4)';
+                            e.currentTarget.style.transform = 'none';
+                          }
+                          handleCardMouseLeave();
+                        }}
+                      >
+                        {/* Card Header: Full Title + Active status */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', gap: '8px' }}>
+                          <span
                             style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '9px',
-                              padding: '8px 12px',
-                              borderRadius: '7px',
-                              background: isSelected ? 'rgba(56, 189, 248, 0.10)' : 'rgba(255, 255, 255, 0.02)',
-                              border: isSelected ? '1.5px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.07)',
-                              color: isSelected ? '#ffffff' : '#94a3b8',
-                              cursor: 'pointer',
-                              textAlign: 'left',
-                              transition: 'all 0.16s ease',
-                              fontFamily: "'Tomorrow', sans-serif",
-                              boxShadow: isSelected ? '0 0 12px rgba(56, 189, 248, 0.2)' : 'none',
+                              fontSize: '13px',
+                              fontWeight: 600,
+                              color: '#ffffff',
+                              letterSpacing: '0.01em',
+                              lineHeight: '1.35',
+                              flex: 1,
+                              wordBreak: 'break-word',
                             }}
                           >
+                            {sc.label}
+                          </span>
+                          {isTriggering ? (
+                            <span style={{ fontSize: '9px', fontWeight: 800, color: '#38bdf8', flexShrink: 0 }}>
+                              [SYNCING]
+                            </span>
+                          ) : null}
+                        </div>
+
+                        {/* Plain-English Description */}
+                        <div style={{ width: '100%' }}>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: '12px',
+                              lineHeight: '1.45',
+                              color: '#cbd5e1',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              transition: 'color 0.15s ease',
+                              fontFamily: "'Tomorrow', sans-serif",
+                            }}
+                          >
+                            {sc.description}
+                          </p>
+                        </div>
+
+                        {/* Subtle Monospace Telemetry Marker + Artemis Badge Bottom Right */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '4px' }}>
+                          <span
+                            style={{
+                              fontSize: '10.5px',
+                              color: '#38bdf8',
+                              fontFamily: "'Share Tech Mono', monospace",
+                              letterSpacing: '0.01em',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {sc.badge}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                             <span
                               style={{
-                                fontSize: '10px',
+                                fontSize: '8.5px',
                                 fontWeight: 800,
-                                padding: '2px 5px',
-                                borderRadius: '4px',
-                                background: isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.06)',
-                                color: isSelected ? '#030712' : '#94a3b8',
-                                flexShrink: 0,
+                                color: sc.artemisCohort === 'ARTEMIS_I' ? '#38bdf8' : '#fbbf24',
+                                background: sc.artemisCohort === 'ARTEMIS_I' ? 'rgba(56, 189, 248, 0.14)' : 'rgba(251, 191, 36, 0.14)',
+                                border: `1px solid ${sc.artemisCohort === 'ARTEMIS_I' ? 'rgba(56, 189, 248, 0.35)' : 'rgba(251, 191, 36, 0.35)'}`,
+                                padding: '1px 5px',
+                                borderRadius: '3px',
+                                letterSpacing: '0.04em',
                               }}
                             >
-                              {crew.callsign}
+                              {sc.artemisCohort === 'ARTEMIS_I' ? 'ARTEMIS I' : 'ARTEMIS II'}
                             </span>
-                            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-                              <span style={{ fontSize: '11px', fontWeight: isSelected ? 700 : 600, color: isSelected ? '#ffffff' : '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {crew.name}
-                              </span>
-                              <span style={{ fontSize: '9.5px', color: isSelected ? '#38bdf8' : '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {crew.shortName}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Clinical Category Tabs */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: '6px',
-                      overflowX: 'auto',
-                      paddingBottom: '2px',
-                    }}
-                  >
-                    {[
-                      { key: 'ALL' as const, label: 'All Anomalies', count: 13 },
-                      { key: 'CARDIO' as const, label: 'Cardiovascular', count: 4 },
-                      { key: 'IMMUNE' as const, label: 'Immunology', count: 4 },
-                      { key: 'METABOLIC' as const, label: 'Metabolic & SANS', count: 5 },
-                    ].map((tab) => {
-                      const isCatSelected = clinicalCategory === tab.key;
-                      return (
-                        <button
-                          key={tab.key}
-                          onClick={() => setClinicalCategory(tab.key)}
-                          style={{
-                            padding: '4px 11px',
-                            fontSize: '11px',
-                            fontWeight: isCatSelected ? 600 : 400,
-                            color: isCatSelected ? '#ffffff' : '#64748b',
-                            background: isCatSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                            border: isCatSelected
-                              ? '1px solid rgba(255, 255, 255, 0.18)'
-                              : '1px solid rgba(255, 255, 255, 0.05)',
-                            borderRadius: '20px',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            transition: 'all 0.15s ease',
-                            fontFamily: "'Tomorrow', sans-serif",
-                          }}
-                        >
-                          {tab.label} ({tab.count})
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Individual Scenarios Grid */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                      gap: '10px',
-                      paddingRight: '2px',
-                    }}
-                  >
-                    {filteredIndividualScenarios.map((sc) => {
-                      const isKeyActive =
-                        currentScenario === sc.key ||
-                        (sc.key === 'SCENARIO_10_PRESYMPTOMATIC_SEPSIS' && currentScenario === 'SCENARIO_5_PRESYMPTOMATIC_SEPSIS') ||
-                        (sc.key === 'SCENARIO_18_CIRCADIAN_FATIGUE_DRIFT' && currentScenario === 'SCENARIO_1_BASELINE_DRIFT');
-
-                      const isTargetActive = isKeyActive && activeTargetCrewId === selectedCrewId;
-                      const isTriggering = triggeringKey === sc.key;
-                      const isScCritical = sc.severity === 'CRITICAL';
-                      const isScWarning = sc.severity === 'WARNING';
-                      const cardThemeColor = isScCritical ? '#f43f5e' : (isScWarning ? '#f59e0b' : '#38bdf8');
-
-                      return (
-                        <button
-                          key={sc.key}
-                          onClick={() => handleTrigger(sc.key, selectedCrewId)}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            padding: '12px 14px',
-                            background: isTargetActive
-                              ? (isScCritical ? 'rgba(244, 63, 94, 0.10)' : isScWarning ? 'rgba(245, 158, 11, 0.10)' : 'rgba(56, 189, 248, 0.10)')
-                              : 'rgba(255, 255, 255, 0.02)',
-                            border: isTargetActive
-                              ? `1.5px solid ${cardThemeColor}`
-                              : '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            transition: 'all 0.16s ease',
-                            minHeight: '84px',
-                            gap: '6px',
-                            boxShadow: isTargetActive ? `0 0 16px ${cardThemeColor}40` : 'none',
-                            fontFamily: "'Tomorrow', sans-serif",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isTargetActive) {
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.22)';
-                              e.currentTarget.style.transform = 'translateY(-1px)';
-                            }
-                            handleCardMouseEnter(e, sc);
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isTargetActive) {
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
-                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                              e.currentTarget.style.transform = 'none';
-                            }
-                            handleCardMouseLeave();
-                          }}
-                        >
-                          {/* Card Header: Title + Status/Category */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
-                            <span
-                              style={{
-                                fontSize: '12.5px',
-                                fontWeight: 700,
-                                color: '#ffffff',
-                                letterSpacing: '0.02em',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
-                            >
-                              {sc.label}
-                            </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
-                              {isTriggering ? (
-                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#38bdf8' }}>
-                                  [SYNCING]
-                                </span>
-                              ) : isTargetActive ? (
-                                <span
-                                  style={{
-                                    fontSize: '9.5px',
-                                    fontWeight: 800,
-                                    color: '#030712',
-                                    background: cardThemeColor,
-                                    padding: '1px 7px',
-                                    borderRadius: '3px',
-                                    border: `1px solid ${cardThemeColor}`,
-                                    letterSpacing: '0.04em',
-                                  }}
-                                >
-                                  ● ACTIVE
-                                </span>
-                              ) : (
-                                <span
-                                  style={{
-                                    fontSize: '9.5px',
-                                    fontWeight: 600,
-                                    color: '#94a3b8',
-                                    background: 'rgba(255, 255, 255, 0.05)',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    padding: '1px 6px',
-                                    borderRadius: '3px',
-                                    letterSpacing: '0.03em',
-                                    textTransform: 'uppercase',
-                                  }}
-                                >
-                                  {formatCategoryShort(sc.category)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Plain-English Description */}
-                          <div style={{ width: '100%' }}>
-                            <p
-                              style={{
-                                margin: 0,
-                                fontSize: '12px',
-                                lineHeight: '1.45',
-                                color: '#94a3b8',
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                transition: 'color 0.15s ease',
-                              }}
-                            >
-                              {sc.description}
-                            </p>
-                          </div>
-
-                          {/* Subtle Monospace Telemetry Marker */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: '2px' }}>
-                            <span
-                              style={{
-                                fontSize: '10.5px',
-                                color: '#38bdf8',
-                                fontFamily: "'Share Tech Mono', monospace",
-                                letterSpacing: '0.01em',
-                                fontWeight: 600,
-                              }}
-                            >
-                              {sc.badge}
-                            </span>
-                            {isScCritical && !isTargetActive && (
+                            {isScCritical && (
                               <img
                                 src="/icons/critical.png"
                                 alt="Critical"
@@ -1278,7 +1418,7 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                                 style={{ width: '14px', height: '14px', objectFit: 'contain', flexShrink: 0 }}
                               />
                             )}
-                            {isScWarning && !isTargetActive && (
+                            {isScWarning && (
                               <img
                                 src="/icons/warning.png"
                                 alt="Warning"
@@ -1287,11 +1427,11 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                               />
                             )}
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
 
@@ -1314,7 +1454,7 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                   <span
                     style={{
                       color: '#ffffff',
-                      fontWeight: 800,
+                      fontWeight: 600,
                       fontSize: '12px',
                       letterSpacing: '0.04em',
                       textTransform: 'uppercase',
@@ -1395,10 +1535,11 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                     fontSize: '12px',
                     lineHeight: '1.5',
                     color: '#cbd5e1',
+                    fontFamily: "'Tomorrow', sans-serif",
                   }}
                 >
                   {activeScenarioMeta.description}
-                  {activeScenarioMeta.physiologicalShift && (
+                  {!isNominalActive && activeScenarioMeta.physiologicalShift && (
                     <span style={{ color: '#94a3b8', marginLeft: '6px', fontWeight: 500 }}>
                       ({activeScenarioMeta.physiologicalShift})
                     </span>
@@ -1464,18 +1605,22 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
             transform:
               activeTooltip.placement === 'top'
                 ? 'translate(-50%, -100%)'
-                : 'translate(-50%, 0)',
+                : activeTooltip.placement === 'bottom'
+                  ? 'translate(-50%, 0)'
+                  : activeTooltip.placement === 'left'
+                    ? 'translate(-100%, -50%)'
+                    : 'translate(0, -50%)',
             zIndex: 100000,
             width: '340px',
-            maxWidth: 'calc(100vw - 32px)',
+            maxWidth: 'calc(100vw - 28px)',
             pointerEvents: 'none',
             background: 'rgba(11, 15, 25, 0.98)',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
-            border: '1.5px solid #facc15',
+            border: activeTooltip.severity === 'CRITICAL' ? '1.5px solid #f43f5e' : activeTooltip.severity === 'WARNING' ? '1.5px solid #fbbf24' : '1.5px solid #38bdf8',
             borderRadius: '8px',
             padding: '12px 14px',
-            boxShadow: '0 16px 40px rgba(0, 0, 0, 0.95), 0 0 16px rgba(250, 204, 21, 0.25)',
+            boxShadow: activeTooltip.severity === 'CRITICAL' ? '0 16px 40px rgba(0, 0, 0, 0.95), 0 0 16px rgba(244, 63, 94, 0.3)' : activeTooltip.severity === 'WARNING' ? '0 16px 40px rgba(0, 0, 0, 0.95), 0 0 16px rgba(251, 191, 36, 0.3)' : '0 16px 40px rgba(0, 0, 0, 0.95), 0 0 16px rgba(56, 189, 248, 0.3)',
             color: '#f8fafc',
             fontFamily: "'Tomorrow', sans-serif",
             display: 'flex',
@@ -1489,31 +1634,17 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
             <span
               style={{
                 fontSize: '13px',
-                fontWeight: 800,
+                fontWeight: 600,
                 color: '#ffffff',
                 opacity: 1,
                 letterSpacing: '0.02em',
                 lineHeight: 1.3,
+                flex: 1,
               }}
             >
               {activeTooltip.label}
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 700,
-                  padding: '1px 5px',
-                  borderRadius: '3px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: '#94a3b8',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                {formatCategoryShort(activeTooltip.category)}
-              </span>
               {activeTooltip.severity === 'CRITICAL' && (
                 <img
                   src="/icons/critical.png"
@@ -1550,52 +1681,75 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
               lineHeight: 1.5,
               color: '#ffffff',
               opacity: 1,
-              fontWeight: 500,
+              fontWeight: 400,
               background: 'rgba(255, 255, 255, 0.04)',
               padding: '8px 10px',
               borderRadius: '5px',
               border: '1px solid rgba(255, 255, 255, 0.08)',
+              fontFamily: "'Tomorrow', sans-serif",
             }}
           >
             {activeTooltip.description}
           </div>
 
-          {/* Physiological Shift Details */}
+          {/* Physiological Shift Details - Uses Full Space Under Label */}
           {activeTooltip.physiologicalShift && (
             <div
               style={{
-                fontSize: '11px',
-                lineHeight: 1.45,
-                color: '#cbd5e1',
                 display: 'flex',
-                alignItems: 'baseline',
-                gap: '6px',
+                flexDirection: 'column',
+                gap: '3px',
+                fontFamily: "'Tomorrow', sans-serif",
               }}
             >
               <span
                 style={{
                   fontSize: '9px',
-                  fontWeight: 700,
-                  color: '#94a3b8',
+                  fontWeight: 600,
+                  color: '#38bdf8',
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  flexShrink: 0,
                 }}
               >
-                Shift:
+                Physiological Shift:
               </span>
-              <span style={{ color: '#f1f5f9', opacity: 0.95 }}>
+              <span style={{ fontSize: '11px', lineHeight: 1.45, color: '#f1f5f9', opacity: 0.95 }}>
                 {activeTooltip.physiologicalShift}
               </span>
             </div>
           )}
 
-          {/* Telemetry Badge Footer */}
+          {/* NASA Flight & Safety Citation */}
+          {activeTooltip.nasaCitation && (
+            <div
+              style={{
+                fontSize: '10px',
+                lineHeight: 1.4,
+                color: '#cbd5e1',
+                background: 'rgba(56, 189, 248, 0.06)',
+                padding: '6px 8px',
+                borderRadius: '4px',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+                fontFamily: "'Tomorrow', sans-serif",
+              }}
+            >
+              <span style={{ fontSize: '8.5px', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                NASA Flight &amp; Safety Citation:
+              </span>
+              <span>{activeTooltip.nasaCitation}</span>
+            </div>
+          )}
+
+          {/* Telemetry Badge Footer + Artemis Badge on Bottom Right */}
           <div
             style={{
               paddingTop: '6px',
               borderTop: '1px solid rgba(255, 255, 255, 0.08)',
               display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
             }}
           >
@@ -1610,31 +1764,70 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
             >
               {activeTooltip.badge}
             </span>
+            {activeTooltip.artemisCohort && (
+              <span
+                style={{
+                  fontSize: '8.5px',
+                  fontWeight: 800,
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  background: activeTooltip.artemisCohort === 'ARTEMIS_I' ? 'rgba(56, 189, 248, 0.16)' : 'rgba(251, 191, 36, 0.16)',
+                  color: activeTooltip.artemisCohort === 'ARTEMIS_I' ? '#38bdf8' : '#fbbf24',
+                  border: `1px solid ${activeTooltip.artemisCohort === 'ARTEMIS_I' ? 'rgba(56, 189, 248, 0.35)' : 'rgba(251, 191, 36, 0.35)'}`,
+                  letterSpacing: '0.04em',
+                  flexShrink: 0,
+                }}
+              >
+                {activeTooltip.artemisCohort === 'ARTEMIS_I' ? 'ARTEMIS I' : 'ARTEMIS II'}
+              </span>
+            )}
           </div>
 
           {/* Caret arrow pointing to the anchor */}
           <div
             style={{
               position: 'absolute',
-              left: `calc(50% + ${activeTooltip.caretOffset}px)`,
-              transform: 'translateX(-50%)',
+              width: 0,
+              height: 0,
               ...(activeTooltip.placement === 'top'
                 ? {
                   bottom: '-6px',
+                  left: `calc(50% + ${activeTooltip.caretOffset}px)`,
+                  transform: 'translateX(-50%)',
                   borderLeft: '6px solid transparent',
                   borderRight: '6px solid transparent',
-                  borderTop: '6px solid #facc15',
+                  borderTop: activeTooltip.severity === 'CRITICAL' ? '6px solid #f43f5e' : activeTooltip.severity === 'WARNING' ? '6px solid #fbbf24' : '6px solid #38bdf8',
                   filter: 'drop-shadow(0 2px 2px rgba(0, 0, 0, 0.6))',
                 }
-                : {
-                  top: '-6px',
-                  borderLeft: '6px solid transparent',
-                  borderRight: '6px solid transparent',
-                  borderBottom: '6px solid #facc15',
-                  filter: 'drop-shadow(0 -2px 2px rgba(0, 0, 0, 0.6))',
-                }),
-              width: 0,
-              height: 0,
+                : activeTooltip.placement === 'bottom'
+                  ? {
+                    top: '-6px',
+                    left: `calc(50% + ${activeTooltip.caretOffset}px)`,
+                    transform: 'translateX(-50%)',
+                    borderLeft: '6px solid transparent',
+                    borderRight: '6px solid transparent',
+                    borderBottom: activeTooltip.severity === 'CRITICAL' ? '6px solid #f43f5e' : activeTooltip.severity === 'WARNING' ? '6px solid #fbbf24' : '6px solid #38bdf8',
+                    filter: 'drop-shadow(0 -2px 2px rgba(0, 0, 0, 0.6))',
+                  }
+                  : activeTooltip.placement === 'left'
+                    ? {
+                      right: '-6px',
+                      top: `calc(50% + ${activeTooltip.caretOffset}px)`,
+                      transform: 'translateY(-50%)',
+                      borderTop: '6px solid transparent',
+                      borderBottom: '6px solid transparent',
+                      borderLeft: activeTooltip.severity === 'CRITICAL' ? '6px solid #f43f5e' : activeTooltip.severity === 'WARNING' ? '6px solid #fbbf24' : '6px solid #38bdf8',
+                      filter: 'drop-shadow(2px 0 2px rgba(0, 0, 0, 0.6))',
+                    }
+                    : {
+                      left: '-6px',
+                      top: `calc(50% + ${activeTooltip.caretOffset}px)`,
+                      transform: 'translateY(-50%)',
+                      borderTop: '6px solid transparent',
+                      borderBottom: '6px solid transparent',
+                      borderRight: activeTooltip.severity === 'CRITICAL' ? '6px solid #f43f5e' : activeTooltip.severity === 'WARNING' ? '6px solid #fbbf24' : '6px solid #38bdf8',
+                      filter: 'drop-shadow(-2px 0 2px rgba(0, 0, 0, 0.6))',
+                    }),
             }}
           />
         </div>,
