@@ -1466,58 +1466,69 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 </span>
               </div>
 
-              {/* Under Name: Alerts Readout + Mission Subject Context */}
+              {/* Under Name: Alerts Readout (Only When Needed) + Mission Subject Context */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {severity === 'CRITICAL' ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                    <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                ) : severity === 'WARNING' ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                    <line x1="12" y1="9" x2="12" y2="13" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                  </svg>
-                ) : (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    <path d="m9 12 2 2 4-4" />
-                  </svg>
+                {severity !== 'NOMINAL' && (
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {severity === 'CRITICAL' ? (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                        <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                    ) : (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                    )}
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        color: severity === 'CRITICAL' ? '#ef4444' : '#f59e0b',
+                        fontFamily: "'Tomorrow', sans-serif",
+                        fontVariantNumeric: 'tabular-nums',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {clinicalSummary.prioritizedBiomarkers.filter(b => b.tier === 'CRITICAL' || b.tier === 'WARNING').length || 1}
+                    </span>
+                  </div>
                 )}
-                <span style={{ fontSize: '10px', color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif" }}>
-                  Alerts:
-                </span>
+                {severity !== 'NOMINAL' && <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 600 }}>•</span>}
                 <span
                   style={{
                     fontSize: '11px',
-                    fontWeight: 700,
-                    color: severity === 'CRITICAL' ? '#ef4444' : severity === 'WARNING' ? '#f59e0b' : '#22c55e',
+                    color: '#cbd5e1',
                     fontFamily: "'Tomorrow', sans-serif",
-                    fontVariantNumeric: 'tabular-nums',
-                    lineHeight: 1,
+                    fontWeight: 500,
+                    letterSpacing: '0.02em',
                   }}
                 >
-                  {severity === 'NOMINAL' ? '0' : '1'} {severity === 'NOMINAL' ? 'NOM' : 'WARN'}
-                </span>
-                <span style={{ color: '#475569', fontSize: '10px' }}>•</span>
-                <span style={{ fontSize: '10px', color: '#64748b', fontFamily: "'Tomorrow', sans-serif" }}>
                   Inspiration4 ({activeCrew.subjectId})
                 </span>
               </div>
             </div>
 
             {/* Subtle Vertical Divider */}
-            <div style={{ width: '1px', height: '38px', backgroundColor: 'rgba(255, 255, 255, 0.12)' }} />
+            <div style={{ width: '1px', height: '38px', backgroundColor: 'rgba(255, 255, 255, 0.16)' }} />
 
-            {/* Physiological Reserve Index (PRI) with 5-System Organ Meters */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-start' }}>
+            {/* Physiological Reserve Index (PRI) with Fixed Layout (Zero Shift & Pinned % Position) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-start', flexShrink: 0 }}>
               <span
                 style={{
-                  fontSize: '9px',
+                  fontSize: '9.5px',
                   fontWeight: 700,
-                  color: '#94a3b8',
+                  color: '#cbd5e1',
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                   fontFamily: "'Tomorrow', sans-serif",
@@ -1526,20 +1537,49 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 Reserve (PRI)
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span
+                {/* Pinned-width container ensures organ meters to the right never shift */}
+                <div
                   style={{
-                    fontSize: '32px',
-                    fontWeight: 800,
-                    color: overallPill.color,
-                    fontFamily: "'Tomorrow', sans-serif",
-                    fontVariantNumeric: 'tabular-nums',
-                    letterSpacing: '-0.03em',
-                    lineHeight: 1,
-                    textShadow: `0 0 18px ${overallPill.color}35`,
+                    display: 'inline-flex',
+                    alignItems: 'baseline',
+                    minWidth: '82px',
+                    flexShrink: 0,
                   }}
                 >
-                  {healthPercent}%
-                </span>
+                  <span
+                    style={{
+                      fontSize: '32px',
+                      fontWeight: 800,
+                      color: overallPill.color,
+                      fontFamily: "'Tomorrow', sans-serif",
+                      fontVariantNumeric: 'tabular-nums',
+                      letterSpacing: '-0.02em',
+                      lineHeight: 1,
+                      display: 'inline-block',
+                      minWidth: '58px',
+                      textAlign: 'right',
+                      textShadow: `0 0 18px ${overallPill.color}35`,
+                    }}
+                  >
+                    {healthPercent}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '20px',
+                      fontWeight: 800,
+                      color: overallPill.color,
+                      fontFamily: "'Tomorrow', sans-serif",
+                      marginLeft: '2px',
+                      lineHeight: 1,
+                      display: 'inline-block',
+                      width: '20px',
+                      textAlign: 'left',
+                      textShadow: `0 0 14px ${overallPill.color}35`,
+                    }}
+                  >
+                    %
+                  </span>
+                </div>
 
                 {/* 5-System Mini Multi-Organ Reserve Pips */}
                 <div
@@ -1550,7 +1590,8 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                     background: 'rgba(0, 0, 0, 0.40)',
                     padding: '3px 6px',
                     borderRadius: '4px',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    flexShrink: 0,
                   }}
                   title={`Cardiovascular: ${clinicalSummary.reserveBreakdown.cardiovascular}% | Respiratory: ${clinicalSummary.reserveBreakdown.respiratory}% | Metabolic: ${clinicalSummary.reserveBreakdown.metabolic}% | Immune: ${clinicalSummary.reserveBreakdown.immune}% | Radiation: ${clinicalSummary.reserveBreakdown.radiation}%`}
                 >
@@ -1565,9 +1606,9 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                       const sysColor = sys.val < 50 ? '#ef4444' : sys.val < 75 ? '#f59e0b' : '#22c55e';
                       return (
                         <div key={sys.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}>
-                          <span style={{ fontSize: '7px', color: '#94a3b8', fontWeight: 700, lineHeight: 1 }}>{sys.label}</span>
-                          <div style={{ width: '13px', height: '3px', borderRadius: '1px', background: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
-                            <div style={{ width: `${sys.val}%`, height: '100%', background: sysColor }} />
+                          <span style={{ fontSize: '7.5px', color: '#f1f5f9', fontWeight: 800, lineHeight: 1 }}>{sys.label}</span>
+                          <div style={{ width: '13px', height: '3px', borderRadius: '1px', background: 'rgba(255,255,255,0.18)', overflow: 'hidden' }}>
+                            <div style={{ width: `${sys.val}%`, height: '100%', background: sysColor, transition: 'width 300ms ease' }} />
                           </div>
                         </div>
                       );
@@ -1739,30 +1780,32 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
             </div>
           </div>
 
-          {/* ── RIGHT: CREW SELECTOR (DOCKED IN BOTTOM CONTAINER, ZERO LAYOUT SHIFT) ── */}
+          {/* ── CENTER: CREW SELECTOR (HORIZONTALLY CENTERED) ── */}
           <div
             style={{
+              width: '100%',
               display: 'flex',
               flexDirection: 'column',
               gap: '4px',
-              alignItems: 'flex-end',
-              alignSelf: 'flex-end',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: '4px',
             }}
           >
             <span
               style={{
-                fontSize: '9px',
+                fontSize: '9.5px',
                 fontWeight: 700,
-                color: '#64748b',
+                color: '#cbd5e1',
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
                 fontFamily: "'Tomorrow', sans-serif",
-                paddingRight: '6px',
+                textAlign: 'center',
               }}
             >
               Crew Selection (4)
             </span>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '6px' }}>
               {CREW_MEMBERS.map((crew) => {
                 const isSelected = crew.id === selectedId;
                 const isHovered = crew.id === hoveredCrewId && !isSelected;
