@@ -1,7 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { TelemetryPacket, CrewFullLabProfile, AlertPayload } from '../types/telemetry';
 import { fetchCrewLabProfile } from '../services/labAssayService';
 import { HeaderBar } from './HeaderBar';
+import { evaluateCrewClinicalSummary, computeBiomarkerDelta, getBiomarkerCadence } from '../utils/clinicalPrioritization';
+import { useStabilizedClinicalSummary } from '../hooks/useStabilizedClinicalSummary';
+import { usePeriodicCadence } from '../hooks/usePeriodicCadence';
+import { InlineTrendDrawer } from './clinical/InlineTrendDrawer';
+import { DeepAnalysisModal } from './clinical/DeepAnalysisModal';
+import { ClinicalTimeline } from './clinical/ClinicalTimeline';
 
 interface HealthTelemetryViewProps {
   initialAstronautId?: string | null;
@@ -179,37 +185,203 @@ export const getAstronautOsdrProfile = (id: string): CrewBaselineAndLabProfile =
 interface DeviceMeta {
   id: number;
   name: string;
-  type: 'Wearable' | 'Cabin Environmental' | 'Point-of-Care Lab' | 'Computational Engine';
-  parameter: string;
-  source: string;
-  status: 'Streaming' | 'Nominal' | 'Calibrated';
+  category: 'Wearable' | 'Environment' | 'Diagnostics' | 'Performance' | 'Research' | 'Computational';
+  mode: 'CONTINUOUS' | 'ON DEMAND' | 'PERIODIC' | 'COMPUTED';
+  status: 'Connected' | 'Ready' | 'Streaming' | 'Calibrated' | 'Standby' | 'Nominal' | 'External';
+  signal: 'Excellent' | 'Good' | 'N/A';
+  purpose: string;
+  measures: string[];
+  readings: [string, string][];
+  usedBy: string[];
+  updated: string;
   iconType: string;
-  accentColor: string;
 }
 
 const FLIGHT_DEVICES: DeviceMeta[] = [
-  { id: 1, name: 'Astroskin Smart Garment', type: 'Wearable', parameter: 'Physiological Telemetry Garment (Bio-Monitor)', source: 'Canadian Space Agency / NASA', status: 'Streaming', iconType: 'astroskin', accentColor: '#38bdf8' },
-  { id: 2, name: 'LifeGuard / CPOD Module', type: 'Wearable', parameter: 'Autonomous Multi-Parameter Sensor Pod', source: 'NASA Ames Research Center', status: 'Streaming', iconType: 'lifeguard', accentColor: '#38bdf8' },
-  { id: 3, name: 'SpaceWear Flight System', type: 'Wearable', parameter: 'Wearable Multi-Vector Health Monitoring', source: 'Artemis Sensor Suite', status: 'Streaming', iconType: 'spacewear', accentColor: '#38bdf8' },
-  { id: 4, name: 'ECG / Wearable ECG Sensor', type: 'Wearable', parameter: 'Continuous Lead II ECG, HR & HRV', source: 'Bio-Telemetry Pod', status: 'Streaming', iconType: 'ecg', accentColor: '#38bdf8' },
-  { id: 5, name: 'Pulse Oximeter / PPG Sensor', type: 'Wearable', parameter: 'Blood Oxygen (SpO₂) & Peripheral Pulse', source: 'Digital Optode Optoelectronic', status: 'Streaming', iconType: 'pulse-oximeter', accentColor: '#38bdf8' },
-  { id: 6, name: 'Blood-Pressure Monitor', type: 'Wearable', parameter: 'Arterial Pressure Measurement (Sys/Dia)', source: 'Non-Invasive Vascular Sensor', status: 'Streaming', iconType: 'bp-monitor', accentColor: '#38bdf8' },
-  { id: 7, name: 'Respiratory (RIP) Belt', type: 'Wearable', parameter: 'Inductance Plethysmography & Respiration', source: 'Thoracic Expansion Sensor', status: 'Streaming', iconType: 'respiratory-belt', accentColor: '#38bdf8' },
-  { id: 8, name: 'Capnograph / Capnometer', type: 'Wearable', parameter: 'Expiratory & Cabin CO₂ Monitoring', source: 'Optical Infrared Gas Sensor', status: 'Streaming', iconType: 'capnograph', accentColor: '#38bdf8' },
-  { id: 9, name: 'PUMA Metabolic Analyzer', type: 'Point-of-Care Lab', parameter: 'Metabolic Rate & Energy Expenditure (VO₂)', source: 'Portable Unit for Metabolic Analysis', status: 'Calibrated', iconType: 'puma-metabolic', accentColor: '#38bdf8' },
-  { id: 10, name: 'Core-Temp Sensor / T-Mini', type: 'Wearable', parameter: 'Deep Body Core Temperature & Thermal Drift', source: 'CorTemp / T-Mini Telemetry Capsule', status: 'Streaming', iconType: 'core-temp', accentColor: '#38bdf8' },
-  { id: 11, name: 'EEG System / EEG Headband', type: 'Wearable', parameter: 'Cranial Electrophysiology & Brain Rhythms', source: 'Frontal Neural Telemetry Band', status: 'Nominal', iconType: 'eeg-headband', accentColor: '#38bdf8' },
-  { id: 12, name: 'Actigraphy Sleep Tracker', type: 'Wearable', parameter: 'Sleep Score, Circadian Rest & Motor IMU', source: 'Actiwatch / IMU Pod', status: 'Nominal', iconType: 'actigraphy', accentColor: '#38bdf8' },
-  { id: 13, name: 'Radiation Dosimeter Badge', type: 'Wearable', parameter: 'GCR Flux Rate & Accumulated Absorbed Dose', source: 'Active Tissue-Equivalent Counter', status: 'Streaming', iconType: 'radiation', accentColor: '#38bdf8' },
-  { id: 14, name: 'Hematology Analyzer (CBC)', type: 'Point-of-Care Lab', parameter: 'CBC: All 20 Morphology Biomarkers', source: 'NASA OSDR OSD-569 Microfluidic', status: 'Calibrated', iconType: 'hematology', accentColor: '#38bdf8' },
-  { id: 15, name: 'Clinical Chemistry Analyzer', type: 'Point-of-Care Lab', parameter: 'CMP: All 19 Chemistry Biomarkers', source: 'NASA OSDR OSD-575 Assay', status: 'Calibrated', iconType: 'chemistry', accentColor: '#38bdf8' },
-  { id: 16, name: 'Multiplex Bead Immunoassay', type: 'Point-of-Care Lab', parameter: 'Cytokines: All 71 Immune Markers', source: 'NASA OSDR OSD-575 Luminex', status: 'Calibrated', iconType: 'immunoassay', accentColor: '#38bdf8' },
-  { id: 17, name: 'Cardiovascular Protein Analyzer', type: 'Point-of-Care Lab', parameter: 'All 9 Acute-Phase CV Proteins', source: 'NASA OSDR OSD-575 Acute Phase', status: 'Calibrated', iconType: 'cv-protein', accentColor: '#38bdf8' },
-  { id: 18, name: 'Z-Score Baseline Comparator', type: 'Computational Engine', parameter: 'Individualized Bayesian σ-Drift Evaluator', source: 'Bayesian Gaussian Engine', status: 'Nominal', iconType: 'engine', accentColor: '#38bdf8' },
-  { id: 19, name: 'Fridericia QTc Engine', type: 'Computational Engine', parameter: 'Rate-corrected QT Interval Evaluation', source: 'Continuous Electrocardiography', status: 'Nominal', iconType: 'engine', accentColor: '#38bdf8' },
-  { id: 20, name: 'Arrhythmogenic Risk (ARF)', type: 'Computational Engine', parameter: 'Electrolyte-Coupled Cardiac Risk Index', source: 'Multi-parametric Risk Matrix', status: 'Nominal', iconType: 'engine', accentColor: '#38bdf8' },
-  { id: 21, name: 'Thrombosis Risk Metric (TRM)', type: 'Computational Engine', parameter: 'Virchow Triad Microgravity Stasis Risk', source: 'Hemoconcentration Engine', status: 'Nominal', iconType: 'engine', accentColor: '#38bdf8' },
-  { id: 22, name: 'Radiation Sickness Index (RSI)', type: 'Computational Engine', parameter: 'Acute GCR Exposure Radiobiological Decay', source: 'Radiobiological Decay Model', status: 'Nominal', iconType: 'engine', accentColor: '#38bdf8' },
+  {
+    id: 1, name: 'AstroSkin / Bio-Monitor Garment', category: 'Wearable', mode: 'CONTINUOUS', status: 'Connected', signal: 'Excellent',
+    purpose: 'Multi-parameter physiological monitoring garment',
+    measures: ['ECG', 'Heart Rate', 'HRV', 'Respiratory Rate', 'Skin Temperature', 'Activity'],
+    readings: [['Heart Rate', '82 bpm'], ['Respiration', '16 /min'], ['Skin Temp', '33.2 °C'], ['Activity', 'Active']],
+    usedBy: ['Cardiovascular', 'Respiratory', 'Temperature', 'Physical'],
+    updated: '0.4 sec ago', iconType: 'astroskin',
+  },
+  {
+    id: 2, name: 'LifeGuard / CPOD Module', category: 'Wearable', mode: 'CONTINUOUS', status: 'Connected', signal: 'Excellent',
+    purpose: 'Autonomous multi-parameter sensor pod',
+    measures: ['Heart Rate', 'SpO₂', 'Respiratory Rate', 'Skin Conductance'],
+    readings: [['HR', '82 bpm'], ['SpO₂', '97%'], ['Resp Rate', '16 /min']],
+    usedBy: ['Cardiovascular', 'Respiratory'],
+    updated: '0.3 sec ago', iconType: 'lifeguard',
+  },
+  {
+    id: 3, name: 'Wearable ECG Sensor', category: 'Wearable', mode: 'CONTINUOUS', status: 'Connected', signal: 'Excellent',
+    purpose: 'Continuous cardiac electrical monitoring',
+    measures: ['ECG', 'Heart Rate', 'Cardiac Rhythm', 'Arrhythmia Detection', 'HRV'],
+    readings: [['Heart Rate', '82 bpm'], ['Rhythm', 'Normal Sinus'], ['QTc Trend', 'Normal'], ['Arrhythmia', 'None']],
+    usedBy: ['Cardiovascular'],
+    updated: '0.2 sec ago', iconType: 'ecg',
+  },
+  {
+    id: 4, name: 'PPG / Pulse Oximeter', category: 'Wearable', mode: 'CONTINUOUS', status: 'Connected', signal: 'Good',
+    purpose: 'Peripheral oxygenation and pulse monitoring',
+    measures: ['SpO₂', 'Pulse Rate', 'Peripheral Perfusion', 'PPG Waveform'],
+    readings: [['SpO₂', '97%'], ['Pulse', '81 bpm'], ['Perfusion Index', '3.8%'], ['Waveform', 'Stable']],
+    usedBy: ['Cardiovascular', 'Respiratory'],
+    updated: '0.5 sec ago', iconType: 'pulse-oximeter',
+  },
+  {
+    id: 5, name: 'Blood-Pressure Monitor', category: 'Wearable', mode: 'CONTINUOUS', status: 'Connected', signal: 'Good',
+    purpose: 'Arterial blood pressure measurement',
+    measures: ['Systolic Pressure', 'Diastolic Pressure', 'Pulse Pressure'],
+    readings: [['Blood Pressure', '118 / 76 mmHg'], ['Pulse', '80 bpm']],
+    usedBy: ['Cardiovascular', 'Hydration'],
+    updated: '0.8 sec ago', iconType: 'bp-monitor',
+  },
+  {
+    id: 6, name: 'Respiratory (RIP) Belt', category: 'Wearable', mode: 'CONTINUOUS', status: 'Connected', signal: 'Good',
+    purpose: 'Breathing pattern and respiratory-motion monitoring',
+    measures: ['Respiratory Rate', 'Breathing Pattern', 'Ventilation Trend'],
+    readings: [['Respiration', '16 /min'], ['Pattern', 'Regular'], ['Ventilation', 'Normal']],
+    usedBy: ['Respiratory'],
+    updated: '0.6 sec ago', iconType: 'respiratory-belt',
+  },
+  {
+    id: 7, name: 'Core-Temperature Sensor', category: 'Wearable', mode: 'CONTINUOUS', status: 'Connected', signal: 'Excellent',
+    purpose: 'Continuous deep body core temperature monitoring',
+    measures: ['Core Temperature', 'Thermal Drift Rate', 'Heat Balance Equilibrium'],
+    readings: [['Core Temp', '37.0 °C'], ['Trend', 'Stable'], ['Drift Rate', '0.0 °C/h']],
+    usedBy: ['Temperature'],
+    updated: '1.0 sec ago', iconType: 'core-temp',
+  },
+  {
+    id: 8, name: 'EEG Headband System', category: 'Wearable', mode: 'CONTINUOUS', status: 'Connected', signal: 'Good',
+    purpose: 'Brain electrical activity and sleep-state monitoring',
+    measures: ['EEG', 'Neurological Pattern', 'Sleep Stage Data', 'Brain Rhythms'],
+    readings: [['EEG Status', 'Normal'], ['Artifact Level', 'Low'], ['State', 'Awake']],
+    usedBy: ['Neurological', 'Sleep / Fatigue'],
+    updated: '0.7 sec ago', iconType: 'eeg-headband',
+  },
+  {
+    id: 9, name: 'Actigraphy Sleep Tracker', category: 'Wearable', mode: 'CONTINUOUS', status: 'Connected', signal: 'Excellent',
+    purpose: 'Sleep, activity and circadian cycle monitoring',
+    measures: ['Sleep Duration', 'Sleep/Wake Pattern', 'Activity Level', 'Circadian Rhythm'],
+    readings: [['Last Sleep', '6h 42m'], ['Sleep Score', '84%'], ['Circadian Shift', '+12 min'], ['Activity', 'Normal']],
+    usedBy: ['Sleep / Fatigue', 'Physical'],
+    updated: '2 sec ago', iconType: 'actigraphy',
+  },
+  {
+    id: 10, name: 'Radiation Dosimeter (CAD)', category: 'Wearable', mode: 'CONTINUOUS', status: 'Connected', signal: 'Good',
+    purpose: 'Personal GCR radiation dose monitoring',
+    measures: ['Personal Radiation Dose', 'Dose Rate', 'Accumulated Mission Dose'],
+    readings: [['Dose Rate', '0.04 mSv/h'], ['Mission Dose', '0.05 Gy'], ['Exposure Trend', 'Stable']],
+    usedBy: ['Radiation'],
+    updated: '0.8 sec ago', iconType: 'radiation',
+  },
+  {
+    id: 11, name: 'Capnograph / Capnometer', category: 'Diagnostics', mode: 'ON DEMAND', status: 'Standby', signal: 'Good',
+    purpose: 'Exhaled CO₂ and ventilation assessment',
+    measures: ['EtCO₂', 'Respiratory Rate', 'Ventilation Pattern'],
+    readings: [['EtCO₂', '38 mmHg'], ['Status', 'Standby mode']],
+    usedBy: ['Respiratory'],
+    updated: 'Standby', iconType: 'capnograph',
+  },
+  {
+    id: 12, name: 'Orion ECLSS Environment', category: 'Environment', mode: 'CONTINUOUS', status: 'Connected', signal: 'Excellent',
+    purpose: 'Spacecraft environmental-control and life-support telemetry',
+    measures: ['Cabin Atmosphere', 'Pressure', 'O₂ Availability', 'CO₂ Control', 'Humidity'],
+    readings: [['Cabin Pressure', '101.3 kPa'], ['Atmosphere', 'Nominal'], ['Humidity', '43%'], ['Life Support', 'Normal']],
+    usedBy: ['Respiratory', 'Temperature'],
+    updated: '0.2 sec ago', iconType: 'engine',
+  },
+  {
+    id: 13, name: 'Cabin O₂ / CO₂ Sensors', category: 'Environment', mode: 'CONTINUOUS', status: 'Connected', signal: 'Excellent',
+    purpose: 'Cabin oxygen and carbon-dioxide monitoring',
+    measures: ['Cabin Oxygen Concentration', 'CO₂ Concentration', 'CO₂ Trend'],
+    readings: [['Cabin O₂', '20.9%'], ['CO₂', '0.42%'], ['CO₂ Trend', 'Stable']],
+    usedBy: ['Respiratory', 'Neurological'],
+    updated: '0.2 sec ago', iconType: 'capnograph',
+  },
+  {
+    id: 14, name: 'HERA Radiation Monitor', category: 'Environment', mode: 'CONTINUOUS', status: 'Connected', signal: 'Excellent',
+    purpose: 'Cabin radiation monitoring and event detection',
+    measures: ['Radiation Dose Rate', 'Cabin Radiation Level', 'Radiation Alert State'],
+    readings: [['Dose Rate', 'Nominal'], ['Alert State', 'Normal'], ['Sensor Network', '6 active']],
+    usedBy: ['Radiation'],
+    updated: '0.3 sec ago', iconType: 'radiation',
+  },
+  {
+    id: 15, name: 'PUMA Metabolic Analyzer', category: 'Performance', mode: 'ON DEMAND', status: 'Standby', signal: 'Good',
+    purpose: 'Exercise and metabolic performance assessment',
+    measures: ['VO₂ Max', 'VCO₂', 'Metabolic Rate', 'Energy Expenditure'],
+    readings: [['Session', 'Inactive'], ['Latest VO₂', 'Normal']],
+    usedBy: ['Metabolic', 'Physical'],
+    updated: 'Standby', iconType: 'puma-metabolic',
+  },
+  {
+    id: 16, name: 'Hematology Analyzer (CBC)', category: 'Diagnostics', mode: 'PERIODIC', status: 'Calibrated', signal: 'N/A',
+    purpose: 'Complete blood count — all 20 morphology biomarkers',
+    measures: ['WBC', 'RBC', 'Hemoglobin', 'Hematocrit', 'Platelets', 'Differential'],
+    readings: [['WBC', '5.0 k/μL'], ['HCT', '43.6%'], ['PLT', '227 k/μL'], ['Last Sample', '13:42 UTC']],
+    usedBy: ['Hematology', 'Immune'],
+    updated: '54 min ago', iconType: 'hematology',
+  },
+  {
+    id: 17, name: 'Clinical Chemistry Analyzer', category: 'Diagnostics', mode: 'PERIODIC', status: 'Calibrated', signal: 'N/A',
+    purpose: 'Comprehensive metabolic panel — all 19 chemistry biomarkers',
+    measures: ['Sodium', 'Potassium', 'Glucose', 'Creatinine', 'BUN', 'eGFR', 'Liver Enzymes'],
+    readings: [['Sodium', '138 mmol/L'], ['Potassium', '4.4 mmol/L'], ['Glucose', '90 mg/dL'], ['Last Sample', '13:42 UTC']],
+    usedBy: ['Metabolic', 'Cardiovascular'],
+    updated: '54 min ago', iconType: 'chemistry',
+  },
+  {
+    id: 18, name: 'Multiplex Immunoassay (71)', category: 'Diagnostics', mode: 'PERIODIC', status: 'Calibrated', signal: 'N/A',
+    purpose: 'All 71 immune cytokines and growth factor markers',
+    measures: ['IL-6', 'TNF-α', 'IFN-γ', 'IL-1β', '20 Chemokines', '17 Growth Factors'],
+    readings: [['IL-6', '6.86 pg/mL'], ['TNF-α', '75.8 pg/mL'], ['Status', 'Calibrated']],
+    usedBy: ['Immune', 'Inflammation'],
+    updated: '54 min ago', iconType: 'immunoassay',
+  },
+  {
+    id: 19, name: 'CV Protein Analyzer (OSD-575)', category: 'Diagnostics', mode: 'PERIODIC', status: 'Calibrated', signal: 'N/A',
+    purpose: 'All 9 acute-phase cardiovascular protein markers',
+    measures: ['CRP', 'Fibrinogen', 'L-selectin', 'PF4', 'Haptoglobin', 'SAP'],
+    readings: [['CRP', '1.06 mg/L'], ['Fibrinogen', '260 mg/dL'], ['Status', 'Calibrated']],
+    usedBy: ['Cardiovascular', 'Thrombosis'],
+    updated: '54 min ago', iconType: 'cv-protein',
+  },
+  {
+    id: 20, name: 'Z-Score Baseline Engine', category: 'Computational', mode: 'COMPUTED', status: 'Nominal', signal: 'N/A',
+    purpose: 'Individualized Bayesian σ-drift biomarker evaluator',
+    measures: ['Z-Score per Biomarker', 'Drift Rate', 'Gaussian Baseline Model'],
+    readings: [['HRV σ-drift', '0.2 σ'], ['Status', 'Online']],
+    usedBy: ['All Systems'],
+    updated: 'Continuous', iconType: 'engine',
+  },
+  {
+    id: 21, name: 'Fridericia QTc Engine', category: 'Computational', mode: 'COMPUTED', status: 'Nominal', signal: 'N/A',
+    purpose: 'Rate-corrected QT interval arrhythmia evaluation',
+    measures: ['QTc Interval', 'Arrhythmogenic Risk (ARF)', 'Rate Correction'],
+    readings: [['QTc', '402 ms'], ['ARF Index', '0.72'], ['Risk', 'Nominal']],
+    usedBy: ['Cardiovascular'],
+    updated: 'Continuous', iconType: 'engine',
+  },
+  {
+    id: 22, name: 'Thrombosis Risk Engine (TRM)', category: 'Computational', mode: 'COMPUTED', status: 'Nominal', signal: 'N/A',
+    purpose: 'Virchow triad microgravity thrombosis risk model',
+    measures: ['TRM Index', 'Venous Stasis Status', 'Hemoconcentration'],
+    readings: [['TRM Index', '1.02'], ['Stasis', 'Normal'], ['Risk', 'Low']],
+    usedBy: ['Thrombosis', 'Cardiovascular'],
+    updated: 'Continuous', iconType: 'engine',
+  },
+  {
+    id: 23, name: 'Bioimpedance System', category: 'Research', mode: 'PERIODIC', status: 'Ready', signal: 'Good',
+    purpose: 'Fluid-status and body-composition estimation',
+    measures: ['Body Water', 'Fluid Status', 'Body Composition Estimate'],
+    readings: [['Body Water', '58%'], ['Fluid Status', 'Normal']],
+    usedBy: ['Hydration', 'Physical'],
+    updated: '38 min ago', iconType: 'puma-metabolic',
+  },
 ];
 
 /* ── PRECISE VECTOR ICONS IN UNIFIED AEROSPACE CYAN (#38bdf8) ──────────── */
@@ -406,12 +578,123 @@ const gaussianNoise = (scale: number = 1.0) => {
   return g * scale;
 };
 
-function createSyntheticHistory(baseVal: number, noiseScale: number, count = 32): number[] {
+// Lead-II ECG voltage synthesis (P-QRS-T complex) based on NASA-STD-3001 cardiovascular telemetry
+function calcLeadII(phi: number): number {
+  phi = phi - Math.floor(phi);
+  let v = Math.sin(phi * Math.PI * 2) * 0.015;
+  if (phi >= 0.10 && phi <= 0.24) {
+    const n = (phi - 0.17) / 0.035;
+    v += 0.18 * Math.exp(-n * n); // P wave
+  }
+  if (phi >= 0.27 && phi <= 0.31) {
+    const n = (phi - 0.29) / 0.012;
+    v -= 0.14 * Math.exp(-n * n); // Q wave
+  }
+  if (phi >= 0.29 && phi <= 0.35) {
+    const n = (phi - 0.32) / 0.014;
+    v += 1.05 * Math.exp(-n * n); // R spike
+  }
+  if (phi >= 0.33 && phi <= 0.39) {
+    const n = (phi - 0.36) / 0.014;
+    v -= 0.30 * Math.exp(-n * n); // S wave
+  }
+  if (phi >= 0.46 && phi <= 0.70) {
+    const n = (phi - 0.58) / 0.065;
+    v += 0.32 * Math.exp(-n * n); // T wave
+  }
+  return v;
+}
+
+function generateEcgWaveform(hr: number, phaseOffset: number = 0, count = 35): number[] {
+  const points: number[] = [];
+  const cycles = Math.max(1.2, Math.min(4.5, (hr / 60) * 1.8));
+  for (let i = 0; i < count; i++) {
+    const phi = phaseOffset + (i / (count - 1)) * cycles;
+    const wander = Math.sin((phaseOffset + i / count) * 0.8) * 0.02;
+    const v = calcLeadII(phi) + wander;
+    points.push(Number(v.toFixed(3)));
+  }
+  return points;
+}
+
+const NOISE_PROFILES: Record<string, number> = {
+  hr: 1.1,
+  bp_sys: 2.0,
+  arf: 0.015,
+  qtc: 2.0,
+  crp: 0.06,
+  fibrinogen: 3.5,
+  l_selectin: 6.0,
+  pf4: 3.5,
+  haptoglobin: 0.02,
+  a2_macroglobulin: 0.03,
+  agp: 0.02,
+  fetuin_a36: 0.015,
+  sap: 0.4,
+  spo2: 0.20,
+  rr: 0.40,
+  etco2: 0.35,
+  min_vent: 0.18,
+  temp: 0.025,
+  skin_temp: 0.035,
+  drift_rate: 0.015,
+  sleep: 0.4,
+  hrv: 1.2,
+  z_hrv: 0.05,
+  hct: 0.20,
+  wbc: 0.12,
+  plt: 2.5,
+  hgb: 0.10,
+  rbc: 0.04,
+  abs_neutrophils: 35,
+  neutrophils_pct: 0.5,
+  abs_lymphocytes: 20,
+  lymphocytes_pct: 0.4,
+  abs_monocytes: 10,
+  monocytes_pct: 0.25,
+  abs_eosinophils: 5,
+  eosinophils_pct: 0.1,
+  abs_basophils: 2,
+  basophils_pct: 0.04,
+  mcv: 0.3,
+  mch: 0.2,
+  mchc: 0.25,
+  rdw: 0.1,
+  mpv: 0.1,
+  na: 0.35,
+  k: 0.035,
+  glu: 1.1,
+  bun: 0.3,
+  creatinine: 0.02,
+  calcium: 0.06,
+  chloride: 0.4,
+  co2_blood: 0.3,
+  egfr: 1.0,
+  total_protein: 0.08,
+  albumin: 0.05,
+  globulin: 0.04,
+  alkaline_phosphatase: 0.8,
+  alt: 0.5,
+  ast: 0.5,
+  total_bilirubin: 0.02,
+  il6: 0.25,
+  tnf: 0.15,
+  ifn: 0.08,
+  il1b: 0.04,
+  rad_flux: 0.008,
+  rad_dose: 0.0015,
+  rsi: 0.015,
+  alc: 0.035,
+  trm: 0.015,
+  epi: 0.01,
+};
+
+function createSyntheticHistory(baseVal: number, noiseScale: number, count = 35): number[] {
   const points: number[] = [];
   let curr = baseVal;
   for (let i = 0; i < count; i++) {
     curr += (baseVal - curr) * 0.18 + gaussianNoise(noiseScale);
-    points.push(Number(curr.toFixed(2)));
+    points.push(Number(curr.toFixed(3)));
   }
   return points;
 }
@@ -448,18 +731,25 @@ export const MicroSparkline: React.FC<{
   const a = Math.min(...history);
   const b = Math.max(...history);
   const span = b - a;
-  // Dynamic scale auto-normalizer matching Demo/astronaut-telemetry/index.html
-  const r = span < 0.05 ? 1 : span;
   const pad = 2;
   const usableH = height - pad * 2;
 
-  const points = history
-    .map((y, i) => {
-      const px = ((i * (width - 4)) / (history.length - 1) + 2).toFixed(1);
-      const py = (height - pad - ((y - a) / r) * usableH).toFixed(1);
-      return `${px},${py}`;
-    })
-    .join(' ');
+  // When span is negligible (< 0.001), render a clean centered baseline
+  const points = span < 0.001
+    ? history
+        .map((_, i) => {
+          const px = ((i * (width - 4)) / (history.length - 1) + 2).toFixed(1);
+          const py = (height / 2).toFixed(1);
+          return `${px},${py}`;
+        })
+        .join(' ')
+    : history
+        .map((y, i) => {
+          const px = ((i * (width - 4)) / (history.length - 1) + 2).toFixed(1);
+          const py = (height - pad - ((y - a) / span) * usableH).toFixed(1);
+          return `${px},${py}`;
+        })
+        .join(' ');
 
   return (
     <svg
@@ -472,7 +762,7 @@ export const MicroSparkline: React.FC<{
       <polyline
         fill="none"
         stroke={color}
-        strokeWidth="1.5"
+        strokeWidth="1.3"
         strokeLinecap="round"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
@@ -505,12 +795,24 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
     }
   }, [initialAstronautId]);
 
-  const [deviceFilter, setDeviceFilter] = useState<'ALL' | 'WEARABLE' | 'LAB' | 'ENGINE'>('ALL');
+  const [deviceFilter, setDeviceFilter] = useState<'All' | 'Wearable' | 'Environment' | 'Diagnostics' | 'Performance' | 'Research' | 'Computational'>('All');
+  const [expandedDeviceId, setExpandedDeviceId] = useState<number | null>(null);
   const [labProfile, setLabProfile] = useState<CrewFullLabProfile | null>(null);
   const [hoveredCrewId, setHoveredCrewId] = useState<string | null>(null);
 
-  // Expandable Category Drawers
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
+  const [expandedBiomarkerKey, setExpandedBiomarkerKey] = useState<string | null>(null);
+  const [deepAnalysisTarget, setDeepAnalysisTarget] = useState<{
+    metricLabel: string;
+    currentValue: string;
+    unit: string;
+    baselineValue?: number | string;
+    history?: number[];
+    dotColor: string;
+    category: string;
+  } | null>(null);
+  const [isFastForwardCadence, setIsFastForwardCadence] = useState(false);
+  const ecgPhaseRef = useRef<number>(0);
   const [immuneClusterTab, setImmuneClusterTab] = useState<
     'pyrogens' | 'interferons' | 'interleukins' | 'chemokines' | 'growth'
   >('pyrogens');
@@ -613,7 +915,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
   // Historical time-series buffers matching Demo/astronaut-telemetry/index.html console tab
   const [metricHistories, setMetricHistories] = useState<Record<string, number[]>>(() => ({
     hr: createSyntheticHistory(defaultProfile.restHr, 0.9),
-    ecg: createSyntheticHistory(60000 / Math.max(defaultProfile.restHr, 40), 6.0),
+    ecg: generateEcgWaveform(defaultProfile.restHr, 0, 35),
     bp_sys: createSyntheticHistory(114, 1.8),
     arf: createSyntheticHistory(0.72, 0.02),
     qtc: createSyntheticHistory(402.0, 2.2),
@@ -716,7 +1018,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
   useEffect(() => {
     setMetricHistories({
       hr: createSyntheticHistory(hr, 0.9),
-      ecg: createSyntheticHistory(60000 / Math.max(hr, 40), 6.0),
+      ecg: generateEcgWaveform(hr, 0, 35),
       bp_sys: createSyntheticHistory(sysBp, 1.8),
       arf: createSyntheticHistory(arf, 0.02),
       qtc: createSyntheticHistory(qtc, 2.2),
@@ -812,112 +1114,126 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
 
     setMetricHistories((prev) => {
       const next: Record<string, number[]> = {};
-      const pushVal = (key: string, val: number) => {
-        const hist = prev[key] || Array(30).fill(val);
-        next[key] = [...hist.slice(-35), Number(val.toFixed(2))];
+      const stepVal = (key: string, targetVal: number) => {
+        const hist = prev[key] || Array(35).fill(targetVal);
+        const last = hist[hist.length - 1] ?? targetVal;
+        const noiseScale = NOISE_PROFILES[key] ?? 0.04;
+        // Authentic Ornstein-Uhlenbeck mean-reversion equation (from Demo line 164):
+        // Pull strength = 0.22 towards current target value from packet, plus calibrated physiological noise
+        const nextVal = last + (targetVal - last) * 0.22 + gaussianNoise(noiseScale);
+        next[key] = [...hist.slice(-34), Number(nextVal.toFixed(3))];
       };
 
-      pushVal('hr', hr);
-      pushVal('ecg', 60000 / Math.max(hr, 40));
-      pushVal('bp_sys', sysBp);
-      pushVal('arf', arf);
-      pushVal('qtc', qtc);
-      pushVal('crp', crp);
-      pushVal('spo2', spo2);
-      pushVal('rr', respRate);
-      pushVal('etco2', spo2 < 95 ? 43.0 : 38.0);
-      pushVal('min_vent', respRate * 0.52);
-      pushVal('o2', 20.9);
-      pushVal('co2', co2);
-      pushVal('pressure', 101.3);
-      pushVal('ventilation', 0.45);
-      pushVal('temp', temp);
-      pushVal('skin_temp', temp - 2.8);
-      pushVal('cabin_temp', 21.4);
-      pushVal('drift_rate', temp >= 37.5 ? 0.4 : 0.0);
-      pushVal('equilibrium', 1.0);
-      pushVal('sleep', sleep);
-      pushVal('hrv', hrv);
-      pushVal('neurological', 98.0);
-      pushVal('circadian', 2.0);
-      pushVal('z_hrv', Math.abs(currentPacket.z_score_hrv ?? 0.2));
-      pushVal('hct', hct);
-      pushVal('wbc', wbc);
-      pushVal('plt', plt);
-      pushVal('k', k);
-      pushVal('il6', il6);
-      pushVal('rad_flux', radFlux);
-      pushVal('rad_dose', radDose);
-      pushVal('rsi', rsi);
-      pushVal('alc', alc);
-      pushVal('trm', trm);
-      pushVal('epi', currentPacket.computed_epi ?? 0.05);
+      // 1. Cardiovascular
+      stepVal('hr', hr);
+      ecgPhaseRef.current = (ecgPhaseRef.current + (hr / 60) * 0.09) % 1000;
+      next['ecg'] = generateEcgWaveform(hr, ecgPhaseRef.current, 35);
+      stepVal('bp_sys', sysBp);
+      stepVal('arf', arf);
+      stepVal('qtc', qtc);
+      stepVal('crp', crp);
+      stepVal('fibrinogen', labProfile?.cardiovascular?.fibrinogen?.value ? (labProfile.cardiovascular.fibrinogen.value / 1000000) : defaultProfile.fibrinogen);
+      stepVal('l_selectin', labProfile?.cardiovascular?.l_selectin?.value ? (labProfile.cardiovascular.l_selectin.value / 1000) : 740.0);
+      stepVal('pf4', labProfile?.cardiovascular?.pf4?.value ? labProfile.cardiovascular.pf4.value : 320.0);
+      stepVal('haptoglobin', labProfile?.cardiovascular?.haptoglobin?.value ? (labProfile.cardiovascular.haptoglobin.value / 1000000) : 1.10);
+      stepVal('a2_macroglobulin', labProfile?.cardiovascular?.a2_macroglobulin?.value ? (labProfile.cardiovascular.a2_macroglobulin.value / 1000000) : 1.85);
+      stepVal('agp', labProfile?.cardiovascular?.agp?.value ? (labProfile.cardiovascular.agp.value / 1000000) : 0.65);
+      stepVal('fetuin_a36', labProfile?.cardiovascular?.fetuin_a36?.value ? (labProfile.cardiovascular.fetuin_a36.value / 1000000) : 0.38);
+      stepVal('sap', labProfile?.cardiovascular?.sap?.value ? (labProfile.cardiovascular.sap.value / 1000) : 24.5);
+
+      // 2. Pulmonary & Respiratory
+      stepVal('spo2', spo2);
+      stepVal('rr', respRate);
+      stepVal('etco2', spo2 < 95 ? 43.0 : 38.0);
+      stepVal('min_vent', respRate * 0.52);
+
+      // 3. Thermoregulation
+      stepVal('temp', temp);
+      stepVal('skin_temp', temp - 2.8);
+      stepVal('drift_rate', temp >= 37.5 ? 0.4 : 0.0);
+
+      // 4. Neurological & Fatigue
+      stepVal('sleep', sleep);
+      stepVal('hrv', hrv);
+      stepVal('z_hrv', Math.abs(currentPacket.z_score_hrv ?? 0.2));
+
+      // 5. Hematology (OSD-569 CBC)
+      stepVal('hct', hct);
+      stepVal('wbc', wbc);
+      stepVal('plt', plt);
+      stepVal('hgb', labProfile?.cbc?.hemoglobin?.value ?? defaultProfile.hgb);
+      stepVal('rbc', labProfile?.cbc?.red_blood_cells?.value ?? defaultProfile.rbc);
+      stepVal('abs_neutrophils', labProfile?.cbc?.absolute_neutrophils?.value ?? 4200);
+      stepVal('neutrophils_pct', labProfile?.cbc?.neutrophils_percent?.value ?? 62.0);
+      stepVal('abs_lymphocytes', labProfile?.cbc?.absolute_lymphocytes?.value ?? 2100);
+      stepVal('lymphocytes_pct', labProfile?.cbc?.lymphocytes_percent?.value ?? 29.5);
+      stepVal('abs_monocytes', labProfile?.cbc?.absolute_monocytes?.value ?? 480);
+      stepVal('monocytes_pct', labProfile?.cbc?.monocytes_percent?.value ?? 6.8);
+      stepVal('abs_eosinophils', labProfile?.cbc?.absolute_eosinophils?.value ?? 120);
+      stepVal('eosinophils_pct', labProfile?.cbc?.eosinophils_percent?.value ?? 1.8);
+      stepVal('abs_basophils', labProfile?.cbc?.absolute_basophils?.value ?? 35);
+      stepVal('basophils_pct', labProfile?.cbc?.basophils_percent?.value ?? 0.5);
+      stepVal('mcv', labProfile?.cbc?.mcv?.value ?? 89.0);
+      stepVal('mch', labProfile?.cbc?.mch?.value ?? 30.2);
+      stepVal('mchc', labProfile?.cbc?.mchc?.value ?? 33.8);
+      stepVal('rdw', labProfile?.cbc?.rdw?.value ?? 12.4);
+      stepVal('mpv', labProfile?.cbc?.mpv?.value ?? 9.8);
+
+      // 6. Metabolic & Chemistry (OSD-575 CMP)
+      stepVal('na', labProfile?.cmp?.sodium?.value ?? defaultProfile.na);
+      stepVal('k', k);
+      stepVal('glu', labProfile?.cmp?.glucose?.value ?? defaultProfile.glu);
+      stepVal('bun', labProfile?.cmp?.bun?.value ?? defaultProfile.bun);
+      stepVal('creatinine', labProfile?.cmp?.creatinine?.value ?? defaultProfile.cr);
+      stepVal('calcium', labProfile?.cmp?.calcium?.value ?? 9.4);
+      stepVal('chloride', labProfile?.cmp?.chloride?.value ?? 102.0);
+      stepVal('co2_blood', labProfile?.cmp?.carbon_dioxide?.value ?? 26.0);
+      stepVal('egfr', labProfile?.cmp?.egfr_non_african_american?.value ?? 105.0);
+      stepVal('total_protein', labProfile?.cmp?.total_protein?.value ?? 7.2);
+      stepVal('albumin', labProfile?.cmp?.albumin?.value ?? 4.4);
+      stepVal('globulin', labProfile?.cmp?.globulin?.value ?? 2.8);
+      stepVal('alkaline_phosphatase', labProfile?.cmp?.alkaline_phosphatase?.value ?? 68.0);
+      stepVal('alt', labProfile?.cmp?.alt?.value ?? 24.0);
+      stepVal('ast', labProfile?.cmp?.ast?.value ?? 22.0);
+      stepVal('total_bilirubin', labProfile?.cmp?.total_bilirubin?.value ?? 0.6);
+
+      // 7. Immune & Cytokines
+      stepVal('il6', il6);
+      stepVal('tnf', labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.tnf_alpha?.concentration_pg_ml ?? defaultProfile.tnf);
+      stepVal('ifn', labProfile?.immune?.clusters?.interferons_and_viral?.ifn_gamma?.concentration_pg_ml ?? defaultProfile.ifn);
+      stepVal('il1b', labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.il_1_beta?.concentration_pg_ml ?? defaultProfile.il1b);
+
+      // 8. Radiation Exposure
+      stepVal('rad_flux', radFlux);
+      stepVal('rad_dose', radDose);
+      stepVal('rsi', rsi);
+      stepVal('alc', alc);
+
+      // 9. Thrombosis & Vascular
+      stepVal('trm', trm);
+
+      // 10. Directives & Sentry
+      stepVal('epi', currentPacket.computed_epi ?? 0.05);
 
       return { ...prev, ...next };
     });
-  }, [currentPacket?.tick, currentPacket?.heart_rate, currentPacket?.spo2]);
+  }, [currentPacket?.tick, currentPacket?.heart_rate, currentPacket?.spo2, labProfile]);
 
-  // Dynamic Multi-Organ Health Reserve Score derived from physiological Z-scores, NASA OSDR lab deviations & scenario severity
-  const healthPercent = useMemo(() => {
-    if (severity === 'CRITICAL') {
-      const drop = Math.min(25, (100 - spo2) * 2 + (hr > 120 ? 10 : 0) + (rsi > 0.5 ? 12 : 0) + (k < 3.0 ? 10 : 0));
-      return Math.max(45, Math.min(65, Math.round(62 - drop * 0.4)));
-    }
-    if (severity === 'WARNING') {
-      const drop = Math.min(15, (hr > 95 ? 6 : 0) + (spo2 < 96 ? 8 : 0) + (k < 3.2 ? 8 : 0));
-      return Math.max(68, Math.min(82, Math.round(78 - drop * 0.4)));
-    }
-    if (severity === 'INFO') {
-      return 88;
-    }
+  // Authentic Multi-Organ Physiological Reserve Index (PRI) derived from clinical engine
+  const rawClinicalSummary = useMemo(
+    () => evaluateCrewClinicalSummary(selectedId, currentPacket, defaultProfile),
+    [selectedId, currentPacket, defaultProfile]
+  );
+  // 1-second clinical state dwell time machine: prevents rapid view flipping from sensor noise
+  const clinicalSummary = useStabilizedClinicalSummary(selectedId, rawClinicalSummary, 1000);
 
-    // NOMINAL State: Dynamic composite multi-system reserve score (92% - 99%)
-    let score = 99.4;
-
-    // 1. Cardiovascular reserve (HR & HRV deviations from astronaut's personal resting baseline)
-    const zHr = Math.abs(hr - defaultProfile.restHr) / 4.0;
-    score -= Math.min(3.5, zHr * 0.7);
-
-    const zHrv = Math.max(0, (defaultProfile.restHrv - hrv) / 7.0);
-    score -= Math.min(3.0, zHrv * 0.5);
-
-    // 2. Respiratory & Oxygenation reserve
-    if (spo2 < 99.0) {
-      score -= Math.min(4.0, (99.0 - spo2) * 1.8);
-    }
-
-    // 3. Thermoregulatory & Metabolic stability
-    const zTemp = Math.abs(temp - defaultProfile.restTemp) / 0.15;
-    score -= Math.min(2.5, zTemp * 0.4);
-
-    // 4. Biochemical & Electrolyte Homeostasis
-    if (k < 3.5) {
-      score -= Math.min(4.0, (3.5 - k) * 6.0);
-    } else if (k > 5.0) {
-      score -= Math.min(3.0, (k - 5.0) * 5.0);
-    }
-
-    // 5. Authentic NASA OSDR Inflammation & Hematology baseline profile
-    // Sian (C003) has authentic mild baseline elevation (OSD-575 CRP: 8.36 mg/L)
-    if (crp > 3.0) {
-      score -= Math.min(2.8, (crp / 10.0) * 1.6);
-    }
-    if (wbc > 7.5) {
-      score -= Math.min(2.0, (wbc - 7.5) * 0.8);
-    }
-
-    // 6. Neuro-Sleep Recovery Adjustment
-    const sleepAdj = (sleep - 84.0) * 0.05;
-    score += Math.max(-1.5, Math.min(1.0, sleepAdj));
-
-    return Math.round(Math.max(88, Math.min(99, score)));
-  }, [severity, hr, hrv, spo2, temp, sleep, k, crp, wbc, rsi, defaultProfile]);
+  const healthPercent = clinicalSummary.physReserveIndex;
 
   const overallPill = useMemo(() => {
-    if (severity === 'CRITICAL') return { label: 'Critical', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.14)' };
-    if (severity === 'WARNING') return { label: 'Attention', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.14)' };
+    if (clinicalSummary.severity === 'CRITICAL') return { label: 'Critical', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.14)' };
+    if (clinicalSummary.severity === 'WARNING') return { label: 'Attention', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.14)' };
     return { label: 'Stable', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.14)' };
-  }, [severity]);
+  }, [clinicalSummary.severity]);
 
   const hazardStatus = useMemo(() => {
     const sc = currentPacket?.scenario_phase || '';
@@ -986,14 +1302,31 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
   }, [currentPacket?.scenario_phase]);
 
   const filteredDevices = useMemo(() => {
-    if (deviceFilter === 'WEARABLE') return FLIGHT_DEVICES.filter((d) => d.type === 'Wearable' || d.type === 'Cabin Environmental');
-    if (deviceFilter === 'LAB') return FLIGHT_DEVICES.filter((d) => d.type === 'Point-of-Care Lab');
-    if (deviceFilter === 'ENGINE') return FLIGHT_DEVICES.filter((d) => d.type === 'Computational Engine');
-    return FLIGHT_DEVICES;
+    if (deviceFilter === 'All') return FLIGHT_DEVICES;
+    return FLIGHT_DEVICES.filter((d) => d.category === deviceFilter);
   }, [deviceFilter]);
+
+  const toggleDeviceExpand = (id: number) => {
+    setExpandedDeviceId((prev) => (prev === id ? null : id));
+  };
 
   const toggleExpand = (cardNumber: number) => {
     setExpandedCard((prev) => (prev === cardNumber ? null : cardNumber));
+  };
+
+  const commonCardProps = {
+    expandedBiomarkerKey,
+    onToggleRowExpand: (key: string) => setExpandedBiomarkerKey((prev) => (prev === key ? null : key)),
+    onOpenDeepAnalysis: (target: {
+      metricLabel: string;
+      currentValue: string;
+      unit: string;
+      baselineValue?: number | string;
+      history?: number[];
+      dotColor: string;
+      category: string;
+    }) => setDeepAnalysisTarget(target),
+    isFastForward: isFastForwardCadence,
   };
 
   return (
@@ -1002,7 +1335,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
         position: 'fixed',
         inset: 0,
         zIndex: 10,
-        backgroundColor: 'transparent',
+        backgroundColor: '#0a0a0a',
         color: '#f8fafc',
         fontFamily: 'var(--hud-font-sans, "Tomorrow", system-ui, sans-serif)',
         display: 'flex',
@@ -1018,9 +1351,9 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100%',
-          borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-          backgroundColor: 'transparent',
+          borderLeft: '1px solid #222222',
+          borderRight: '1px solid #222222',
+          backgroundColor: '#0e0e0e',
         }}
       >
         {/* ── UNIFIED MAIN HEADER WITH BRAND LOGO & SYSTEM CONTROLS ──────── */}
@@ -1029,10 +1362,8 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
             position: 'sticky',
             top: 0,
             zIndex: 100,
-            background: 'rgba(10, 12, 18, 0.85)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            background: '#0c0c0c',
+            borderBottom: '1px solid #222222',
             padding: '0 24px',
           }}
         >
@@ -1051,10 +1382,8 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
         <div
           style={{
             padding: '12px 24px 0 24px',
-            background: 'linear-gradient(180deg, rgba(14, 18, 26, 0.82) 0%, rgba(7, 9, 13, 0.88) 100%)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'linear-gradient(180deg, #151515 0%, #0e0e0e 100%)',
+            borderBottom: '1px solid #222222',
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'space-between',
@@ -1126,9 +1455,9 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                     fontWeight: 700,
                     padding: '1px 5px',
                     borderRadius: '3px',
-                    background: 'rgba(56, 189, 248, 0.14)',
-                    border: '1px solid rgba(56, 189, 248, 0.35)',
-                    color: '#38bdf8',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.18)',
+                    color: '#e2e8f0',
                     fontFamily: "'Tomorrow', sans-serif",
                     letterSpacing: '0.04em',
                   }}
@@ -1182,7 +1511,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
             {/* Subtle Vertical Divider */}
             <div style={{ width: '1px', height: '38px', backgroundColor: 'rgba(255, 255, 255, 0.12)' }} />
 
-            {/* Health Score Placed AFTER Name (Clean Number, NO Badge) */}
+            {/* Physiological Reserve Index (PRI) with 5-System Organ Meters */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-start' }}>
               <span
                 style={{
@@ -1194,22 +1523,58 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                   fontFamily: "'Tomorrow', sans-serif",
                 }}
               >
-                Health Score
+                Reserve (PRI)
               </span>
-              <span
-                style={{
-                  fontSize: '32px',
-                  fontWeight: 800,
-                  color: overallPill.color,
-                  fontFamily: "'Tomorrow', sans-serif",
-                  fontVariantNumeric: 'tabular-nums',
-                  letterSpacing: '-0.03em',
-                  lineHeight: 1,
-                  textShadow: `0 0 18px ${overallPill.color}35`,
-                }}
-              >
-                {healthPercent}%
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    fontSize: '32px',
+                    fontWeight: 800,
+                    color: overallPill.color,
+                    fontFamily: "'Tomorrow', sans-serif",
+                    fontVariantNumeric: 'tabular-nums',
+                    letterSpacing: '-0.03em',
+                    lineHeight: 1,
+                    textShadow: `0 0 18px ${overallPill.color}35`,
+                  }}
+                >
+                  {healthPercent}%
+                </span>
+
+                {/* 5-System Mini Multi-Organ Reserve Pips */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
+                    background: 'rgba(0, 0, 0, 0.40)',
+                    padding: '3px 6px',
+                    borderRadius: '4px',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
+                  title={`Cardiovascular: ${clinicalSummary.reserveBreakdown.cardiovascular}% | Respiratory: ${clinicalSummary.reserveBreakdown.respiratory}% | Metabolic: ${clinicalSummary.reserveBreakdown.metabolic}% | Immune: ${clinicalSummary.reserveBreakdown.immune}% | Radiation: ${clinicalSummary.reserveBreakdown.radiation}%`}
+                >
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    {[
+                      { label: 'CV', val: clinicalSummary.reserveBreakdown.cardiovascular },
+                      { label: 'RS', val: clinicalSummary.reserveBreakdown.respiratory },
+                      { label: 'MB', val: clinicalSummary.reserveBreakdown.metabolic },
+                      { label: 'IM', val: clinicalSummary.reserveBreakdown.immune },
+                      { label: 'RD', val: clinicalSummary.reserveBreakdown.radiation },
+                    ].map((sys) => {
+                      const sysColor = sys.val < 50 ? '#ef4444' : sys.val < 75 ? '#f59e0b' : '#22c55e';
+                      return (
+                        <div key={sys.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}>
+                          <span style={{ fontSize: '7px', color: '#94a3b8', fontWeight: 700, lineHeight: 1 }}>{sys.label}</span>
+                          <div style={{ width: '13px', height: '3px', borderRadius: '1px', background: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
+                            <div style={{ width: `${sys.val}%`, height: '100%', background: sysColor }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1219,11 +1584,11 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
               display: 'flex',
               flexDirection: 'column',
               gap: '6px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, #242831 0%, #161920 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.10)',
-              boxShadow: 'none',
+              padding: '8px 14px',
+              borderRadius: '10px',
+              background: '#181818',
+              border: '1px solid #282828',
+              boxShadow: '0 4px 16px -2px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
               marginBottom: '10px',
             }}
           >
@@ -1278,10 +1643,10 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                   PRESSURE
                 </span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: cabinPressureVal < 95.0 ? '#ef4444' : '#38bdf8', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                  <span style={{ fontSize: '14px', fontWeight: 800, color: cabinPressureVal < 95.0 ? '#ef4444' : '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                     {cabinPressureVal.toFixed(1)}
                   </span>
-                  <span style={{ fontSize: '9px', fontWeight: 600, color: cabinPressureVal < 95.0 ? '#ef4444' : '#38bdf8', fontFamily: "'Tomorrow', sans-serif" }}>
+                  <span style={{ fontSize: '9px', fontWeight: 600, color: cabinPressureVal < 95.0 ? '#ef4444' : '#94a3b8', fontFamily: "'Tomorrow', sans-serif" }}>
                     kPa
                   </span>
                 </div>
@@ -1315,7 +1680,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                   <span style={{ fontSize: '14px', fontWeight: 800, color: co2 >= 3.0 ? '#f59e0b' : '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                     {co2.toFixed(1)}
                   </span>
-                  <span style={{ fontSize: '9px', fontWeight: 600, color: co2 >= 3.0 ? '#f59e0b' : '#38bdf8', fontFamily: "'Tomorrow', sans-serif" }}>
+                  <span style={{ fontSize: '9px', fontWeight: 600, color: co2 >= 3.0 ? '#f59e0b' : '#94a3b8', fontFamily: "'Tomorrow', sans-serif" }}>
                     mmHg
                   </span>
                 </div>
@@ -1329,10 +1694,10 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                   RADIATION
                 </span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: radFlux >= 1.0 ? '#ef4444' : radFlux >= 0.15 ? '#f59e0b' : '#38bdf8', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                  <span style={{ fontSize: '14px', fontWeight: 800, color: radFlux >= 1.0 ? '#ef4444' : radFlux >= 0.15 ? '#f59e0b' : '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                     {radFlux >= 10.0 ? radFlux.toFixed(0) : radFlux.toFixed(2)}
                   </span>
-                  <span style={{ fontSize: '9px', fontWeight: 600, color: radFlux >= 1.0 ? '#ef4444' : radFlux >= 0.15 ? '#f59e0b' : '#38bdf8', fontFamily: "'Tomorrow', sans-serif" }}>
+                  <span style={{ fontSize: '9px', fontWeight: 600, color: radFlux >= 1.0 ? '#ef4444' : radFlux >= 0.15 ? '#f59e0b' : '#94a3b8', fontFamily: "'Tomorrow', sans-serif" }}>
                     mSv/h
                   </span>
                 </div>
@@ -1430,29 +1795,29 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                       borderRadius: '8px 8px 0 0',
                       outline: 'none',
                       borderTop: isSelected
-                        ? '1.5px solid #38bdf8'
+                        ? '2px solid #ffffff'
                         : isHovered
-                        ? '1.5px solid rgba(255, 255, 255, 0.22)'
-                        : '1.5px solid rgba(255, 255, 255, 0.12)',
+                        ? '2px solid rgba(255, 255, 255, 0.35)'
+                        : '2px solid #2a2a2a',
                       borderLeft: isSelected
-                        ? '1px solid rgba(56, 189, 248, 0.40)'
+                        ? '1px solid #444444'
                         : isHovered
-                        ? '1px solid rgba(255, 255, 255, 0.16)'
-                        : '1px solid rgba(255, 255, 255, 0.08)',
+                        ? '1px solid #333333'
+                        : '1px solid #252525',
                       borderRight: isSelected
-                        ? '1px solid rgba(56, 189, 248, 0.40)'
+                        ? '1px solid #444444'
                         : isHovered
-                        ? '1px solid rgba(255, 255, 255, 0.16)'
-                        : '1px solid rgba(255, 255, 255, 0.08)',
+                        ? '1px solid #333333'
+                        : '1px solid #252525',
                       borderBottom: 'none',
                       marginBottom: '-1px',
                       background: isSelected
-                        ? 'linear-gradient(180deg, rgba(56, 189, 248, 0.14) 0%, #0d121a 100%)'
+                        ? 'linear-gradient(180deg, #2c2c2c 0%, #181818 100%)'
                         : isHovered
-                        ? 'linear-gradient(180deg, #242b38 0%, #151a22 100%)'
-                        : 'linear-gradient(180deg, #181d26 0%, #0f131a 100%)',
+                        ? '#222222'
+                        : '#141414',
                       boxShadow: isSelected
-                        ? '0 -2px 10px rgba(56, 189, 248, 0.15), inset 0 1px 0 rgba(56, 189, 248, 0.35)'
+                        ? '0 -2px 10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.20)'
                         : 'none',
                       color: isSelected ? '#ffffff' : isHovered ? '#ffffff' : '#94a3b8',
                       cursor: 'pointer',
@@ -1522,8 +1887,8 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                         padding: '1px 5px',
                         borderRadius: '3px',
                         background: isSelected ? 'rgba(56, 189, 248, 0.20)' : 'rgba(255, 255, 255, 0.08)',
-                        border: isSelected ? '1px solid rgba(56, 189, 248, 0.40)' : '1px solid rgba(255, 255, 255, 0.10)',
-                        color: isSelected ? '#38bdf8' : '#94a3b8',
+                        border: isSelected ? '1px solid #555555' : '1px solid rgba(255, 255, 255, 0.10)',
+                        color: isSelected ? '#ffffff' : '#94a3b8',
                         fontFamily: "'Tomorrow', sans-serif",
                         letterSpacing: '0.04em',
                         lineHeight: 1,
@@ -1572,18 +1937,176 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
           style={{
             flex: 1,
             display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) 340px',
+            gridTemplateColumns: 'minmax(0, 1fr) 420px',
             alignItems: 'stretch',
             minHeight: 'calc(100vh - 280px)',
+            backgroundColor: '#0e0e0e',
           }}
         >
           {/* Left Column: 10 Health Categories */}
-          <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '20px 24px 80px 24px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#0e0e0e' }}>
+            {/* ── CLINICAL DECISION SUPPORT & EXPLAINABLE INTELLIGENCE SYNTHESIS LAYER ── */}
+            <div
+              style={{
+                background: clinicalSummary.isAbnormal
+                  ? 'linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, rgba(20, 18, 15, 0.95) 100%)'
+                  : 'linear-gradient(180deg, rgba(56, 189, 248, 0.03) 0%, rgba(16, 20, 28, 0.95) 100%)',
+                border: `1px solid ${clinicalSummary.isAbnormal ? clinicalSummary.primaryConcern.borderColor : 'rgba(255, 255, 255, 0.10)'}`,
+                borderRadius: '8px',
+                padding: '12px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                boxShadow: clinicalSummary.isAbnormal
+                  ? `0 0 20px ${clinicalSummary.primaryConcern.color}15, 0 2px 8px rgba(0, 0, 0, 0.4)`
+                  : '0 2px 8px rgba(0, 0, 0, 0.4)',
+                transition: 'border-color 400ms ease, box-shadow 400ms ease, background 400ms ease',
+              }}
+            >
+              {/* Header: Primary Concern Title + Confidence Badge + Trajectory */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      padding: '2.5px 8px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      color: clinicalSummary.primaryConcern.color,
+                      background: clinicalSummary.primaryConcern.bgColor,
+                      border: `1px solid ${clinicalSummary.primaryConcern.borderColor}`,
+                      fontFamily: "'Tomorrow', sans-serif",
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {clinicalSummary.primaryConcern.title}
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#f1f5f9', fontWeight: 500, lineHeight: 1.4, letterSpacing: '0.01em' }}>
+                    {clinicalSummary.primaryConcern.description}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em' }}>CONFIDENCE:</span>
+                    <span
+                      className="font-mono-tabular"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: '#34d399',
+                      }}
+                    >
+                      {clinicalSummary.decisionSupport.confidence.toFixed(1)}%
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      color: clinicalSummary.trajectory.color,
+                      opacity: 0.95,
+                      fontFamily: "'Tomorrow', sans-serif",
+                      letterSpacing: '0.03em',
+                    }}
+                  >
+                    {clinicalSummary.trajectory.label}
+                  </span>
+                </div>
+              </div>
+
+              {/* 5-Tier Structured Clinical Reasoning Protocol */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))',
+                  gap: '8px',
+                  background: 'rgba(0, 0, 0, 0.22)',
+                  borderRadius: '6px',
+                  padding: '8px',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                }}
+              >
+                {/* 1. Measured Data */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255, 255, 255, 0.03)', padding: '9px 11px', borderRadius: '5px', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
+                    1 · MEASURED DATA
+                  </span>
+                  <div style={{ color: '#f8fafc', lineHeight: 1.45, fontSize: '11.5px', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+                    {clinicalSummary.structuredReasoning?.measuredData || clinicalSummary.decisionSupport.observedPattern}
+                  </div>
+                </div>
+
+                {/* 2. Detected Change */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255, 255, 255, 0.03)', padding: '9px 11px', borderRadius: '5px', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#38bdf8', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
+                    2 · DETECTED CHANGE
+                  </span>
+                  <div style={{ color: '#f1f5f9', lineHeight: 1.45, fontSize: '11.5px', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+                    {clinicalSummary.structuredReasoning?.detectedChange || 'All monitored vitals within normal personal baseline'}
+                  </div>
+                </div>
+
+                {/* 3. Pattern / Correlation */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255, 255, 255, 0.03)', padding: '9px 11px', borderRadius: '5px', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#a78bfa', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
+                    3 · PATTERN / CORRELATION
+                  </span>
+                  <div style={{ color: '#f1f5f9', lineHeight: 1.45, fontSize: '11.5px', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+                    {clinicalSummary.structuredReasoning?.patternCorrelation || 'Stable and balanced physiological state'}
+                  </div>
+                </div>
+
+                {/* 4. Possible Interpretation */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255, 255, 255, 0.03)', padding: '9px 11px', borderRadius: '5px', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '9px', fontWeight: 700, color: '#f59e0b', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
+                      4 · INTERPRETATION
+                    </span>
+                    <span style={{ fontSize: '8px', color: '#94a3b8', fontStyle: 'italic', fontFamily: "'Tomorrow', sans-serif" }}>Non-definitive AI</span>
+                  </div>
+                  <div style={{ color: '#f1f5f9', lineHeight: 1.45, fontSize: '11.5px', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+                    {clinicalSummary.structuredReasoning?.possibleInterpretation || 'Healthy ongoing adaptation to spaceflight'}
+                  </div>
+                </div>
+
+                {/* 5. Recommended Assessment */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: clinicalSummary.isAbnormal ? 'rgba(245, 158, 11, 0.08)' : 'rgba(34, 197, 94, 0.06)', padding: '9px 11px', borderRadius: '5px', border: `1px solid ${clinicalSummary.isAbnormal ? 'rgba(245, 158, 11, 0.28)' : 'rgba(34, 197, 94, 0.20)'}` }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: clinicalSummary.isAbnormal ? '#fde047' : '#34d399', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
+                    5 · ASSESSMENT & ACTION
+                  </span>
+                  <div style={{ color: clinicalSummary.isAbnormal ? '#fef08a' : '#f1f5f9', fontWeight: 500, lineHeight: 1.45, fontSize: '11.5px', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+                    {clinicalSummary.structuredReasoning?.recommendedAssessment || clinicalSummary.decisionSupport.recommendedAction}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
                 Subsystems &amp; Biomarkers for {activeCrew.name}
               </div>
-              <div style={{ fontSize: '10px', color: '#9ca3af', display: 'flex', gap: '12px' }}>
+              <div style={{ fontSize: '10px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button
+                  onClick={() => setIsFastForwardCadence((prev) => !prev)}
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: isFastForwardCadence ? 'rgba(56, 189, 248, 0.20)' : 'rgba(255, 255, 255, 0.05)',
+                    border: isFastForwardCadence ? '1px solid rgba(56, 189, 248, 0.50)' : '1px solid rgba(255, 255, 255, 0.10)',
+                    color: isFastForwardCadence ? '#38bdf8' : '#94a3b8',
+                    fontFamily: "'Tomorrow', sans-serif",
+                    letterSpacing: '0.03em',
+                  }}
+                  title="Toggle 60x simulation speed for periodic countdown demonstration"
+                >
+                  {isFastForwardCadence ? 'DEMO CADENCE 60x ⚡' : 'CADENCE: REAL-TIME'}
+                </button>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e' }} /> Live
                 </span>
@@ -1608,23 +2131,35 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 title="1. Cardiovascular"
                 icon={<HeartIcon />}
                 statusPill={{ label: hr > 100 || arf >= 0.85 ? 'Attention' : 'Stable', color: hr > 100 || arf >= 0.85 ? '#f59e0b' : '#22c55e' }}
+                {...commonCardProps}
                 rows={[
-                  { label: 'Heart rate', value: `${hr.toFixed(0)} bpm`, dotColor: hr > 100 ? '#f59e0b' : '#22c55e', trend: hr > 100 ? 'up' : 'stable', history: metricHistories['hr'] },
-                  { label: 'ECG / Cardiac rhythm', value: hr > 115 ? 'Tachycardia' : hr < 50 ? 'Bradycardia' : 'Normal', dotColor: hr > 115 ? '#f59e0b' : '#22c55e', trend: 'stable', history: metricHistories['ecg'] },
-                  { label: 'Blood pressure', value: `${sysBp}/${diaBp} mmHg`, dotColor: '#94a3b8', history: metricHistories['bp_sys'] },
-                  { label: 'Arrhythmia detection', value: arf >= 0.85 ? 'Elevated risk' : 'None', dotColor: arf >= 0.85 ? '#ef4444' : '#22c55e', trend: 'stable', history: metricHistories['arf'] },
-                  { label: 'Fridericia QTc', value: `${qtc.toFixed(0)} ms`, dotColor: qtc >= 485 ? '#ef4444' : '#22c55e', trend: qtc >= 485 ? 'up' : 'stable', history: metricHistories['qtc'] },
+                  {
+                    label: 'Heart rate',
+                    metricId: 'hr',
+                    unit: 'bpm',
+                    baselineValue: defaultProfile.restHr,
+                    value: computeBiomarkerDelta(hr, defaultProfile.restHr, 'bpm').deltaStr
+                      ? `${hr.toFixed(0)} bpm (${computeBiomarkerDelta(hr, defaultProfile.restHr, 'bpm').deltaStr})`
+                      : `${hr.toFixed(0)} bpm`,
+                    dotColor: hr > 100 ? '#f59e0b' : '#22c55e',
+                    trend: hr > 100 ? 'up' : 'stable',
+                    history: metricHistories['hr'],
+                  },
+                  { label: 'ECG / Cardiac rhythm', metricId: 'ecg', value: hr > 115 ? 'Tachycardia' : hr < 50 ? 'Bradycardia' : 'Normal', dotColor: hr > 115 ? '#f59e0b' : '#22c55e', trend: 'stable', history: metricHistories['ecg'] },
+                  { label: 'Blood pressure', metricId: 'bp_sys', unit: 'mmHg', baselineValue: '112/72', value: `${sysBp}/${diaBp} mmHg`, dotColor: '#94a3b8', history: metricHistories['bp_sys'] },
+                  { label: 'Arrhythmia detection', metricId: 'arf', unit: 'idx', baselineValue: 0.72, value: arf >= 0.85 ? 'Elevated risk' : 'None', dotColor: arf >= 0.85 ? '#ef4444' : '#22c55e', trend: 'stable', history: metricHistories['arf'] },
+                  { label: 'Fridericia QTc', metricId: 'qtc', unit: 'ms', baselineValue: 402, value: `${qtc.toFixed(0)} ms`, dotColor: qtc >= 485 ? '#ef4444' : '#22c55e', trend: qtc >= 485 ? 'up' : 'stable', history: metricHistories['qtc'] },
                   ...(expandedCard === 1
                     ? [
-                      { label: 'Fibrinogen (OSD-575)', value: fibrinogenVal, dotColor: '#94a3b8', history: metricHistories['fibrinogen'] },
-                      { label: 'C-reactive protein (CRP)', value: `${crp.toFixed(1)} mg/L`, dotColor: crp > 5.0 ? '#f59e0b' : '#22c55e', history: metricHistories['crp'] },
-                      { label: 'L-selectin adhesion', value: labProfile?.cardiovascular?.l_selectin?.value ? `${(labProfile.cardiovascular.l_selectin.value / 1000).toFixed(0)} ng/mL` : '740 ng/mL', dotColor: '#94a3b8', history: metricHistories['l_selectin'] },
-                      { label: 'Platelet factor 4 (PF4)', value: labProfile?.cardiovascular?.pf4?.value ? `${labProfile.cardiovascular.pf4.value.toFixed(0)} ng/mL` : '320 ng/mL', dotColor: '#94a3b8', history: metricHistories['pf4'] },
-                      { label: 'Haptoglobin', value: labProfile?.cardiovascular?.haptoglobin?.value ? `${(labProfile.cardiovascular.haptoglobin.value / 1000000).toFixed(2)} mg/mL` : '1.10 mg/mL', dotColor: '#94a3b8', history: metricHistories['haptoglobin'] },
-                      { label: 'A2-macroglobulin', value: labProfile?.cardiovascular?.a2_macroglobulin?.value ? `${(labProfile.cardiovascular.a2_macroglobulin.value / 1000000).toFixed(2)} mg/mL` : '1.85 mg/mL', dotColor: '#94a3b8', history: metricHistories['a2_macroglobulin'] },
-                      { label: 'Alpha-1 acid glycoprotein', value: labProfile?.cardiovascular?.agp?.value ? `${(labProfile.cardiovascular.agp.value / 1000000).toFixed(2)} mg/mL` : '0.65 mg/mL', dotColor: '#94a3b8', history: metricHistories['agp'] },
-                      { label: 'Fetuin-A36', value: labProfile?.cardiovascular?.fetuin_a36?.value ? `${(labProfile.cardiovascular.fetuin_a36.value / 1000000).toFixed(2)} mg/mL` : '0.38 mg/mL', dotColor: '#94a3b8', history: metricHistories['fetuin_a36'] },
-                      { label: 'Serum amyloid P (SAP)', value: labProfile?.cardiovascular?.sap?.value ? `${(labProfile.cardiovascular.sap.value / 1000).toFixed(1)} μg/mL` : '24.5 μg/mL', dotColor: '#94a3b8', history: metricHistories['sap'] },
+                      { label: 'Fibrinogen (OSD-575)', metricId: 'fibrinogen', unit: 'mg/dL', baselineValue: defaultProfile.fibrinogen, value: fibrinogenVal, dotColor: '#94a3b8', history: metricHistories['fibrinogen'] },
+                      { label: 'C-reactive protein (CRP)', metricId: 'crp', unit: 'mg/L', baselineValue: defaultProfile.crp, value: `${crp.toFixed(1)} mg/L`, dotColor: crp > 5.0 ? '#f59e0b' : '#22c55e', history: metricHistories['crp'] },
+                      { label: 'L-selectin adhesion', metricId: 'l_selectin', unit: 'ng/mL', baselineValue: 740, value: labProfile?.cardiovascular?.l_selectin?.value ? `${(labProfile.cardiovascular.l_selectin.value / 1000).toFixed(0)} ng/mL` : '740 ng/mL', dotColor: '#94a3b8', history: metricHistories['l_selectin'] },
+                      { label: 'Platelet factor 4 (PF4)', metricId: 'pf4', unit: 'ng/mL', baselineValue: 320, value: labProfile?.cardiovascular?.pf4?.value ? `${labProfile.cardiovascular.pf4.value.toFixed(0)} ng/mL` : '320 ng/mL', dotColor: '#94a3b8', history: metricHistories['pf4'] },
+                      { label: 'Haptoglobin', metricId: 'haptoglobin', unit: 'mg/mL', baselineValue: 1.10, value: labProfile?.cardiovascular?.haptoglobin?.value ? `${(labProfile.cardiovascular.haptoglobin.value / 1000000).toFixed(2)} mg/mL` : '1.10 mg/mL', dotColor: '#94a3b8', history: metricHistories['haptoglobin'] },
+                      { label: 'A2-macroglobulin', metricId: 'a2_macroglobulin', unit: 'mg/mL', baselineValue: 1.85, value: labProfile?.cardiovascular?.a2_macroglobulin?.value ? `${(labProfile.cardiovascular.a2_macroglobulin.value / 1000000).toFixed(2)} mg/mL` : '1.85 mg/mL', dotColor: '#94a3b8', history: metricHistories['a2_macroglobulin'] },
+                      { label: 'Alpha-1 acid glycoprotein', metricId: 'agp', unit: 'mg/mL', baselineValue: 0.65, value: labProfile?.cardiovascular?.agp?.value ? `${(labProfile.cardiovascular.agp.value / 1000000).toFixed(2)} mg/mL` : '0.65 mg/mL', dotColor: '#94a3b8', history: metricHistories['agp'] },
+                      { label: 'Fetuin-A36', metricId: 'fetuin_a36', unit: 'mg/mL', baselineValue: 0.38, value: labProfile?.cardiovascular?.fetuin_a36?.value ? `${(labProfile.cardiovascular.fetuin_a36.value / 1000000).toFixed(2)} mg/mL` : '0.38 mg/mL', dotColor: '#94a3b8', history: metricHistories['fetuin_a36'] },
+                      { label: 'Serum amyloid P (SAP)', metricId: 'sap', unit: 'μg/mL', baselineValue: 24.5, value: labProfile?.cardiovascular?.sap?.value ? `${(labProfile.cardiovascular.sap.value / 1000).toFixed(1)} μg/mL` : '24.5 μg/mL', dotColor: '#94a3b8', history: metricHistories['sap'] },
                     ]
                     : []),
                 ]}
@@ -1639,11 +2174,23 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 title="2. Pulmonary & Respiratory"
                 icon={<LungsIcon />}
                 statusPill={{ label: spo2 < 95 || respRate > 20 ? 'Attention' : 'Stable', color: spo2 < 95 || respRate > 20 ? '#f59e0b' : '#22c55e' }}
+                {...commonCardProps}
                 rows={[
-                  { label: 'SpO₂ (Oxygen saturation)', value: `${spo2.toFixed(0)} %`, dotColor: spo2 < 94 ? '#ef4444' : spo2 < 96 ? '#f59e0b' : '#22c55e', trend: spo2 < 96 ? 'down' : 'stable', history: metricHistories['spo2'] },
-                  { label: 'Respiratory rate', value: `${respRate} /min`, dotColor: respRate > 20 ? '#f59e0b' : '#22c55e', history: metricHistories['rr'] },
-                  { label: 'End-tidal CO₂ (EtCO₂)', value: `${spo2 < 95 ? 43 : 38} mmHg`, dotColor: spo2 < 95 ? '#f59e0b' : '#22c55e', trend: spo2 < 95 ? 'up' : 'stable', history: metricHistories['etco2'] },
-                  { label: 'Minute ventilation', value: `${(respRate * 0.52).toFixed(1)} L/min`, dotColor: respRate > 20 ? '#f59e0b' : '#22c55e', history: metricHistories['min_vent'] },
+                  {
+                    label: 'SpO₂ (Oxygen saturation)',
+                    metricId: 'spo2',
+                    unit: '%',
+                    baselineValue: defaultProfile.restSpo2,
+                    value: computeBiomarkerDelta(spo2, defaultProfile.restSpo2, '%').deltaStr
+                      ? `${spo2.toFixed(1)} % (${computeBiomarkerDelta(spo2, defaultProfile.restSpo2, '%').deltaStr})`
+                      : `${spo2.toFixed(1)} %`,
+                    dotColor: spo2 < 94 ? '#ef4444' : spo2 < 96 ? '#f59e0b' : '#22c55e',
+                    trend: spo2 < 96 ? 'down' : 'stable',
+                    history: metricHistories['spo2'],
+                  },
+                  { label: 'Respiratory rate', metricId: 'rr', unit: '/min', baselineValue: 14, value: `${respRate} /min`, dotColor: respRate > 20 ? '#f59e0b' : '#22c55e', history: metricHistories['rr'] },
+                  { label: 'End-tidal CO₂ (EtCO₂)', metricId: 'etco2', unit: 'mmHg', baselineValue: 38, value: `${spo2 < 95 ? 43 : 38} mmHg`, dotColor: spo2 < 95 ? '#f59e0b' : '#22c55e', trend: spo2 < 95 ? 'up' : 'stable', history: metricHistories['etco2'] },
+                  { label: 'Minute ventilation', metricId: 'min_vent', unit: 'L/min', baselineValue: 7.3, value: `${(respRate * 0.52).toFixed(1)} L/min`, dotColor: respRate > 20 ? '#f59e0b' : '#22c55e', history: metricHistories['min_vent'] },
                   { label: 'Thoracoabdominal synchrony', value: 'Synchronous / Nominal', dotColor: '#22c55e', noGraph: true },
                 ]}
               />
@@ -1653,10 +2200,22 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 title="3. Thermoregulation"
                 icon={<TempIcon />}
                 statusPill={{ label: temp >= 37.5 ? 'Attention' : 'Stable', color: temp >= 37.5 ? '#f59e0b' : '#22c55e' }}
+                {...commonCardProps}
                 rows={[
-                  { label: 'Core body temperature', value: `${temp.toFixed(1)} °C`, dotColor: temp >= 38.3 ? '#ef4444' : temp >= 37.5 ? '#f59e0b' : '#22c55e', trend: temp >= 37.5 ? 'up' : 'stable', history: metricHistories['temp'] },
-                  { label: 'Peripheral skin temp', value: `${(temp - 2.8).toFixed(1)} °C`, dotColor: '#22c55e', trend: 'stable', history: metricHistories['skin_temp'] },
-                  { label: 'Thermal drift rate', value: temp >= 37.5 ? '+0.4 °C/h' : '0.0 °C/h', dotColor: temp >= 37.5 ? '#f59e0b' : '#22c55e', history: metricHistories['drift_rate'] },
+                  {
+                    label: 'Core body temperature',
+                    metricId: 'temp',
+                    unit: '°C',
+                    baselineValue: defaultProfile.restTemp,
+                    value: computeBiomarkerDelta(temp, defaultProfile.restTemp, '°C').deltaStr
+                      ? `${temp.toFixed(1)} °C (${computeBiomarkerDelta(temp, defaultProfile.restTemp, '°C').deltaStr})`
+                      : `${temp.toFixed(1)} °C`,
+                    dotColor: temp >= 38.3 ? '#ef4444' : temp >= 37.5 ? '#f59e0b' : '#22c55e',
+                    trend: temp >= 37.5 ? 'up' : 'stable',
+                    history: metricHistories['temp'],
+                  },
+                  { label: 'Peripheral skin temp', metricId: 'skin_temp', unit: '°C', baselineValue: +(defaultProfile.restTemp - 2.8).toFixed(1), value: `${(temp - 2.8).toFixed(1)} °C`, dotColor: '#22c55e', trend: 'stable', history: metricHistories['skin_temp'] },
+                  { label: 'Thermal drift rate', metricId: 'drift_rate', unit: '°C/h', baselineValue: 0.0, value: temp >= 37.5 ? '+0.4 °C/h' : '0.0 °C/h', dotColor: temp >= 37.5 ? '#f59e0b' : '#22c55e', history: metricHistories['drift_rate'] },
                   { label: 'Heat balance equilibrium', value: temp >= 37.5 ? 'Heat retention' : 'Equilibrium', dotColor: temp >= 37.5 ? '#f59e0b' : '#22c55e', noGraph: true },
                 ]}
               />
@@ -1666,12 +2225,13 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 title="4. Neurological & Fatigue"
                 icon={<BrainIcon />}
                 statusPill={{ label: sleep < 70 ? 'Attention' : 'Nominal', color: sleep < 70 ? '#f59e0b' : '#22c55e' }}
+                {...commonCardProps}
                 rows={[
-                  { label: 'Actigraphy sleep score', value: `${sleep.toFixed(0)} / 100`, dotColor: sleep < 65 ? '#f59e0b' : '#22c55e', trend: sleep < 70 ? 'down' : 'stable', history: metricHistories['sleep'] },
-                  { label: 'Autonomic nervous tone', value: hrv < 45 ? 'Sympathetic strain' : 'Balanced', dotColor: hrv < 45 ? '#f59e0b' : '#22c55e', noGraph: true },
+                  { label: 'Actigraphy sleep score', metricId: 'sleep', unit: '/100', baselineValue: defaultProfile.restSleep, value: `${sleep.toFixed(0)} / 100`, dotColor: sleep < 65 ? '#f59e0b' : '#22c55e', trend: sleep < 70 ? 'down' : 'stable', history: metricHistories['sleep'] },
+                  { label: 'Autonomic nervous tone', metricId: 'hrv', unit: 'ms', baselineValue: defaultProfile.restHrv, value: hrv < 45 ? 'Sympathetic strain' : 'Balanced', dotColor: hrv < 45 ? '#f59e0b' : '#22c55e', history: metricHistories['hrv'] },
                   { label: 'Neurological response', value: 'Alert / Normal', dotColor: '#22c55e', trend: 'stable', noGraph: true },
                   { label: 'Circadian phase status', value: 'Phase II (Active)', dotColor: '#38bdf8', noGraph: true },
-                  { label: 'Autonomic σ-drift', value: `${Math.abs(currentPacket?.z_score_hrv ?? 0.2).toFixed(1)} σ`, dotColor: Math.abs(currentPacket?.z_score_hrv ?? 0) > 2.0 ? '#f59e0b' : '#22c55e', history: metricHistories['z_hrv'] },
+                  { label: 'Autonomic σ-drift', metricId: 'z_hrv', unit: 'σ', baselineValue: 0.2, value: `${Math.abs(currentPacket?.z_score_hrv ?? 0.2).toFixed(1)} σ`, dotColor: Math.abs(currentPacket?.z_score_hrv ?? 0) > 2.0 ? '#f59e0b' : '#22c55e', history: metricHistories['z_hrv'] },
                 ]}
               />
 
@@ -1680,29 +2240,60 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 title="5. Hematology (OSD-569 CBC)"
                 icon={<ShieldIcon />}
                 statusPill={{ label: il6 >= 15.0 || wbc > 12.0 ? 'Attention' : 'Nominal', color: il6 >= 15.0 ? '#f59e0b' : '#22c55e' }}
+                {...commonCardProps}
                 rows={[
-                  { label: 'Hematocrit (HCT)', value: `${hct.toFixed(1)} %`, dotColor: '#22c55e', history: metricHistories['hct'] },
-                  { label: 'White blood cells (WBC)', value: `${wbc.toFixed(1)} k/μL`, dotColor: wbc > 12.0 ? '#ef4444' : '#22c55e', history: metricHistories['wbc'] },
-                  { label: 'Platelets (PLT)', value: `${plt.toFixed(0)} k/μL`, dotColor: '#22c55e', history: metricHistories['plt'] },
-                  { label: 'Hemoglobin (Hgb)', value: hgbVal, dotColor: '#22c55e', history: metricHistories['hgb'] },
-                  { label: 'Red blood cells (RBC)', value: rbcVal, dotColor: '#22c55e', history: metricHistories['rbc'] },
+                  {
+                    label: 'Hematocrit (HCT)',
+                    metricId: 'hct',
+                    unit: '%',
+                    baselineValue: defaultProfile.hct,
+                    value: computeBiomarkerDelta(hct, defaultProfile.hct, '%').deltaStr
+                      ? `${hct.toFixed(1)} % (${computeBiomarkerDelta(hct, defaultProfile.hct, '%').deltaStr})`
+                      : `${hct.toFixed(1)} %`,
+                    dotColor: '#22c55e',
+                    history: metricHistories['hct']
+                  },
+                  {
+                    label: 'White blood cells (WBC)',
+                    metricId: 'wbc',
+                    unit: 'k/μL',
+                    baselineValue: defaultProfile.wbc,
+                    value: computeBiomarkerDelta(wbc, defaultProfile.wbc, 'k').deltaStr
+                      ? `${wbc.toFixed(1)} k/μL (${computeBiomarkerDelta(wbc, defaultProfile.wbc, 'k').deltaStr})`
+                      : `${wbc.toFixed(1)} k/μL`,
+                    dotColor: wbc > 12.0 ? '#ef4444' : '#22c55e',
+                    history: metricHistories['wbc']
+                  },
+                  {
+                    label: 'Platelets (PLT)',
+                    metricId: 'plt',
+                    unit: 'k/μL',
+                    baselineValue: defaultProfile.plt,
+                    value: computeBiomarkerDelta(plt, defaultProfile.plt, 'k').deltaStr
+                      ? `${plt.toFixed(0)} k/μL (${computeBiomarkerDelta(plt, defaultProfile.plt, 'k').deltaStr})`
+                      : `${plt.toFixed(0)} k/μL`,
+                    dotColor: '#22c55e',
+                    history: metricHistories['plt']
+                  },
+                  { label: 'Hemoglobin (Hgb)', metricId: 'hgb', unit: 'g/dL', baselineValue: defaultProfile.hgb, value: hgbVal, dotColor: '#22c55e', history: metricHistories['hgb'] },
+                  { label: 'Red blood cells (RBC)', metricId: 'rbc', unit: 'M/μL', baselineValue: defaultProfile.rbc, value: rbcVal, dotColor: '#22c55e', history: metricHistories['rbc'] },
                   ...(expandedCard === 5
                     ? [
-                      { label: 'Absolute neutrophils', value: labProfile?.cbc?.absolute_neutrophils?.value ? `${labProfile.cbc.absolute_neutrophils.value} /μL` : '4200 /μL', dotColor: '#22c55e', history: metricHistories['abs_neutrophils'] },
-                      { label: 'Neutrophils %', value: labProfile?.cbc?.neutrophils_percent?.value ? `${labProfile.cbc.neutrophils_percent.value} %` : '62.0 %', dotColor: '#22c55e', history: metricHistories['neutrophils_pct'] },
-                      { label: 'Absolute lymphocytes', value: labProfile?.cbc?.absolute_lymphocytes?.value ? `${labProfile.cbc.absolute_lymphocytes.value} /μL` : '2100 /μL', dotColor: '#22c55e', history: metricHistories['abs_lymphocytes'] },
-                      { label: 'Lymphocytes %', value: labProfile?.cbc?.lymphocytes_percent?.value ? `${labProfile.cbc.lymphocytes_percent.value} %` : '29.5 %', dotColor: '#22c55e', history: metricHistories['lymphocytes_pct'] },
-                      { label: 'Absolute monocytes', value: labProfile?.cbc?.absolute_monocytes?.value ? `${labProfile.cbc.absolute_monocytes.value} /μL` : '480 /μL', dotColor: '#22c55e', history: metricHistories['abs_monocytes'] },
-                      { label: 'Monocytes %', value: labProfile?.cbc?.monocytes_percent?.value ? `${labProfile.cbc.monocytes_percent.value} %` : '6.8 %', dotColor: '#22c55e', history: metricHistories['monocytes_pct'] },
-                      { label: 'Absolute eosinophils', value: labProfile?.cbc?.absolute_eosinophils?.value ? `${labProfile.cbc.absolute_eosinophils.value} /μL` : '120 /μL', dotColor: '#22c55e', history: metricHistories['abs_eosinophils'] },
-                      { label: 'Eosinophils %', value: labProfile?.cbc?.eosinophils_percent?.value ? `${labProfile.cbc.eosinophils_percent.value} %` : '1.8 %', dotColor: '#22c55e', history: metricHistories['eosinophils_pct'] },
-                      { label: 'Absolute basophils', value: labProfile?.cbc?.absolute_basophils?.value ? `${labProfile.cbc.absolute_basophils.value} /μL` : '35 /μL', dotColor: '#22c55e', history: metricHistories['abs_basophils'] },
-                      { label: 'Basophils %', value: labProfile?.cbc?.basophils_percent?.value ? `${labProfile.cbc.basophils_percent.value} %` : '0.5 %', dotColor: '#22c55e', history: metricHistories['basophils_pct'] },
-                      { label: 'Mean cell volume (MCV)', value: labProfile?.cbc?.mcv?.value ? `${labProfile.cbc.mcv.value} fL` : '89.0 fL', dotColor: '#22c55e', history: metricHistories['mcv'] },
-                      { label: 'Mean cell Hb (MCH)', value: labProfile?.cbc?.mch?.value ? `${labProfile.cbc.mch.value} pg` : '30.2 pg', dotColor: '#22c55e', history: metricHistories['mch'] },
-                      { label: 'Cell Hb conc (MCHC)', value: labProfile?.cbc?.mchc?.value ? `${labProfile.cbc.mchc.value} g/dL` : '33.8 g/dL', dotColor: '#22c55e', history: metricHistories['mchc'] },
-                      { label: 'Red cell width (RDW)', value: labProfile?.cbc?.rdw?.value ? `${labProfile.cbc.rdw.value} %` : '12.4 %', dotColor: '#22c55e', history: metricHistories['rdw'] },
-                      { label: 'Platelet volume (MPV)', value: labProfile?.cbc?.mpv?.value ? `${labProfile.cbc.mpv.value} fL` : '9.8 fL', dotColor: '#22c55e', history: metricHistories['mpv'] },
+                      { label: 'Absolute neutrophils', metricId: 'abs_neutrophils', unit: '/μL', baselineValue: 4200, value: labProfile?.cbc?.absolute_neutrophils?.value ? `${labProfile.cbc.absolute_neutrophils.value} /μL` : '4200 /μL', dotColor: '#22c55e', history: metricHistories['abs_neutrophils'] },
+                      { label: 'Neutrophils %', metricId: 'neutrophils_pct', unit: '%', baselineValue: 62.0, value: labProfile?.cbc?.neutrophils_percent?.value ? `${labProfile.cbc.neutrophils_percent.value} %` : '62.0 %', dotColor: '#22c55e', history: metricHistories['neutrophils_pct'] },
+                      { label: 'Absolute lymphocytes', metricId: 'abs_lymphocytes', unit: '/μL', baselineValue: 2100, value: labProfile?.cbc?.absolute_lymphocytes?.value ? `${labProfile.cbc.absolute_lymphocytes.value} /μL` : '2100 /μL', dotColor: '#22c55e', history: metricHistories['abs_lymphocytes'] },
+                      { label: 'Lymphocytes %', metricId: 'lymphocytes_pct', unit: '%', baselineValue: 29.5, value: labProfile?.cbc?.lymphocytes_percent?.value ? `${labProfile.cbc.lymphocytes_percent.value} %` : '29.5 %', dotColor: '#22c55e', history: metricHistories['lymphocytes_pct'] },
+                      { label: 'Absolute monocytes', metricId: 'abs_monocytes', unit: '/μL', baselineValue: 480, value: labProfile?.cbc?.absolute_monocytes?.value ? `${labProfile.cbc.absolute_monocytes.value} /μL` : '480 /μL', dotColor: '#22c55e', history: metricHistories['abs_monocytes'] },
+                      { label: 'Monocytes %', metricId: 'monocytes_pct', unit: '%', baselineValue: 6.8, value: labProfile?.cbc?.monocytes_percent?.value ? `${labProfile.cbc.monocytes_percent.value} %` : '6.8 %', dotColor: '#22c55e', history: metricHistories['monocytes_pct'] },
+                      { label: 'Absolute eosinophils', metricId: 'abs_eosinophils', unit: '/μL', baselineValue: 120, value: labProfile?.cbc?.absolute_eosinophils?.value ? `${labProfile.cbc.absolute_eosinophils.value} /μL` : '120 /μL', dotColor: '#22c55e', history: metricHistories['abs_eosinophils'] },
+                      { label: 'Eosinophils %', metricId: 'eosinophils_pct', unit: '%', baselineValue: 1.8, value: labProfile?.cbc?.eosinophils_percent?.value ? `${labProfile.cbc.eosinophils_percent.value} %` : '1.8 %', dotColor: '#22c55e', history: metricHistories['eosinophils_pct'] },
+                      { label: 'Absolute basophils', metricId: 'abs_basophils', unit: '/μL', baselineValue: 35, value: labProfile?.cbc?.absolute_basophils?.value ? `${labProfile.cbc.absolute_basophils.value} /μL` : '35 /μL', dotColor: '#22c55e', history: metricHistories['abs_basophils'] },
+                      { label: 'Basophils %', metricId: 'basophils_pct', unit: '%', baselineValue: 0.5, value: labProfile?.cbc?.basophils_percent?.value ? `${labProfile.cbc.basophils_percent.value} %` : '0.5 %', dotColor: '#22c55e', history: metricHistories['basophils_pct'] },
+                      { label: 'Mean cell volume (MCV)', metricId: 'mcv', unit: 'fL', baselineValue: 89.0, value: labProfile?.cbc?.mcv?.value ? `${labProfile.cbc.mcv.value} fL` : '89.0 fL', dotColor: '#22c55e', history: metricHistories['mcv'] },
+                      { label: 'Mean cell Hb (MCH)', metricId: 'mch', unit: 'pg', baselineValue: 30.2, value: labProfile?.cbc?.mch?.value ? `${labProfile.cbc.mch.value} pg` : '30.2 pg', dotColor: '#22c55e', history: metricHistories['mch'] },
+                      { label: 'Cell Hb conc (MCHC)', metricId: 'mchc', unit: 'g/dL', baselineValue: 33.8, value: labProfile?.cbc?.mchc?.value ? `${labProfile.cbc.mchc.value} g/dL` : '33.8 g/dL', dotColor: '#22c55e', history: metricHistories['mchc'] },
+                      { label: 'Red cell width (RDW)', metricId: 'rdw', unit: '%', baselineValue: 12.4, value: labProfile?.cbc?.rdw?.value ? `${labProfile.cbc.rdw.value} %` : '12.4 %', dotColor: '#22c55e', history: metricHistories['rdw'] },
+                      { label: 'Platelet volume (MPV)', metricId: 'mpv', unit: 'fL', baselineValue: 9.8, value: labProfile?.cbc?.mpv?.value ? `${labProfile.cbc.mpv.value} fL` : '9.8 fL', dotColor: '#22c55e', history: metricHistories['mpv'] },
                     ]
                     : []),
                 ]}
@@ -1717,27 +2308,39 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 title="6. Metabolic & Chemistry (CMP)"
                 icon={<FlaskIcon />}
                 statusPill={{ label: k < 3.5 ? 'Attention' : 'Nominal', color: k < 3.5 ? '#f59e0b' : '#22c55e' }}
+                {...commonCardProps}
                 rows={[
-                  { label: 'Serum sodium (Na⁺)', value: sodiumVal, dotColor: '#22c55e', history: metricHistories['na'] },
-                  { label: 'Serum potassium (K⁺)', value: `${k.toFixed(2)} mmol/L`, dotColor: k < 3.0 ? '#ef4444' : k < 3.5 ? '#f59e0b' : '#22c55e', trend: k < 3.5 ? 'down' : 'stable', history: metricHistories['k'] },
-                  { label: 'Blood glucose', value: glucoseVal, dotColor: '#22c55e', history: metricHistories['glu'] },
-                  { label: 'Blood urea nitrogen (BUN)', value: bunVal, dotColor: '#22c55e', history: metricHistories['bun'] },
-                  { label: 'Serum creatinine', value: creatinineVal, dotColor: '#22c55e', history: metricHistories['creatinine'] },
+                  { label: 'Serum sodium (Na⁺)', metricId: 'na', unit: 'mmol/L', baselineValue: defaultProfile.na, value: sodiumVal, dotColor: '#22c55e', history: metricHistories['na'] },
+                  {
+                    label: 'Serum potassium (K⁺)',
+                    metricId: 'k',
+                    unit: 'mmol/L',
+                    baselineValue: defaultProfile.k,
+                    value: computeBiomarkerDelta(k, defaultProfile.k, 'mmol/L').deltaStr
+                      ? `${k.toFixed(2)} mmol/L (${computeBiomarkerDelta(k, defaultProfile.k, 'mmol/L').deltaStr})`
+                      : `${k.toFixed(2)} mmol/L`,
+                    dotColor: k < 3.0 ? '#ef4444' : k < 3.5 ? '#f59e0b' : '#22c55e',
+                    trend: k < 3.5 ? 'down' : 'stable',
+                    history: metricHistories['k']
+                  },
+                  { label: 'Blood glucose', metricId: 'glu', unit: 'mg/dL', baselineValue: defaultProfile.glu, value: glucoseVal, dotColor: '#22c55e', history: metricHistories['glu'] },
+                  { label: 'Blood urea nitrogen (BUN)', metricId: 'bun', unit: 'mg/dL', baselineValue: defaultProfile.bun, value: bunVal, dotColor: '#22c55e', history: metricHistories['bun'] },
+                  { label: 'Serum creatinine', metricId: 'creatinine', unit: 'mg/dL', baselineValue: defaultProfile.cr, value: creatinineVal, dotColor: '#22c55e', history: metricHistories['creatinine'] },
                   ...(expandedCard === 6
                     ? [
-                      { label: 'Serum calcium (Ca²⁺)', value: labProfile?.cmp?.calcium?.value ? `${labProfile.cmp.calcium.value} mg/dL` : '9.4 mg/dL', dotColor: '#22c55e', history: metricHistories['calcium'] },
-                      { label: 'Serum chloride (Cl⁻)', value: labProfile?.cmp?.chloride?.value ? `${labProfile.cmp.chloride.value} mmol/L` : '102 mmol/L', dotColor: '#22c55e', history: metricHistories['chloride'] },
-                      { label: 'Serum bicarbonate (CO₂)', value: labProfile?.cmp?.carbon_dioxide?.value ? `${labProfile.cmp.carbon_dioxide.value} mmol/L` : '26 mmol/L', dotColor: '#22c55e', history: metricHistories['co2_blood'] },
+                      { label: 'Serum calcium (Ca²⁺)', metricId: 'calcium', unit: 'mg/dL', baselineValue: 9.4, value: labProfile?.cmp?.calcium?.value ? `${labProfile.cmp.calcium.value} mg/dL` : '9.4 mg/dL', dotColor: '#22c55e', history: metricHistories['calcium'] },
+                      { label: 'Serum chloride (Cl⁻)', metricId: 'chloride', unit: 'mmol/L', baselineValue: 102.0, value: labProfile?.cmp?.chloride?.value ? `${labProfile.cmp.chloride.value} mmol/L` : '102 mmol/L', dotColor: '#22c55e', history: metricHistories['chloride'] },
+                      { label: 'Serum bicarbonate (CO₂)', metricId: 'co2_blood', unit: 'mmol/L', baselineValue: 26.0, value: labProfile?.cmp?.carbon_dioxide?.value ? `${labProfile.cmp.carbon_dioxide.value} mmol/L` : '26 mmol/L', dotColor: '#22c55e', history: metricHistories['co2_blood'] },
                       { label: 'BUN / Creatinine ratio', value: labProfile?.cmp?.bun_to_creatinine_ratio?.value ? `${labProfile.cmp.bun_to_creatinine_ratio.value}` : '15.2', dotColor: '#22c55e', noGraph: true },
-                      { label: 'eGFR filtration rate', value: labProfile?.cmp?.egfr_non_african_american?.value ? `${labProfile.cmp.egfr_non_african_american.value} mL/min` : '105 mL/min', dotColor: '#22c55e', history: metricHistories['egfr'] },
-                      { label: 'Total serum protein', value: labProfile?.cmp?.total_protein?.value ? `${labProfile.cmp.total_protein.value} g/dL` : '7.2 g/dL', dotColor: '#22c55e', history: metricHistories['total_protein'] },
-                      { label: 'Serum albumin', value: albuminVal, dotColor: '#22c55e', history: metricHistories['albumin'] },
-                      { label: 'Serum globulin', value: labProfile?.cmp?.globulin?.value ? `${labProfile.cmp.globulin.value} g/dL` : '2.8 g/dL', dotColor: '#22c55e', history: metricHistories['globulin'] },
+                      { label: 'eGFR filtration rate', metricId: 'egfr', unit: 'mL/min', baselineValue: 105.0, value: labProfile?.cmp?.egfr_non_african_american?.value ? `${labProfile.cmp.egfr_non_african_american.value} mL/min` : '105 mL/min', dotColor: '#22c55e', history: metricHistories['egfr'] },
+                      { label: 'Total serum protein', metricId: 'total_protein', unit: 'g/dL', baselineValue: 7.2, value: labProfile?.cmp?.total_protein?.value ? `${labProfile.cmp.total_protein.value} g/dL` : '7.2 g/dL', dotColor: '#22c55e', history: metricHistories['total_protein'] },
+                      { label: 'Serum albumin', metricId: 'albumin', unit: 'g/dL', baselineValue: defaultProfile.alb, value: albuminVal, dotColor: '#22c55e', history: metricHistories['albumin'] },
+                      { label: 'Serum globulin', metricId: 'globulin', unit: 'g/dL', baselineValue: 2.8, value: labProfile?.cmp?.globulin?.value ? `${labProfile.cmp.globulin.value} g/dL` : '2.8 g/dL', dotColor: '#22c55e', history: metricHistories['globulin'] },
                       { label: 'Albumin / Globulin ratio', value: labProfile?.cmp?.albumin_to_globulin_ratio?.value ? `${labProfile.cmp.albumin_to_globulin_ratio.value}` : '1.57', dotColor: '#22c55e', noGraph: true },
-                      { label: 'Alkaline phosphatase', value: labProfile?.cmp?.alkaline_phosphatase?.value ? `${labProfile.cmp.alkaline_phosphatase.value} U/L` : '68 U/L', dotColor: '#22c55e', history: metricHistories['alkaline_phosphatase'] },
-                      { label: 'Alanine transaminase (ALT)', value: labProfile?.cmp?.alt?.value ? `${labProfile.cmp.alt.value} U/L` : '24 U/L', dotColor: '#22c55e', history: metricHistories['alt'] },
-                      { label: 'Aspartate transaminase (AST)', value: labProfile?.cmp?.ast?.value ? `${labProfile.cmp.ast.value} U/L` : '22 U/L', dotColor: '#22c55e', history: metricHistories['ast'] },
-                      { label: 'Total bilirubin', value: labProfile?.cmp?.total_bilirubin?.value ? `${labProfile.cmp.total_bilirubin.value} mg/dL` : '0.6 mg/dL', dotColor: '#22c55e', history: metricHistories['total_bilirubin'] },
+                      { label: 'Alkaline phosphatase', metricId: 'alkaline_phosphatase', unit: 'U/L', baselineValue: 68.0, value: labProfile?.cmp?.alkaline_phosphatase?.value ? `${labProfile.cmp.alkaline_phosphatase.value} U/L` : '68 U/L', dotColor: '#22c55e', history: metricHistories['alkaline_phosphatase'] },
+                      { label: 'Alanine transaminase (ALT)', metricId: 'alt', unit: 'U/L', baselineValue: 24.0, value: labProfile?.cmp?.alt?.value ? `${labProfile.cmp.alt.value} U/L` : '24 U/L', dotColor: '#22c55e', history: metricHistories['alt'] },
+                      { label: 'Aspartate transaminase (AST)', metricId: 'ast', unit: 'U/L', baselineValue: 22.0, value: labProfile?.cmp?.ast?.value ? `${labProfile.cmp.ast.value} U/L` : '22 U/L', dotColor: '#22c55e', history: metricHistories['ast'] },
+                      { label: 'Total bilirubin', metricId: 'total_bilirubin', unit: 'mg/dL', baselineValue: 0.6, value: labProfile?.cmp?.total_bilirubin?.value ? `${labProfile.cmp.total_bilirubin.value} mg/dL` : '0.6 mg/dL', dotColor: '#22c55e', history: metricHistories['total_bilirubin'] },
                       { label: 'eGFR African American', value: labProfile?.cmp?.egfr_african_american?.value ? `${labProfile.cmp.egfr_african_american.value} mL/min` : '118 mL/min', dotColor: '#22c55e', noGraph: true },
                     ]
                     : []),
@@ -1753,11 +2356,23 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 title="7. Immune & Cytokines (OSD-575)"
                 icon={<DropIcon />}
                 statusPill={{ label: il6 >= 15.0 ? 'Attention' : 'Nominal', color: il6 >= 15.0 ? '#f59e0b' : '#22c55e' }}
+                {...commonCardProps}
                 rows={[
-                  { label: 'Interleukin-6 (IL-6)', value: `${il6.toFixed(1)} pg/mL`, dotColor: il6 >= 30.0 ? '#ef4444' : il6 >= 15.0 ? '#f59e0b' : '#22c55e', trend: il6 >= 15.0 ? 'up' : 'stable', history: metricHistories['il6'] },
-                  { label: 'TNF-alpha (TNF-α)', value: tnfVal, dotColor: '#22c55e', history: metricHistories['tnf'] },
-                  { label: 'Interferon-gamma (IFN-γ)', value: labProfile?.immune?.clusters?.interferons_and_viral?.ifn_gamma?.concentration_pg_ml ? `${labProfile.immune.clusters.interferons_and_viral.ifn_gamma.concentration_pg_ml} pg/mL` : '3.4 pg/mL', dotColor: '#22c55e', history: metricHistories['ifn'] },
-                  { label: 'Interleukin-1 beta (IL-1β)', value: labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.il_1_beta?.concentration_pg_ml ? `${labProfile.immune.clusters.pyrogens_and_inflammatory.il_1_beta.concentration_pg_ml} pg/mL` : '1.2 pg/mL', dotColor: '#22c55e', history: metricHistories['il1b'] },
+                  {
+                    label: 'Interleukin-6 (IL-6)',
+                    metricId: 'il6',
+                    unit: 'pg/mL',
+                    baselineValue: defaultProfile.il6,
+                    value: computeBiomarkerDelta(il6, defaultProfile.il6, 'pg/mL').deltaStr
+                      ? `${il6.toFixed(1)} pg/mL (${computeBiomarkerDelta(il6, defaultProfile.il6, 'pg/mL').deltaStr})`
+                      : `${il6.toFixed(1)} pg/mL`,
+                    dotColor: il6 >= 30.0 ? '#ef4444' : il6 >= 15.0 ? '#f59e0b' : '#22c55e',
+                    trend: il6 >= 15.0 ? 'up' : 'stable',
+                    history: metricHistories['il6']
+                  },
+                  { label: 'TNF-alpha (TNF-α)', metricId: 'tnf', unit: 'pg/mL', baselineValue: defaultProfile.tnf, value: tnfVal, dotColor: '#22c55e', history: metricHistories['tnf'] },
+                  { label: 'Interferon-gamma (IFN-γ)', metricId: 'ifn', unit: 'pg/mL', baselineValue: defaultProfile.ifn, value: labProfile?.immune?.clusters?.interferons_and_viral?.ifn_gamma?.concentration_pg_ml ? `${labProfile.immune.clusters.interferons_and_viral.ifn_gamma.concentration_pg_ml} pg/mL` : '3.4 pg/mL', dotColor: '#22c55e', history: metricHistories['ifn'] },
+                  { label: 'Interleukin-1 beta (IL-1β)', metricId: 'il1b', unit: 'pg/mL', baselineValue: defaultProfile.il1b, value: labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.il_1_beta?.concentration_pg_ml ? `${labProfile.immune.clusters.pyrogens_and_inflammatory.il_1_beta.concentration_pg_ml} pg/mL` : '1.2 pg/mL', dotColor: '#22c55e', history: metricHistories['il1b'] },
                   { label: 'Total cytokines monitored', value: '71 Markers', dotColor: '#94a3b8', noGraph: true },
                   ...(expandedCard === 7
                     ? Object.entries(
@@ -1775,6 +2390,9 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                       const hasVal = conc !== null && conc > 0;
                       return {
                         label: name.replace(/_/g, ' '),
+                        metricId: name,
+                        unit: 'pg/mL',
+                        baselineValue: hasVal ? conc : 0,
                         value: hasVal ? `${conc} pg/mL` : '0.0 pg/mL',
                         dotColor: '#94a3b8',
                         history: hasVal ? getCytokineHistory(name, conc) : undefined,
@@ -1826,11 +2444,12 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 title="8. Radiation Exposure"
                 icon={<RadiationIcon />}
                 statusPill={{ label: radFlux >= 0.15 || rsi >= 0.5 ? 'Attention' : 'Nominal', color: radFlux >= 0.15 ? '#f59e0b' : '#22c55e' }}
+                {...commonCardProps}
                 rows={[
-                  { label: 'Current dose rate', value: `${radFlux.toFixed(2)} mSv/h`, dotColor: radFlux >= 0.15 ? '#f59e0b' : '#22c55e', trend: radFlux >= 0.15 ? 'up' : 'stable', history: metricHistories['rad_flux'] },
-                  { label: 'Cumulative absorbed dose', value: `${radDose.toFixed(2)} Gy`, dotColor: '#22c55e', history: metricHistories['rad_dose'] },
-                  { label: 'Radiation sickness index', value: rsi.toFixed(2), dotColor: rsi >= 0.5 ? '#f59e0b' : '#22c55e', history: metricHistories['rsi'] },
-                  { label: 'Absolute lymphocytes', value: `${alc.toFixed(2)} k/μL`, dotColor: alc < 1.0 ? '#ef4444' : '#22c55e', history: metricHistories['alc'] },
+                  { label: 'Current dose rate', metricId: 'rad_flux', unit: 'mSv/h', baselineValue: 0.04, value: `${radFlux.toFixed(2)} mSv/h`, dotColor: radFlux >= 0.15 ? '#f59e0b' : '#22c55e', trend: radFlux >= 0.15 ? 'up' : 'stable', history: metricHistories['rad_flux'] },
+                  { label: 'Cumulative absorbed dose', metricId: 'rad_dose', unit: 'Gy', baselineValue: 0.05, value: `${radDose.toFixed(2)} Gy`, dotColor: '#22c55e', history: metricHistories['rad_dose'] },
+                  { label: 'Radiation sickness index', metricId: 'rsi', unit: 'idx', baselineValue: 0.12, value: rsi.toFixed(2), dotColor: rsi >= 0.5 ? '#f59e0b' : '#22c55e', history: metricHistories['rsi'] },
+                  { label: 'Absolute lymphocytes', metricId: 'alc', unit: 'k/μL', baselineValue: 2.15, value: `${alc.toFixed(2)} k/μL`, dotColor: alc < 1.0 ? '#ef4444' : '#22c55e', history: metricHistories['alc'] },
                   { label: 'DNA double-strand breaks', value: radDose > 0.2 ? 'Elevated repairs' : 'Nominal repair', dotColor: radDose > 0.2 ? '#f59e0b' : '#22c55e', noGraph: true },
                 ]}
               />
@@ -1840,11 +2459,12 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 title="9. Thrombosis & Vascular"
                 icon={<VascularIcon />}
                 statusPill={{ label: trm >= 1.25 ? 'Attention' : 'Nominal', color: trm >= 1.25 ? '#f59e0b' : '#22c55e' }}
+                {...commonCardProps}
                 rows={[
-                  { label: 'Thrombosis risk metric', value: trm.toFixed(2), dotColor: trm >= 1.25 ? '#f59e0b' : '#22c55e', trend: trm >= 1.25 ? 'up' : 'stable', history: metricHistories['trm'] },
-                  { label: 'Fibrinogen level', value: fibrinogenVal, dotColor: '#22c55e', history: metricHistories['fibrinogen'] },
-                  { label: 'L-selectin adhesion', value: labProfile?.cardiovascular?.l_selectin?.value ? `${(labProfile.cardiovascular.l_selectin.value / 1000).toFixed(0)} ng/mL` : '740 ng/mL', dotColor: '#94a3b8', history: metricHistories['l_selectin'] },
-                  { label: 'Platelet factor 4 (PF4)', value: labProfile?.cardiovascular?.pf4?.value ? `${labProfile.cardiovascular.pf4.value.toFixed(0)} ng/mL` : '320 ng/mL', dotColor: '#94a3b8', history: metricHistories['pf4'] },
+                  { label: 'Thrombosis risk metric', metricId: 'trm', unit: 'ratio', baselineValue: 1.02, value: trm.toFixed(2), dotColor: trm >= 1.25 ? '#f59e0b' : '#22c55e', trend: trm >= 1.25 ? 'up' : 'stable', history: metricHistories['trm'] },
+                  { label: 'Fibrinogen level', metricId: 'fibrinogen', unit: 'mg/dL', baselineValue: defaultProfile.fibrinogen, value: fibrinogenVal, dotColor: '#22c55e', history: metricHistories['fibrinogen'] },
+                  { label: 'L-selectin adhesion', metricId: 'l_selectin', unit: 'ng/mL', baselineValue: 740, value: labProfile?.cardiovascular?.l_selectin?.value ? `${(labProfile.cardiovascular.l_selectin.value / 1000).toFixed(0)} ng/mL` : '740 ng/mL', dotColor: '#94a3b8', history: metricHistories['l_selectin'] },
+                  { label: 'Platelet factor 4 (PF4)', metricId: 'pf4', unit: 'ng/mL', baselineValue: 320, value: labProfile?.cardiovascular?.pf4?.value ? `${labProfile.cardiovascular.pf4.value.toFixed(0)} ng/mL` : '320 ng/mL', dotColor: '#94a3b8', history: metricHistories['pf4'] },
                   { label: 'Venous stasis status', value: trm > 1.3 ? 'Cephalic stasis' : 'Normal flow', dotColor: trm > 1.3 ? '#f59e0b' : '#22c55e', noGraph: true },
                   { label: 'Cephalic hemoconcentration', value: '-0.6 kg fluid shift', dotColor: '#94a3b8', noGraph: true },
                 ]}
@@ -1855,8 +2475,9 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 title="10. Integrated Directives & JARVIS"
                 icon={<DirectivesIcon />}
                 statusPill={{ label: severity === 'NOMINAL' ? 'Stable' : severity, color: severity === 'NOMINAL' ? '#22c55e' : '#f59e0b' }}
+                {...commonCardProps}
                 rows={[
-                  { label: 'Early sepsis cascade (EPI)', value: (currentPacket?.computed_epi ?? 0.05).toFixed(2), dotColor: (currentPacket?.computed_epi ?? 0) > 0.8 ? '#ef4444' : '#22c55e', history: metricHistories['epi'] },
+                  { label: 'Early sepsis cascade (EPI)', metricId: 'epi', unit: 'idx', baselineValue: 0.05, value: (currentPacket?.computed_epi ?? 0.05).toFixed(2), dotColor: (currentPacket?.computed_epi ?? 0) > 0.8 ? '#ef4444' : '#22c55e', history: metricHistories['epi'] },
                   { label: 'Primary diagnosis', value: severity === 'CRITICAL' ? 'Acute Physiological Anomaly' : severity === 'WARNING' ? 'Moderate Baseline Strain' : 'Equilibrium baseline', dotColor: severity === 'NOMINAL' ? '#22c55e' : '#f59e0b', noGraph: true },
                   { label: 'Actionable directive', value: severity === 'CRITICAL' ? 'Initiate clinical countermeasure' : severity === 'WARNING' ? 'Schedule rest & hydration' : 'Continue mission activities', dotColor: '#22c55e', noGraph: true },
                   { label: 'Autonomous decision sentry', value: 'Online (Ollama BioMistral)', dotColor: '#94a3b8', noGraph: true },
@@ -1868,213 +2489,332 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
           {/* Right Column: Dedicated Full-Height Sidebar */}
           <aside
             style={{
-              backgroundColor: 'rgba(10, 13, 19, 0.80)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-              padding: '20px 18px',
+              backgroundColor: '#101010',
+              borderLeft: '1px solid #222222',
+              padding: '20px 18px 80px 18px',
               display: 'flex',
               flexDirection: 'column',
               gap: '20px',
             }}
           >
-            {/* Devices Section */}
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  Monitoring Devices
+            {/* ── DEVICE NETWORK PANEL ─────────────────────────────── */}
+            <div style={{ fontFamily: "'Tomorrow', sans-serif" }}>
+              {/* Panel Header */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
+                    Device Network
+                  </div>
+                  <div style={{ fontSize: '9px', color: '#94a3b8', marginTop: '2px', lineHeight: 1.3, fontFamily: "'Tomorrow', sans-serif" }}>
+                    Sensor, diagnostic and research sources
+                  </div>
                 </div>
-                <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: 600, fontFamily: "'Tomorrow', sans-serif" }}>
-                  {filteredDevices.length} Active Systems
-                </span>
-              </div>
-              <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '10px', lineHeight: 1.3 }}>
-                Flight hardware & biosensors collecting real-time astronaut health telemetry.
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                    border: '1px solid rgba(87,214,141,0.40)', borderRadius: '8px',
+                    padding: '4px 8px', fontSize: '10px',
+                    background: '#181818', whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.4)',
+                  }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#57d68d', boxShadow: '0 0 6px rgba(87,214,141,0.65)', display: 'block', flexShrink: 0 }} />
+                    <span style={{ color: '#57d68d', fontWeight: 600, fontFamily: "'Tomorrow', sans-serif", letterSpacing: '0.04em' }}>CONNECTED</span>
+                  </div>
+                  <span style={{ fontSize: '9px', color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif" }}>
+                    {filteredDevices.length} shown • {filteredDevices.filter(d => d.mode === 'CONTINUOUS' && (d.status === 'Connected' || d.status === 'Streaming')).length} streaming
+                  </span>
+                </div>
               </div>
 
-              {/* Device Filter Pills */}
+              {/* Category Filter Tabs */}
               <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                {(['ALL', 'WEARABLE', 'LAB', 'ENGINE'] as const).map((filter) => (
+                {(['All', 'Wearable', 'Environment', 'Diagnostics', 'Performance', 'Research', 'Computational'] as const).map((filter) => (
                   <button
                     key={filter}
-                    onClick={() => setDeviceFilter(filter)}
+                    onClick={() => { setDeviceFilter(filter); setExpandedDeviceId(null); }}
                     style={{
-                      padding: '3px 7px',
-                      borderRadius: '9999px',
+                      padding: '4px 8px',
+                      borderRadius: '8px',
                       fontSize: '9px',
                       fontWeight: 600,
-                      border: deviceFilter === filter ? '1px solid #525252' : '1px solid #262626',
-                      background: deviceFilter === filter ? '#262626' : 'transparent',
-                      color: deviceFilter === filter ? '#ffffff' : '#888888',
+                      border: deviceFilter === filter ? '1px solid #666666' : '1px solid #282828',
+                      background: deviceFilter === filter ? '#2a2a2a' : '#181818',
+                      color: deviceFilter === filter ? '#ffffff' : '#94a3b8',
                       cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      fontFamily: "'Tomorrow', sans-serif",
+                      letterSpacing: '0.03em',
+                      boxShadow: deviceFilter === filter ? '0 0 8px rgba(255, 255, 255, 0.12)' : 'none',
                     }}
                   >
-                    {filter === 'ALL' ? 'All' : filter === 'WEARABLE' ? 'Wearable' : filter === 'LAB' ? 'Lab Assays' : 'Engines'}
+                    {filter}
                   </button>
                 ))}
               </div>
 
-              {/* Device List with Accurate Vector Icons in Unified Cyan (#38bdf8) */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                  maxHeight: '430px',
-                  overflowY: 'auto',
-                  paddingRight: '4px',
-                }}
-              >
-                {filteredDevices.map((dev) => (
-                  <div
-                    key={dev.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px',
-                      padding: '5px 8px',
-                      borderRadius: '6px',
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid rgba(255, 255, 255, 0.05)',
-                      transition: 'background 0.15s ease, border-color 0.15s ease',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
-                      {/* Numerical Identifier Badge (matching flight instrumentation style) */}
-                      <span
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          borderRadius: '4px',
-                          background: 'rgba(56, 189, 248, 0.08)',
-                          border: '1px solid rgba(56, 189, 248, 0.22)',
-                          color: '#38bdf8',
-                          fontSize: '9.5px',
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                          fontFamily: "'Tomorrow', sans-serif",
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        {dev.id}
-                      </span>
+              {/* Section hint */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '9px', color: '#94a3b8', marginBottom: '8px', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
+                <span>{deviceFilter === 'All' ? 'All Devices' : `${deviceFilter} Devices`}</span>
+                <span>Click to expand</span>
+              </div>
 
-                      {/* Precise Vector Icon in unified #38bdf8 cyan */}
-                      {renderDeviceIcon(dev.iconType)}
+              {/* Device Accordion List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '520px', overflowY: 'auto', paddingRight: '2px' }}>
+                {filteredDevices.map((dev) => {
+                  const isOpen = expandedDeviceId === dev.id;
+                  const statusColor =
+                    dev.status === 'Connected' || dev.status === 'Streaming' ? '#57d68d'
+                    : dev.status === 'Calibrated' || dev.status === 'Ready' || dev.status === 'Nominal' ? '#e2e8f0'
+                    : '#f4c15d';
+                  const statusBg =
+                    dev.status === 'Connected' || dev.status === 'Streaming' ? 'rgba(87,214,141,0.10)'
+                    : 'rgba(255,255,255,0.06)';
+                  const statusBorder =
+                    dev.status === 'Connected' || dev.status === 'Streaming' ? 'rgba(87,214,141,0.30)'
+                    : 'rgba(255,255,255,0.14)';
+                  const modeBg = dev.mode === 'CONTINUOUS' || dev.mode === 'COMPUTED' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)';
 
-                      {/* Device Meta */}
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            color: '#f1f5f9',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            lineHeight: 1.25,
-                          }}
-                          title={dev.name}
-                        >
-                          {dev.name}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '9px',
-                            color: '#94a3b8',
-                            letterSpacing: '0.01em',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            lineHeight: 1.2,
-                            marginTop: '1px',
-                          }}
-                          title={`${dev.parameter} (${dev.source})`}
-                        >
-                          {dev.parameter}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Status Pill */}
-                    <span
+                  return (
+                    <button
+                      key={dev.id}
+                      onClick={() => toggleDeviceExpand(dev.id)}
                       style={{
-                        fontSize: '8.5px',
-                        fontWeight: 600,
-                        padding: '2px 6px',
-                        borderRadius: '9999px',
-                        flexShrink: 0,
-                        letterSpacing: '0.02em',
-                        background:
-                          dev.status === 'Streaming'
-                            ? 'rgba(34, 197, 94, 0.12)'
-                            : dev.status === 'Calibrated'
-                            ? 'rgba(56, 189, 248, 0.10)'
-                            : 'rgba(255, 255, 255, 0.04)',
-                        color:
-                          dev.status === 'Streaming'
-                            ? '#22c55e'
-                            : dev.status === 'Calibrated'
-                            ? '#38bdf8'
-                            : '#94a3b8',
-                        border:
-                          dev.status === 'Streaming'
-                            ? '1px solid rgba(34, 197, 94, 0.28)'
-                            : dev.status === 'Calibrated'
-                            ? '1px solid rgba(56, 189, 248, 0.25)'
-                            : '1px solid rgba(255, 255, 255, 0.08)',
+                        width: '100%',
+                        textAlign: 'left',
+                        border: isOpen ? '1px solid #555555' : '1px solid #282828',
+                        background: isOpen ? '#222222' : '#181818',
+                        color: '#e8f1f7',
+                        borderRadius: '10px',
+                        padding: '10px 11px',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.18s ease, background 0.18s ease',
+                        boxShadow: isOpen ? '0 4px 16px rgba(0, 0, 0, 0.7)' : '0 2px 8px rgba(0, 0, 0, 0.4)',
+                        fontFamily: "'Tomorrow', sans-serif",
                       }}
                     >
-                      {dev.status}
-                    </span>
-                  </div>
-                ))}
+                      {/* ── Collapsed Header Row ── */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '3px' }}>
+                            {renderDeviceIcon(dev.iconType)}
+                            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#f1f5f9', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: "'Tomorrow', sans-serif" }}>
+                              {dev.name}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#94a3b8', lineHeight: 1.4, marginBottom: '6px', paddingLeft: '25px', fontFamily: "'Tomorrow', sans-serif" }}>
+                            {dev.purpose}
+                          </div>
+                          {/* Badges Row */}
+                          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', paddingLeft: '25px' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', border: '1px solid #333333', borderRadius: '999px', padding: '2px 7px', fontSize: '9px', letterSpacing: '0.04em', textTransform: 'uppercase', background: '#121212', color: '#b0bec5', fontFamily: "'Tomorrow', sans-serif" }}>
+                              {dev.category}
+                            </span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '999px', padding: '2px 7px', fontSize: '9px', letterSpacing: '0.04em', textTransform: 'uppercase', background: modeBg, color: '#e2e8f0', fontFamily: "'Tomorrow', sans-serif" }}>
+                              {dev.mode}
+                            </span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', border: `1px solid ${statusBorder}`, borderRadius: '999px', padding: '2px 7px', fontSize: '9px', letterSpacing: '0.04em', background: statusBg, color: statusColor, fontFamily: "'Tomorrow', sans-serif" }}>
+                              {dev.status}
+                            </span>
+                          </div>
+                        </div>
+                        {/* Expand chevron */}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7a93a8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                          style={{ flexShrink: 0, marginTop: '3px', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </div>
+
+                      {/* ── Expanded Detail Panel ── */}
+                      {isOpen && (
+                        <div style={{ borderTop: '1px solid #2c2c2c', marginTop: '10px', paddingTop: '10px', fontFamily: "'Tomorrow', sans-serif" }}>
+                          {/* Info Grid: Category / Mode / Status / Signal */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '10px' }}>
+                            {[
+                              ['Category', dev.category],
+                              ['Mode', dev.mode],
+                              ['Status', dev.status],
+                              ['Signal', dev.signal],
+                            ].map(([k, v]) => (
+                              <div key={k} style={{ border: '1px solid #282828', borderRadius: '7px', padding: '7px 8px', background: '#121212' }}>
+                                <div style={{ fontSize: '8px', color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: "'Tomorrow', sans-serif" }}>{k}</div>
+                                <div style={{ fontSize: '11px', fontWeight: 700, color: '#e8f1f7', fontFamily: "'Tomorrow', sans-serif" }}>{v}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* What it measures */}
+                          <div style={{ marginBottom: '8px' }}>
+                            <div style={{ fontSize: '8px', color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px', fontFamily: "'Tomorrow', sans-serif" }}>What it measures</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {dev.measures.map((m) => (
+                                <span key={m} style={{ border: '1px solid #2e2e2e', borderRadius: '6px', padding: '3px 7px', fontSize: '9.5px', background: '#141414', color: '#cbd5e1', fontFamily: "'Tomorrow', sans-serif" }}>{m}</span>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Current readings */}
+                          <div style={{ marginBottom: '8px' }}>
+                            <div style={{ fontSize: '8px', color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px', fontFamily: "'Tomorrow', sans-serif" }}>Current / latest readings</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+                              {dev.readings.map(([name, val]) => (
+                                <div key={name} style={{ border: '1px solid #282828', borderRadius: '7px', padding: '6px 8px', background: '#121212' }}>
+                                  <div style={{ fontSize: '8px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: "'Tomorrow', sans-serif" }}>{name}</div>
+                                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#e8f1f7', marginTop: '3px', fontFamily: "'Tomorrow', sans-serif" }}>{val}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Used by health domains */}
+                          <div style={{ marginBottom: '8px' }}>
+                            <div style={{ fontSize: '8px', color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px', fontFamily: "'Tomorrow', sans-serif" }}>Feeds health domains</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {dev.usedBy.map((domain) => (
+                                <span key={domain} style={{ border: '1px solid #383838', borderRadius: '6px', padding: '3px 7px', fontSize: '9.5px', background: '#222222', color: '#e2e8f0', fontFamily: "'Tomorrow', sans-serif" }}>{domain}</span>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Footer: Signal quality + last updated */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '9px', color: '#7a93a8', marginTop: '4px', fontFamily: "'Tomorrow', sans-serif" }}>
+                            <span>Signal: {dev.signal}</span>
+                            <span>Updated {dev.updated}</span>
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Clean Hairline Divider */}
-            <div style={{ height: '1px', backgroundColor: '#1c1c1c' }} />
-
-            {/* Recent Events & Alerts Feed */}
-            <div>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc', marginBottom: '10px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                Events &amp; Directives
+            {/* Tri-Level Clinical Directives & Alert Sentry */}
+            <div
+              style={{
+                backgroundColor: '#181818',
+                border: `1px solid ${clinicalSummary.isAbnormal ? clinicalSummary.primaryConcern.borderColor : '#282828'}`,
+                borderRadius: '12px',
+                padding: '14px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.6)',
+                fontFamily: "'Tomorrow', sans-serif",
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
+                  Clinical Directives &amp; Sentry
+                </div>
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    padding: '1px 5px',
+                    borderRadius: '3px',
+                    color: clinicalSummary.trajectory.color,
+                    background: `${clinicalSummary.trajectory.color}15`,
+                    border: `1px solid ${clinicalSummary.trajectory.color}35`,
+                    fontFamily: "'Tomorrow', sans-serif",
+                  }}
+                >
+                  {clinicalSummary.severity}
+                </span>
               </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '10px' }}>
+                {/* LEVEL 1: CRITICAL DIRECTIVE (If active) */}
+                {clinicalSummary.isAbnormal && (
+                  <div style={{ borderLeft: `2px solid ${clinicalSummary.primaryConcern.color}`, paddingLeft: '8px', background: `${clinicalSummary.primaryConcern.color}10`, padding: '6px 8px', borderRadius: '0 4px 4px 0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                      <span style={{ color: '#737373' }}>ACTIVE</span>
+                      <span style={{ color: clinicalSummary.primaryConcern.color, fontWeight: 700 }}>
+                        {clinicalSummary.primaryConcern.title}
+                      </span>
+                    </div>
+                    <div style={{ color: '#f1f5f9', fontWeight: 500, lineHeight: 1.35 }}>
+                      {clinicalSummary.decisionSupport.recommendedAction}
+                    </div>
+                  </div>
+                )}
+
+                {/* LEVEL 2: WATCH & SENSORS */}
                 <div style={{ borderLeft: '2px solid #f59e0b', paddingLeft: '8px' }}>
-                  <span style={{ color: '#737373', marginRight: '6px' }}>14:28</span>
-                  <span style={{ color: '#f59e0b', fontWeight: 600 }}>Sleep duration below baseline</span>
-                  <div style={{ color: '#888888' }}>Slight circadian disruption flagged.</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#737373' }}>14:28</span>
+                    <span style={{ color: '#f59e0b', fontWeight: 600 }}>Circadian &amp; Autonomic Sentry</span>
+                  </div>
+                  <div style={{ color: '#888888', marginTop: '2px' }}>
+                    {computeBiomarkerDelta(hrv, defaultProfile.restHrv, 'ms').deltaStr
+                      ? `Sleep score: ${sleep.toFixed(0)}/100 · HRV: ${hrv.toFixed(0)} ms (${computeBiomarkerDelta(hrv, defaultProfile.restHrv, 'ms').deltaStr})`
+                      : `Sleep score: ${sleep.toFixed(0)}/100 · HRV: ${hrv.toFixed(0)} ms`}
+                  </div>
                 </div>
+
                 <div style={{ borderLeft: '2px solid #22c55e', paddingLeft: '8px' }}>
-                  <span style={{ color: '#737373', marginRight: '6px' }}>12:15</span>
-                  <span style={{ color: '#22c55e', fontWeight: 600 }}>Heart rate elevation during exercise</span>
-                  <div style={{ color: '#888888' }}>Contextual workout gating active.</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#737373' }}>12:15</span>
+                    <span style={{ color: '#22c55e', fontWeight: 600 }}>Countermeasure Protocol Gate</span>
+                  </div>
+                  <div style={{ color: '#888888', marginTop: '2px' }}>
+                    Mission state: {currentPacket?.mission_state || 'REST'} · Exertional telemetry calibrated.
+                  </div>
                 </div>
+
+                {/* LEVEL 3: NASA OSDR & DOSIMETRY AUDIT */}
                 <div style={{ borderLeft: '2px solid #94a3b8', paddingLeft: '8px' }}>
-                  <span style={{ color: '#737373', marginRight: '6px' }}>09:42</span>
-                  <span style={{ color: '#cbd5e1', fontWeight: 600 }}>NASA OSDR Lab Assays Loaded</span>
-                  <div style={{ color: '#888888' }}>All 119 biomarkers synchronized for {activeCrew.name}.</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#737373' }}>09:42</span>
+                    <span style={{ color: '#cbd5e1', fontWeight: 600 }}>NASA OSDR Assays Synchronized</span>
+                  </div>
+                  <div style={{ color: '#888888', marginTop: '2px' }}>
+                    OSD-569 &amp; OSD-575 baseline verified for {activeCrew.name} ({activeCrew.subjectId}).
+                  </div>
                 </div>
+
                 <div style={{ borderLeft: '2px solid #94a3b8', paddingLeft: '8px' }}>
-                  <span style={{ color: '#737373', marginRight: '6px' }}>08:11</span>
-                  <span style={{ color: '#cbd5e1', fontWeight: 600 }}>Radiation dose updated</span>
-                  <div style={{ color: '#888888' }}>GCR flux within deep-space norms.</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#737373' }}>08:11</span>
+                    <span style={{ color: '#cbd5e1', fontWeight: 600 }}>Deep-Space Dosimetry</span>
+                  </div>
+                  <div style={{ color: '#888888', marginTop: '2px' }}>
+                    Flux: {radFlux >= 1 ? radFlux.toFixed(0) : radFlux.toFixed(2)} mSv/h · Cumulative: {radDose.toFixed(2)} Gy.
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* Clinical Timeline: Situational Context ("What happened before this change?") */}
+            <ClinicalTimeline
+              astronautId={selectedId}
+              astronautName={activeCrew.name}
+              telemetry={currentPacket}
+              clinicalSummary={clinicalSummary}
+              latestAlert={latestAlert}
+            />
           </aside>
         </div>
       </div>
+
+      {/* Deep Analysis Slide-Over Modal */}
+      {deepAnalysisTarget && (
+        <DeepAnalysisModal
+          isOpen={Boolean(deepAnalysisTarget)}
+          onClose={() => setDeepAnalysisTarget(null)}
+          astronautName={activeCrew.name}
+          astronautCallsign={activeCrew.callsign}
+          astronautAvatar={activeCrew.avatar}
+          metricLabel={deepAnalysisTarget.metricLabel}
+          currentValue={deepAnalysisTarget.currentValue}
+          unit={deepAnalysisTarget.unit}
+          baselineValue={deepAnalysisTarget.baselineValue}
+          history={deepAnalysisTarget.history}
+          dotColor={deepAnalysisTarget.dotColor}
+          category={deepAnalysisTarget.category}
+        />
+      )}
     </div>
   );
 };
 
-/* ── REUSABLE CATEGORY CARD COMPONENT ─────────────────────────────────────── */
+/* ── REUSABLE CATEGORY CARD COMPONENT WITH PROGRESSIVE DISCLOSURE ────────── */
 interface CategoryRowItem {
   label: string;
   value: string;
@@ -2084,6 +2824,9 @@ interface CategoryRowItem {
   noGraph?: boolean;
   isCritical?: boolean;
   isWarning?: boolean;
+  metricId?: string;
+  baselineValue?: number | string;
+  unit?: string;
 }
 
 interface CategoryCardProps {
@@ -2093,7 +2836,272 @@ interface CategoryCardProps {
   rows: CategoryRowItem[];
   actionButton?: { label: string; onClick: () => void };
   customHeaderRight?: React.ReactNode;
+  expandedBiomarkerKey?: string | null;
+  onToggleRowExpand?: (rowKey: string) => void;
+  onOpenDeepAnalysis?: (target: {
+    metricLabel: string;
+    currentValue: string;
+    unit: string;
+    baselineValue?: number | string;
+    history?: number[];
+    dotColor: string;
+    category: string;
+  }) => void;
+  isFastForward?: boolean;
 }
+
+const CategoryBiomarkerRow: React.FC<{
+  cardTitle: string;
+  row: CategoryRowItem;
+  index: number;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onOpenDeepAnalysis?: (target: {
+    metricLabel: string;
+    currentValue: string;
+    unit: string;
+    baselineValue?: number | string;
+    history?: number[];
+    dotColor: string;
+    category: string;
+  }) => void;
+  isFastForward?: boolean;
+}> = ({ cardTitle, row, isExpanded, onToggleExpand, onOpenDeepAnalysis, isFastForward }) => {
+  const cadence = getBiomarkerCadence(row.metricId || row.label);
+  const { countdownText, isUpdating } = usePeriodicCadence(cadence.intervalHours, isFastForward);
+
+  const isCritical = row.isCritical ?? (
+    row.dotColor === '#ef4444' ||
+    row.dotColor.toLowerCase().includes('ef4444') ||
+    row.dotColor.toLowerCase().includes('dc2626') ||
+    row.dotColor.toLowerCase().includes('red')
+  );
+
+  const isWarning = row.isWarning ?? (
+    !isCritical && (
+      row.dotColor === '#f59e0b' ||
+      row.dotColor === '#f97316' ||
+      row.dotColor === '#eab308' ||
+      row.dotColor.toLowerCase().includes('f59e0b') ||
+      row.dotColor.toLowerCase().includes('f97316') ||
+      row.dotColor.toLowerCase().includes('orange') ||
+      row.dotColor.toLowerCase().includes('amber')
+    )
+  );
+
+  const isIssue = isCritical || isWarning;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '6px',
+        backgroundColor: isCritical
+          ? 'rgba(239, 68, 68, 0.12)'
+          : isWarning
+          ? 'rgba(239, 68, 68, 0.06)'
+          : isExpanded
+          ? 'rgba(255, 255, 255, 0.05)'
+          : 'transparent',
+        border: isCritical
+          ? '1px solid rgba(239, 68, 68, 0.38)'
+          : isWarning
+          ? '1px solid rgba(239, 68, 68, 0.22)'
+          : isExpanded
+          ? '1px solid rgba(56, 189, 248, 0.35)'
+          : '1px solid transparent',
+        transition: 'all 150ms ease',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        onClick={onToggleExpand}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          minHeight: '28px',
+          boxSizing: 'border-box',
+          padding: '4px 8px',
+          cursor: 'pointer',
+          fontSize: '11px',
+          backgroundColor: isExpanded ? 'rgba(255, 255, 255, 0.02)' : 'transparent',
+          borderBottom: isExpanded ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
+        }}
+        title="Click to view historical trend & deeper analysis"
+      >
+        {/* Left: Metric Name + Alert Icon if active */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
+          {isCritical ? (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          ) : isWarning ? (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          ) : null}
+          <span
+            style={{
+              color: isCritical ? '#f87171' : isWarning ? '#fca5a5' : '#a3a3a3',
+              fontWeight: isIssue ? 600 : 400,
+              letterSpacing: '0.01em',
+              fontFamily: "'Tomorrow', sans-serif",
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={row.label}
+          >
+            {row.label}
+          </span>
+        </div>
+
+        {/* Right Cluster: [Value with Status Dot] + [Cadence Badge] + [Chevron] */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          {/* Real-time Status Dot + Tabular Numeral Value */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: row.dotColor,
+                flexShrink: 0,
+                boxShadow: isCritical
+                  ? '0 0 8px #ef4444'
+                  : isWarning
+                  ? '0 0 6px #f87171'
+                  : `0 0 6px ${row.dotColor}80`,
+              }}
+            />
+            <span
+              style={{
+                color: isCritical ? '#fca5a5' : isWarning ? '#ffffff' : '#f5f5f5',
+                fontWeight: isIssue ? 700 : 600,
+                fontFamily: 'var(--hud-font-mono, monospace)',
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '0.02em',
+                whiteSpace: 'nowrap',
+              }}
+              title={typeof row.value === 'string' ? row.value : undefined}
+            >
+              {row.value}
+            </span>
+          </div>
+
+          {/* Subtle Cadence Badge / Periodic Countdown Badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+            {cadence.isContinuous ? (
+              <span
+                style={{
+                  fontSize: '8px',
+                  fontWeight: 600,
+                  color: '#94a3b8',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  letterSpacing: '0.03em',
+                  fontFamily: "'Tomorrow', sans-serif",
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+                title="Continuous high-frequency telemetry streaming (1 Hz)"
+              >
+                CONTINUOUS
+              </span>
+            ) : isUpdating ? (
+              <span
+                style={{
+                  fontSize: '8px',
+                  fontWeight: 700,
+                  color: '#38bdf8',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.40)',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  letterSpacing: '0.03em',
+                  fontFamily: 'var(--hud-font-mono, monospace)',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                UPDATING...
+              </span>
+            ) : (
+              <span
+                style={{
+                  fontSize: '8px',
+                  fontWeight: 600,
+                  color: '#cbd5e1',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.10)',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  letterSpacing: '0.02em',
+                  fontFamily: 'var(--hud-font-mono, monospace)',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+                title={`Cadence: ${cadence.badgeLabel}. Next automated cycle in ${countdownText}`}
+              >
+                {cadence.mode === 'LAB' ? `LAB ${cadence.intervalHours}h` : `${cadence.intervalHours}h`} · {countdownText}
+              </span>
+            )}
+
+            {/* Small chevron indicating expandable trend */}
+            <span
+              style={{
+                fontSize: '8px',
+                color: isExpanded ? '#38bdf8' : '#64748b',
+                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 180ms ease',
+                flexShrink: 0,
+              }}
+            >
+              ▼
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded Inline Trend Drawer */}
+      {isExpanded && (
+        <InlineTrendDrawer
+          metricId={row.metricId || row.label}
+          metricLabel={row.label}
+          currentValue={row.value}
+          baselineValue={row.baselineValue}
+          unit={row.unit}
+          dotColor={row.dotColor}
+          history={row.history}
+          cadenceLabel={cadence.isContinuous ? 'CONTINUOUS' : cadence.mode === 'LAB' ? `LAB ${cadence.intervalHours}h` : `${cadence.intervalHours}h`}
+          onOpenDeepAnalysis={() => {
+            if (onOpenDeepAnalysis) {
+              onOpenDeepAnalysis({
+                metricLabel: row.label,
+                currentValue: row.value,
+                unit: row.unit || '',
+                baselineValue: row.baselineValue,
+                history: row.history,
+                dotColor: row.dotColor,
+                category: cardTitle,
+              });
+            }
+          }}
+          onClose={onToggleExpand}
+        />
+      )}
+    </div>
+  );
+};
 
 const CategoryCard: React.FC<CategoryCardProps> = ({
   title,
@@ -2102,20 +3110,22 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   rows,
   actionButton,
   customHeaderRight,
+  expandedBiomarkerKey,
+  onToggleRowExpand,
+  onOpenDeepAnalysis,
+  isFastForward,
 }) => {
   return (
     <div
       style={{
-        backgroundColor: 'rgba(15, 18, 26, 0.82)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255, 255, 255, 0.10)',
+        backgroundColor: '#181818',
+        border: '1px solid #282828',
         borderRadius: '12px',
         padding: '16px',
         display: 'flex',
         flexDirection: 'column',
         gap: '10px',
-        boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+        boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
       }}
     >
       {/* Title Header with Professional Icon + Status Pill */}
@@ -2154,149 +3164,24 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
       {/* Metric Rows */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
         {rows.map((row, i) => {
-          const isCritical = row.isCritical ?? (
-            row.dotColor === '#ef4444' ||
-            row.dotColor.toLowerCase().includes('ef4444') ||
-            row.dotColor.toLowerCase().includes('dc2626') ||
-            row.dotColor.toLowerCase().includes('red')
-          );
-
-          const isWarning = row.isWarning ?? (
-            !isCritical && (
-              row.dotColor === '#f59e0b' ||
-              row.dotColor === '#f97316' ||
-              row.dotColor === '#eab308' ||
-              row.dotColor.toLowerCase().includes('f59e0b') ||
-              row.dotColor.toLowerCase().includes('f97316') ||
-              row.dotColor.toLowerCase().includes('orange') ||
-              row.dotColor.toLowerCase().includes('amber')
-            )
-          );
-
-          const isIssue = isCritical || isWarning;
+          const rowKey = `${title}_${row.label}`;
+          const isExpanded = expandedBiomarkerKey === rowKey;
 
           return (
-            <div
+            <CategoryBiomarkerRow
               key={row.label + i}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(140px, 1.4fr) minmax(130px, 1.4fr) 64px',
-                alignItems: 'center',
-                padding: '6px 8px',
-                borderRadius: '6px',
-                backgroundColor: isCritical
-                  ? 'rgba(239, 68, 68, 0.14)'
-                  : isWarning
-                  ? 'rgba(239, 68, 68, 0.08)'
-                  : 'transparent',
-                border: isCritical
-                  ? '1px solid rgba(239, 68, 68, 0.38)'
-                  : isWarning
-                  ? '1px solid rgba(239, 68, 68, 0.22)'
-                  : '1px solid transparent',
-                borderBottom: isIssue
-                  ? (isCritical ? '1px solid rgba(239, 68, 68, 0.38)' : '1px solid rgba(239, 68, 68, 0.22)')
-                  : (i < rows.length - 1 ? '1px solid #1c1c1c' : '1px solid transparent'),
-                boxShadow: isCritical
-                  ? 'inset 0 0 14px rgba(239, 68, 68, 0.12)'
-                  : isWarning
-                  ? 'inset 0 0 8px rgba(239, 68, 68, 0.06)'
-                  : 'none',
-                transition: 'background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease',
-                fontSize: '11px',
+              cardTitle={title}
+              row={row}
+              index={i}
+              isExpanded={isExpanded}
+              onToggleExpand={() => {
+                if (onToggleRowExpand) {
+                  onToggleRowExpand(rowKey);
+                }
               }}
-            >
-              {/* Left: Metric Name with Reddish styling + Warning / Critical Icon */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, paddingRight: '4px' }}>
-                {isCritical ? (
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#ef4444"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ flexShrink: 0, filter: 'drop-shadow(0 0 4px rgba(239, 68, 68, 0.6))' }}
-                  >
-                    <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                ) : isWarning ? (
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#f87171"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ flexShrink: 0, filter: 'drop-shadow(0 0 4px rgba(248, 113, 113, 0.5))' }}
-                  >
-                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                    <line x1="12" y1="9" x2="12" y2="13" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                  </svg>
-                ) : null}
-                <span
-                  style={{
-                    color: isCritical ? '#f87171' : isWarning ? '#fca5a5' : '#a3a3a3',
-                    fontWeight: isIssue ? 600 : 400,
-                    letterSpacing: '0.01em',
-                    fontFamily: "'Tomorrow', sans-serif",
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                  title={row.label}
-                >
-                  {row.label}
-                </span>
-              </div>
-
-              {/* Middle: Real-time Status Dot + Tabular Numeral Value */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    backgroundColor: row.dotColor,
-                    flexShrink: 0,
-                    boxShadow: isCritical
-                      ? '0 0 8px #ef4444'
-                      : isWarning
-                      ? '0 0 6px #f87171'
-                      : `0 0 6px ${row.dotColor}80`,
-                  }}
-                />
-                <span
-                  style={{
-                    color: isCritical ? '#fca5a5' : isWarning ? '#ffffff' : '#f5f5f5',
-                    fontWeight: isIssue ? 700 : 600,
-                    fontFamily: 'var(--hud-font-mono, monospace)',
-                    fontVariantNumeric: 'tabular-nums',
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  {row.value}
-                </span>
-              </div>
-
-              {/* Right: Micro Sparkline or Subtle White Dotted Line */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', width: '64px' }}>
-                <MicroSparkline
-                  history={row.history}
-                  color={row.dotColor}
-                  width={64}
-                  height={18}
-                  noGraph={row.noGraph}
-                />
-              </div>
-            </div>
+              onOpenDeepAnalysis={onOpenDeepAnalysis}
+              isFastForward={isFastForward}
+            />
           );
         })}
       </div>
@@ -2310,8 +3195,8 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
             padding: '5px',
             borderRadius: '6px',
             border: '1px solid #333333',
-            backgroundColor: '#1a1a1a',
-            color: '#d4d4d4',
+            backgroundColor: '#141414',
+            color: '#cbd5e1',
             fontSize: '10px',
             fontWeight: 600,
             cursor: 'pointer',

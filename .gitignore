@@ -37,6 +37,8 @@ data/*.db*
 .idea/
 *.DS_Store
 Thumbs.db
+~$*
+~$*.docx
 
 # ── Secrets ──────────────────────────────────────────
 .env

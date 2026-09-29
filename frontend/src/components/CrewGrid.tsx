@@ -1,33 +1,68 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { TelemetryPacket } from '../types/telemetry';
 import { EcgRowCanvas } from './EcgRowCanvas';
 import { getAstronautOsdrProfile } from './HealthTelemetryView';
+import { evaluateCrewClinicalSummary } from '../utils/clinicalPrioritization';
+import { useStabilizedClinicalSummary } from '../hooks/useStabilizedClinicalSummary';
 
 interface CrewGridProps {
   telemetryMap: Record<string, TelemetryPacket>;
   onOpenTriage: (astId: string) => void;
 }
 
-const CREW_METADATA = [
-  { id: 'AST-01_COMMANDER', name: 'Cmndr Haley', role: 'Mission Commander', age: 38 },
-  { id: 'AST-02_PILOT', name: 'Pilot Chris', role: 'Flight Pilot', age: 42 },
+interface CrewMetadataItem {
+  id: string;
+  altId?: string;
+  name: string;
+  role: string;
+  roleShort: string;
+  callsign: string;
+  avatar: string;
+  age: number;
+}
+
+const CREW_METADATA: CrewMetadataItem[] = [
+  {
+    id: 'AST-01_COMMANDER',
+    name: 'Cmndr Haley',
+    callsign: 'HALEY',
+    role: 'Mission Commander',
+    roleShort: 'CDR',
+    avatar: '/crew/haley.jpg',
+    age: 38,
+  },
+  {
+    id: 'AST-02_PILOT',
+    name: 'Pilot Chris',
+    callsign: 'CHRIS',
+    role: 'Flight Pilot',
+    roleShort: 'PLT',
+    avatar: '/crew/chris.jpg',
+    age: 42,
+  },
   {
     id: 'AST-03_MEDICAL',
     altId: 'AST-03_MEDICAL_SPECIALIST',
     name: 'Dr. Sian',
+    callsign: 'SIAN',
     role: 'Medical Specialist',
+    roleShort: 'MED',
+    avatar: '/crew/sian.jpg',
     age: 29,
   },
   {
     id: 'AST-04_ENGINEER',
     altId: 'AST-04_MISSION_SPECIALIST',
     name: 'Specialist Leo',
+    callsign: 'LEO',
     role: 'Systems Engineer',
+    roleShort: 'ENG',
+    avatar: '/crew/leo.jpg',
     age: 45,
   },
 ];
 
-// ─── Status badge renderers ─────────────────────────────────────────────────
+// ─── Mission State Badge ───────────────────────────────────────────────────
 
 const renderMissionBadge = (stateRaw?: string) => {
   const state = (stateRaw || 'REST').toUpperCase();
@@ -55,8 +90,8 @@ const renderMissionBadge = (stateRaw?: string) => {
     },
     REST: {
       color: '#94a3b8',
-      border: 'rgba(148,163,184,0.12)',
-      bg: 'rgba(30, 41, 59, 0.90)',
+      border: 'rgba(148,163,184,0.18)',
+      bg: 'rgba(30, 41, 59, 0.40)',
       label: 'REST',
       iconPath: 'M22 12h-4l-3 9L9 3l-3 9H2',
     },
@@ -68,9 +103,9 @@ const renderMissionBadge = (stateRaw?: string) => {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '4px',
-        padding: '2px 7px',
-        borderRadius: '4px',
-        fontSize: '10px',
+        padding: '2px 6px',
+        borderRadius: '3px',
+        fontSize: '9px',
         fontWeight: 700,
         letterSpacing: '0.04em',
         color: cfg.color,
@@ -79,7 +114,7 @@ const renderMissionBadge = (stateRaw?: string) => {
         whiteSpace: 'nowrap',
       }}
     >
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
         <path d={cfg.iconPath} />
       </svg>
       {cfg.label}
@@ -87,677 +122,177 @@ const renderMissionBadge = (stateRaw?: string) => {
   );
 };
 
-const renderSeverityBadge = (severityRaw: string) => {
-  const sev = (severityRaw || 'NOMINAL').toUpperCase();
-  if (sev === 'CRITICAL') {
-    return (
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '4px',
-          padding: '2px 7px',
-          borderRadius: '4px',
-          fontSize: '10px',
-          fontWeight: 700,
-          letterSpacing: '0.04em',
-          color: '#facc15',
-          border: '1px solid rgba(250, 204, 21, 0.40)',
-          background: 'rgba(250, 204, 21, 0.18)',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
-        CRITICAL
-      </span>
-    );
-  }
-  if (sev === 'WARNING') {
-    return (
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '4px',
-          padding: '2px 7px',
-          borderRadius: '4px',
-          fontSize: '10px',
-          fontWeight: 700,
-          letterSpacing: '0.04em',
-          color: '#fde047',
-          border: '1px solid rgba(250, 204, 21, 0.45)',
-          background: 'rgba(250, 204, 21, 0.16)',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-          <line x1="12" y1="9" x2="12" y2="13" />
-          <line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
-        WARNING
-      </span>
-    );
-  }
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-        padding: '2px 7px',
-        borderRadius: '4px',
-        fontSize: '10px',
-        fontWeight: 700,
-        letterSpacing: '0.04em',
-        color: '#34d399',
-        border: '1px solid rgba(16, 185, 129, 0.25)',
-        background: 'rgba(16, 185, 129, 0.32)',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        <path d="m9 12 2 2 4-4" />
-      </svg>
-      NOMINAL
-    </span>
-  );
-};
-
 // ─── Main CrewGrid ──────────────────────────────────────────────────────────
 
-export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }) => {
+interface CrewCardRowProps {
+  crew: CrewMetadataItem;
+  telemetry?: TelemetryPacket;
+  onOpenTriage: (astId: string) => void;
+}
+
+const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage }) => {
+  const profile = getAstronautOsdrProfile(crew.id);
+  const rawSummary = useMemo(
+    () => evaluateCrewClinicalSummary(crew.id, telemetry, profile),
+    [crew.id, telemetry, profile]
+  );
+  // 1-second clinical state dwell time machine: prevents rapid view flipping from sensor noise
+  const summary = useStabilizedClinicalSummary(crew.id, rawSummary, 1000);
+
+  const isCritical = summary.severity === 'CRITICAL';
+  const isWarning = summary.severity === 'WARNING';
+  const isAbnormal = summary.isAbnormal;
+
+  const borderColor = isCritical
+    ? '#facc15'
+    : isWarning
+    ? 'rgba(250, 204, 21, 0.65)'
+    : 'var(--hud-border)';
+
+  const statusColor = isCritical
+    ? '#ef4444'
+    : isWarning
+    ? '#f59e0b'
+    : '#22c55e';
+
   return (
     <div
       style={{
         display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        marginBottom: '16px',
+        alignItems: 'stretch',
+        gap: '0',
+        background: 'var(--hud-bg-card)',
+        border: `1px solid ${borderColor}`,
+        borderRadius: 'var(--hud-radius-card)',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        minHeight: '176px',
+        boxShadow: isCritical
+          ? '0 0 0 1px rgba(250, 204, 21, 0.35), 0 2px 16px rgba(250, 204, 21, 0.15)'
+          : isWarning
+          ? '0 0 0 1px rgba(250, 204, 21, 0.20)'
+          : 'none',
+        transition: 'box-shadow 400ms ease, border-color 400ms ease, background 400ms ease',
       }}
     >
-      {CREW_METADATA.map((crew) => {
-        const telemetry =
-          telemetryMap[crew.id] ||
-          (crew.altId ? telemetryMap[crew.altId] : undefined);
-        const severity = telemetry?.evaluated_severity || 'NOMINAL';
-        const isWarning = severity === 'WARNING';
-        const isCritical = severity === 'CRITICAL';
-
-        const profile = getAstronautOsdrProfile(crew.id);
-        const isHypokalemia = (telemetry?.potassium !== undefined && (telemetry.potassium < 3.3 || telemetry.potassium > 5.5)) ||
-          ((telemetry?.scenario_phase?.includes('HYPOKALEMIA')) ?? false);
-        const isInflammationSpike = (telemetry?.il_6 !== undefined && telemetry.il_6 > 12.0) ||
-          ((telemetry?.scenario_phase?.includes('AMMONIA') || telemetry?.scenario_phase?.includes('SMOLDER') || telemetry?.scenario_phase?.includes('SEPSIS')) ?? false);
-        const isHematocritShift = (telemetry?.hematocrit !== undefined && Math.abs(telemetry.hematocrit - 44.2) > 4.5);
-
-        const potassiumVal: number = (isHypokalemia && telemetry?.potassium !== undefined) ? telemetry.potassium : profile.k;
-        const il6Val: number = (isInflammationSpike && telemetry?.il_6 !== undefined) ? telemetry.il_6 : profile.il6;
-        const hctVal: number = (isHematocritShift && telemetry?.hematocrit !== undefined) ? telemetry.hematocrit : profile.hct;
-        const wbcVal: number = (isInflammationSpike && telemetry?.wbc_count !== undefined) ? telemetry.wbc_count : profile.wbc;
-
-        const borderColor = isCritical
-          ? '#facc15'
-          : isWarning
-          ? 'rgba(250, 204, 21, 0.65)'
-          : 'var(--hud-border)';
-
-        return (
-          <div
-            key={crew.id}
-            style={{
-              display: 'flex',
-              alignItems: 'stretch',
-              gap: '0',
-              background: 'var(--hud-bg-card)',
-              border: `1px solid ${borderColor}`,
-              borderRadius: 'var(--hud-radius-card)',
-              overflow: 'hidden',
-              boxSizing: 'border-box',
-              // Yellow glow on critical / warning
-              boxShadow: isCritical
-                ? '0 0 0 1px rgba(250, 204, 21, 0.35), 0 2px 16px rgba(250, 204, 21, 0.15)'
-                : isWarning
-                ? '0 0 0 1px rgba(250, 204, 21, 0.20)'
-                : 'none',
-              transition: 'box-shadow 200ms ease, border-color 200ms ease',
-            }}
-          >
-            {/* ── LEFT: Crew telemetry card ─────────────────────────────── */}
+            {/* ── ZONE 1: INTEGRATED CREW IDENTITY & TRIAGE BLOCK ──────── */}
             <div
               style={{
-                width: '430px',
+                width: '148px',
                 flexShrink: 0,
-                padding: '12px 16px',
+                padding: '12px 10px',
                 borderRight: '1px solid var(--hud-border-subtle)',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                textAlign: 'center',
+                background: 'rgba(0, 0, 0, 0.25)',
+                boxSizing: 'border-box',
               }}
             >
-              {/* Card header */}
+              {/* Astronaut Avatar with Live Severity Glow Ring */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  border: `2px solid ${statusColor}`,
+                  boxShadow: isCritical
+                    ? '0 0 12px rgba(239, 68, 68, 0.50)'
+                    : isWarning
+                    ? '0 0 8px rgba(245, 158, 11, 0.40)'
+                    : '0 0 6px rgba(34, 197, 94, 0.30)',
+                  backgroundColor: '#0f172a',
+                }}
+              >
+                <img
+                  src={crew.avatar}
+                  alt={crew.name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: '2px',
+                    right: '2px',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: statusColor,
+                    border: '1.5px solid #000000',
+                    boxShadow: `0 0 4px ${statusColor}`,
+                  }}
+                />
+              </div>
+
+              {/* Callsign + Name + Role + Mission State */}
               <div
                 style={{
                   display: 'flex',
-                  alignItems: 'baseline',
-                  justifyContent: 'space-between',
-                  paddingBottom: '7px',
-                  borderBottom: '1px solid var(--hud-border-subtle)',
-                  marginBottom: '8px',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '2px',
+                  width: '100%',
                 }}
               >
-                <div>
-                  <div
-                    style={{
-                      fontSize: '14px',
-                      fontWeight: 700,
-                      color: '#ffffff',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {crew.name}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '11px',
-                      color: 'rgba(148, 163, 184, 0.85)',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {crew.role}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  {renderMissionBadge(telemetry?.mission_state)}
-                  {renderSeverityBadge(severity)}
-                </div>
-              </div>
-
-              {/* Vitals 2×2 grid */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  columnGap: '14px',
-                  rowGap: '6px',
-                  marginBottom: '8px',
-                }}
-              >
-                {/* Heart Rate */}
-                <div>
-                  <div
-                    style={{
-                      fontSize: '10px',
-                      color: 'rgba(148, 163, 184, 0.8)',
-                      fontWeight: 700,
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    HEART RATE
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'baseline',
-                      gap: '3px',
-                      marginTop: '2px',
-                    }}
-                  >
-                    <span
-                      className="font-mono-tabular"
-                      style={{
-                        fontSize: '20px',
-                        fontWeight: 700,
-                        color:
-                          (telemetry?.heart_rate ?? profile.restHr) > 100
-                            ? 'var(--hud-orange)'
-                            : '#ffffff',
-                      }}
-                    >
-                      {telemetry ? telemetry.heart_rate.toFixed(0) : profile.restHr.toFixed(0)}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.75)' }}>
-                      BPM
-                    </span>
-                  </div>
-                </div>
-
-                {/* HRV */}
-                <div>
-                  <div
-                    style={{
-                      fontSize: '10px',
-                      color: 'rgba(148, 163, 184, 0.8)',
-                      fontWeight: 700,
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    HRV
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'baseline',
-                      gap: '3px',
-                      marginTop: '2px',
-                    }}
-                  >
-                    <span
-                      className="font-mono-tabular"
-                      style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff' }}
-                    >
-                      {telemetry ? telemetry.hrv_rmssd.toFixed(0) : profile.restHrv.toFixed(0)}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.75)' }}>
-                      ms
-                    </span>
-                  </div>
-                </div>
-
-                {/* SpO2 */}
-                <div>
-                  <div
-                    style={{
-                      fontSize: '10px',
-                      color: 'rgba(148, 163, 184, 0.8)',
-                      fontWeight: 700,
-                      letterSpacing: '0.04em',
-                      lineHeight: 1,
-                    }}
-                  >
-                    SpO<sub style={{ fontSize: '7px', verticalAlign: 'baseline', position: 'relative', top: '1px' }}>2</sub>
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'baseline',
-                      gap: '3px',
-                      marginTop: '2px',
-                    }}
-                  >
-                    <span
-                      className="font-mono-tabular"
-                      style={{
-                        fontSize: '20px',
-                        fontWeight: 700,
-                        color:
-                          (telemetry?.spo2 ?? profile.restSpo2) < 95
-                            ? 'var(--hud-critical)'
-                            : '#ffffff',
-                      }}
-                    >
-                      {telemetry ? telemetry.spo2.toFixed(1) : profile.restSpo2.toFixed(1)}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.75)' }}>
-                      %
-                    </span>
-                  </div>
-                </div>
-
-                {/* Core Temp */}
-                <div>
-                  <div
-                    style={{
-                      fontSize: '10px',
-                      color: 'rgba(148, 163, 184, 0.8)',
-                      fontWeight: 700,
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    CORE TEMP
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'baseline',
-                      gap: '3px',
-                      marginTop: '2px',
-                    }}
-                  >
-                    <span
-                      className="font-mono-tabular"
-                      style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff' }}
-                    >
-                      {telemetry ? telemetry.core_temp.toFixed(1) : profile.restTemp.toFixed(1)}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.75)' }}>
-                      °C
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* POC Labs biomarker strip */}
-              <div
-                style={{
-                  background: 'rgba(0, 0, 0, 0.42)',
-                  border: '1px solid rgba(148, 163, 184, 0.18)',
-                  borderRadius: '6px',
-                  padding: '8px 10px',
-                  marginBottom: '8px',
-                  boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.45)',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '6px',
-                    gap: '6px',
-                  }}
-                >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <span
                     style={{
-                      whiteSpace: 'nowrap',
                       fontSize: '11px',
-                      fontWeight: 700,
-                      letterSpacing: '0.05em',
-                      color: 'rgba(148, 163, 184, 0.85)',
+                      fontWeight: 800,
+                      color: '#ffffff',
+                      letterSpacing: '0.04em',
+                      fontFamily: "'Tomorrow', sans-serif",
                     }}
                   >
-                    POC LABS
+                    {crew.callsign}
                   </span>
-                  {telemetry?.computed_rsi &&
-                  (telemetry.computed_rsi >= 0.35 ||
-                    (telemetry.radiation_flux && telemetry.radiation_flux >= 10.0)) ? (
-                    <span
-                      className="font-mono-tabular"
-                      style={{
-                        color:
-                          telemetry.computed_rsi >= 1.0
-                            ? 'var(--hud-critical)'
-                            : 'var(--hud-orange)',
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                        fontSize: '11px',
-                      }}
-                    >
-                      RSI {telemetry.computed_rsi.toFixed(2)}
-                    </span>
-                  ) : telemetry?.computed_epi && telemetry.computed_epi >= 0.9 ? (
-                    <span
-                      className="font-mono-tabular"
-                      style={{
-                        color: 'var(--hud-critical)',
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                        fontSize: '11px',
-                      }}
-                    >
-                      EPI {telemetry.computed_epi.toFixed(2)}
-                    </span>
-                  ) : (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        color: 'var(--hud-nominal)',
-                        fontWeight: 600,
-                        whiteSpace: 'nowrap',
-                        fontSize: '11px',
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: '5px',
-                          height: '5px',
-                          borderRadius: '50%',
-                          backgroundColor: 'var(--hud-nominal)',
-                          display: 'inline-block',
-                        }}
-                      />
-                      In Range
-                    </span>
-                  )}
+                  <span
+                    style={{
+                      fontSize: '8px',
+                      fontWeight: 700,
+                      padding: '1px 4px',
+                      borderRadius: '3px',
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.16)',
+                      color: '#cbd5e1',
+                    }}
+                  >
+                    {crew.roleShort}
+                  </span>
                 </div>
 
-                {/* Biomarker row 1 */}
                 <div
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(4, 1fr)',
-                    gap: '6px',
-                    textAlign: 'left',
-                    marginBottom: '6px',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    color: 'rgba(148, 163, 184, 0.90)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '136px',
                   }}
                 >
-                  <div>
-                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>K⁺</div>
-                    <div
-                      className="font-mono-tabular"
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        color:
-                          potassiumVal < 3.5
-                            ? 'var(--hud-critical)'
-                            : potassiumVal < 3.8
-                            ? 'var(--hud-orange)'
-                            : '#ffffff',
-                      }}
-                    >
-                      {potassiumVal.toFixed(2)}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>IL-6</div>
-                    <div
-                      className="font-mono-tabular"
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        color:
-                          il6Val >= 15.0
-                            ? 'var(--hud-critical)'
-                            : il6Val >= 10.0
-                            ? 'var(--hud-orange)'
-                            : '#ffffff',
-                      }}
-                    >
-                      {il6Val.toFixed(1)}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>HCT</div>
-                    <div
-                      className="font-mono-tabular"
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        color:
-                          hctVal >= 50.0
-                            ? 'var(--hud-critical)'
-                            : hctVal >= 48.0
-                            ? 'var(--hud-orange)'
-                            : '#ffffff',
-                      }}
-                    >
-                      {hctVal.toFixed(1)}
-                      <span style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(148, 163, 184, 0.75)', marginLeft: '1px' }}>%</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>WBC</div>
-                    <div
-                      className="font-mono-tabular"
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        color:
-                          wbcVal >= 14.0 || wbcVal < 3.0
-                            ? 'var(--hud-critical)'
-                            : wbcVal >= 11.0
-                            ? 'var(--hud-orange)'
-                            : '#ffffff',
-                      }}
-                    >
-                      {wbcVal.toFixed(1)}
-                      <span style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(148, 163, 184, 0.75)', marginLeft: '1px' }}>k</span>
-                    </div>
-                  </div>
+                  {crew.name}
                 </div>
 
-                {/* Biomarker row 2 */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(4, 1fr)',
-                    gap: '6px',
-                    textAlign: 'left',
-                    borderTop: '1px solid rgba(255,255,255,0.06)',
-                    paddingTop: '6px',
-                  }}
-                >
-                  <div>
-                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>FLUX</div>
-                    <div
-                      className="font-mono-tabular"
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        color:
-                          (telemetry?.radiation_flux ?? 0.05) >= 100.0
-                            ? 'var(--hud-critical)'
-                            : (telemetry?.radiation_flux ?? 0.05) >= 10.0
-                            ? 'var(--hud-orange)'
-                            : '#ffffff',
-                      }}
-                    >
-                      {telemetry?.radiation_flux !== undefined
-                        ? telemetry.radiation_flux >= 1.0
-                          ? telemetry.radiation_flux.toFixed(0)
-                          : telemetry.radiation_flux.toFixed(2)
-                        : '0.05'}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>ALC</div>
-                    <div
-                      className="font-mono-tabular"
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        color:
-                          (telemetry?.lymphocyte_count ?? 2.2) < 1.0
-                            ? 'var(--hud-critical)'
-                            : (telemetry?.lymphocyte_count ?? 2.2) < 1.5
-                            ? 'var(--hud-orange)'
-                            : '#ffffff',
-                      }}
-                    >
-                      {telemetry?.lymphocyte_count
-                        ? telemetry.lymphocyte_count.toFixed(1)
-                        : '2.2'}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>DOSE</div>
-                    <div
-                      className="font-mono-tabular"
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        color:
-                          (telemetry?.radiation_dose_gy ?? 0) >= 1.0
-                            ? 'var(--hud-critical)'
-                            : (telemetry?.radiation_dose_gy ?? 0) >= 0.5
-                            ? 'var(--hud-orange)'
-                            : '#ffffff',
-                      }}
-                    >
-                      {telemetry?.radiation_dose_gy !== undefined
-                        ? `${telemetry.radiation_dose_gy.toFixed(2)}`
-                        : '0.00'}
-                      <span style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(148, 163, 184, 0.75)', marginLeft: '1px' }}>Gy</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ color: 'rgba(148, 163, 184, 0.8)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.02em' }}>PLT</div>
-                    <div
-                      className="font-mono-tabular"
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        color:
-                          (telemetry?.platelet_count ?? 240.0) >= 380.0 ||
-                          (telemetry?.platelet_count ?? 240.0) < 100.0
-                            ? 'var(--hud-critical)'
-                            : (telemetry?.platelet_count ?? 240.0) >= 320.0
-                            ? 'var(--hud-orange)'
-                            : '#ffffff',
-                      }}
-                    >
-                      {telemetry?.platelet_count
-                        ? telemetry.platelet_count.toFixed(0)
-                        : '240'}
-                      <span style={{ fontSize: '10px', fontWeight: 500, color: 'rgba(148, 163, 184, 0.75)', marginLeft: '1px' }}>k</span>
-                    </div>
-                  </div>
+                <div style={{ marginTop: '2px' }}>
+                  {renderMissionBadge(telemetry?.mission_state)}
                 </div>
               </div>
 
-              {/* Bottom: Z-score + Telemetry / Triage action button */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingTop: '6px',
-                  borderTop: '1px solid var(--hud-border-subtle)',
-                  marginTop: '6px',
-                }}
-              >
-                <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.75)' }}>
-                  {telemetry &&
-                  Math.abs(telemetry.z_score_hr) >= 2.0 &&
-                  !(telemetry.mission_state === 'WORKOUT' && severity === 'NOMINAL') ? (
-                    <span
-                      className="font-mono-tabular"
-                      style={{
-                        color:
-                          Math.abs(telemetry.z_score_hr) >= 3.0
-                            ? 'var(--hud-critical)'
-                            : 'var(--hud-orange)',
-                        fontWeight: 600,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <span>
-                        {telemetry.z_score_hr >= 0 ? '▲ HR Elevated' : '▼ HR Depressed'}
-                      </span>
-                      <span style={{ fontSize: '10px', opacity: 0.85 }}>
-                        (
-                        {telemetry.z_score_hr >= 0
-                          ? `+${telemetry.z_score_hr.toFixed(1)}σ`
-                          : `${telemetry.z_score_hr.toFixed(1)}σ`}
-                        )
-                      </span>
-                    </span>
-                  ) : (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                      <span
-                        style={{
-                          width: '4px',
-                          height: '4px',
-                          borderRadius: '50%',
-                          backgroundColor: 'rgba(148, 163, 184, 0.5)',
-                          display: 'inline-block',
-                        }}
-                      />
-                      Baseline Calibrated
-                    </span>
-                  )}
-                </div>
-
+              {/* Action Button: Triage Alert vs Telemetry */}
+              <div style={{ width: '100%', marginTop: '2px' }}>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -765,13 +300,15 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                   }}
                   className="hud-btn"
                   style={{
-                    padding: '4px 12px',
+                    width: '100%',
+                    padding: '4px 6px',
                     minHeight: '26px',
-                    fontSize: '11px',
-                    fontWeight: 600,
+                    fontSize: '10px',
+                    fontWeight: 700,
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '5px',
+                    justifyContent: 'center',
+                    gap: '4px',
                     borderRadius: '4px',
                     background: isCritical
                       ? 'rgba(250, 204, 21, 0.20)'
@@ -790,24 +327,343 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                       : '#f1f5f9',
                     boxShadow: '0 1px 2px rgba(0, 0, 0, 0.35)',
                     transition: 'all 0.15s ease',
+                    cursor: 'pointer',
                   }}
                 >
                   {isCritical || isWarning ? (
                     <>
                       <span>Triage Alert</span>
-                      <span style={{ fontSize: '11px' }}>→</span>
+                      <span style={{ fontSize: '10px' }}>→</span>
                     </>
                   ) : (
                     <>
                       <span>Telemetry</span>
-                      <span style={{ fontSize: '11px', opacity: 0.85 }}>→</span>
+                      <span style={{ fontSize: '10px', opacity: 0.85 }}>→</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
 
-            {/* ── RIGHT: Inline ECG canvas ─────────────────────────────── */}
+            {/* ── ZONE 2: ADAPTIVE DYNAMIC CLINICAL SUMMARY ────────────── */}
+            <div
+              style={{
+                width: '335px',
+                flexShrink: 0,
+                padding: '10px 14px',
+                borderRight: '1px solid var(--hud-border-subtle)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                background: isAbnormal ? 'rgba(0, 0, 0, 0.22)' : 'rgba(0, 0, 0, 0.10)',
+                boxSizing: 'border-box',
+              }}
+            >
+              {/* Top Banner: Primary Clinical Concern vs Nominal Resting Profile */}
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '6px',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    background: summary.primaryConcern.bgColor,
+                    border: `1px solid ${summary.primaryConcern.borderColor}`,
+                    marginBottom: '8px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: summary.primaryConcern.color,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: '9.5px',
+                        fontWeight: 700,
+                        color: summary.primaryConcern.color,
+                        letterSpacing: '0.04em',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        fontFamily: "'Tomorrow', sans-serif",
+                      }}
+                    >
+                      {summary.primaryConcern.title}
+                    </span>
+                  </div>
+
+                  <span
+                    style={{
+                      fontSize: '9px',
+                      fontWeight: 700,
+                      color: isCritical ? '#facc15' : isWarning ? '#fde047' : '#34d399',
+                      padding: '1px 5px',
+                      borderRadius: '3px',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      flexShrink: 0,
+                      fontFamily: "'Tomorrow', sans-serif",
+                    }}
+                  >
+                    PRI {summary.physReserveIndex}%
+                  </span>
+                </div>
+
+                {/* Adaptive Middle: Prioritized Biomarkers (Abnormal) OR Baseline Vitals (Nominal) */}
+                {isAbnormal ? (
+                  /* ABNORMAL: Prioritized 4 Deviating Biomarkers */
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '6px',
+                    }}
+                  >
+                    {summary.prioritizedBiomarkers.map((bio) => {
+                      const isBioCrit = bio.tier === 'CRITICAL';
+                      const isBioWarn = bio.tier === 'WARNING';
+                      const valColor = isBioCrit
+                        ? 'var(--hud-critical)'
+                        : isBioWarn
+                        ? 'var(--hud-orange)'
+                        : '#ffffff';
+
+                      const pillColor = isBioCrit
+                        ? '#ef4444'
+                        : isBioWarn
+                        ? '#f59e0b'
+                        : '#64748b';
+
+                      return (
+                        <div
+                          key={bio.id}
+                          style={{
+                            background: 'rgba(0, 0, 0, 0.40)',
+                            border: `1px solid ${
+                              isBioCrit
+                                ? 'rgba(239, 68, 68, 0.35)'
+                                : isBioWarn
+                                ? 'rgba(245, 158, 11, 0.30)'
+                                : 'rgba(255, 255, 255, 0.08)'
+                            }`,
+                            borderRadius: '5px',
+                            padding: '5px 7px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px',
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: '9px',
+                                fontWeight: 700,
+                                color: 'rgba(148, 163, 184, 0.85)',
+                                letterSpacing: '0.03em',
+                              }}
+                            >
+                              {bio.symbol}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '8px',
+                                fontWeight: 700,
+                                padding: '0 4px',
+                                borderRadius: '2px',
+                                color: pillColor,
+                                background: `${pillColor}15`,
+                                border: `1px solid ${pillColor}35`,
+                              }}
+                            >
+                              {bio.tier === 'CRITICAL' ? 'CRIT' : bio.tier === 'WARNING' ? 'WARN' : 'DEV'}
+                            </span>
+                          </div>
+
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'baseline',
+                              justifyContent: 'space-between',
+                              gap: '4px',
+                            }}
+                          >
+                            <span
+                              className="font-mono-tabular"
+                              style={{
+                                fontSize: '13px',
+                                fontWeight: 800,
+                                color: valColor,
+                                lineHeight: 1.1,
+                              }}
+                            >
+                              {bio.formattedValue}
+                            </span>
+                            <span
+                              className="font-mono-tabular"
+                              style={{
+                                fontSize: '8.5px',
+                                fontWeight: 600,
+                                color: bio.deltaStr.includes('↑')
+                                  ? '#f87171'
+                                  : bio.deltaStr.includes('↓')
+                                  ? '#38bdf8'
+                                  : '#94a3b8',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {bio.deltaStr}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* NOMINAL: Visually Quiet Baseline Profile */
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '7px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '9px',
+                        color: 'rgba(148, 163, 184, 0.80)',
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      All biometrics aligned with resting baseline. Zero critical delta.
+                    </div>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
+                        gap: '4px',
+                      }}
+                    >
+                      {/* HR */}
+                      <div
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid rgba(255, 255, 255, 0.07)',
+                          borderRadius: '4px',
+                          padding: '4px 6px',
+                        }}
+                      >
+                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>HR</div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
+                          {summary.nominalVitals.hr.val} <span style={{ fontSize: '7.5px', color: '#64748b' }}>bpm</span>
+                        </div>
+                      </div>
+                      {/* SpO2 */}
+                      <div
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid rgba(255, 255, 255, 0.07)',
+                          borderRadius: '4px',
+                          padding: '4px 6px',
+                        }}
+                      >
+                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>SpO₂</div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
+                          {summary.nominalVitals.spo2.val}<span style={{ fontSize: '7.5px', color: '#64748b' }}>%</span>
+                        </div>
+                      </div>
+                      {/* TEMP */}
+                      <div
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid rgba(255, 255, 255, 0.07)',
+                          borderRadius: '4px',
+                          padding: '4px 6px',
+                        }}
+                      >
+                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>TEMP</div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
+                          {summary.nominalVitals.temp.val}<span style={{ fontSize: '7.5px', color: '#64748b' }}>°C</span>
+                        </div>
+                      </div>
+                      {/* BP */}
+                      <div
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid rgba(255, 255, 255, 0.07)',
+                          borderRadius: '4px',
+                          padding: '4px 6px',
+                        }}
+                      >
+                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>BP</div>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
+                          {summary.nominalVitals.bp.val}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Trajectory & NASA OSDR Calibration Footnote */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingTop: '6px',
+                  borderTop: '1px solid var(--hud-border-subtle)',
+                  marginTop: '6px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '9.5px',
+                    fontWeight: 700,
+                    color: summary.trajectory.color,
+                    letterSpacing: '0.03em',
+                    fontFamily: "'Tomorrow', sans-serif",
+                  }}
+                >
+                  <span>{summary.trajectory.label}</span>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: '9px',
+                    color: 'rgba(148, 163, 184, 0.65)',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  NASA-OSDR
+                </div>
+              </div>
+            </div>
+
+            {/* ── ZONE 3: REAL-TIME DUAL-TRACE WAVEFORM CANVAS ──────────── */}
             <div
               style={{
                 flex: 1,
@@ -815,38 +671,77 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                 minHeight: 0,
                 display: 'flex',
                 flexDirection: 'column',
-                padding: '10px 12px 12px',
+                padding: '8px 12px 10px',
                 gap: '0',
+                background: 'rgba(0, 0, 0, 0.20)',
               }}
             >
-              {/* Row title */}
+              {/* Telemetry Canvas Header */}
               <div
                 style={{
-                  fontSize: '10px',
+                  fontSize: '9.5px',
                   fontWeight: 700,
-                  color: 'rgba(148, 163, 184, 0.75)',
-                  letterSpacing: '0.06em',
-                  marginBottom: '6px',
+                  color: 'rgba(148, 163, 184, 0.85)',
+                  letterSpacing: '0.05em',
+                  marginBottom: '4px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  justifyContent: 'space-between',
                   flexShrink: 0,
                 }}
               >
-                <span>BIOMETRIC WAVEFORM</span>
-                <span
-                  style={{
-                    fontSize: '9px',
-                    color: '#3d4f6a',
-                    fontWeight: 500,
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  · Real-time 10 Hz Feed
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: '#ffffff', fontFamily: "'Tomorrow', sans-serif" }}>
+                    {crew.callsign} · DUAL-TRACE BIOMETRIC FEED
+                  </span>
+                  <span style={{ color: '#475569', fontSize: '9px' }}>|</span>
+                  <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 500 }}>
+                    ECG Lead-II + SpO₂ Plethysmogram
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    className="font-mono-tabular"
+                    style={{
+                      fontSize: '9.5px',
+                      fontWeight: 700,
+                      color: summary.nominalVitals.hr.val > 100 && !telemetry?.mission_state?.includes('WORKOUT')
+                        ? 'var(--hud-orange)'
+                        : '#ffffff',
+                    }}
+                  >
+                    {summary.nominalVitals.hr.val} BPM
+                  </span>
+                  <span style={{ color: '#475569', fontSize: '9px' }}>•</span>
+                  <span
+                    className="font-mono-tabular"
+                    style={{
+                      fontSize: '9.5px',
+                      fontWeight: 700,
+                      color: summary.nominalVitals.spo2.val < 95 ? 'var(--hud-critical)' : '#ffffff',
+                    }}
+                  >
+                    {summary.nominalVitals.spo2.val}% SpO₂
+                  </span>
+                  <span style={{ color: '#475569', fontSize: '9px' }}>•</span>
+                  <span
+                    style={{
+                      fontSize: '9px',
+                      fontWeight: 600,
+                      color: isCritical
+                        ? '#ef4444'
+                        : isWarning
+                        ? '#f59e0b'
+                        : '#22c55e',
+                    }}
+                  >
+                    {summary.severity === 'NOMINAL' ? 'SINUS' : isCritical ? 'ARRHYTHMIA / CRIT' : 'TACHY / WARN'}
+                  </span>
+                </div>
               </div>
 
-              {/* ECG row canvas — fills remaining column height flush to the bottom */}
+              {/* ECG row canvas — fills remaining column height flush */}
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                 <EcgRowCanvas
                   astronautId={crew.id}
@@ -854,7 +749,32 @@ export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }
                 />
               </div>
             </div>
-          </div>
+    </div>
+  );
+};
+
+export const CrewGrid: React.FC<CrewGridProps> = ({ telemetryMap, onOpenTriage }) => {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        marginBottom: '16px',
+      }}
+    >
+      {CREW_METADATA.map((crew) => {
+        const telemetry =
+          telemetryMap[crew.id] ||
+          (crew.altId ? telemetryMap[crew.altId] : undefined);
+
+        return (
+          <CrewCardRow
+            key={crew.id}
+            crew={crew}
+            telemetry={telemetry}
+            onOpenTriage={onOpenTriage}
+          />
         );
       })}
     </div>

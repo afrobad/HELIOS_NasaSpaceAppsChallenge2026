@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AHTS Device Network Panel</title>
+  <style>
+    :root {
+      --bg: #071018;
+      --panel: #0d1721;
+      --card: #111f2b;
+      --border: #243746;
+      --text: #e8f1f7;
+      --muted: #93a7b7;
+      --accent: #54d8ff;
+      --accent-bg: rgba(84, 216, 255, 0.12);
+      --good: #57d68d;
+      --warning: #f4c15d;
+      --danger: #ff6b6b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(84,216,255,.08), transparent 30%),
+        linear-gradient(180deg, #050b10 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      width: min(1200px, calc(100% - 32px));
+      margin: 32px auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .header p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .network-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 12px;
+      background: var(--panel);
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--good);
+      box-shadow: 0 0 10px rgba(87,214,141,.65);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 370px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .telemetry,
+    .device-panel {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(13,23,33,.92);
+      overflow: hidden;
+    }
+
+    .telemetry {
+      padding: 22px;
+    }
+
+    .telemetry h2,
+    .device-panel h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .telemetry-sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .health-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .health-card .label {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .health-card .value {
+      margin-top: 6px;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .health-card .meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .device-panel {
+      padding: 18px;
+    }
+
+    .panel-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .panel-top small {
+      color: var(--muted);
+      display: block;
+      margin-top: 4px;
+    }
+
+    .panel-summary {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .filter-btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 11px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .filter-btn:hover,
+    .filter-btn.active {
+      background: var(--accent-bg);
+      border-color: rgba(84,216,255,.45);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 12px 0 10px;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .device-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .device-row {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .device-row:hover {
+      border-color: rgba(84,216,255,.4);
+    }
+
+    .device-row[aria-expanded="true"] {
+      border-color: var(--accent);
+    }
+
+    .device-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .device-title-wrap {
+      min-width: 0;
+    }
+
+    .device-title {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .purpose {
+      color: var(--muted);
+      margin-top: 5px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-size: 10px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .badge.mode {
+      background: var(--accent-bg);
+    }
+
+    .badge.good {
+      color: var(--good);
+    }
+
+    .expanded {
+      display: none;
+      border-top: 1px solid var(--border);
+      margin-top: 12px;
+      padding-top: 12px;
+    }
+
+    .device-row[aria-expanded="true"] .expanded {
+      display: block;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .info-box {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px;
+      background: rgba(255,255,255,.02);
+    }
+
+    .info-box .k {
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .info-box .v {
+      margin-top: 5px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .group {
+      margin-top: 12px;
+    }
+
+    .group-title {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 11px;
+      background: rgba(255,255,255,.02);
+    }
+
+    .reading-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .reading {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      background: rgba(255,255,255,.02);
+    }
+
+    .reading .name {
+      color: var(--muted);
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .reading .val {
+      margin-top: 5px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .updated {
+      margin-top: 12px;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    @media (max-width: 920px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .app {
+        width: min(100% - 20px, 1200px);
+        margin: 16px auto;
+      }
+
+      .header,
+      .panel-top {
+        flex-direction: column;
+      }
+
+      .panel-summary {
+        text-align: left;
+      }
+
+      .health-grid,
+      .info-grid,
+      .reading-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header h1 {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <div>
+        <div class="eyebrow">AHTS • Astronaut Health Telemetry System</div>
+        <h1>Telemetry + Device Network</h1>
+        <p>Click a device to inspect what it measures, its operating mode, status, signal quality and current readings.</p>
+      </div>
+      <div class="network-status">
+        <span class="dot"></span>
+        SYSTEM ONLINE
+      </div>
+    </header>
+
+    <div class="layout">
+      <section class="telemetry">
+        <h2>Astronaut Health Telemetry</h2>
+        <div class="telemetry-sub">CREW-03 • SIMULATED LIVE TELEMETRY</div>
+
+        <div class="health-grid">
+          <article class="health-card">
+            <div class="label">Heart Rate</div>
+            <div class="value">82 bpm</div>
+            <div class="meta">● LIVE • Stable</div>
+          </article>
+
+          <article class="health-card">
+            <div class="label">SpO₂</div>
+            <div class="value">97%</div>
+            <div class="meta">● LIVE • Normal</div>
+          </article>
+
+          <article class="health-card">
+            <div class="label">Respiratory Rate</div>
+            <div class="value">16 /min</div>
+            <div class="meta">● LIVE • Regular</div>
+          </article>
+
+          <article class="health-card">
+            <div class="label">Radiation</div>
+            <div class="value">Nominal</div>
+            <div class="meta">CAD + HERA + M-42 EXT</div>
+          </article>
+
+          <article class="health-card">
+            <div class="label">Core Temperature</div>
+            <div class="value">37.0 °C</div>
+            <div class="meta">● LIVE • Stable</div>
+          </article>
+
+          <article class="health-card">
+            <div class="label">Cabin Environment</div>
+            <div class="value">Nominal</div>
+            <div class="meta">O₂ • CO₂ • Pressure • Humidity</div>
+          </article>
+        </div>
+      </section>
+
+      <aside class="device-panel">
+        <div class="panel-top">
+          <div>
+            <h2>Device Network</h2>
+            <small>Sensor, diagnostic and research sources</small>
+          </div>
+          <div>
+            <div class="network-status" style="padding:8px 10px;">
+              <span class="dot"></span>
+              CONNECTED
+            </div>
+            <div id="deviceSummary" class="panel-summary"></div>
+          </div>
+        </div>
+
+        <div class="filters" role="tablist" aria-label="Device categories">
+          <button class="filter-btn active" data-category="All">All</button>
+          <button class="filter-btn" data-category="Wearable">Wearable</button>
+          <button class="filter-btn" data-category="Environment">Environment</button>
+          <button class="filter-btn" data-category="Diagnostics">Diagnostics</button>
+          <button class="filter-btn" data-category="Performance">Performance</button>
+          <button class="filter-btn" data-category="Research">Research</button>
+        </div>
+
+        <div class="section-head">
+          <span id="currentFilter">All Devices</span>
+          <span>Click to expand</span>
+        </div>
+
+        <div id="deviceList" class="device-list"></div>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const devices = [
+      {
+        name: "AstroSkin / Biosensor Garment",
+        category: "Wearable",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Excellent",
+        purpose: "Multi-parameter physiological monitoring",
+        measures: ["ECG", "Heart Rate", "Respiratory Rate", "Skin Temperature", "Activity"],
+        readings: [
+          ["Heart Rate", "82 bpm"],
+          ["Respiration", "16 /min"],
+          ["Skin Temp", "33.2 °C"],
+          ["Activity", "Active"]
+        ],
+        usedBy: ["❤️ Cardiovascular", "🫁 Respiratory", "🌡 Temperature", "🏃 Physical Capability"],
+        updated: "0.4 sec ago"
+      },
+      {
+        name: "Wearable ECG Sensor",
+        category: "Wearable",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Excellent",
+        purpose: "Continuous cardiac electrical monitoring",
+        measures: ["ECG", "Heart Rate", "Cardiac Rhythm", "Arrhythmia Detection"],
+        readings: [
+          ["Heart Rate", "82 bpm"],
+          ["Rhythm", "Sinus"],
+          ["QT Trend", "Normal"],
+          ["Arrhythmia", "None"]
+        ],
+        usedBy: ["❤️ Cardiovascular"],
+        updated: "0.2 sec ago"
+      },
+      {
+        name: "PPG / Pulse Oximeter",
+        category: "Wearable",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Good",
+        purpose: "Peripheral oxygenation and pulse monitoring",
+        measures: ["SpO₂", "Pulse Rate", "Peripheral Perfusion", "PPG Waveform"],
+        readings: [
+          ["SpO₂", "97%"],
+          ["Pulse", "81 bpm"],
+          ["Perfusion Index", "3.8%"],
+          ["Waveform", "Stable"]
+        ],
+        usedBy: ["❤️ Cardiovascular", "🫁 Respiratory"],
+        updated: "0.5 sec ago"
+      },
+      {
+        name: "RIP Respiratory Belt",
+        category: "Wearable",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Good",
+        purpose: "Breathing pattern and respiratory-motion monitoring",
+        measures: ["Respiratory Rate", "Breathing Pattern", "Ventilation Trend"],
+        readings: [
+          ["Respiration", "16 /min"],
+          ["Pattern", "Regular"],
+          ["Ventilation", "Normal"]
+        ],
+        usedBy: ["🫁 Respiratory"],
+        updated: "0.6 sec ago"
+      },
+      {
+        name: "Core Temperature Sensor",
+        category: "Wearable",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Excellent",
+        purpose: "Continuous body-temperature monitoring",
+        measures: ["Core Temperature", "Temperature Trend"],
+        readings: [
+          ["Core Temp", "37.0 °C"],
+          ["Trend", "Stable"]
+        ],
+        usedBy: ["🌡 Temperature"],
+        updated: "1.0 sec ago"
+      },
+      {
+        name: "EEG Headband",
+        category: "Wearable",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Good",
+        purpose: "Brain electrical and sleep-state monitoring",
+        measures: ["EEG", "Neurological Pattern", "Sleep-stage Data"],
+        readings: [
+          ["EEG Status", "Normal"],
+          ["Artifact Level", "Low"],
+          ["State", "Awake"]
+        ],
+        usedBy: ["🧠 Neurological", "😴 Sleep / Fatigue"],
+        updated: "0.7 sec ago"
+      },
+      {
+        name: "IMU / Accelerometer",
+        category: "Wearable",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Excellent",
+        purpose: "Body motion, activity and orientation tracking",
+        measures: ["Activity", "Movement", "Mobility", "Orientation", "Coordination"],
+        readings: [
+          ["Activity", "Active"],
+          ["Mobility", "Normal"],
+          ["Orientation", "Stable"],
+          ["Motion", "Nominal"]
+        ],
+        usedBy: ["🧠 Neurological", "🏃 Physical Capability"],
+        updated: "0.1 sec ago"
+      },
+      {
+        name: "Actigraphy Device",
+        category: "Wearable",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Excellent",
+        purpose: "Sleep, activity and circadian monitoring",
+        measures: ["Sleep Duration", "Sleep/Wake Pattern", "Activity", "Circadian Rhythm"],
+        readings: [
+          ["Last Sleep", "6h 42m"],
+          ["Sleep Quality", "78%"],
+          ["Circadian Shift", "+42 min"],
+          ["Activity", "Normal"]
+        ],
+        usedBy: ["😴 Sleep / Fatigue", "🏃 Physical Capability"],
+        updated: "2 sec ago"
+      },
+      {
+        name: "Continuous Glucose Monitor",
+        category: "Wearable",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Good",
+        purpose: "Continuous glucose-trend monitoring",
+        measures: ["Interstitial Glucose", "Glucose Trend"],
+        readings: [
+          ["Glucose", "92 mg/dL"],
+          ["Trend", "Stable"]
+        ],
+        usedBy: ["⚡ Metabolic"],
+        updated: "45 sec ago"
+      },
+      {
+        name: "Wearable EMG Sensor",
+        category: "Wearable",
+        mode: "CONTINUOUS",
+        status: "Standby",
+        signal: "Good",
+        purpose: "Muscle electrical-activity monitoring",
+        measures: ["Muscle Activity", "Activation Pattern", "Muscle Fatigue Trend"],
+        readings: [
+          ["EMG", "Standby"],
+          ["Muscle Load", "—"]
+        ],
+        usedBy: ["🏃 Physical Capability", "🦴 Musculoskeletal"],
+        updated: "12 sec ago"
+      },
+      {
+        name: "Crew Active Dosimeter",
+        category: "Wearable",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Good",
+        purpose: "Personal radiation monitoring",
+        measures: ["Personal Radiation Dose", "Dose Rate", "Accumulated Mission Dose"],
+        readings: [
+          ["Dose Rate", "0.42 µSv/h"],
+          ["Mission Dose", "18.4 mSv"],
+          ["Exposure Trend", "Stable"]
+        ],
+        usedBy: ["☢ Radiation"],
+        updated: "0.8 sec ago"
+      },
+      {
+        name: "Orion ECLSS",
+        category: "Environment",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Excellent",
+        purpose: "Spacecraft environmental-control and life-support telemetry",
+        measures: ["Cabin Atmosphere", "Pressure", "O₂ Availability", "CO₂ Control", "Humidity"],
+        readings: [
+          ["Cabin Pressure", "101.2 kPa"],
+          ["Atmosphere", "Nominal"],
+          ["Humidity", "43%"],
+          ["Life Support", "Normal"]
+        ],
+        usedBy: ["🫁 Respiratory", "🌡 Temperature"],
+        updated: "0.2 sec ago"
+      },
+      {
+        name: "Cabin O₂ Sensor",
+        category: "Environment",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Excellent",
+        purpose: "Cabin oxygen monitoring",
+        measures: ["Cabin Oxygen Concentration", "O₂ Availability"],
+        readings: [
+          ["Cabin O₂", "20.8%"],
+          ["Status", "Nominal"]
+        ],
+        usedBy: ["🫁 Respiratory"],
+        updated: "0.2 sec ago"
+      },
+      {
+        name: "Cabin CO₂ Sensor",
+        category: "Environment",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Excellent",
+        purpose: "Cabin carbon-dioxide monitoring",
+        measures: ["CO₂ Concentration", "CO₂ Trend"],
+        readings: [
+          ["CO₂", "0.42%"],
+          ["Trend", "Stable"]
+        ],
+        usedBy: ["🫁 Respiratory", "🧠 Neurological"],
+        updated: "0.2 sec ago"
+      },
+      {
+        name: "Cabin Temperature / Humidity Sensors",
+        category: "Environment",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Excellent",
+        purpose: "Spacecraft thermal and humidity monitoring",
+        measures: ["Cabin Temperature", "Relative Humidity"],
+        readings: [
+          ["Temperature", "22.4 °C"],
+          ["Humidity", "43%"]
+        ],
+        usedBy: ["🌡 Temperature", "🫁 Respiratory"],
+        updated: "0.5 sec ago"
+      },
+      {
+        name: "HERA",
+        category: "Environment",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Excellent",
+        purpose: "Cabin radiation monitoring and event detection",
+        measures: ["Radiation Dose Rate", "Cabin Radiation", "Radiation Alert State"],
+        readings: [
+          ["Dose Rate", "Nominal"],
+          ["Alert State", "Normal"],
+          ["Sensor Network", "6 active"]
+        ],
+        usedBy: ["☢ Radiation"],
+        updated: "0.3 sec ago"
+      },
+      {
+        name: "M-42 EXT Radiation Monitor",
+        category: "Environment",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Good",
+        purpose: "Radiation-energy and particle-environment characterization",
+        measures: ["Particle Radiation", "Radiation Energy Spectrum", "Heavy-ion Activity"],
+        readings: [
+          ["Particle Flux", "Normal"],
+          ["Heavy Ions", "Low"],
+          ["Spectrum", "Nominal"]
+        ],
+        usedBy: ["☢ Radiation"],
+        updated: "1.4 sec ago"
+      },
+      {
+        name: "Clinical ECG Device",
+        category: "Diagnostics",
+        mode: "ON DEMAND",
+        status: "Ready",
+        signal: "Excellent",
+        purpose: "Detailed cardiac diagnostic assessment",
+        measures: ["Diagnostic ECG", "Heart Rate", "Cardiac Rhythm", "Arrhythmia"],
+        readings: [
+          ["Latest ECG", "Normal"],
+          ["Last Test", "14:28 UTC"]
+        ],
+        usedBy: ["❤️ Cardiovascular"],
+        updated: "6 min ago"
+      },
+      {
+        name: "Blood Pressure Monitor",
+        category: "Diagnostics",
+        mode: "ON DEMAND",
+        status: "Ready",
+        signal: "Excellent",
+        purpose: "Non-invasive blood-pressure assessment",
+        measures: ["Systolic Pressure", "Diastolic Pressure", "Pulse"],
+        readings: [
+          ["Blood Pressure", "118 / 76 mmHg"],
+          ["Pulse", "80 bpm"],
+          ["Last Reading", "14:32 UTC"]
+        ],
+        usedBy: ["❤️ Cardiovascular", "💧 Hydration / Circulation"],
+        updated: "4 min ago"
+      },
+      {
+        name: "Capnograph / Capnometer",
+        category: "Diagnostics",
+        mode: "ON DEMAND",
+        status: "Standby",
+        signal: "Good",
+        purpose: "Exhaled CO₂ and ventilation assessment",
+        measures: ["EtCO₂", "Respiratory Rate", "Ventilation"],
+        readings: [
+          ["EtCO₂", "—"],
+          ["Status", "Awaiting session"]
+        ],
+        usedBy: ["🫁 Respiratory"],
+        updated: "Standby"
+      },
+      {
+        name: "Blood Chemistry Analyzer",
+        category: "Diagnostics",
+        mode: "PERIODIC",
+        status: "Ready",
+        signal: "N/A",
+        purpose: "Electrolyte and biochemical analysis",
+        measures: ["Sodium", "Potassium", "Selected Blood Chemistry"],
+        readings: [
+          ["Sodium", "140 mmol/L"],
+          ["Potassium", "4.1 mmol/L"],
+          ["Last Sample", "13:42 UTC"]
+        ],
+        usedBy: ["⚡ Metabolic", "💧 Hydration / Circulation"],
+        updated: "54 min ago"
+      },
+      {
+        name: "Blood Gas Analyzer",
+        category: "Diagnostics",
+        mode: "ON DEMAND",
+        status: "Ready",
+        signal: "N/A",
+        purpose: "Blood-gas and acid-base diagnostic assessment",
+        measures: ["pH", "PaO₂", "PaCO₂", "Blood Gas Status"],
+        readings: [
+          ["Latest Result", "Normal"],
+          ["Sample", "Not active"]
+        ],
+        usedBy: ["🫁 Respiratory", "⚡ Metabolic"],
+        updated: "No active test"
+      },
+      {
+        name: "Urinalysis System",
+        category: "Diagnostics",
+        mode: "PERIODIC",
+        status: "Ready",
+        signal: "N/A",
+        purpose: "Urine-based hydration and renal assessment",
+        measures: ["Urine Chemistry", "Hydration Indicators", "Renal Indicators"],
+        readings: [
+          ["Latest Result", "Normal"],
+          ["Collection", "Complete"]
+        ],
+        usedBy: ["💧 Hydration / Circulation", "⚡ Metabolic"],
+        updated: "2 hr ago"
+      },
+      {
+        name: "PUMA Metabolic Analyzer",
+        category: "Performance",
+        mode: "ON DEMAND",
+        status: "Standby",
+        signal: "Good",
+        purpose: "Exercise and metabolic-performance assessment",
+        measures: ["VO₂", "VCO₂", "Metabolic Rate", "Exercise Capacity"],
+        readings: [
+          ["Session", "Inactive"],
+          ["Latest VO₂", "Normal"]
+        ],
+        usedBy: ["⚡ Metabolic", "🏃 Physical Capability"],
+        updated: "Standby"
+      },
+      {
+        name: "ARED Instrumentation",
+        category: "Performance",
+        mode: "CONTINUOUS",
+        status: "Standby",
+        signal: "Excellent",
+        purpose: "Resistance-exercise load and performance monitoring",
+        measures: ["Exercise Load", "Force", "Repetition Count", "Musculoskeletal Loading"],
+        readings: [
+          ["Exercise State", "Inactive"],
+          ["Load", "—"],
+          ["Repetitions", "—"]
+        ],
+        usedBy: ["🏃 Physical Capability", "🦴 Musculoskeletal"],
+        updated: "Standby"
+      },
+      {
+        name: "Dynamometer / Force System",
+        category: "Performance",
+        mode: "ON DEMAND",
+        status: "Ready",
+        signal: "Excellent",
+        purpose: "Muscle-strength and force measurement",
+        measures: ["Muscle Strength", "Grip Force", "Force Output"],
+        readings: [
+          ["Latest Strength", "92% baseline"],
+          ["Test", "Complete"]
+        ],
+        usedBy: ["🏃 Physical Capability", "🦴 Musculoskeletal"],
+        updated: "1 hr ago"
+      },
+      {
+        name: "Computer Vision / Pose System",
+        category: "Performance",
+        mode: "CONTINUOUS",
+        status: "Connected",
+        signal: "Good",
+        purpose: "AHTS visual movement and exercise analysis",
+        measures: ["Pose", "Mobility", "Coordination", "Exercise Form", "Response Ability"],
+        readings: [
+          ["Pose Tracking", "Active"],
+          ["Mobility", "Normal"],
+          ["Coordination", "Normal"]
+        ],
+        usedBy: ["🧠 Neurological", "🏃 Physical Capability"],
+        updated: "0.1 sec ago"
+      },
+      {
+        name: "Bioimpedance System",
+        category: "Research",
+        mode: "PERIODIC",
+        status: "Ready",
+        signal: "Good",
+        purpose: "Fluid-status and body-composition estimation",
+        measures: ["Body Water", "Fluid Status", "Body Composition Estimate"],
+        readings: [
+          ["Body Water", "58%"],
+          ["Fluid Status", "Normal"]
+        ],
+        usedBy: ["💧 Hydration / Circulation", "🦴 Musculoskeletal"],
+        updated: "38 min ago"
+      },
+      {
+        name: "DXA Bone Density Scanner",
+        category: "Research",
+        mode: "PERIODIC",
+        status: "External / Ground",
+        signal: "N/A",
+        purpose: "Pre/post-flight bone-mineral-density assessment",
+        measures: ["Bone Mineral Density", "Body Composition"],
+        readings: [
+          ["Bone Density", "Baseline −0.7%"],
+          ["Assessment", "Pre/Post flight"]
+        ],
+        usedBy: ["🦴 Bone / Musculoskeletal"],
+        updated: "Latest assessment"
+      }
+    ];
+
+    const deviceList = document.getElementById("deviceList");
+    const deviceSummary = document.getElementById("deviceSummary");
+    const currentFilter = document.getElementById("currentFilter");
+    const filterButtons = [...document.querySelectorAll(".filter-btn")];
+
+    const modeRank = {
+      CONTINUOUS: 0,
+      "ON DEMAND": 1,
+      PERIODIC: 2
+    };
+
+    let activeCategory = "All";
+
+    function escapeHTML(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function renderDevices() {
+      let shown = activeCategory === "All"
+        ? [...devices]
+        : devices.filter(device => device.category === activeCategory);
+
+      shown.sort((a, b) => (modeRank[a.mode] ?? 9) - (modeRank[b.mode] ?? 9));
+
+      const streaming = shown.filter(
+        d => d.mode === "CONTINUOUS" && d.status === "Connected"
+      ).length;
+
+      deviceSummary.textContent =
+        `${shown.length} shown • ${streaming} actively streaming`;
+
+      currentFilter.textContent =
+        activeCategory === "All"
+          ? "All Devices"
+          : `${activeCategory} Devices`;
+
+      deviceList.innerHTML = "";
+
+      shown.forEach(device => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "device-row";
+        button.setAttribute("aria-expanded", "false");
+
+        const measuresHTML = device.measures
+          .map(item => `<span class="chip">${escapeHTML(item)}</span>`)
+          .join("");
+
+        const readingsHTML = device.readings
+          .map(([name, value]) => `
+            <div class="reading">
+              <div class="name">${escapeHTML(name)}</div>
+              <div class="val">${escapeHTML(value)}</div>
+            </div>
+          `)
+          .join("");
+
+        const domainsHTML = device.usedBy
+          .map(item => `<span class="chip">${escapeHTML(item)}</span>`)
+          .join("");
+
+        button.innerHTML = `
+          <div class="device-head">
+            <div class="device-title-wrap">
+              <div class="device-title">${escapeHTML(device.name)}</div>
+              <div class="purpose">${escapeHTML(device.purpose)}</div>
+
+              <div class="badges">
+                <span class="badge">${escapeHTML(device.category)}</span>
+                <span class="badge mode">${escapeHTML(device.mode)}</span>
+                <span class="badge good">${escapeHTML(device.status)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="expanded">
+            <div class="info-grid">
+              <div class="info-box">
+                <div class="k">Category</div>
+                <div class="v">${escapeHTML(device.category)}</div>
+              </div>
+
+              <div class="info-box">
+                <div class="k">Operating Mode</div>
+                <div class="v">${escapeHTML(device.mode)}</div>
+              </div>
+
+              <div class="info-box">
+                <div class="k">Device Status</div>
+                <div class="v">${escapeHTML(device.status)}</div>
+              </div>
+
+              <div class="info-box">
+                <div class="k">Signal Quality</div>
+                <div class="v">${escapeHTML(device.signal)}</div>
+              </div>
+            </div>
+
+            <div class="group">
+              <div class="group-title">What it measures</div>
+              <div class="chips">${measuresHTML}</div>
+            </div>
+
+            <div class="group">
+              <div class="group-title">Current / latest measurements</div>
+              <div class="reading-grid">${readingsHTML}</div>
+            </div>
+
+            <div class="group">
+              <div class="group-title">Used by health domains</div>
+              <div class="chips">${domainsHTML}</div>
+            </div>
+
+            <div class="updated">
+              <span>Signal quality: ${escapeHTML(device.signal)}</span>
+              <span>Updated ${escapeHTML(device.updated)}</span>
+            </div>
+          </div>
+        `;
+
+        button.addEventListener("click", () => {
+          const isOpen = button.getAttribute("aria-expanded") === "true";
+
+          document.querySelectorAll(".device-row").forEach(row => {
+            row.setAttribute("aria-expanded", "false");
+          });
+
+          if (!isOpen) {
+            button.setAttribute("aria-expanded", "true");
+          }
+        });
+
+        deviceList.appendChild(button);
+      });
+    }
+
+    filterButtons.forEach(button => {
+      button.addEventListener("click", () => {
+        activeCategory = button.dataset.category;
+
+        filterButtons.forEach(btn => btn.classList.remove("active"));
+        button.classList.add("active");
+
+        renderDevices();
+      });
+    });
+
+    renderDevices();
+  </script>
+</body>
+</html>

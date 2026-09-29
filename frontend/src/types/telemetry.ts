@@ -203,3 +203,21 @@ export interface CrewFullLabProfile {
   immune: ImmunePanel;
 }
 
+export type MeasurementMode = 'CONTINUOUS' | 'PERIODIC' | 'ON_DEMAND' | 'LAB';
+
+export interface BiomarkerCadenceInfo {
+  mode: MeasurementMode;
+  intervalHours?: number;
+  badgeLabel: string;
+  isContinuous: boolean;
+}
+
+export interface StructuredClinicalReasoning {
+  measuredData: string;
+  detectedChange: string;
+  patternCorrelation: string;
+  possibleInterpretation: string;
+  recommendedAssessment: string;
+  diagnosticConfidence: number; // e.g. 94.8%
+}
+
