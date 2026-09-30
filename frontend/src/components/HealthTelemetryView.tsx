@@ -8,6 +8,7 @@ import { usePeriodicCadence } from '../hooks/usePeriodicCadence';
 import { InlineTrendDrawer } from './clinical/InlineTrendDrawer';
 import { DeepAnalysisModal } from './clinical/DeepAnalysisModal';
 import { ClinicalTimeline } from './clinical/ClinicalTimeline';
+import { ClinicalIntelligenceDrawer } from './clinical/ClinicalIntelligenceDrawer';
 
 interface HealthTelemetryViewProps {
   initialAstronautId?: string | null;
@@ -772,6 +773,57 @@ export const MicroSparkline: React.FC<{
   );
 };
 
+export const FormattedMetricValue: React.FC<{
+  value: string | number | undefined | null;
+  style?: React.CSSProperties;
+  unitStyle?: React.CSSProperties;
+  numberStyle?: React.CSSProperties;
+}> = ({ value, style, unitStyle, numberStyle }) => {
+  if (value === undefined || value === null || value === '') return null;
+  const str = String(value);
+  const tokens = str.split(/([+-]?\d+(?:\.\d+)?(?:[/-]\d+(?:\.\d+)?)?)/g);
+
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'baseline', flexWrap: 'nowrap', ...style }}>
+      {tokens.map((token, idx) => {
+        if (!token) return null;
+        const isNumeric = /^[+-]?\d+(?:\.\d+)?(?:[/-]\d+(?:\.\d+)?)?$/.test(token);
+        if (isNumeric) {
+          return (
+            <span
+              key={idx}
+              style={{
+                fontFamily: 'var(--hud-font-mono, monospace)',
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '0.02em',
+                ...numberStyle,
+              }}
+            >
+              {token}
+            </span>
+          );
+        }
+        return (
+          <span
+            key={idx}
+            style={{
+              fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+              fontWeight: 500,
+              fontSize: '0.74em',
+              color: '#94a3b8',
+              letterSpacing: '0.01em',
+              marginLeft: token.startsWith(' ') ? '3px' : '2px',
+              ...unitStyle,
+            }}
+          >
+            {token.startsWith(' ') ? token.slice(1) : token}
+          </span>
+        );
+      })}
+    </span>
+  );
+};
+
 export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
   initialAstronautId,
   telemetryMap,
@@ -797,6 +849,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
 
   const [deviceFilter, setDeviceFilter] = useState<'All' | 'Wearable' | 'Environment' | 'Diagnostics' | 'Performance' | 'Research' | 'Computational'>('All');
   const [expandedDeviceId, setExpandedDeviceId] = useState<number | null>(null);
+  const [isAnalysisDrawerOpen, setIsAnalysisDrawerOpen] = useState<boolean>(false);
   const [labProfile, setLabProfile] = useState<CrewFullLabProfile | null>(null);
   const [hoveredCrewId, setHoveredCrewId] = useState<string | null>(null);
 
@@ -893,8 +946,9 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
   const alc = currentPacket?.lymphocyte_count ?? (labProfile?.cbc?.absolute_lymphocytes?.value ? (labProfile.cbc.absolute_lymphocytes.value / 1000) : 2.15);
   const severity = currentPacket?.evaluated_severity ?? 'NOMINAL';
 
-  const sysBp = Math.round(112 + (hr - 60) * 0.35);
-  const diaBp = Math.round(72 + (hr - 60) * 0.18);
+  const sysBp = Math.round(116 + (hr - defaultProfile.restHr) * 0.25);
+  const diaBp = Math.round(76 + (hr - defaultProfile.restHr) * 0.12);
+  const bpValStr = `${sysBp}/${diaBp}`;
   const respRate = Math.round(13 + (hr > 100 ? 5 : hr > 80 ? 2 : 0) + (spo2 < 95 ? 4 : 0));
 
   // Authentic OSDR lab values with astronaut-specific fallbacks
@@ -908,9 +962,11 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
   const tnfVal = labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.tnf_alpha?.concentration_pg_ml
     ? `${labProfile.immune.clusters.pyrogens_and_inflammatory.tnf_alpha.concentration_pg_ml} pg/mL`
     : `${defaultProfile.tnf.toFixed(1)} pg/mL`;
-  const fibrinogenVal = labProfile?.cardiovascular?.fibrinogen?.value
-    ? `${(labProfile.cardiovascular.fibrinogen.value / 1000000).toFixed(0)} mg/dL`
-    : `${defaultProfile.fibrinogen.toFixed(0)} mg/dL`;
+  const rawFib = labProfile?.cardiovascular?.fibrinogen?.value;
+  const fibValNum = (rawFib !== undefined && rawFib !== null && rawFib > 0)
+    ? (rawFib > 1000 ? rawFib / 10 : rawFib)
+    : defaultProfile.fibrinogen;
+  const fibrinogenVal = `${Math.round(fibValNum)} mg/dL`;
 
   // Historical time-series buffers matching Demo/astronaut-telemetry/index.html console tab
   const [metricHistories, setMetricHistories] = useState<Record<string, number[]>>(() => ({
@@ -1062,7 +1118,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
       alc: createSyntheticHistory(alc, 0.05),
       dna_breaks: createSyntheticHistory(radDose > 0.2 ? 12.0 : 2.0, 0.4),
       trm: createSyntheticHistory(trm, 0.02),
-      fibrinogen: createSyntheticHistory(labProfile?.cardiovascular?.fibrinogen?.value ? (labProfile.cardiovascular.fibrinogen.value / 1000000) : defaultProfile.fibrinogen, 3.5),
+      fibrinogen: createSyntheticHistory(fibValNum, 3.5),
       l_selectin: createSyntheticHistory(740.0, 8.0),
       pf4: createSyntheticHistory(320.0, 4.0),
       // Dropdown CV Panel
@@ -1132,7 +1188,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
       stepVal('arf', arf);
       stepVal('qtc', qtc);
       stepVal('crp', crp);
-      stepVal('fibrinogen', labProfile?.cardiovascular?.fibrinogen?.value ? (labProfile.cardiovascular.fibrinogen.value / 1000000) : defaultProfile.fibrinogen);
+      stepVal('fibrinogen', fibValNum);
       stepVal('l_selectin', labProfile?.cardiovascular?.l_selectin?.value ? (labProfile.cardiovascular.l_selectin.value / 1000) : 740.0);
       stepVal('pf4', labProfile?.cardiovascular?.pf4?.value ? labProfile.cardiovascular.pf4.value : 320.0);
       stepVal('haptoglobin', labProfile?.cardiovascular?.haptoglobin?.value ? (labProfile.cardiovascular.haptoglobin.value / 1000000) : 1.10);
@@ -1234,6 +1290,73 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
     if (clinicalSummary.severity === 'WARNING') return { label: 'Attention', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.14)' };
     return { label: 'Stable', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.14)' };
   }, [clinicalSummary.severity]);
+
+  const summaryTiles = useMemo(() => {
+    const nv = clinicalSummary.nominalVitals;
+    if (!clinicalSummary.isAbnormal) {
+      return [
+        { label: 'HR', value: `${nv.hr.val} bpm`, status: 'Normal', isAlert: false, isCaution: false },
+        { label: 'SpO₂', value: `${nv.spo2.val} %`, status: 'Normal', isAlert: false, isCaution: false },
+        { label: 'TEMP', value: `${nv.temp.val} °C`, status: 'Normal', isAlert: false, isCaution: false },
+        { label: 'BP', value: `${nv.bp.val} mmHg`, status: 'Normal', isAlert: false, isCaution: false },
+        { label: 'HRV', value: `${nv.hrv.val} ms`, status: 'Normal', isAlert: false, isCaution: false },
+      ];
+    }
+    const tiles: { label: string; value: string; status: string; isAlert: boolean; isCaution: boolean }[] = [];
+    const abnormalBiomarkers = clinicalSummary.prioritizedBiomarkers.filter(
+      (b) => b.tier === 'CRITICAL' || b.tier === 'WARNING'
+    );
+    abnormalBiomarkers.forEach((b) => {
+      let displayVal = b.formattedValue;
+      if (b.unit && b.unit !== 'idx' && !displayVal.endsWith(b.unit)) {
+        displayVal = `${displayVal} ${b.unit}`.trim();
+      }
+      tiles.push({
+        label: b.symbol || b.name,
+        value: displayVal,
+        status: b.deltaStr || (b.tier === 'CRITICAL' ? 'Critical' : 'Attention'),
+        isAlert: b.tier === 'CRITICAL',
+        isCaution: b.tier === 'WARNING',
+      });
+    });
+    if (!tiles.some((t) => t.label === 'HR')) {
+      tiles.push({
+        label: 'HR',
+        value: `${nv.hr.val} bpm`,
+        status: nv.hr.delta || 'Normal',
+        isAlert: false,
+        isCaution: hr > 100 || hr < 50,
+      });
+    }
+    if (!tiles.some((t) => t.label.includes('SpO₂') || t.label.includes('O2'))) {
+      tiles.push({
+        label: 'SpO₂',
+        value: `${nv.spo2.val} %`,
+        status: nv.spo2.delta || 'Normal',
+        isAlert: spo2 < 93,
+        isCaution: spo2 < 96,
+      });
+    }
+    if (tiles.length < 5 && !tiles.some((t) => t.label === 'BP')) {
+      tiles.push({
+        label: 'BP',
+        value: `${nv.bp.val} mmHg`,
+        status: 'Normal',
+        isAlert: false,
+        isCaution: false,
+      });
+    }
+    if (tiles.length < 5 && !tiles.some((t) => t.label === 'TEMP')) {
+      tiles.push({
+        label: 'TEMP',
+        value: `${nv.temp.val} °C`,
+        status: nv.temp.delta || 'Normal',
+        isAlert: temp >= 38.3,
+        isCaution: temp >= 37.5,
+      });
+    }
+    return tiles.slice(0, 5);
+  }, [clinicalSummary, hr, spo2, temp]);
 
   const hazardStatus = useMemo(() => {
     const sc = currentPacket?.scenario_phase || '';
@@ -1385,396 +1508,411 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
             background: 'linear-gradient(180deg, #151515 0%, #0e0e0e 100%)',
             borderBottom: '1px solid #222222',
             display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'space-between',
-            gap: '20px',
-            flexWrap: 'wrap',
+            flexDirection: 'column',
+            gap: '8px',
             position: 'relative',
           }}
         >
-          {/* LEFT: Active Crew Identity (Avatar + Left-Aligned Name with Alerts Under It) + Health Score placed after name (NO badge) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '10px' }}>
-            {/* Astronaut Avatar with Live Severity Glow Ring */}
-            <div
-              style={{
-                position: 'relative',
-                width: '46px',
-                height: '46px',
-                borderRadius: '10px',
-                border: `2px solid ${overallPill.color}`,
-                boxShadow: `0 0 12px ${overallPill.color}40`,
-                overflow: 'hidden',
-                flexShrink: 0,
-                backgroundColor: '#111827',
-              }}
-            >
-              <img
-                src={activeCrew.avatar}
-                alt={activeCrew.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: 'block',
-                }}
-              />
-              <span
-                style={{
-                  position: 'absolute',
-                  bottom: '2px',
-                  right: '2px',
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: overallPill.color,
-                  border: '1.5px solid #07090d',
-                  boxShadow: `0 0 6px ${overallPill.color}`,
-                }}
-              />
-            </div>
-
-            {/* Left-Aligned Name Stack with Alerts Kept Underneath */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-start' }}>
-              {/* Top Row: Name + Role Tag */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span
-                  style={{
-                    fontSize: '16px',
-                    fontWeight: 700,
-                    color: '#ffffff',
-                    fontFamily: "'Tomorrow', sans-serif",
-                    letterSpacing: '-0.01em',
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {activeCrew.name}
-                </span>
-                <span
-                  style={{
-                    fontSize: '9px',
-                    fontWeight: 700,
-                    padding: '1px 5px',
-                    borderRadius: '3px',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid rgba(255, 255, 255, 0.18)',
-                    color: '#e2e8f0',
-                    fontFamily: "'Tomorrow', sans-serif",
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  {activeCrew.roleShort}
-                </span>
-              </div>
-
-              {/* Under Name: Alerts Readout (Only When Needed) + Mission Subject Context */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {severity !== 'NOMINAL' && (
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {severity === 'CRITICAL' ? (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                        <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                      </svg>
-                    ) : (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                        <line x1="12" y1="9" x2="12" y2="13" />
-                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                      </svg>
-                    )}
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 800,
-                        color: severity === 'CRITICAL' ? '#ef4444' : '#f59e0b',
-                        fontFamily: "'Tomorrow', sans-serif",
-                        fontVariantNumeric: 'tabular-nums',
-                        lineHeight: 1,
-                      }}
-                    >
-                      {clinicalSummary.prioritizedBiomarkers.filter(b => b.tier === 'CRITICAL' || b.tier === 'WARNING').length || 1}
-                    </span>
-                  </div>
-                )}
-                {severity !== 'NOMINAL' && <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 600 }}>•</span>}
-                <span
-                  style={{
-                    fontSize: '11px',
-                    color: '#cbd5e1',
-                    fontFamily: "'Tomorrow', sans-serif",
-                    fontWeight: 500,
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  Inspiration4 ({activeCrew.subjectId})
-                </span>
-              </div>
-            </div>
-
-            {/* Subtle Vertical Divider */}
-            <div style={{ width: '1px', height: '38px', backgroundColor: 'rgba(255, 255, 255, 0.16)' }} />
-
-            {/* Physiological Reserve Index (PRI) with Fixed Layout (Zero Shift & Pinned % Position) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-start', flexShrink: 0 }}>
-              <span
-                style={{
-                  fontSize: '9.5px',
-                  fontWeight: 700,
-                  color: '#cbd5e1',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  fontFamily: "'Tomorrow', sans-serif",
-                }}
-              >
-                Reserve (PRI)
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {/* Pinned-width container ensures organ meters to the right never shift */}
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'baseline',
-                    minWidth: '82px',
-                    flexShrink: 0,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: '32px',
-                      fontWeight: 800,
-                      color: overallPill.color,
-                      fontFamily: "'Tomorrow', sans-serif",
-                      fontVariantNumeric: 'tabular-nums',
-                      letterSpacing: '-0.02em',
-                      lineHeight: 1,
-                      display: 'inline-block',
-                      minWidth: '58px',
-                      textAlign: 'right',
-                      textShadow: `0 0 18px ${overallPill.color}35`,
-                    }}
-                  >
-                    {healthPercent}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '20px',
-                      fontWeight: 800,
-                      color: overallPill.color,
-                      fontFamily: "'Tomorrow', sans-serif",
-                      marginLeft: '2px',
-                      lineHeight: 1,
-                      display: 'inline-block',
-                      width: '20px',
-                      textAlign: 'left',
-                      textShadow: `0 0 14px ${overallPill.color}35`,
-                    }}
-                  >
-                    %
-                  </span>
-                </div>
-
-                {/* 5-System Mini Multi-Organ Reserve Pips */}
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px',
-                    background: 'rgba(0, 0, 0, 0.40)',
-                    padding: '3px 6px',
-                    borderRadius: '4px',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    flexShrink: 0,
-                  }}
-                  title={`Cardiovascular: ${clinicalSummary.reserveBreakdown.cardiovascular}% | Respiratory: ${clinicalSummary.reserveBreakdown.respiratory}% | Metabolic: ${clinicalSummary.reserveBreakdown.metabolic}% | Immune: ${clinicalSummary.reserveBreakdown.immune}% | Radiation: ${clinicalSummary.reserveBreakdown.radiation}%`}
-                >
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                    {[
-                      { label: 'CV', val: clinicalSummary.reserveBreakdown.cardiovascular },
-                      { label: 'RS', val: clinicalSummary.reserveBreakdown.respiratory },
-                      { label: 'MB', val: clinicalSummary.reserveBreakdown.metabolic },
-                      { label: 'IM', val: clinicalSummary.reserveBreakdown.immune },
-                      { label: 'RD', val: clinicalSummary.reserveBreakdown.radiation },
-                    ].map((sys) => {
-                      const sysColor = sys.val < 50 ? '#ef4444' : sys.val < 75 ? '#f59e0b' : '#22c55e';
-                      return (
-                        <div key={sys.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}>
-                          <span style={{ fontSize: '7.5px', color: '#f1f5f9', fontWeight: 800, lineHeight: 1 }}>{sys.label}</span>
-                          <div style={{ width: '13px', height: '3px', borderRadius: '1px', background: 'rgba(255,255,255,0.18)', overflow: 'hidden' }}>
-                            <div style={{ width: `${sys.val}%`, height: '100%', background: sysColor, transition: 'width 300ms ease' }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── CENTER: CABIN ENVIRONMENTAL TELEMETRY (ALL 3 PRIORITIES: LIFE-SAFETY, CIRCULATION & HAZARD SENTRY) ── */}
+          {/* TOP ROW: Active Crew Identity & PRI on the Left, CABIN ECLSS on the Right */}
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '10px',
-              background: '#181818',
-              border: '1px solid #282828',
-              boxShadow: '0 4px 16px -2px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-              marginBottom: '10px',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              gap: '16px',
             }}
           >
-            {/* Top Sub-Bar: Module Identity + Dynamic Priority 3 Hazard Sentry Badge */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+            {/* LEFT: Active Crew Identity (Avatar + Left-Aligned Name with Alerts Under It) + Health Score placed after name (NO badge) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {/* Astronaut Avatar with Live Severity Glow Ring */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '10px',
+                  border: `2px solid ${overallPill.color}`,
+                  boxShadow: `0 0 12px ${overallPill.color}40`,
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  backgroundColor: '#111827',
+                }}
+              >
+                <img
+                  src={activeCrew.avatar}
+                  alt={activeCrew.name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                />
                 <span
                   style={{
-                    fontSize: '10px',
+                    position: 'absolute',
+                    bottom: '2px',
+                    right: '2px',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: overallPill.color,
+                    border: '1.5px solid #07090d',
+                    boxShadow: `0 0 6px ${overallPill.color}`,
+                  }}
+                />
+              </div>
+
+              {/* Left-Aligned Name Stack with Alerts Kept Underneath */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-start' }}>
+                {/* Top Row: Name + Role Tag */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      fontFamily: "'Tomorrow', sans-serif",
+                      letterSpacing: '-0.01em',
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {activeCrew.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '9px',
+                      fontWeight: 700,
+                      padding: '1px 5px',
+                      borderRadius: '3px',
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.18)',
+                      color: '#e2e8f0',
+                      fontFamily: "'Tomorrow', sans-serif",
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {activeCrew.roleShort}
+                  </span>
+                </div>
+
+                {/* Under Name: Mission Subject Context (Anchored Left) + Alerts Readout on Right (Zero Shift) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      color: '#cbd5e1',
+                      fontFamily: "'Tomorrow', sans-serif",
+                      fontWeight: 500,
+                      letterSpacing: '0.02em',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Inspiration4 ({activeCrew.subjectId})
+                  </span>
+                  {severity !== 'NOMINAL' && (
+                    <>
+                      <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 600 }}>•</span>
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {severity === 'CRITICAL' ? (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                            <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                        ) : (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                            <line x1="12" y1="9" x2="12" y2="13" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                          </svg>
+                        )}
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            color: severity === 'CRITICAL' ? '#ef4444' : '#f59e0b',
+                            fontFamily: 'var(--hud-font-mono, monospace)',
+                            fontVariantNumeric: 'tabular-nums',
+                            lineHeight: 1,
+                          }}
+                        >
+                          {clinicalSummary.prioritizedBiomarkers.filter(b => b.tier === 'CRITICAL' || b.tier === 'WARNING').length || 1}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Subtle Vertical Divider */}
+              <div style={{ width: '1px', height: '38px', backgroundColor: 'rgba(255, 255, 255, 0.16)' }} />
+
+              {/* Physiological Reserve Index (PRI) with Fixed Layout (Zero Shift & Pinned % Position) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-start', flexShrink: 0 }}>
+                <span
+                  style={{
+                    fontSize: '9.5px',
                     fontWeight: 700,
-                    color: '#ffffff',
+                    color: '#cbd5e1',
                     letterSpacing: '0.08em',
                     textTransform: 'uppercase',
                     fontFamily: "'Tomorrow', sans-serif",
                   }}
                 >
-                  CABIN ECLSS
+                  Reserve (PRI)
                 </span>
-              </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Pinned-width container ensures organ meters to the right never shift */}
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'baseline',
+                      minWidth: '82px',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '32px',
+                        fontWeight: 800,
+                        color: overallPill.color,
+                        fontFamily: 'var(--hud-font-mono, monospace)',
+                        fontVariantNumeric: 'tabular-nums',
+                        letterSpacing: '-0.02em',
+                        lineHeight: 1,
+                        display: 'inline-block',
+                        minWidth: '58px',
+                        textAlign: 'right',
+                        textShadow: `0 0 18px ${overallPill.color}35`,
+                      }}
+                    >
+                      {healthPercent}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '20px',
+                        fontWeight: 800,
+                        color: overallPill.color,
+                        fontFamily: "'Tomorrow', sans-serif",
+                        marginLeft: '2px',
+                        lineHeight: 1,
+                        display: 'inline-block',
+                        width: '20px',
+                        textAlign: 'left',
+                        textShadow: `0 0 14px ${overallPill.color}35`,
+                      }}
+                    >
+                      %
+                    </span>
+                  </div>
 
-              {/* Priority 3: Dynamic Contaminant & Hazard Sentry */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  background: hazardStatus.bg,
-                  border: `1px solid ${hazardStatus.border}`,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '9px',
-                    fontWeight: 700,
-                    color: hazardStatus.color,
-                    fontFamily: "'Tomorrow', sans-serif",
-                    letterSpacing: '0.04em',
-                    lineHeight: 1,
-                  }}
-                >
-                  {hazardStatus.label}
-                </span>
+                  {/* 5-System Multi-Organ Reserve Pips (Health Systems) */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                      background: 'rgba(0, 0, 0, 0.40)',
+                      padding: '3px 8px',
+                      borderRadius: '5px',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      flexShrink: 0,
+                    }}
+                    title={`Health Systems Reserve: Cardiovascular: ${clinicalSummary.reserveBreakdown.cardiovascular}% | Respiratory: ${clinicalSummary.reserveBreakdown.respiratory}% | Metabolic: ${clinicalSummary.reserveBreakdown.metabolic}% | Immune: ${clinicalSummary.reserveBreakdown.immune}% | Radiation: ${clinicalSummary.reserveBreakdown.radiation}%`}
+                  >
+                    <div style={{ fontSize: '7.5px', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif", marginBottom: '1px' }}>
+                      Health Systems
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      {[
+                        { label: 'Cardio', val: clinicalSummary.reserveBreakdown.cardiovascular },
+                        { label: 'Resp', val: clinicalSummary.reserveBreakdown.respiratory },
+                        { label: 'Metab', val: clinicalSummary.reserveBreakdown.metabolic },
+                        { label: 'Immune', val: clinicalSummary.reserveBreakdown.immune },
+                        { label: 'Rad', val: clinicalSummary.reserveBreakdown.radiation },
+                      ].map((sys) => {
+                        const sysColor = sys.val < 50 ? '#ef4444' : sys.val < 75 ? '#f59e0b' : '#22c55e';
+                        return (
+                          <div key={sys.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5px' }}>
+                            <span style={{ fontSize: '7.5px', color: '#f1f5f9', fontWeight: 700, lineHeight: 1, fontFamily: "'Tomorrow', sans-serif" }}>{sys.label}</span>
+                            <div style={{ width: '18px', height: '3px', borderRadius: '1px', background: 'rgba(255,255,255,0.18)', overflow: 'hidden' }}>
+                              <div style={{ width: `${sys.val}%`, height: '100%', background: sysColor, transition: 'width 300ms ease' }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Bottom Row: 6 Core Environmental Signals with Optimized Clean Labels */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'nowrap' }}>
-              {/* 1. Pressure */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  PRESSURE
-                </span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: cabinPressureVal < 95.0 ? '#ef4444' : '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                    {cabinPressureVal.toFixed(1)}
+            {/* RIGHT: CABIN ENVIRONMENTAL TELEMETRY (ALL 3 PRIORITIES: LIFE-SAFETY, CIRCULATION & HAZARD SENTRY) */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: '10px',
+                background: '#181818',
+                border: '1px solid #282828',
+                boxShadow: '0 4px 16px -2px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+                flexShrink: 0,
+              }}
+            >
+              {/* Top Sub-Bar: Module Identity + Dynamic Priority 3 Hazard Sentry Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      fontFamily: "'Tomorrow', sans-serif",
+                    }}
+                  >
+                    CABIN ECLSS
                   </span>
-                  <span style={{ fontSize: '9px', fontWeight: 600, color: cabinPressureVal < 95.0 ? '#ef4444' : '#94a3b8', fontFamily: "'Tomorrow', sans-serif" }}>
-                    kPa
+                </div>
+
+                {/* Priority 3: Dynamic Contaminant & Hazard Sentry */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background: hazardStatus.bg,
+                    border: `1px solid ${hazardStatus.border}`,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '9px',
+                      fontWeight: 700,
+                      color: hazardStatus.color,
+                      fontFamily: "'Tomorrow', sans-serif",
+                      letterSpacing: '0.04em',
+                      lineHeight: 1,
+                    }}
+                  >
+                    {hazardStatus.label}
                   </span>
                 </div>
               </div>
 
-              <div style={{ width: '1px', height: '20px', backgroundColor: 'rgba(255, 255, 255, 0.10)' }} />
-
-              {/* 2. O2 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  O₂
-                </span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: cabinO2Val < 19.5 ? '#ef4444' : '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                    {cabinO2Val.toFixed(1)}
+              {/* Bottom Row: 6 Core Environmental Signals with Tabular Numerals & Sans-Serif Units */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'nowrap' }}>
+                {/* 1. Pressure */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    PRESSURE
                   </span>
-                  <span style={{ fontSize: '9px', fontWeight: 600, color: cabinO2Val < 19.5 ? '#ef4444' : '#22c55e', fontFamily: "'Tomorrow', sans-serif" }}>
-                    %
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 800, color: cabinPressureVal < 95.0 ? '#ef4444' : '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      {cabinPressureVal.toFixed(1)}
+                    </span>
+                    <span style={{ fontSize: '9px', fontWeight: 600, color: cabinPressureVal < 95.0 ? '#ef4444' : '#94a3b8', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      kPa
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ width: '1px', height: '20px', backgroundColor: 'rgba(255, 255, 255, 0.10)' }} />
+                <div style={{ width: '1px', height: '20px', backgroundColor: 'rgba(255, 255, 255, 0.10)' }} />
 
-              {/* 3. CO2 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  CO₂
-                </span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: co2 >= 3.0 ? '#f59e0b' : '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                    {co2.toFixed(1)}
+                {/* 2. O2 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    O₂
                   </span>
-                  <span style={{ fontSize: '9px', fontWeight: 600, color: co2 >= 3.0 ? '#f59e0b' : '#94a3b8', fontFamily: "'Tomorrow', sans-serif" }}>
-                    mmHg
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 800, color: cabinO2Val < 19.5 ? '#ef4444' : '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      {cabinO2Val.toFixed(1)}
+                    </span>
+                    <span style={{ fontSize: '9px', fontWeight: 600, color: cabinO2Val < 19.5 ? '#ef4444' : '#22c55e', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      %
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ width: '1px', height: '20px', backgroundColor: 'rgba(255, 255, 255, 0.10)' }} />
+                <div style={{ width: '1px', height: '20px', backgroundColor: 'rgba(255, 255, 255, 0.10)' }} />
 
-              {/* 4. Radiation */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  RADIATION
-                </span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: radFlux >= 1.0 ? '#ef4444' : radFlux >= 0.15 ? '#f59e0b' : '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                    {radFlux >= 10.0 ? radFlux.toFixed(0) : radFlux.toFixed(2)}
+                {/* 3. CO2 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    CO₂
                   </span>
-                  <span style={{ fontSize: '9px', fontWeight: 600, color: radFlux >= 1.0 ? '#ef4444' : radFlux >= 0.15 ? '#f59e0b' : '#94a3b8', fontFamily: "'Tomorrow', sans-serif" }}>
-                    mSv/h
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 800, color: co2 >= 3.0 ? '#f59e0b' : '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      {co2.toFixed(1)}
+                    </span>
+                    <span style={{ fontSize: '9px', fontWeight: 600, color: co2 >= 3.0 ? '#f59e0b' : '#94a3b8', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      mmHg
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ width: '1px', height: '20px', backgroundColor: 'rgba(255, 255, 255, 0.10)' }} />
+                <div style={{ width: '1px', height: '20px', backgroundColor: 'rgba(255, 255, 255, 0.10)' }} />
 
-              {/* 5. Temp */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  TEMP
-                </span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                    21.4
+                {/* 4. Radiation */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    RADIATION
                   </span>
-                  <span style={{ fontSize: '9px', fontWeight: 600, color: '#22c55e', fontFamily: "'Tomorrow', sans-serif" }}>
-                    °C
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 800, color: radFlux >= 1.0 ? '#ef4444' : radFlux >= 0.15 ? '#f59e0b' : '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      {radFlux >= 10.0 ? radFlux.toFixed(0) : radFlux.toFixed(2)}
+                    </span>
+                    <span style={{ fontSize: '9px', fontWeight: 600, color: radFlux >= 1.0 ? '#ef4444' : radFlux >= 0.15 ? '#f59e0b' : '#94a3b8', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      mSv/h
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ width: '1px', height: '20px', backgroundColor: 'rgba(255, 255, 255, 0.10)' }} />
+                <div style={{ width: '1px', height: '20px', backgroundColor: 'rgba(255, 255, 255, 0.10)' }} />
 
-              {/* 6. Airflow */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  AIRFLOW
-                </span>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                    0.45
+                {/* 5. Temp */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    TEMP
                   </span>
-                  <span style={{ fontSize: '9px', fontWeight: 600, color: '#22c55e', fontFamily: "'Tomorrow', sans-serif" }}>
-                    m/s
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      21.4
+                    </span>
+                    <span style={{ fontSize: '9px', fontWeight: 600, color: '#22c55e', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      °C
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ width: '1px', height: '20px', backgroundColor: 'rgba(255, 255, 255, 0.10)' }} />
+
+                {/* 6. Airflow */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    AIRFLOW
                   </span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2.5px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      0.45
+                    </span>
+                    <span style={{ fontSize: '9px', fontWeight: 600, color: '#22c55e', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+                      m/s
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1988,147 +2126,332 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
         >
           {/* Left Column: 10 Health Categories */}
           <div style={{ padding: '20px 24px 80px 24px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#0e0e0e' }}>
-            {/* ── CLINICAL DECISION SUPPORT & EXPLAINABLE INTELLIGENCE SYNTHESIS LAYER ── */}
+            {/* ── OPERATIONAL HEALTH STATUS & RAPID SCAN SUMMARY LAYER ── */}
             <div
               style={{
                 background: clinicalSummary.isAbnormal
-                  ? 'linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, rgba(20, 18, 15, 0.95) 100%)'
-                  : 'linear-gradient(180deg, rgba(56, 189, 248, 0.03) 0%, rgba(16, 20, 28, 0.95) 100%)',
-                border: `1px solid ${clinicalSummary.isAbnormal ? clinicalSummary.primaryConcern.borderColor : 'rgba(255, 255, 255, 0.10)'}`,
-                borderRadius: '8px',
-                padding: '12px 16px',
+                  ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.16) 0%, rgba(34, 18, 22, 0.88) 35%, rgba(18, 11, 13, 0.96) 70%, rgba(12, 8, 10, 0.98) 100%)'
+                  : 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(14, 28, 22, 0.88) 35%, rgba(10, 18, 15, 0.96) 70%, rgba(7, 12, 10, 0.98) 100%)',
+                border: clinicalSummary.isAbnormal
+                  ? '1px solid rgba(239, 68, 68, 0.35)'
+                  : '1px solid rgba(34, 197, 94, 0.28)',
+                borderRadius: '10px',
+                padding: '14px 18px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '10px',
+                gap: '12px',
                 boxShadow: clinicalSummary.isAbnormal
-                  ? `0 0 20px ${clinicalSummary.primaryConcern.color}15, 0 2px 8px rgba(0, 0, 0, 0.4)`
-                  : '0 2px 8px rgba(0, 0, 0, 0.4)',
-                transition: 'border-color 400ms ease, box-shadow 400ms ease, background 400ms ease',
+                  ? `0 0 24px ${clinicalSummary.primaryConcern.color}18, 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08)`
+                  : '0 0 24px rgba(34, 197, 94, 0.12), 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+                transition: 'border-color 200ms ease, box-shadow 200ms ease',
               }}
             >
-              {/* Header: Primary Concern Title + Confidence Badge + Trajectory */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {/* Row 1: State + Short Explanation + Confidence */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  minHeight: '26px',
+                  flexWrap: 'nowrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, overflow: 'hidden' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', flexShrink: 0 }}>
+                    <span
+                      style={{
+                        width: '7px',
+                        height: '7px',
+                        borderRadius: '50%',
+                        backgroundColor: clinicalSummary.primaryConcern.color,
+                        boxShadow: `0 0 8px ${clinicalSummary.primaryConcern.color}`,
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 800,
+                        letterSpacing: '0.04em',
+                        color: clinicalSummary.isAbnormal ? clinicalSummary.primaryConcern.color : '#ffffff',
+                        fontFamily: "'Tomorrow', sans-serif",
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {clinicalSummary.primaryConcern.title}
+                    </span>
+                  </div>
+                  <span style={{ color: 'rgba(255, 255, 255, 0.25)', fontSize: '11px', flexShrink: 0 }}>•</span>
                   <span
                     style={{
-                      padding: '2.5px 8px',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      letterSpacing: '0.04em',
-                      color: clinicalSummary.primaryConcern.color,
-                      background: clinicalSummary.primaryConcern.bgColor,
-                      border: `1px solid ${clinicalSummary.primaryConcern.borderColor}`,
+                      fontSize: '12px',
+                      color: '#cbd5e1',
+                      fontWeight: 500,
+                      letterSpacing: '0.01em',
                       fontFamily: "'Tomorrow', sans-serif",
                       whiteSpace: 'nowrap',
-                      flexShrink: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
-                    {clinicalSummary.primaryConcern.title}
-                  </span>
-                  <span style={{ fontSize: '12px', color: '#f1f5f9', fontWeight: 500, lineHeight: 1.4, letterSpacing: '0.01em' }}>
                     {clinicalSummary.primaryConcern.description}
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em' }}>CONFIDENCE:</span>
-                    <span
-                      className="font-mono-tabular"
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: '#34d399',
-                      }}
-                    >
-                      {clinicalSummary.decisionSupport.confidence.toFixed(1)}%
-                    </span>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                   <span
                     style={{
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      color: clinicalSummary.trajectory.color,
-                      opacity: 0.95,
+                      fontSize: '10.5px',
+                      fontWeight: 700,
+                      color: clinicalSummary.isAbnormal ? '#fbbf24' : '#34d399',
+                      letterSpacing: '0.04em',
                       fontFamily: "'Tomorrow', sans-serif",
-                      letterSpacing: '0.03em',
+                      fontVariantNumeric: 'tabular-nums',
+                      background: clinicalSummary.isAbnormal ? 'rgba(251, 191, 36, 0.10)' : 'rgba(52, 211, 153, 0.10)',
+                      border: clinicalSummary.isAbnormal ? '1px solid rgba(251, 191, 36, 0.25)' : '1px solid rgba(52, 211, 153, 0.25)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      whiteSpace: 'nowrap',
+                      minWidth: '112px',
+                      textAlign: 'center',
                     }}
                   >
-                    {clinicalSummary.trajectory.label}
+                    {(clinicalSummary.structuredReasoning?.diagnosticConfidence ?? (clinicalSummary.isAbnormal ? 94.8 : 98.2)).toFixed(0)}% CONFIDENCE
                   </span>
                 </div>
               </div>
 
-              {/* 5-Tier Structured Clinical Reasoning Protocol */}
+              {/* Row 2: Important Values Grid (Compact & Tabular with Inset Gradient) */}
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))',
-                  gap: '8px',
-                  background: 'rgba(0, 0, 0, 0.22)',
-                  borderRadius: '6px',
-                  padding: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                  gap: '12px',
+                  background: clinicalSummary.isAbnormal
+                    ? 'linear-gradient(180deg, rgba(32, 14, 16, 0.70) 0%, rgba(18, 9, 11, 0.85) 50%, rgba(10, 6, 7, 0.95) 100%)'
+                    : 'linear-gradient(180deg, rgba(8, 24, 17, 0.70) 0%, rgba(6, 16, 12, 0.85) 50%, rgba(4, 9, 7, 0.95) 100%)',
+                  borderRadius: '8px',
+                  padding: '10px 16px',
+                  border: clinicalSummary.isAbnormal
+                    ? '1px solid rgba(239, 68, 68, 0.20)'
+                    : '1px solid rgba(34, 197, 94, 0.18)',
+                  boxShadow: 'inset 0 2px 6px rgba(0, 0, 0, 0.7), inset 0 0 16px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3)',
                 }}
               >
-                {/* 1. Measured Data */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255, 255, 255, 0.03)', padding: '9px 11px', borderRadius: '5px', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
-                    1 · MEASURED DATA
-                  </span>
-                  <div style={{ color: '#f8fafc', lineHeight: 1.45, fontSize: '11.5px', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
-                    {clinicalSummary.structuredReasoning?.measuredData || clinicalSummary.decisionSupport.observedPattern}
-                  </div>
-                </div>
-
-                {/* 2. Detected Change */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255, 255, 255, 0.03)', padding: '9px 11px', borderRadius: '5px', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#38bdf8', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
-                    2 · DETECTED CHANGE
-                  </span>
-                  <div style={{ color: '#f1f5f9', lineHeight: 1.45, fontSize: '11.5px', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
-                    {clinicalSummary.structuredReasoning?.detectedChange || 'All monitored vitals within normal personal baseline'}
-                  </div>
-                </div>
-
-                {/* 3. Pattern / Correlation */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255, 255, 255, 0.03)', padding: '9px 11px', borderRadius: '5px', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#a78bfa', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
-                    3 · PATTERN / CORRELATION
-                  </span>
-                  <div style={{ color: '#f1f5f9', lineHeight: 1.45, fontSize: '11.5px', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
-                    {clinicalSummary.structuredReasoning?.patternCorrelation || 'Stable and balanced physiological state'}
-                  </div>
-                </div>
-
-                {/* 4. Possible Interpretation */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(255, 255, 255, 0.03)', padding: '9px 11px', borderRadius: '5px', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '9px', fontWeight: 700, color: '#f59e0b', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
-                      4 · INTERPRETATION
+                {summaryTiles.map((tile) => (
+                  <div
+                    key={tile.label}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                      minWidth: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '9.5px',
+                        fontWeight: 700,
+                        color: '#94a3b8',
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        fontFamily: "'Tomorrow', sans-serif",
+                        height: '14px',
+                        lineHeight: '14px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {tile.label}
                     </span>
-                    <span style={{ fontSize: '8px', color: '#94a3b8', fontStyle: 'italic', fontFamily: "'Tomorrow', sans-serif" }}>Non-definitive AI</span>
+                    <div
+                      style={{
+                        height: '24px',
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <FormattedMetricValue
+                        value={tile.value}
+                        style={{
+                          fontSize: '17px',
+                          fontWeight: 800,
+                          color: tile.isAlert ? '#ef4444' : tile.isCaution ? '#f59e0b' : '#ffffff',
+                          lineHeight: '24px',
+                          letterSpacing: '-0.02em',
+                        }}
+                        unitStyle={{
+                          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                          fontSize: '11px',
+                          fontWeight: 500,
+                          color: '#94a3b8',
+                          marginLeft: '3px',
+                          letterSpacing: '0.01em',
+                        }}
+                      />
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '10.5px',
+                        fontWeight: 700,
+                        color: tile.isAlert ? '#f87171' : tile.isCaution ? '#fbbf24' : '#4ade80',
+                        fontFamily: "'Tomorrow', sans-serif",
+                        letterSpacing: '0.02em',
+                        height: '16px',
+                        lineHeight: '16px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {tile.status}
+                    </span>
                   </div>
-                  <div style={{ color: '#f1f5f9', lineHeight: 1.45, fontSize: '11.5px', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
-                    {clinicalSummary.structuredReasoning?.possibleInterpretation || 'Healthy ongoing adaptation to spaceflight'}
-                  </div>
+                ))}
+              </div>
+
+              {/* Row 3: Trend, Affected System & Action Bar with [ VIEW ANALYSIS ] Trigger */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  minHeight: '28px',
+                  flexWrap: 'nowrap',
+                  paddingTop: '2px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
+                  <span
+                    style={{
+                      fontSize: '11.5px',
+                      fontWeight: 700,
+                      color: clinicalSummary.trajectory.color,
+                      fontFamily: "'Tomorrow', sans-serif",
+                      letterSpacing: '0.04em',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {clinicalSummary.trajectory.label}
+                  </span>
+                  {clinicalSummary.isAbnormal ? (
+                    <>
+                      <span style={{ color: 'rgba(255, 255, 255, 0.25)', fontSize: '10px', flexShrink: 0 }}>•</span>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          color: '#38bdf8',
+                          background: 'rgba(56, 189, 248, 0.12)',
+                          border: '1px solid rgba(56, 189, 248, 0.28)',
+                          padding: '2px 7px',
+                          borderRadius: '4px',
+                          fontFamily: "'Tomorrow', sans-serif",
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                        }}
+                      >
+                        AFFECTED: {clinicalSummary.primaryConcern.category}
+                      </span>
+                      <span style={{ color: 'rgba(255, 255, 255, 0.25)', fontSize: '10px', flexShrink: 0 }}>•</span>
+                      <span
+                        style={{
+                          fontSize: '11.5px',
+                          color: '#fef08a',
+                          fontWeight: 600,
+                          fontFamily: "'Tomorrow', sans-serif",
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        ACTION: {clinicalSummary.decisionSupport.recommendedAction}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: 'rgba(255, 255, 255, 0.25)', fontSize: '10px', flexShrink: 0 }}>•</span>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          color: '#4ade80',
+                          background: 'rgba(74, 222, 128, 0.10)',
+                          border: '1px solid rgba(74, 222, 128, 0.22)',
+                          padding: '2px 7px',
+                          borderRadius: '4px',
+                          fontFamily: "'Tomorrow', sans-serif",
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                        }}
+                      >
+                        SYSTEMS NOMINAL
+                      </span>
+                    </>
+                  )}
                 </div>
 
-                {/* 5. Recommended Assessment */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: clinicalSummary.isAbnormal ? 'rgba(245, 158, 11, 0.08)' : 'rgba(34, 197, 94, 0.06)', padding: '9px 11px', borderRadius: '5px', border: `1px solid ${clinicalSummary.isAbnormal ? 'rgba(245, 158, 11, 0.28)' : 'rgba(34, 197, 94, 0.20)'}` }}>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: clinicalSummary.isAbnormal ? '#fde047' : '#34d399', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
-                    5 · ASSESSMENT & ACTION
-                  </span>
-                  <div style={{ color: clinicalSummary.isAbnormal ? '#fef08a' : '#f1f5f9', fontWeight: 500, lineHeight: 1.45, fontSize: '11.5px', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
-                    {clinicalSummary.structuredReasoning?.recommendedAssessment || clinicalSummary.decisionSupport.recommendedAction}
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                  {!clinicalSummary.isAbnormal && (
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: '#94a3b8',
+                        letterSpacing: '0.05em',
+                        fontFamily: "'Tomorrow', sans-serif",
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      NO ACTION NEEDED
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setIsAnalysisDrawerOpen(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      background: clinicalSummary.isAbnormal
+                        ? 'linear-gradient(180deg, rgba(239, 68, 68, 0.22) 0%, rgba(239, 68, 68, 0.10) 100%)'
+                        : 'linear-gradient(180deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.04) 100%)',
+                      border: clinicalSummary.isAbnormal
+                        ? '1px solid rgba(239, 68, 68, 0.35)'
+                        : '1px solid rgba(255, 255, 255, 0.14)',
+                      color: clinicalSummary.isAbnormal ? '#fca5a5' : '#ffffff',
+                      fontSize: '10.5px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontFamily: "'Tomorrow', sans-serif",
+                      letterSpacing: '0.05em',
+                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.35)',
+                      transition: 'all 0.15s ease',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                    title="Open structured clinical analysis drawer"
+                  >
+                    VIEW ANALYSIS →
+                  </button>
                 </div>
               </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', fontFamily: "'Tomorrow', sans-serif" }}>
                 Subsystems &amp; Biomarkers for {activeCrew.name}
               </div>
               <div style={{ fontSize: '10px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -2173,7 +2496,18 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
               <CategoryCard
                 title="1. Cardiovascular"
                 icon={<HeartIcon />}
-                statusPill={{ label: hr > 100 || arf >= 0.85 ? 'Attention' : 'Stable', color: hr > 100 || arf >= 0.85 ? '#f59e0b' : '#22c55e' }}
+                statusPill={{
+                  label: (arf >= 1.60 || qtc >= 485.0 || hr > 130 || hr < 40)
+                    ? 'Critical'
+                    : (arf >= 1.25 || qtc >= 455.0 || hr > 100 || hr < 48)
+                    ? 'Attention'
+                    : 'Stable',
+                  color: (arf >= 1.60 || qtc >= 485.0 || hr > 130 || hr < 40)
+                    ? '#ef4444'
+                    : (arf >= 1.25 || qtc >= 455.0 || hr > 100 || hr < 48)
+                    ? '#f59e0b'
+                    : '#22c55e',
+                }}
                 {...commonCardProps}
                 rows={[
                   {
@@ -2182,16 +2516,34 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                     unit: 'bpm',
                     baselineValue: defaultProfile.restHr,
                     value: computeBiomarkerDelta(hr, defaultProfile.restHr, 'bpm').deltaStr
-                      ? `${hr.toFixed(0)} bpm (${computeBiomarkerDelta(hr, defaultProfile.restHr, 'bpm').deltaStr})`
-                      : `${hr.toFixed(0)} bpm`,
-                    dotColor: hr > 100 ? '#f59e0b' : '#22c55e',
+                      ? `${Math.round(hr)} bpm (${computeBiomarkerDelta(hr, defaultProfile.restHr, 'bpm').deltaStr})`
+                      : `${Math.round(hr)} bpm`,
+                    dotColor: hr > 130 || hr < 40 ? '#ef4444' : hr > 100 || hr < 48 ? '#f59e0b' : '#22c55e',
                     trend: hr > 100 ? 'up' : 'stable',
                     history: metricHistories['hr'],
                   },
                   { label: 'ECG / Cardiac rhythm', metricId: 'ecg', value: hr > 115 ? 'Tachycardia' : hr < 50 ? 'Bradycardia' : 'Normal', dotColor: hr > 115 ? '#f59e0b' : '#22c55e', trend: 'stable', history: metricHistories['ecg'] },
-                  { label: 'Blood pressure', metricId: 'bp_sys', unit: 'mmHg', baselineValue: '112/72', value: `${sysBp}/${diaBp} mmHg`, dotColor: '#94a3b8', history: metricHistories['bp_sys'] },
-                  { label: 'Arrhythmia detection', metricId: 'arf', unit: 'idx', baselineValue: 0.72, value: arf >= 0.85 ? 'Elevated risk' : 'None', dotColor: arf >= 0.85 ? '#ef4444' : '#22c55e', trend: 'stable', history: metricHistories['arf'] },
-                  { label: 'Fridericia QTc', metricId: 'qtc', unit: 'ms', baselineValue: 402, value: `${qtc.toFixed(0)} ms`, dotColor: qtc >= 485 ? '#ef4444' : '#22c55e', trend: qtc >= 485 ? 'up' : 'stable', history: metricHistories['qtc'] },
+                  { label: 'Blood pressure', metricId: 'bp_sys', unit: 'mmHg', baselineValue: '116/76', value: `${bpValStr} mmHg`, dotColor: '#94a3b8', history: metricHistories['bp_sys'] },
+                  {
+                    label: 'Arrhythmia detection',
+                    metricId: 'arf',
+                    unit: 'idx',
+                    baselineValue: 0.72,
+                    value: arf >= 1.60 || qtc >= 485.0 ? 'Elevated risk' : arf >= 1.25 || qtc >= 455.0 ? 'Borderline' : 'None',
+                    dotColor: arf >= 1.60 || qtc >= 485.0 ? '#ef4444' : arf >= 1.25 || qtc >= 455.0 ? '#f59e0b' : '#22c55e',
+                    trend: arf >= 1.25 || qtc >= 455.0 ? 'up' : 'stable',
+                    history: metricHistories['arf'],
+                  },
+                  {
+                    label: 'Fridericia QTc',
+                    metricId: 'qtc',
+                    unit: 'ms',
+                    baselineValue: 402,
+                    value: `${qtc.toFixed(0)} ms`,
+                    dotColor: qtc >= 485 ? '#ef4444' : qtc >= 455 ? '#f59e0b' : '#22c55e',
+                    trend: qtc >= 455 ? 'up' : 'stable',
+                    history: metricHistories['qtc'],
+                  },
                   ...(expandedCard === 1
                     ? [
                       { label: 'Fibrinogen (OSD-575)', metricId: 'fibrinogen', unit: 'mg/dL', baselineValue: defaultProfile.fibrinogen, value: fibrinogenVal, dotColor: '#94a3b8', history: metricHistories['fibrinogen'] },
@@ -2234,7 +2586,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                   { label: 'Respiratory rate', metricId: 'rr', unit: '/min', baselineValue: 14, value: `${respRate} /min`, dotColor: respRate > 20 ? '#f59e0b' : '#22c55e', history: metricHistories['rr'] },
                   { label: 'End-tidal CO₂ (EtCO₂)', metricId: 'etco2', unit: 'mmHg', baselineValue: 38, value: `${spo2 < 95 ? 43 : 38} mmHg`, dotColor: spo2 < 95 ? '#f59e0b' : '#22c55e', trend: spo2 < 95 ? 'up' : 'stable', history: metricHistories['etco2'] },
                   { label: 'Minute ventilation', metricId: 'min_vent', unit: 'L/min', baselineValue: 7.3, value: `${(respRate * 0.52).toFixed(1)} L/min`, dotColor: respRate > 20 ? '#f59e0b' : '#22c55e', history: metricHistories['min_vent'] },
-                  { label: 'Thoracoabdominal synchrony', value: 'Synchronous / Nominal', dotColor: '#22c55e', noGraph: true },
+                  { label: 'Breathing synchrony', metricId: 'resp_synchrony', value: 'Normal', dotColor: '#22c55e', baselineValue: 'Normal', unit: 'idx', noGraph: true },
                 ]}
               />
 
@@ -2259,7 +2611,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                   },
                   { label: 'Peripheral skin temp', metricId: 'skin_temp', unit: '°C', baselineValue: +(defaultProfile.restTemp - 2.8).toFixed(1), value: `${(temp - 2.8).toFixed(1)} °C`, dotColor: '#22c55e', trend: 'stable', history: metricHistories['skin_temp'] },
                   { label: 'Thermal drift rate', metricId: 'drift_rate', unit: '°C/h', baselineValue: 0.0, value: temp >= 37.5 ? '+0.4 °C/h' : '0.0 °C/h', dotColor: temp >= 37.5 ? '#f59e0b' : '#22c55e', history: metricHistories['drift_rate'] },
-                  { label: 'Heat balance equilibrium', value: temp >= 37.5 ? 'Heat retention' : 'Equilibrium', dotColor: temp >= 37.5 ? '#f59e0b' : '#22c55e', noGraph: true },
+                  { label: 'Heat balance', value: temp >= 37.5 ? 'Heat retention' : 'Normal', dotColor: temp >= 37.5 ? '#f59e0b' : '#22c55e', noGraph: true },
                 ]}
               />
 
@@ -2270,11 +2622,22 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 statusPill={{ label: sleep < 70 ? 'Attention' : 'Nominal', color: sleep < 70 ? '#f59e0b' : '#22c55e' }}
                 {...commonCardProps}
                 rows={[
-                  { label: 'Actigraphy sleep score', metricId: 'sleep', unit: '/100', baselineValue: defaultProfile.restSleep, value: `${sleep.toFixed(0)} / 100`, dotColor: sleep < 65 ? '#f59e0b' : '#22c55e', trend: sleep < 70 ? 'down' : 'stable', history: metricHistories['sleep'] },
-                  { label: 'Autonomic nervous tone', metricId: 'hrv', unit: 'ms', baselineValue: defaultProfile.restHrv, value: hrv < 45 ? 'Sympathetic strain' : 'Balanced', dotColor: hrv < 45 ? '#f59e0b' : '#22c55e', history: metricHistories['hrv'] },
-                  { label: 'Neurological response', value: 'Alert / Normal', dotColor: '#22c55e', trend: 'stable', noGraph: true },
-                  { label: 'Circadian phase status', value: 'Phase II (Active)', dotColor: '#38bdf8', noGraph: true },
-                  { label: 'Autonomic σ-drift', metricId: 'z_hrv', unit: 'σ', baselineValue: 0.2, value: `${Math.abs(currentPacket?.z_score_hrv ?? 0.2).toFixed(1)} σ`, dotColor: Math.abs(currentPacket?.z_score_hrv ?? 0) > 2.0 ? '#f59e0b' : '#22c55e', history: metricHistories['z_hrv'] },
+                  { label: 'Sleep score', metricId: 'sleep', unit: '/100', baselineValue: defaultProfile.restSleep, value: `${sleep.toFixed(0)} / 100`, dotColor: sleep < 65 ? '#f59e0b' : '#22c55e', trend: sleep < 70 ? 'down' : 'stable', history: metricHistories['sleep'] },
+                  {
+                    label: 'Heart rate variability (HRV)',
+                    metricId: 'hrv',
+                    unit: 'ms',
+                    baselineValue: defaultProfile.restHrv,
+                    value: computeBiomarkerDelta(hrv, defaultProfile.restHrv, 'ms').deltaStr
+                      ? `${Math.round(hrv)} ms (${computeBiomarkerDelta(hrv, defaultProfile.restHrv, 'ms').deltaStr})`
+                      : `${Math.round(hrv)} ms`,
+                    dotColor: hrv < 20 ? '#ef4444' : hrv < 35 ? '#f59e0b' : '#22c55e',
+                    trend: hrv < 35 ? 'down' : 'stable',
+                    history: metricHistories['hrv'],
+                  },
+                  { label: 'Neurological response', value: 'Normal', dotColor: '#22c55e', trend: 'stable', noGraph: true },
+                  { label: 'Circadian phase', value: 'Phase II (Active)', dotColor: '#38bdf8', noGraph: true },
+                  { label: 'Autonomic drift', metricId: 'z_hrv', unit: 'σ', baselineValue: 0.2, value: `${Math.abs(currentPacket?.z_score_hrv ?? 0.2).toFixed(1)} σ`, dotColor: Math.abs(currentPacket?.z_score_hrv ?? 0) > 2.0 ? '#f59e0b' : '#22c55e', history: metricHistories['z_hrv'] },
                 ]}
               />
 
@@ -2501,14 +2864,14 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
               <CategoryCard
                 title="9. Thrombosis & Vascular"
                 icon={<VascularIcon />}
-                statusPill={{ label: trm >= 1.25 ? 'Attention' : 'Nominal', color: trm >= 1.25 ? '#f59e0b' : '#22c55e' }}
+                statusPill={{ label: trm >= 1.50 ? 'Attention' : 'Nominal', color: trm >= 1.50 ? '#f59e0b' : '#22c55e' }}
                 {...commonCardProps}
                 rows={[
-                  { label: 'Thrombosis risk metric', metricId: 'trm', unit: 'ratio', baselineValue: 1.02, value: trm.toFixed(2), dotColor: trm >= 1.25 ? '#f59e0b' : '#22c55e', trend: trm >= 1.25 ? 'up' : 'stable', history: metricHistories['trm'] },
+                  { label: 'Thrombosis risk metric', metricId: 'trm', unit: 'ratio', baselineValue: 1.02, value: trm.toFixed(2), dotColor: trm >= 1.50 ? '#f59e0b' : '#22c55e', trend: trm >= 1.50 ? 'up' : 'stable', history: metricHistories['trm'] },
                   { label: 'Fibrinogen level', metricId: 'fibrinogen', unit: 'mg/dL', baselineValue: defaultProfile.fibrinogen, value: fibrinogenVal, dotColor: '#22c55e', history: metricHistories['fibrinogen'] },
                   { label: 'L-selectin adhesion', metricId: 'l_selectin', unit: 'ng/mL', baselineValue: 740, value: labProfile?.cardiovascular?.l_selectin?.value ? `${(labProfile.cardiovascular.l_selectin.value / 1000).toFixed(0)} ng/mL` : '740 ng/mL', dotColor: '#94a3b8', history: metricHistories['l_selectin'] },
                   { label: 'Platelet factor 4 (PF4)', metricId: 'pf4', unit: 'ng/mL', baselineValue: 320, value: labProfile?.cardiovascular?.pf4?.value ? `${labProfile.cardiovascular.pf4.value.toFixed(0)} ng/mL` : '320 ng/mL', dotColor: '#94a3b8', history: metricHistories['pf4'] },
-                  { label: 'Venous stasis status', value: trm > 1.3 ? 'Cephalic stasis' : 'Normal flow', dotColor: trm > 1.3 ? '#f59e0b' : '#22c55e', noGraph: true },
+                  { label: 'Venous stasis status', value: trm >= 1.50 ? 'Cephalic stasis' : 'Normal flow', dotColor: trm >= 1.50 ? '#f59e0b' : '#22c55e', noGraph: true },
                   { label: 'Cephalic hemoconcentration', value: '-0.6 kg fluid shift', dotColor: '#94a3b8', noGraph: true },
                 ]}
               />
@@ -2517,12 +2880,25 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
               <CategoryCard
                 title="10. Integrated Directives & JARVIS"
                 icon={<DirectivesIcon />}
-                statusPill={{ label: severity === 'NOMINAL' ? 'Stable' : severity, color: severity === 'NOMINAL' ? '#22c55e' : '#f59e0b' }}
+                statusPill={{
+                  label: severity === 'CRITICAL' ? 'Critical' : severity === 'WARNING' ? 'Attention' : 'Stable',
+                  color: severity === 'CRITICAL' ? '#ef4444' : severity === 'WARNING' ? '#f59e0b' : '#22c55e',
+                }}
                 {...commonCardProps}
                 rows={[
                   { label: 'Early sepsis cascade (EPI)', metricId: 'epi', unit: 'idx', baselineValue: 0.05, value: (currentPacket?.computed_epi ?? 0.05).toFixed(2), dotColor: (currentPacket?.computed_epi ?? 0) > 0.8 ? '#ef4444' : '#22c55e', history: metricHistories['epi'] },
-                  { label: 'Primary diagnosis', value: severity === 'CRITICAL' ? 'Acute Physiological Anomaly' : severity === 'WARNING' ? 'Moderate Baseline Strain' : 'Equilibrium baseline', dotColor: severity === 'NOMINAL' ? '#22c55e' : '#f59e0b', noGraph: true },
-                  { label: 'Actionable directive', value: severity === 'CRITICAL' ? 'Initiate clinical countermeasure' : severity === 'WARNING' ? 'Schedule rest & hydration' : 'Continue mission activities', dotColor: '#22c55e', noGraph: true },
+                  {
+                    label: 'Primary diagnosis',
+                    value: severity === 'CRITICAL' ? 'Acute Physiological Anomaly' : severity === 'WARNING' ? 'Moderate Baseline Strain' : 'Equilibrium baseline',
+                    dotColor: severity === 'CRITICAL' ? '#ef4444' : severity === 'WARNING' ? '#f59e0b' : '#22c55e',
+                    noGraph: true,
+                  },
+                  {
+                    label: 'Actionable directive',
+                    value: severity === 'CRITICAL' ? 'Initiate clinical countermeasure' : severity === 'WARNING' ? 'Schedule rest & hydration' : 'Continue mission activities',
+                    dotColor: '#22c55e',
+                    noGraph: true,
+                  },
                   { label: 'Autonomous decision sentry', value: 'Online (Ollama BioMistral)', dotColor: '#94a3b8', noGraph: true },
                 ]}
               />
@@ -2564,7 +2940,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                     <span style={{ color: '#57d68d', fontWeight: 600, fontFamily: "'Tomorrow', sans-serif", letterSpacing: '0.04em' }}>CONNECTED</span>
                   </div>
                   <span style={{ fontSize: '9px', color: '#94a3b8', fontFamily: "'Tomorrow', sans-serif" }}>
-                    {filteredDevices.length} shown • {filteredDevices.filter(d => d.mode === 'CONTINUOUS' && (d.status === 'Connected' || d.status === 'Streaming')).length} streaming
+                    <span style={{ fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums' }}>{filteredDevices.length}</span> shown • <span style={{ fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums' }}>{filteredDevices.filter(d => d.mode === 'CONTINUOUS' && (d.status === 'Connected' || d.status === 'Streaming')).length}</span> streaming
                   </span>
                 </div>
               </div>
@@ -2702,7 +3078,9 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                               {dev.readings.map(([name, val]) => (
                                 <div key={name} style={{ border: '1px solid #282828', borderRadius: '7px', padding: '6px 8px', background: '#121212' }}>
                                   <div style={{ fontSize: '8px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: "'Tomorrow', sans-serif" }}>{name}</div>
-                                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#e8f1f7', marginTop: '3px', fontFamily: "'Tomorrow', sans-serif" }}>{val}</div>
+                                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#e8f1f7', marginTop: '3px' }}>
+                                    <FormattedMetricValue value={val} />
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -2853,6 +3231,17 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
           category={deepAnalysisTarget.category}
         />
       )}
+
+      {/* Clinical Intelligence Slide-Over Drawer (5 Operational Reasoning Tiers) */}
+      <ClinicalIntelligenceDrawer
+        isOpen={isAnalysisDrawerOpen}
+        onClose={() => setIsAnalysisDrawerOpen(false)}
+        clinicalSummary={clinicalSummary}
+        astronautName={activeCrew.name}
+        astronautRole={activeCrew.role}
+        subjectId={activeCrew.subjectId}
+        avatar={activeCrew.avatar}
+      />
     </div>
   );
 };
@@ -3008,7 +3397,7 @@ const CategoryBiomarkerRow: React.FC<{
 
         {/* Right Cluster: [Value with Status Dot] + [Cadence Badge] + [Chevron] */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          {/* Real-time Status Dot + Tabular Numeral Value */}
+          {/* Real-time Status Dot + Tabular Numeral Value with Sans-Serif Text Beside Numbers */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
             <span
               style={{
@@ -3028,14 +3417,11 @@ const CategoryBiomarkerRow: React.FC<{
               style={{
                 color: isCritical ? '#fca5a5' : isWarning ? '#ffffff' : '#f5f5f5',
                 fontWeight: isIssue ? 700 : 600,
-                fontFamily: 'var(--hud-font-mono, monospace)',
-                fontVariantNumeric: 'tabular-nums',
-                letterSpacing: '0.02em',
                 whiteSpace: 'nowrap',
               }}
               title={typeof row.value === 'string' ? row.value : undefined}
             >
-              {row.value}
+              <FormattedMetricValue value={row.value} />
             </span>
           </div>
 
@@ -3072,6 +3458,7 @@ const CategoryBiomarkerRow: React.FC<{
                   borderRadius: '3px',
                   letterSpacing: '0.03em',
                   fontFamily: 'var(--hud-font-mono, monospace)',
+                  fontVariantNumeric: 'tabular-nums',
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
                 }}
@@ -3089,13 +3476,21 @@ const CategoryBiomarkerRow: React.FC<{
                   padding: '1px 5px',
                   borderRadius: '3px',
                   letterSpacing: '0.02em',
-                  fontFamily: 'var(--hud-font-mono, monospace)',
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'baseline',
+                  gap: '3px',
                 }}
                 title={`Cadence: ${cadence.badgeLabel}. Next automated cycle in ${countdownText}`}
               >
-                {cadence.mode === 'LAB' ? `LAB ${cadence.intervalHours}h` : `${cadence.intervalHours}h`} · {countdownText}
+                <span style={{ fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums' }}>
+                  {cadence.mode === 'LAB' ? `LAB ${cadence.intervalHours}` : cadence.intervalHours}
+                </span>
+                <span style={{ fontFamily: "'Tomorrow', sans-serif" }}>h •</span>
+                <span style={{ fontFamily: 'var(--hud-font-mono, monospace)', fontVariantNumeric: 'tabular-nums' }}>
+                  {countdownText}
+                </span>
               </span>
             )}
 

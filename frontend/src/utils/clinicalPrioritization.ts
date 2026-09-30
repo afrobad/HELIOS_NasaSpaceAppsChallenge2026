@@ -466,13 +466,14 @@ export function evaluateCrewClinicalSummary(
     let urgency = 0;
 
     // Ground Truth sentry_matrix.py: baseline TRM ~1.02, Warning >= 1.50, Critical >= 2.20
-    if (hct >= 52.0 || trm >= 2.20 || plt >= 450.0) {
+    // Personal baseline delta: microgravity hemoconcentration evaluated against individual resting baseline
+    if (dHct.pct >= 10.0 || hct >= 53.0 || trm >= 2.20 || plt >= 450.0) {
       tier = 'CRITICAL';
       urgency = 310 + Math.abs(dHct.pct) * 2.0;
-    } else if (hct >= 48.0 || trm >= 1.50 || plt >= 390.0) {
+    } else if (dHct.pct >= 5.5 || hct >= 51.0 || trm >= 1.50 || plt >= 390.0) {
       tier = 'WARNING';
       urgency = 160 + Math.abs(dHct.pct) * 1.5;
-    } else if (hct > 46.5 || trm >= 1.25) {
+    } else if (dHct.pct >= 3.0 || trm >= 1.25) {
       tier = 'SUB_NOMINAL';
       urgency = 25 + Math.abs(dHct.pct);
     }
@@ -556,8 +557,8 @@ export function evaluateCrewClinicalSummary(
       };
     } else {
       primaryConcern = {
-        title: 'ALL VITAL SYSTEMS NOMINAL',
-        description: 'No significant biomarker deviation from personal baseline',
+        title: 'ALL VITALS NORMAL',
+        description: 'No significant change from personal baseline',
         category: 'NOMINAL',
         color: '#22c55e',
         borderColor: 'rgba(34, 197, 94, 0.35)',
@@ -618,8 +619,18 @@ export function evaluateCrewClinicalSummary(
           icon: 'FLAME',
         };
         break;
-      case 'hr':
       case 'arf':
+        primaryConcern = {
+          title: isCritical ? 'VENTRICULAR ARRHYTHMIA RISK · CRITICAL' : 'CARDIAC ARRHYTHMIC STRAIN · ELEVATED',
+          description: `ARF ${arf.toFixed(2)}, QTc ${Math.round(qtc)} ms${deltaTag}. Myocardial rhythm monitoring active.`,
+          category: 'CARDIAC',
+          color: isCritical ? '#ef4444' : warnColor,
+          borderColor: isCritical ? 'rgba(239, 68, 68, 0.35)' : warnBorder,
+          bgColor: isCritical ? 'rgba(239, 68, 68, 0.12)' : warnBg,
+          icon: 'HEART',
+        };
+        break;
+      case 'hr':
         primaryConcern = {
           title: isCritical ? 'CARDIAC DYSRHYTHMIA / TACHY' : 'CARDIOVASCULAR STRAIN DETECTED',
           description: `${Math.round(hr)} bpm${deltaTag}. Continuous rhythm telemetry monitoring.`,
@@ -666,12 +677,12 @@ export function evaluateCrewClinicalSummary(
     }
   }
 
-  // Trajectory Assessment
+  // Trend Assessment
   let trajectory: CrewClinicalSummary['trajectory'];
   if (isCritical) {
     trajectory = {
       status: 'WORSENING',
-      label: 'TRAJECTORY: DETERIORATING ↑',
+      label: 'TREND: DETERIORATING ↑',
       color: '#ef4444',
       arrow: '↑',
       deltaNote: 'High immediate intervention urgency',
@@ -679,7 +690,7 @@ export function evaluateCrewClinicalSummary(
   } else if (isWarning) {
     trajectory = {
       status: 'WORSENING',
-      label: 'TRAJECTORY: UNSTABLE ↗',
+      label: 'TREND: UNSTABLE ↗',
       color: '#f59e0b',
       arrow: '↗',
       deltaNote: 'Close clinical sentry active',
@@ -687,10 +698,10 @@ export function evaluateCrewClinicalSummary(
   } else {
     trajectory = {
       status: 'STABLE',
-      label: 'TRAJECTORY: STABLE →',
+      label: 'TREND: STABLE →',
       color: '#22c55e',
       arrow: '→',
-      deltaNote: 'Downtrend risk: minimal',
+      deltaNote: 'Within baseline tolerance',
     };
   }
 
@@ -770,6 +781,10 @@ export function evaluateCrewClinicalSummary(
       observedPattern = `IL-6 inflammatory surge to ${il6.toFixed(1)} pg/mL${deltaTag}`;
       contributingFactors.push('Cabin air irritants', 'Early immune activation or viral response');
       recommendedAction = 'Run repeat blood panel and inspect cabin air filters.';
+    } else if (topCandidate.id === 'arf') {
+      observedPattern = `Arrhythmia risk index elevated to ${arf.toFixed(2)} (QTc ${Math.round(qtc)} ms)${deltaTag}`;
+      contributingFactors.push('Autonomic regulation shift', 'Ventricular repolarization delay');
+      recommendedAction = 'Continuous rhythm telemetry monitoring and 12-lead ECG review.';
     } else if (topCandidate.id === 'hct') {
       observedPattern = `Hematocrit elevated to ${topCandidate.formattedValue}${deltaTag}`;
       contributingFactors.push('Microgravity fluid shift', 'Mild hemoconcentration / reduced plasma volume');
@@ -786,49 +801,57 @@ export function evaluateCrewClinicalSummary(
   }
 
   // 5-Level Structured Clinical Reasoning
-  let measuredData = `HR: ${Math.round(hr)} bpm · SpO₂: ${spo2.toFixed(1)}% · Temp: ${temp.toFixed(1)}°C`;
-  let detectedChange = 'All monitored vitals within normal personal baseline';
-  let patternCorrelation = 'Stable and balanced physiological state';
-  let possibleInterpretation = 'Healthy ongoing adaptation to spaceflight';
-  let recommendedAssessment = 'Continue routine telemetry monitoring and scheduled tasks.';
+  let measuredData = `HR: ${Math.round(hr)} bpm · SpO₂: ${spo2.toFixed(1)}% · Temp: ${temp.toFixed(1)}°C · BP: ${nominalVitals.bp.val}`;
+  let detectedChange = 'Within personal range';
+  let patternCorrelation = 'No related changes detected';
+  let possibleInterpretation = 'Within baseline tolerance';
+  let recommendedAssessment = 'Continue routine monitoring';
 
   if (isAbnormal) {
     if (topCandidate.id === 'spo2') {
       measuredData = `SpO₂: ${spo2.toFixed(1)}% · HR: ${Math.round(hr)} bpm · EtCO₂: ${spo2 < 95 ? 43 : 38} mmHg`;
-      detectedChange = `SpO₂ dropped ${topCandidate.deltaStr || '8.2%'} below baseline with elevated heart rate`;
-      patternCorrelation = 'Acute oxygen desaturation under current cabin conditions';
-      possibleInterpretation = 'Cabin pO₂ drop, suit micro-leak, or airway restriction';
-      recommendedAssessment = 'Administer supplemental O₂ and check cabin atmosphere.';
+      detectedChange = `SpO₂ decreased ${topCandidate.deltaStr || '8%'} below baseline`;
+      patternCorrelation = 'Oxygen desaturation with elevated pulse';
+      possibleInterpretation = 'Reduced cabin pO₂ or ventilation demand';
+      recommendedAssessment = 'Administer supplemental O₂ and inspect cabin atmosphere.';
     } else if (topCandidate.id === 'k') {
-      measuredData = `Serum K⁺: ${k.toFixed(2)} mmol/L · QTc: ${qtc.toFixed(0)} ms`;
-      detectedChange = `Potassium low (${topCandidate.deltaStr || '↓ 12%'} from baseline)`;
-      patternCorrelation = 'Electrolyte imbalance affecting cardiac rhythm';
-      possibleInterpretation = 'Fluid shift and increased potassium excretion in microgravity';
+      measuredData = `Serum K⁺: ${k.toFixed(2)} mmol/L · HR: ${Math.round(hr)} bpm · QTc: ${qtc.toFixed(0)} ms`;
+      detectedChange = `Potassium ${topCandidate.deltaStr || '↓ 12%'} from baseline`;
+      patternCorrelation = 'HR ↓ + potassium ↓';
+      possibleInterpretation = 'Microgravity fluid shift & renal electrolyte excretion';
       recommendedAssessment = 'Provide oral potassium supplement (20 mEq) and monitor ECG.';
+    } else if (topCandidate.id === 'arf') {
+      measuredData = `ARF: ${arf.toFixed(2)} · QTc: ${Math.round(qtc)} ms · HR: ${Math.round(hr)} bpm`;
+      detectedChange = `Arrhythmia risk index elevated (${topCandidate.deltaStr || 'above baseline'})`;
+      patternCorrelation = 'Myocardial repolarization delay & rhythm instability';
+      possibleInterpretation = 'Electrolyte shift or delayed cardiac repolarization';
+      recommendedAssessment = 'Continuous rhythm telemetry monitoring and 12-lead ECG review.';
     } else if (topCandidate.id === 'flux') {
-      measuredData = `Radiation Flux: ${topCandidate.formattedValue} · Dose: ${radDose.toFixed(2)} Gy`;
-      detectedChange = `Solar radiation surge detected above background`;
-      patternCorrelation = 'Solar Particle Event (SPE) in progress';
-      possibleInterpretation = 'Active solar flare energetic proton exposure';
-      recommendedAssessment = 'Move crew to shielded storm shelter immediately.';
+      measuredData = `Radiation Flux: ${topCandidate.formattedValue} · Cumulative Dose: ${radDose.toFixed(2)} Gy`;
+      detectedChange = `Radiation flux elevated above threshold`;
+      patternCorrelation = 'Solar Particle Event (SPE) detected';
+      possibleInterpretation = 'Energetic solar proton exposure active';
+      recommendedAssessment = 'Direct crew to shielded storm shelter immediately.';
     } else if (topCandidate.id === 'il6') {
       measuredData = `IL-6: ${il6.toFixed(1)} pg/mL · WBC: ${wbc.toFixed(1)} k/μL`;
-      detectedChange = `Inflammatory markers elevated (3x baseline)`;
-      patternCorrelation = 'Acute inflammatory or immune response';
-      possibleInterpretation = 'Cabin air irritant, latent virus, or early infection';
-      recommendedAssessment = 'Run repeat blood panel and inspect cabin air filters.';
+      detectedChange = `IL-6 elevated ${topCandidate.deltaStr || '3x baseline'}`;
+      patternCorrelation = 'Acute inflammatory biomarker elevation';
+      possibleInterpretation = 'Cabin air irritant or early immune response';
+      recommendedAssessment = 'Inspect air filtration and repeat blood panel.';
     } else if (topCandidate.id === 'hct') {
       measuredData = `Hematocrit: ${topCandidate.formattedValue} (Baseline: ${profile.hct}%)`;
-      detectedChange = `Elevated ${topCandidate.deltaStr || '+2.1%'} above personal baseline`;
-      patternCorrelation = 'Microgravity fluid shift & hemoconcentration';
-      possibleInterpretation = 'Mild plasma volume reduction (dehydration)';
-      recommendedAssessment = 'Run repeat CBC and ensure electrolyte fluid intake.';
+      detectedChange = topCandidate.deltaStr
+        ? `Hematocrit shifted ${topCandidate.deltaStr}`
+        : 'Hematocrit within personal baseline tolerance';
+      patternCorrelation = 'Fluid redistribution and plasma volume change';
+      possibleInterpretation = 'Mild hemoconcentration';
+      recommendedAssessment = 'Ensure electrolyte hydration and repeat CBC.';
     } else {
       measuredData = `${topCandidate.name}: ${topCandidate.formattedValue}`;
       detectedChange = `${topCandidate.name} shifted ${topCandidate.deltaStr || 'from baseline'}`;
       patternCorrelation = 'Mild biomarker variation under spaceflight stress';
-      possibleInterpretation = 'Body adapting to current mission activity or fluid shifts';
-      recommendedAssessment = 'Review 60-minute trend and verify in next lab cycle.';
+      possibleInterpretation = 'Physiological adaptation to current mission activity';
+      recommendedAssessment = 'Review trend and continue monitoring.';
     }
   } else if (isWorkout) {
     measuredData = `HR: ${Math.round(hr)} bpm · SpO₂: ${spo2.toFixed(1)}% · Temp: ${temp.toFixed(1)}°C`;
