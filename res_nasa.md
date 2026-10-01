@@ -56,4 +56,4 @@ NASA Space Apps Challenge: Crew Health Monitoring Dashboard (Mission Control vie
 - NASA Evidence Report: Risk of Spaceflight Associated Neuro-ocular Syndrome (SANS)
 - NASA Exploration Medical Capability (ExMC): Mars Medical System Concept of Operations
 
-> Note: Exact alert thresholds and real console layouts are not fully public. Treat them as design assumptions, not NASA facts.
+> Note: Exact alert thresholds and real console layouts are not fully public.
