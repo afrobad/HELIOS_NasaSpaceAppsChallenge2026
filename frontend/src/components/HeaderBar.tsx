@@ -590,8 +590,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '14px 0',
-          borderBottom: '1px solid #1c1c1c',
-          marginBottom: '14px',
           flexWrap: 'wrap',
           gap: '12px',
           position: 'relative',
@@ -621,10 +619,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '5px',
-              padding: '2px 7px',
+              padding: '2px 8px',
               borderRadius: '9999px',
-              backgroundColor: connected ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-              border: connected ? '1px solid rgba(34, 197, 94, 0.22)' : '1px solid rgba(239, 68, 68, 0.22)',
+              backgroundColor: 'transparent',
+              border: connected ? '1px solid rgba(34, 197, 94, 0.32)' : '1px solid rgba(239, 68, 68, 0.32)',
               fontSize: '10px',
               fontWeight: 500,
               color: connected ? '#22c55e' : '#ef4444',
@@ -637,7 +635,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 height: '5px',
                 borderRadius: '50%',
                 backgroundColor: connected ? '#22c55e' : '#ef4444',
-                boxShadow: connected ? '0 0 5px rgba(34, 197, 94, 0.6)' : 'none',
+                boxShadow: connected ? '0 0 6px rgba(34, 197, 94, 0.7)' : 'none',
               }}
             />
             {connected ? 'Live' : 'Offline'}
@@ -647,54 +645,115 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         {/* Minimal Hairline Divider */}
         <div style={{ width: '1px', height: '18px', backgroundColor: '#222222' }} />
 
-        {/* View Switcher: Minimal Non-Uppercase Segmented Control */}
+        {/* Navigation Items: Dashboard & Health-Telemetry (Replaces Pill Switch) */}
         {onSelectView && (
-          <div
+          <nav
+            aria-label="Main Navigation"
             style={{
               display: 'flex',
               alignItems: 'center',
-              background: '#0e0e0e',
-              borderRadius: '6px',
-              padding: '2px',
-              border: '1px solid #1f1f1f',
-              gap: '2px',
+              gap: '4px',
             }}
           >
             <button
+              type="button"
               onClick={() => onSelectView('HUD')}
               style={{
-                padding: '3px 10px',
-                fontSize: '11px',
-                fontWeight: activeView === 'HUD' ? 600 : 400,
-                borderRadius: '5px',
+                position: 'relative',
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: activeView === 'HUD' ? 600 : 500,
+                borderRadius: '6px',
                 border: 'none',
                 cursor: 'pointer',
-                background: activeView === 'HUD' ? '#222222' : 'transparent',
-                color: activeView === 'HUD' ? '#ffffff' : '#737373',
+                background: activeView === 'HUD' ? 'rgba(255, 255, 255, 0.07)' : 'transparent',
+                color: activeView === 'HUD' ? '#ffffff' : '#888888',
                 fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                letterSpacing: '0.02em',
                 transition: 'all 0.15s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              onMouseEnter={(e) => {
+                if (activeView !== 'HUD') {
+                  e.currentTarget.style.color = '#e5e7eb';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeView !== 'HUD') {
+                  e.currentTarget.style.color = '#888888';
+                  e.currentTarget.style.background = 'transparent';
+                }
               }}
             >
-              Flight hud
+              Dashboard
+              {activeView === 'HUD' && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: '0px',
+                    left: '10px',
+                    right: '10px',
+                    height: '2px',
+                    background: 'linear-gradient(90deg, #ff7700, #ff9933)',
+                    borderRadius: '2px',
+                    boxShadow: '0 0 6px rgba(255, 119, 0, 0.6)',
+                  }}
+                />
+              )}
             </button>
             <button
+              type="button"
               onClick={() => onSelectView('HEALTH_TELEMETRY')}
               style={{
-                padding: '3px 10px',
-                fontSize: '11px',
-                fontWeight: activeView === 'HEALTH_TELEMETRY' ? 600 : 400,
-                borderRadius: '5px',
+                position: 'relative',
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: activeView === 'HEALTH_TELEMETRY' ? 600 : 500,
+                borderRadius: '6px',
                 border: 'none',
                 cursor: 'pointer',
-                background: activeView === 'HEALTH_TELEMETRY' ? '#222222' : 'transparent',
-                color: activeView === 'HEALTH_TELEMETRY' ? '#ffffff' : '#737373',
+                background: activeView === 'HEALTH_TELEMETRY' ? 'rgba(255, 255, 255, 0.07)' : 'transparent',
+                color: activeView === 'HEALTH_TELEMETRY' ? '#ffffff' : '#888888',
                 fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                letterSpacing: '0.02em',
                 transition: 'all 0.15s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              onMouseEnter={(e) => {
+                if (activeView !== 'HEALTH_TELEMETRY') {
+                  e.currentTarget.style.color = '#e5e7eb';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeView !== 'HEALTH_TELEMETRY') {
+                  e.currentTarget.style.color = '#888888';
+                  e.currentTarget.style.background = 'transparent';
+                }
               }}
             >
-              Health telemetry
+              Health-Telemetry
+              {activeView === 'HEALTH_TELEMETRY' && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: '0px',
+                    left: '10px',
+                    right: '10px',
+                    height: '2px',
+                    background: 'linear-gradient(90deg, #ff7700, #ff9933)',
+                    borderRadius: '2px',
+                    boxShadow: '0 0 6px rgba(255, 119, 0, 0.6)',
+                  }}
+                />
+              )}
             </button>
-          </div>
+          </nav>
         )}
       </div>
 

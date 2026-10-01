@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { HeaderBar } from './components/HeaderBar';
 import { CrewGrid } from './components/CrewGrid';
+import { CabinEnvironmentalBar } from './components/CabinEnvironmentalBar';
 import { ScenarioController } from './components/ScenarioController';
 import { HealthTelemetryView } from './components/HealthTelemetryView';
 import { SpaceBackground } from './components/SpaceBackground';
@@ -154,25 +155,44 @@ export function App() {
       {/* GPU-Composited Photorealistic Earth Orbital Space Background */}
       <SpaceBackground activeView={activeView} />
 
-      <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '0 20px 72px', position: 'relative', zIndex: 1 }}>
-        {/* Flight HUD View (Default Home Page) */}
+      {/* Flight HUD View (Default Home Page) */}
       {activeView === 'HUD' && (
         <>
-          <HeaderBar
-            connected={connected}
-            marsDelay={marsDelay}
-            onToggleMarsDelay={handleToggleMarsDelay}
-            activeView={activeView}
-            onSelectView={handleSelectView}
-            latestAlert={latestAlert}
-            selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
-          />
+          {/* Top Sticky Navbar & Full-Width ECLSS Cabin Environmental Ribbon */}
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 100,
+              background: '#0c0c0c',
+              width: '100%',
+            }}
+          >
+            <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '0 20px' }}>
+              <HeaderBar
+                connected={connected}
+                marsDelay={marsDelay}
+                onToggleMarsDelay={handleToggleMarsDelay}
+                activeView={activeView}
+                onSelectView={handleSelectView}
+                latestAlert={latestAlert}
+                selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
+              />
+            </div>
+            {/* Full-Viewport Width Sticky ECLSS Environmental Ribbon directly beneath the navbar */}
+            <CabinEnvironmentalBar
+              telemetryMap={telemetryMap}
+              currentScenario={currentScenario}
+            />
+          </div>
 
-          {/* Primary Flight HUD: 4-Row Crew Biometric Telemetry Grid with Inline ECG */}
-          <CrewGrid
-            telemetryMap={telemetryMap}
-            onOpenTriage={handleOpenTriage}
-          />
+          <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '16px 20px 72px', position: 'relative', zIndex: 1 }}>
+            {/* Primary Flight HUD: 4-Row Crew Biometric Telemetry Grid with Inline ECG */}
+            <CrewGrid
+              telemetryMap={telemetryMap}
+              onOpenTriage={handleOpenTriage}
+            />
+          </div>
         </>
       )}
 
@@ -216,8 +236,7 @@ export function App() {
           }
         }}
       />
-    </div>
-  </>
+    </>
 );
 }
 

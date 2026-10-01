@@ -475,4 +475,98 @@ html, body {
   }
 }
 
+/* =========================================================================
+   AEROSPACE MINIMAL SIGNAL TOOLTIP WITH APPEARANCE DELAY (0.25s)
+   ========================================================================= */
+.hud-tooltip-trigger {
+  position: relative;
+}
+
+.hud-tooltip-trigger:hover {
+  z-index: 120;
+}
+
+.hud-tooltip {
+  position: absolute;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 120;
+  background: rgba(12, 12, 12, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 500;
+  color: #f1f5f9;
+  font-family: var(--hud-font-sans, 'Tomorrow', sans-serif);
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: opacity 0.14s ease, transform 0.14s ease, visibility 0s 0.14s;
+  transform: translateY(2px);
+}
+
+.hud-tooltip-trigger:hover .hud-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition: opacity 0.18s ease 0.25s, transform 0.18s ease 0.25s, visibility 0s 0.25s;
+}
+
+/* Modifiers for positioning */
+.hud-tooltip-down {
+  top: calc(100% + 4px);
+  left: 0;
+}
+
+.hud-tooltip-down-right {
+  top: calc(100% + 4px);
+  right: 0;
+  left: auto;
+}
+
+.hud-tooltip-up {
+  bottom: calc(100% + 4px);
+  left: 0;
+  transform: translateY(-2px);
+}
+
+.hud-tooltip-trigger:hover .hud-tooltip-up {
+  transform: translateY(0);
+}
+
+.hud-tooltip-up-right {
+  bottom: calc(100% + 4px);
+  right: 0;
+  left: auto;
+  transform: translateY(-2px);
+}
+
+.hud-tooltip-trigger:hover .hud-tooltip-up-right {
+  transform: translateY(0);
+}
+
+.hud-tooltip-center {
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translate(-50%, 2px);
+}
+
+.hud-tooltip-trigger:hover .hud-tooltip-center {
+  transform: translate(-50%, 0);
+}
+
+.hud-tooltip-up-center {
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translate(-50%, -2px);
+}
+
+.hud-tooltip-trigger:hover .hud-tooltip-up-center {
+  transform: translate(-50%, 0);
+}
+
+
 

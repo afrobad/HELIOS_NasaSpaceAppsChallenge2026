@@ -45,6 +45,9 @@ export interface CrewClinicalSummary {
     temp: { val: number; unit: string; delta: string; isNominal: boolean };
     bp: { val: string; unit: string; isNominal: boolean };
     hrv: { val: number; unit: string; delta: string; isNominal: boolean };
+    k?: { val: number; unit: string; delta: string; isNominal: boolean };
+    qtc?: { val: number; unit: string; delta: string; isNominal: boolean };
+    hct?: { val: number; unit: string; delta: string; isNominal: boolean };
   };
   physReserveIndex: number; // 0 - 100%
   reserveBreakdown: {
@@ -561,8 +564,8 @@ export function evaluateCrewClinicalSummary(
         description: 'No significant change from personal baseline',
         category: 'NOMINAL',
         color: '#22c55e',
-        borderColor: 'rgba(34, 197, 94, 0.35)',
-        bgColor: 'rgba(34, 197, 94, 0.10)',
+        borderColor: 'transparent',
+        bgColor: 'transparent',
         icon: 'CHECK',
       };
     }
@@ -713,6 +716,8 @@ export function evaluateCrewClinicalSummary(
   const dSpo2 = computeBiomarkerDelta(spo2, profile.restSpo2, '%');
   const dTemp = computeBiomarkerDelta(temp, profile.restTemp, '°C');
   const dHrv = computeBiomarkerDelta(hrv, profile.restHrv, 'ms');
+  const dK = computeBiomarkerDelta(k, profile.k, 'mmol/L');
+  const dHct = computeBiomarkerDelta(hct, profile.hct, '%');
 
   const nominalVitals = {
     hr: {
@@ -743,6 +748,24 @@ export function evaluateCrewClinicalSummary(
       unit: 'ms',
       delta: dHrv.deltaStr,
       isNominal: hrv >= 35,
+    },
+    k: {
+      val: Number(k.toFixed(2)),
+      unit: 'mmol/L',
+      delta: dK.deltaStr,
+      isNominal: k >= 3.5 && k <= 5.1,
+    },
+    qtc: {
+      val: Math.round(qtc),
+      unit: 'ms',
+      delta: `${Math.round(qtc)}ms`,
+      isNominal: qtc <= 450,
+    },
+    hct: {
+      val: Number(hct.toFixed(1)),
+      unit: '%',
+      delta: dHct.deltaStr,
+      isNominal: hct >= 38.0 && hct <= 50.0,
     },
   };
 

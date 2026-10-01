@@ -69,29 +69,29 @@ const renderMissionBadge = (stateRaw?: string) => {
   const configs: Record<string, { color: string; border: string; bg: string; label: string; iconPath: string }> = {
     WORKOUT: {
       color: '#38bdf8',
-      border: 'rgba(56,189,248,0.35)',
-      bg: 'rgba(56,189,248,0.08)',
+      border: 'rgba(56, 189, 248, 0.35)',
+      bg: 'transparent',
       label: 'WORKOUT',
       iconPath: 'M6 5v14M18 5v14M2 9v6M22 9v6M6 12h12',
     },
     SLEEP: {
       color: '#a5b4fc',
-      border: 'rgba(165,180,252,0.35)',
-      bg: 'rgba(165,180,252,0.08)',
+      border: 'rgba(165, 180, 252, 0.35)',
+      bg: 'transparent',
       label: 'SLEEP',
       iconPath: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
     },
     EVA: {
       color: '#c084fc',
-      border: 'rgba(192,132,252,0.35)',
-      bg: 'rgba(192,132,252,0.08)',
+      border: 'rgba(192, 132, 252, 0.35)',
+      bg: 'transparent',
       label: 'EVA',
       iconPath: 'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
     },
     REST: {
       color: '#94a3b8',
-      border: 'rgba(148,163,184,0.18)',
-      bg: 'rgba(30, 41, 59, 0.40)',
+      border: 'rgba(148, 163, 184, 0.28)',
+      bg: 'transparent',
       label: 'REST',
       iconPath: 'M22 12h-4l-3 9L9 3l-3 9H2',
     },
@@ -99,25 +99,31 @@ const renderMissionBadge = (stateRaw?: string) => {
   const cfg = configs[state] || configs['REST'];
   return (
     <span
+      className="hud-tooltip-trigger"
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: '4px',
-        padding: '2px 6px',
-        borderRadius: '3px',
+        padding: '2px 7px',
+        borderRadius: '9999px',
         fontSize: '9px',
-        fontWeight: 700,
+        fontWeight: 600,
         letterSpacing: '0.04em',
         color: cfg.color,
         border: `1px solid ${cfg.border}`,
-        background: cfg.bg,
+        background: 'transparent',
         whiteSpace: 'nowrap',
+        fontFamily: "'Tomorrow', sans-serif",
+        cursor: 'default',
       }}
     >
-      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
         <path d={cfg.iconPath} />
       </svg>
       {cfg.label}
+      <div className="hud-tooltip hud-tooltip-down">
+        Mission Activity Phase · {cfg.label} protocol mode
+      </div>
     </span>
   );
 };
@@ -145,6 +151,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
 
   const borderColor = isCritical
     ? '#facc15'
+
     : isWarning
     ? 'rgba(250, 204, 21, 0.65)'
     : 'var(--hud-border)';
@@ -245,7 +252,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                   width: '100%',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span
                     style={{
                       fontSize: '11px',
@@ -256,19 +263,6 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                     }}
                   >
                     {crew.callsign}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '8px',
-                      fontWeight: 700,
-                      padding: '1px 4px',
-                      borderRadius: '3px',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.16)',
-                      color: '#cbd5e1',
-                    }}
-                  >
-                    {crew.roleShort}
                   </span>
                 </div>
 
@@ -367,19 +361,21 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: '6px',
-                    padding: '4px 8px',
+                    padding: summary.primaryConcern.bgColor === 'transparent' ? '2px 0' : '4px 8px',
                     borderRadius: '4px',
                     background: summary.primaryConcern.bgColor,
-                    border: `1px solid ${summary.primaryConcern.borderColor}`,
+                    border: summary.primaryConcern.borderColor === 'transparent' ? 'none' : `1px solid ${summary.primaryConcern.borderColor}`,
                     marginBottom: '8px',
                   }}
                 >
                   <div
+                    className="hud-tooltip-trigger"
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '5px',
                       overflow: 'hidden',
+                      cursor: 'default',
                     }}
                   >
                     <span
@@ -405,23 +401,40 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                     >
                       {summary.primaryConcern.title}
                     </span>
+                    <div className="hud-tooltip hud-tooltip-down">
+                      {isAbnormal
+                        ? `Primary Clinical Concern · ${summary.primaryConcern.title}`
+                        : 'Baseline Status · All biometrics aligned with nominal resting profile'}
+                    </div>
                   </div>
 
-                  <span
-                    style={{
-                      fontSize: '9px',
-                      fontWeight: 700,
-                      color: isCritical ? '#facc15' : isWarning ? '#fde047' : '#34d399',
-                      padding: '1px 5px',
-                      borderRadius: '3px',
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      flexShrink: 0,
-                      fontFamily: "'Tomorrow', sans-serif",
-                    }}
+                  <div
+                    className="hud-tooltip-trigger"
+                    style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
                   >
-                    PRI {summary.physReserveIndex}%
-                  </span>
+                    <span
+                      style={{
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        color: isCritical ? '#facc15' : isWarning ? '#fde047' : '#34d399',
+                        padding: '1px 5px',
+                        borderRadius: '3px',
+                        background: 'rgba(0,0,0,0.3)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        flexShrink: 0,
+                        fontFamily: "'Tomorrow', sans-serif",
+                        cursor: 'help',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      PRI {summary.physReserveIndex}%
+                    </span>
+
+                    {/* Rich Aerospace Hover Tooltip Showing Full Form & Dynamic Value */}
+                    <div className="hud-tooltip hud-tooltip-down-right">
+                      Physiological Reserve Index · Multi-organ metabolic resilience buffer ({summary.physReserveIndex}%)
+                    </div>
+                  </div>
                 </div>
 
                 {/* Adaptive Middle: Prioritized Biomarkers (Abnormal) OR Baseline Vitals (Nominal) */}
@@ -434,7 +447,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                       gap: '6px',
                     }}
                   >
-                    {summary.prioritizedBiomarkers.map((bio) => {
+                    {summary.prioritizedBiomarkers.map((bio, idx) => {
                       const isBioCrit = bio.tier === 'CRITICAL';
                       const isBioWarn = bio.tier === 'WARNING';
                       const valColor = isBioCrit
@@ -449,9 +462,14 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                         ? '#f59e0b'
                         : '#64748b';
 
+                      const tooltipPositionClass = idx < 2
+                        ? (idx % 2 === 0 ? 'hud-tooltip-down' : 'hud-tooltip-down-right')
+                        : (idx % 2 === 0 ? 'hud-tooltip-up' : 'hud-tooltip-up-right');
+
                       return (
                         <div
                           key={bio.id}
+                          className="hud-tooltip-trigger"
                           style={{
                             background: 'rgba(0, 0, 0, 0.40)',
                             border: `1px solid ${
@@ -466,6 +484,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '2px',
+                            cursor: 'default',
                           }}
                         >
                           <div
@@ -535,6 +554,11 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                               {bio.deltaStr}
                             </span>
                           </div>
+
+                          {/* Minimal 1-line signal tooltip with 250ms appearance delay */}
+                          <div className={`hud-tooltip ${tooltipPositionClass}`}>
+                            {bio.name} · {bio.clinicalMeaning} ({bio.deltaStr})
+                          </div>
                         </div>
                       );
                     })}
@@ -566,58 +590,161 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                     >
                       {/* HR */}
                       <div
+                        className="hud-tooltip-trigger"
                         style={{
                           background: 'rgba(255, 255, 255, 0.03)',
                           border: '1px solid rgba(255, 255, 255, 0.07)',
                           borderRadius: '4px',
                           padding: '4px 6px',
+                          cursor: 'default',
                         }}
                       >
                         <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>HR</div>
                         <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
                           {summary.nominalVitals.hr.val} <span style={{ fontSize: '7.5px', color: '#64748b' }}>bpm</span>
                         </div>
+                        <div className="hud-tooltip hud-tooltip-down">
+                          Heart Rate · Ventricular contractions per minute (Baseline: {profile.restHr} bpm)
+                        </div>
                       </div>
+
                       {/* SpO2 */}
                       <div
+                        className="hud-tooltip-trigger"
                         style={{
                           background: 'rgba(255, 255, 255, 0.03)',
                           border: '1px solid rgba(255, 255, 255, 0.07)',
                           borderRadius: '4px',
                           padding: '4px 6px',
+                          cursor: 'default',
                         }}
                       >
                         <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>SpO₂</div>
                         <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
                           {summary.nominalVitals.spo2.val}<span style={{ fontSize: '7.5px', color: '#64748b' }}>%</span>
                         </div>
+                        <div className="hud-tooltip hud-tooltip-down">
+                          Oxygen Saturation · Peripheral arterial blood oxygen fraction (Normal: ≥95%)
+                        </div>
                       </div>
+
                       {/* TEMP */}
                       <div
+                        className="hud-tooltip-trigger"
                         style={{
                           background: 'rgba(255, 255, 255, 0.03)',
                           border: '1px solid rgba(255, 255, 255, 0.07)',
                           borderRadius: '4px',
                           padding: '4px 6px',
+                          cursor: 'default',
                         }}
                       >
                         <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>TEMP</div>
                         <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
                           {summary.nominalVitals.temp.val}<span style={{ fontSize: '7.5px', color: '#64748b' }}>°C</span>
                         </div>
+                        <div className="hud-tooltip hud-tooltip-down-right">
+                          Core Temperature · Internal thermal homeostasis (Baseline: {profile.restTemp}°C)
+                        </div>
                       </div>
+
                       {/* BP */}
                       <div
+                        className="hud-tooltip-trigger"
                         style={{
                           background: 'rgba(255, 255, 255, 0.03)',
                           border: '1px solid rgba(255, 255, 255, 0.07)',
                           borderRadius: '4px',
                           padding: '4px 6px',
+                          cursor: 'default',
                         }}
                       >
                         <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>BP</div>
                         <div style={{ fontSize: '11px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
                           {summary.nominalVitals.bp.val}
+                        </div>
+                        <div className="hud-tooltip hud-tooltip-down-right">
+                          Blood Pressure · Systolic/diastolic arterial perfusion pressure ({summary.nominalVitals.bp.val} mmHg)
+                        </div>
+                      </div>
+
+                      {/* HRV (Autonomic Strain) */}
+                      <div
+                        className="hud-tooltip-trigger"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid rgba(255, 255, 255, 0.07)',
+                          borderRadius: '4px',
+                          padding: '4px 6px',
+                          cursor: 'default',
+                        }}
+                      >
+                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>HRV</div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
+                          {summary.nominalVitals.hrv?.val ?? 55} <span style={{ fontSize: '7.5px', color: '#64748b' }}>ms</span>
+                        </div>
+                        <div className="hud-tooltip hud-tooltip-up">
+                          Heart Rate Variability · RMSSD parasympathetic recovery tone (Baseline: {profile.restHrv} ms)
+                        </div>
+                      </div>
+
+                      {/* K+ (Serum Potassium) */}
+                      <div
+                        className="hud-tooltip-trigger"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid rgba(255, 255, 255, 0.07)',
+                          borderRadius: '4px',
+                          padding: '4px 6px',
+                          cursor: 'default',
+                        }}
+                      >
+                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>K⁺</div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
+                          {summary.nominalVitals.k?.val ?? 4.2} <span style={{ fontSize: '7.5px', color: '#64748b' }}>mM</span>
+                        </div>
+                        <div className="hud-tooltip hud-tooltip-up">
+                          Serum Potassium · Electrolyte governing myocardial excitability (Baseline: {profile.k} mM)
+                        </div>
+                      </div>
+
+                      {/* QTc (Ventricular Repolarization) */}
+                      <div
+                        className="hud-tooltip-trigger"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid rgba(255, 255, 255, 0.07)',
+                          borderRadius: '4px',
+                          padding: '4px 6px',
+                          cursor: 'default',
+                        }}
+                      >
+                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>QTc</div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
+                          {summary.nominalVitals.qtc?.val ?? 415} <span style={{ fontSize: '7.5px', color: '#64748b' }}>ms</span>
+                        </div>
+                        <div className="hud-tooltip hud-tooltip-up-right">
+                          Corrected QT Interval · Ventricular electrical repolarization time on Lead-II (≤450 ms)
+                        </div>
+                      </div>
+
+                      {/* HCT (Hematocrit / Fluid Shift) */}
+                      <div
+                        className="hud-tooltip-trigger"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid rgba(255, 255, 255, 0.07)',
+                          borderRadius: '4px',
+                          padding: '4px 6px',
+                          cursor: 'default',
+                        }}
+                      >
+                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>HCT</div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
+                          {summary.nominalVitals.hct?.val ?? 44.0}<span style={{ fontSize: '7.5px', color: '#64748b' }}>%</span>
+                        </div>
+                        <div className="hud-tooltip hud-tooltip-up-right">
+                          Hematocrit · Red cell volume fraction; monitors microgravity fluid shift (Baseline: {profile.hct}%)
                         </div>
                       </div>
                     </div>
@@ -637,6 +764,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                 }}
               >
                 <div
+                  className="hud-tooltip-trigger"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -646,19 +774,28 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                     color: summary.trajectory.color,
                     letterSpacing: '0.03em',
                     fontFamily: "'Tomorrow', sans-serif",
+                    cursor: 'default',
                   }}
                 >
                   <span>{summary.trajectory.label}</span>
+                  <div className="hud-tooltip hud-tooltip-up">
+                    Clinical Trajectory · Multi-signal predictive trend: {summary.trajectory.label}
+                  </div>
                 </div>
 
                 <div
+                  className="hud-tooltip-trigger"
                   style={{
                     fontSize: '9px',
                     color: 'rgba(148, 163, 184, 0.65)',
                     letterSpacing: '0.02em',
+                    cursor: 'default',
                   }}
                 >
                   NASA-OSDR
+                  <div className="hud-tooltip hud-tooltip-up-right">
+                    NASA Open Science Data Repository · Biomarker baseline profile calibration
+                  </div>
                 </div>
               </div>
             </div>
@@ -690,54 +827,75 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                   flexShrink: 0,
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: '#ffffff', fontFamily: "'Tomorrow', sans-serif" }}>
-                    {crew.callsign} · DUAL-TRACE BIOMETRIC FEED
-                  </span>
-                  <span style={{ color: '#475569', fontSize: '9px' }}>|</span>
-                  <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 500 }}>
+                <div
+                  className="hud-tooltip-trigger"
+                  style={{ display: 'flex', alignItems: 'center', cursor: 'default' }}
+                >
+                  <span style={{ fontSize: '9.5px', color: 'rgba(255, 255, 255, 0.75)', fontWeight: 600, letterSpacing: '0.03em', fontFamily: "'Tomorrow', sans-serif" }}>
                     ECG Lead-II + SpO₂ Plethysmogram
                   </span>
+                  <div className="hud-tooltip hud-tooltip-down">
+                    Dual-Trace Telemetry · Synchronized Lead-II ECG and SpO₂ plethysmographic pulse waveform
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span
-                    className="font-mono-tabular"
-                    style={{
-                      fontSize: '9.5px',
-                      fontWeight: 700,
-                      color: summary.nominalVitals.hr.val > 100 && !telemetry?.mission_state?.includes('WORKOUT')
-                        ? 'var(--hud-orange)'
-                        : '#ffffff',
-                    }}
-                  >
-                    {summary.nominalVitals.hr.val} BPM
-                  </span>
+                  <div className="hud-tooltip-trigger" style={{ cursor: 'default' }}>
+                    <span
+                      className="font-mono-tabular"
+                      style={{
+                        fontSize: '9.5px',
+                        fontWeight: 700,
+                        color: summary.nominalVitals.hr.val > 100 && !telemetry?.mission_state?.includes('WORKOUT')
+                          ? 'var(--hud-orange)'
+                          : '#ffffff',
+                      }}
+                    >
+                      {summary.nominalVitals.hr.val} BPM
+                    </span>
+                    <div className="hud-tooltip hud-tooltip-down-right">
+                      Instantaneous Pulse · Derived from ECG Lead-II R-wave peak intervals
+                    </div>
+                  </div>
+
                   <span style={{ color: '#475569', fontSize: '9px' }}>•</span>
-                  <span
-                    className="font-mono-tabular"
-                    style={{
-                      fontSize: '9.5px',
-                      fontWeight: 700,
-                      color: summary.nominalVitals.spo2.val < 95 ? 'var(--hud-critical)' : '#ffffff',
-                    }}
-                  >
-                    {summary.nominalVitals.spo2.val}% SpO₂
-                  </span>
+
+                  <div className="hud-tooltip-trigger" style={{ cursor: 'default' }}>
+                    <span
+                      className="font-mono-tabular"
+                      style={{
+                        fontSize: '9.5px',
+                        fontWeight: 700,
+                        color: summary.nominalVitals.spo2.val < 95 ? 'var(--hud-critical)' : '#ffffff',
+                      }}
+                    >
+                      {summary.nominalVitals.spo2.val}% SpO₂
+                    </span>
+                    <div className="hud-tooltip hud-tooltip-down-right">
+                      Peripheral Oxygenation · Optical photoplethysmogram arterial saturation
+                    </div>
+                  </div>
+
                   <span style={{ color: '#475569', fontSize: '9px' }}>•</span>
-                  <span
-                    style={{
-                      fontSize: '9px',
-                      fontWeight: 600,
-                      color: isCritical
-                        ? '#ef4444'
-                        : isWarning
-                        ? '#f59e0b'
-                        : '#22c55e',
-                    }}
-                  >
-                    {summary.severity === 'NOMINAL' ? 'SINUS' : isCritical ? 'ARRHYTHMIA / CRIT' : 'TACHY / WARN'}
-                  </span>
+
+                  <div className="hud-tooltip-trigger" style={{ cursor: 'default' }}>
+                    <span
+                      style={{
+                        fontSize: '9px',
+                        fontWeight: 600,
+                        color: isCritical
+                          ? '#ef4444'
+                          : isWarning
+                          ? '#f59e0b'
+                          : '#22c55e',
+                      }}
+                    >
+                      {summary.severity === 'NOMINAL' ? 'SINUS' : isCritical ? 'ARRHYTHMIA / CRIT' : 'TACHY / WARN'}
+                    </span>
+                    <div className="hud-tooltip hud-tooltip-down-right">
+                      Cardiac Rhythm Status · Real-time QRS morphology & rhythm classification
+                    </div>
+                  </div>
                 </div>
               </div>
 
