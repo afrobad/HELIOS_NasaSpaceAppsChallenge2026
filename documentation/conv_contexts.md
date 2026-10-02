@@ -6339,3 +6339,42 @@
 * **Referenced File Links:**
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+## Turn 34: Spacecraft Device Cards Modernization (Clear Titles, Measures & Minimal Badges)
+* **Date/Time:** 2026-10-03 00:33:00 (Local Time) / 18:33:00 UTC
+* **Role:** Senior Mission Control Center UX Designer & Lead Avionics Systems Engineer
+* **User Feedback & Request:**
+  > User provided a cropped screenshot of the Orion ECLSS PCA card and directed:
+  > *"THESE CARDS ARE ALSO TEXT HEAVY, AND I WANT EACH CARD SHOULD HAVE A SPECIFIC DEVICE NAME AS TITLE CLEARLY,, WHAT ITS MEASURING, IS IT CONTINOUSE OR ON DEMAND OR PERIODIC OR WORKING OR NOT, USING MINIMAL BADGES A"*
+
+* **Visual & Ergonomic Rationale:**
+  - The previous device cards were overloaded with text:
+    * A 3-line blue callout box (`PRIMARY ROLE & PURPOSE`) containing dense prose sentences.
+    * A 4-column, 16-cell parameters table with verbose safety margin commentary.
+    * Subdued device titles buried under nested category eyebrows.
+  - To eliminate text fatigue and provide rapid avionics status recognition:
+    * **Specific Device Name as Main Card Title:** Clean, prominent 13px bold title for each of the 16 spacecraft devices.
+    * **Minimal Badges:**
+      - **Operational Status:** `● WORKING` (green) / `▲ WARNING` (amber, dynamic during anomalies).
+      - **Operating Mode:** `CONTINUOUS` (cyan) / `PERIODIC` (purple) / `ON DEMAND` (amber).
+      - **Category Tag:** Minimal uppercase pill (`ECLSS`, `WEARABLES`, `POC LAB`, `RADIATION`, `COUNTERMEASURE`).
+    * **Clear "What It's Measuring" Section:** Explicit `MEASURES: ...` summary line highlighting parameters.
+    * **Streamlined Telemetry Grid:** Replaced the 16-cell table with a sleek 2x2 grid of data tiles showing parameter names, live values with units, and nominal/advisory tags.
+
+* **Architecture & Functional Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. Updated `SpacecraftSystemItem` interface and all 16 items in `spacecraftSystems`:
+     - Added `measures`, `mode` (`CONTINUOUS` | `PERIODIC` | `ON DEMAND`), and `workingStatus` (`WORKING` | `WARNING` | `STANDBY`).
+     - Connected live telemetry streams (`hrVal`, `spo2Val`, `tempVal`, `hrvVal`, `qtcVal`, `kVal`).
+  2. Redesigned Zone 4 card container rendering:
+     - Card header: Category pill on left, minimal `WORKING` and `MODE` badges on right.
+     - Card title: Clean specific device name.
+     - Measures block: Clean `MEASURES:` summary banner.
+     - Telemetry: 2x2 data tile grid with zero text bloat.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled client bundle in 636ms with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed all 19 integration checks.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
