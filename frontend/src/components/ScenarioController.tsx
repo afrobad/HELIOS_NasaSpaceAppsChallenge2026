@@ -569,28 +569,35 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
     (s) => clinicalCategory === 'ALL' || s.category === clinicalCategory
   );
 
+  const shortScenarioLabel = isNominalActive
+    ? 'NOMINAL'
+    : (activeScenarioMeta.label.includes('·')
+        ? activeScenarioMeta.label.split('·')[1].trim()
+        : activeScenarioMeta.label);
+
   return (
     <>
       {/* ── Fixed Floating Action Trigger Pill (Bottom-Right) ── */}
       <button
         id="scenario-floating-trigger"
         onClick={() => setIsOpen(true)}
-        aria-label="Open Possible Scenarios Modal"
-        title="Open Possible Scenarios (Hotkey: S)"
+        aria-label="Open Scenarios Engine"
+        title={isNominalActive ? "Simulation Scenarios · NOMINAL CRUISE (Hotkey: S)" : `Simulation Scenarios · ${activeScenarioMeta.label} (${activeSeverity}) · Hotkey: S`}
         style={{
           position: 'fixed',
-          bottom: isTransmitting ? '78px' : '22px',
-          right: '24px',
+          bottom: isTransmitting ? '72px' : '18px',
+          right: '20px',
           zIndex: 9990,
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
-          gap: '11px',
-          padding: '9px 16px',
-          background: 'rgba(17, 17, 17, 0.94)',
+          gap: '7px',
+          padding: '4px 8px 4px 9px',
+          height: '28px',
+          background: 'rgba(8, 14, 23, 0.88)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
           border: isNominalActive
-            ? '1px solid rgba(16, 185, 129, 0.4)'
+            ? '1px solid rgba(16, 185, 129, 0.35)'
             : activeSeverity === 'CRITICAL'
               ? '1px solid rgba(244, 63, 94, 0.65)'
               : '1px solid rgba(245, 158, 11, 0.65)',
@@ -598,94 +605,101 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
           color: '#ffffff',
           cursor: 'pointer',
           boxShadow: isNominalActive
-            ? '0 8px 24px rgba(0, 0, 0, 0.6), 0 0 14px rgba(16, 185, 129, 0.18)'
+            ? '0 4px 14px rgba(0, 0, 0, 0.45), 0 0 10px rgba(16, 185, 129, 0.12)'
             : activeSeverity === 'CRITICAL'
-              ? '0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(244, 63, 94, 0.3)'
-              : '0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(245, 158, 11, 0.3)',
+              ? '0 4px 14px rgba(0, 0, 0, 0.45), 0 0 14px rgba(244, 63, 94, 0.32)'
+              : '0 4px 14px rgba(0, 0, 0, 0.45), 0 0 12px rgba(245, 158, 11, 0.28)',
           transition: 'all var(--hud-transition-fast), bottom 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
           fontFamily: "'Tomorrow', sans-serif",
           userSelect: 'none',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+          e.currentTarget.style.transform = 'translateY(-1px) scale(1.02)';
           e.currentTarget.style.borderColor = activeThemeColor;
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = 'none';
           e.currentTarget.style.borderColor = isNominalActive
-            ? 'rgba(16, 185, 129, 0.4)'
+            ? 'rgba(16, 185, 129, 0.35)'
             : activeSeverity === 'CRITICAL'
               ? 'rgba(244, 63, 94, 0.65)'
               : 'rgba(245, 158, 11, 0.65)';
         }}
       >
         {/* Pulsing Status Beacon */}
-  
+        <span
+          style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: activeThemeColor,
+            boxShadow: `0 0 6px ${activeThemeColor}`,
+            flexShrink: 0,
+            animation: !isNominalActive ? 'beaconDotPulse 1.2s ease-in-out infinite' : 'none',
+          }}
+        />
 
-        {/* Text Details with Target Astronaut Label */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left', lineHeight: 1.2 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 730, letterSpacing: '0.2em', color: '#ffffff' }}>
-              SCENARIOS
-            </span>
-            <span
-              style={{
-                fontSize: '7px',
-                fontWeight: 700,
-                padding: '1.4px 5px',
-                borderRadius: '999px',
-                background: isNominalActive
-                  ? 'rgba(16, 185, 129, 0.18)'
-                  : activeSeverity === 'CRITICAL'
-                    ? 'rgba(244, 63, 94, 0.18)'
-                    : 'rgba(245, 158, 11, 0.18)',
-                color: isNominalActive
-                  ? 'var(--hud-nominal)'
-                  : activeSeverity === 'CRITICAL'
-                    ? '#f43f5e'
-                    : '#fbbf24',
-                border: isNominalActive
-                  ? '1px solid rgba(16, 185, 129, 0.35)'
-                  : activeSeverity === 'CRITICAL'
-                    ? '1px solid rgba(244, 63, 94, 0.4)'
-                    : '1px solid rgba(245, 158, 11, 0.4)',
-                letterSpacing: '0.02em',
-              }}
-            >
-              {isNominalActive
-                ? 'NOMINAL'
-                : isUniversalActive
-                  ? 'ALL STATIONS'
-                  : activeTargetProfile
-                    ? activeTargetProfile.shortName.toUpperCase()
-                    : 'INDIVIDUAL'}
-            </span>
-          </div>
-          <span
-            style={{
-              fontSize: '10px',
-              color: '#94a3b8',
-              maxWidth: '185px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {activeScenarioMeta.label}
-          </span>
-        </div>
+        {/* Title */}
+        <span
+          style={{
+            fontSize: '10px',
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            color: '#e2e8f0',
+            lineHeight: 1,
+          }}
+        >
+          SCENARIOS
+        </span>
+
+        {/* Status Badge */}
+        <span
+          style={{
+            fontSize: '8px',
+            fontWeight: 700,
+            padding: '1.5px 5.5px',
+            borderRadius: '999px',
+            background: isNominalActive
+              ? 'rgba(16, 185, 129, 0.14)'
+              : activeSeverity === 'CRITICAL'
+                ? 'rgba(244, 63, 94, 0.18)'
+                : 'rgba(245, 158, 11, 0.18)',
+            color: isNominalActive
+              ? 'var(--hud-nominal)'
+              : activeSeverity === 'CRITICAL'
+                ? '#f43f5e'
+                : '#fbbf24',
+            border: isNominalActive
+              ? '1px solid rgba(16, 185, 129, 0.35)'
+              : activeSeverity === 'CRITICAL'
+                ? '1px solid rgba(244, 63, 94, 0.45)'
+                : '1px solid rgba(245, 158, 11, 0.45)',
+            letterSpacing: '0.04em',
+            maxWidth: isNominalActive ? 'none' : '110px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            textTransform: 'uppercase',
+            lineHeight: 1.1,
+          }}
+        >
+          {shortScenarioLabel}
+        </span>
 
         {/* Keycap Shortcut Indicator */}
         <span
           style={{
-            fontSize: '12px',
+            fontSize: '9px',
             fontWeight: 700,
-            padding: '2px 6px',
-            borderRadius: '0px',
-            background: 'rgba(194, 194, 194, 0.08)',
-            border: '1px solid rgba(194, 194, 194, 0.16)',
-            color: 'var(--hud-text-secondary)',
-            marginLeft: '2px',
+            fontFamily: "'Share Tech Mono', monospace",
+            padding: '1.5px 4.5px',
+            borderRadius: '3px',
+            background: 'rgba(255, 255, 255, 0.08)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            color: '#94a3b8',
+            marginLeft: '1px',
+            letterSpacing: '0.04em',
+            lineHeight: 1.1,
           }}
         >
           S
