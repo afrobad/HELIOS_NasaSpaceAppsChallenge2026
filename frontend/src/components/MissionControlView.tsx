@@ -2581,21 +2581,24 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
             </div>
 
-            {/* Counter 4: Flight Safety Rules */}
-            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
+            {/* Counter 4: Flight Safety Rules (50/50 Nominal, drops to 49/50 with 1 Advisory if anomaly occurs) */}
+            <div
+              title="Continuous automated NASA-STD-3001 safety checks (Cabin O2, CO2 limits, radiation limits, pressure, water purity, vital signs)"
+              style={{ background: '#0a0d10', border: `1px solid ${isCo2Excursion ? T.warningBorder : T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  FLIGHT SAFETY RULES
+                  SAFETY CHECKS
                 </span>
                 <span style={{ fontSize: 9, fontWeight: 700, color: isCo2Excursion ? T.warning : T.nominal, letterSpacing: '0.04em' }}>
-                  {isCo2Excursion ? 'WATCH' : 'PASSED'}
+                  {isCo2Excursion ? '1 ADVISORY' : 'ALL NOMINAL'}
                 </span>
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: isCo2Excursion ? T.warning : T.nominal, marginTop: 4 }}>
-                {isCo2Excursion ? '48 / 50' : '49 / 50'}
+                {isCo2Excursion ? '49 / 50' : '50 / 50'}
               </div>
               <div style={{ width: '100%', height: 3, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
-                <div style={{ width: isCo2Excursion ? '96%' : '98%', height: '100%', background: isCo2Excursion ? T.warning : T.nominal }} />
+                <div style={{ width: isCo2Excursion ? '98%' : '100%', height: '100%', background: isCo2Excursion ? T.warning : T.nominal }} />
               </div>
             </div>
 

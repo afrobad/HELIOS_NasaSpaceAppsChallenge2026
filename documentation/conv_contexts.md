@@ -6308,3 +6308,34 @@
 * **Referenced File Links:**
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+## Turn 33: Clarification of Flight Safety Rules & Nominal 50/50 Baseline Alignment
+* **Date/Time:** 2026-10-03 00:27:00 (Local Time) / 18:27:00 UTC
+* **Role:** Senior Mission Control Center UX Designer & Lead Flight Dynamics/Bio-Astronautics Engineer
+* **User Feedback & Request:**
+  > User provided a cropped screenshot of the card reading *"FLIGHT SAFETY RULES: 49 / 50 PASSED"* and asked:
+  > *"WHAT THIS MEANS?"*
+
+* **Operational & Systems Explanation:**
+  1. **What "Flight Safety Rules" Are:**
+     - In NASA human spaceflight (NASA-STD-3001, FOD ISS/Artemis Flight Rules), Flight Rules are pre-programmed automated safety limits evaluated 24/7 by the flight computer.
+     - Examples include: Cabin CO₂ must stay below 3.0 mmHg, Cabin O₂ between 19.5% and 23.5%, Cabin pressure at 14.7 psi, Radiation exposure thresholds, Water sterilization, and Crew biometric safety gates.
+  2. **Why It Showed "49 / 50":**
+     - There are 50 total active automated safety rules running on the spacecraft.
+     - Previously, the baseline hardcoded 49 out of 50 rules passing (98%), which was confusing because users naturally wonder: *"If it's nominal and says PASSED, which rule failed and is something dangerous?"*
+  3. **The Solution Implemented:**
+     - Relabeled the card to **`SAFETY CHECKS`** with a hover tooltip explaining the NASA safety limits.
+     - In nominal status: displays **`50 / 50`** with status **`ALL NOMINAL`** and 100% green bar.
+     - In anomaly status (e.g. CO₂ scrubber breakthrough): dynamically drops to **`49 / 50`** with status **`1 ADVISORY`** and amber warning bar!
+     - This creates a completely intuitive mental model: all 50 safety checks pass in nominal flight, and drops to 49/50 only when a real issue occurs.
+
+* **Architecture & Functional Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  - Updated Counter 4 in Zone 1 banner to display `50 / 50 ALL NOMINAL` (nominal) and `49 / 50 1 ADVISORY` (during CO₂ anomaly).
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled client bundle in 654ms with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed all 19 integration checks.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
