@@ -6509,3 +6509,44 @@
   * [frontend/src/components/HeaderBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HeaderBar.tsx)
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+## Turn 38: Critical Alert Redecoration (Zero Em Dashes) & Minimal Single-Line Orbital Controller (No Nested Boxes, No Duplicate Clocks, Auto-Sync Reset)
+* **Date/Time:** 2026-10-03 01:25:00 (Local Time) / 19:25:00 UTC
+* **Role:** Lead Flight Telemetry Systems Architect & Senior MCC UX Designer
+* **User Feedback & Request:**
+  > User provided 3 screenshots showing:
+  > 1. The Active Critical Alert banner containing a messy em dash and unstructured run-on text: *"THIS CRITICAL ALLERT IS SO MESSY AND HAVING EM DASH THERE ,,, ORANIZE AND DECORATE IT PROPERLY"*.
+  > 2. The dropdown options having verbose text: *"USE A SHORTER NAME AND DELAY ONLY REMOVING EXTRA TEXTS"*.
+  > 3. The simulation rate behavior: *"AND SIMULATION RATE WOULD BE RESET ONCE IT IS SYNCED WITH THE SPACECRAFT"*.
+  > 4. Excessive nested boxes: *"AND NOT EVERYTHING IN THE NEW POSITION CONTAINER SHOULD HAVE CONTAINERS IT LOOKS MESSY"*.
+  > 5. Duplicate clocks: *"AND IN THE MAIN NAVBAR THERE IS ALREADY TWO TIMES SHOWING DO I NEED THE TIME SECTION IN THE NEW POSITION CONTAINER??"*.
+
+* **Architecture & Functional Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **Active Critical Alert Dominant Banner Redecoration:**
+     - Removed the messy em-dash (`—`) text concatenation.
+     - Structured into a clean, high-visibility 2-row aerospace incident banner:
+       * **Row 1:** Red severity pill (`CRITICAL` with pulse dot) + Target system pill (`ALL STATIONS (CABIN ATMOSPHERE)`) + Bold Incident Title (`Cabin CO₂ scrubber breach with collective crew hypoxia`) + Trajectory chip (`WORSENING (+2.4 bpm/min)`) + `INVESTIGATE EXCURSION →` action button.
+       * **Row 2:** Micro-data telemetry strip: `DURATION: < 2m · PRIMARY SIGNAL: HR 108 bpm (+31.7% vs base) · ATMOSPHERE: CO₂ {co2Val} mmHg · EVALUATION: 10m Gate Active`.
+  2. **Short Position Names & Delay Only in Dropdown:**
+     - Simplified dropdown options to concise labels with zero bloat:
+       * `LEO · <1 ms`
+       * `Lunar Gateway · 1.3s`
+       * `Mars Opposition · 3.0m`
+       * `Mars Conjunction · 22.3m`
+  3. **Elimination of Nested Box Containers:**
+     - Replaced individual boxed sub-containers with a clean, cohesive, horizontal inline flow separated by subtle neutral dividers (`|`).
+     - Delay is displayed as clean inline text: `DELAY: 22m 14s` without a surrounding box.
+  4. **Removal of Redundant Clocks:**
+     - Eliminated the duplicate `SC MET` and `UTC` clock readout from the position container since the main navbar directly above already displays live `MET` and `UTC` times.
+  5. **Simulation Speedup Reset on Sync:**
+     - Connected the sync state to a responsive `[SYNC & RESET (1x)]` trigger.
+     - When `speedMultiplier > 1`, clicking the sync button resets the multiplier back to `1x` (real-time tracking).
+     - When at nominal 1x, it displays a steady `● SYNCED (1x REALTIME)` indicator.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled client bundle in 697ms with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed all 19 integration checks.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)

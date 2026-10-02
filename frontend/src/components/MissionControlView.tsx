@@ -903,64 +903,131 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* ─── 1. TOP OPERATIONAL INCIDENT & MISSION SYNOPTIC ANCHOR ─── */}
         <div style={{ ...cardStyle, padding: '10px 14px', background: 'linear-gradient(180deg, #181d22 0%, #0f1216 100%)' }}>
-          {/* Active Incident Dominant Banner */}
+          {/* Active Incident Dominant Banner — Elegantly Structured, High Visibility & NO Em Dash */}
           {hasAnomaly && primaryAlert ? (
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingBottom: 10,
-              borderBottom: `1px solid ${T.borderSubtle}`,
-              marginBottom: 9,
-              flexWrap: 'wrap',
-              gap: 10,
+              background: 'rgba(239, 68, 68, 0.05)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              borderRadius: 4,
+              padding: '8px 12px',
+              marginBottom: 10,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Badge color={severityColor(primaryAlert.priority)} borderColor={severityBorder(primaryAlert.priority)} bg="#140808">
-                  ● ACTIVE {primaryAlert.priority}
-                </Badge>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, fontFamily: T.sans }}>
-                      {primaryAlert.entity} — {primaryAlert.summary}
-                    </span>
-                    <span style={{ fontSize: 10, color: severityColor(primaryAlert.priority), fontFamily: T.mono, fontWeight: 600 }}>
-                      [ {primaryAlert.trajectory} · RATE: +2.4 bpm/min ]
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2, display: 'flex', gap: 12 }}>
-                    <span>Duration: <strong style={{ color: T.textPrimary, fontFamily: T.mono }}>{primaryAlert.age}</strong></span>
-                    <span>·</span>
-                    <span>Primary Signal: <strong style={{ color: T.warning, fontFamily: T.mono }}>HR 108 bpm (+31.7% from base 82)</strong></span>
-                    <span>·</span>
-                    <span>ECLSS Environment: <strong style={{ color: T.nominal, fontFamily: T.mono }}>Nominal (CO₂ {co2Val.toFixed(2)} mmHg)</strong></span>
-                  </div>
-                </div>
-              </div>
+              {/* Top Row: Severity + Target Entity + Incident Title + Trajectory + Investigate Action */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                flexWrap: 'nowrap',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {/* Severity Badge */}
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    fontSize: 9,
+                    fontWeight: 800,
+                    padding: '2px 7px',
+                    borderRadius: 3,
+                    letterSpacing: '0.06em',
+                    fontFamily: T.mono,
+                  }}>
+                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#ffffff' }} />
+                    {primaryAlert.priority}
+                  </span>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {/* Target Scope Pill */}
+                  <span style={{
+                    background: '#090d12',
+                    color: '#94a3b8',
+                    border: '1px solid #1e293b',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    padding: '2px 7px',
+                    borderRadius: 3,
+                    fontFamily: T.mono,
+                    letterSpacing: '0.03em',
+                  }}>
+                    {primaryAlert.entity.toUpperCase()}
+                  </span>
+
+                  {/* Clean Incident Title (NO EM DASH!) */}
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: '#f8fafc', letterSpacing: '0.01em' }}>
+                    {primaryAlert.summary}
+                  </span>
+
+                  {/* Trajectory / Rate Chip */}
+                  <span style={{
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    color: '#fca5a5',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    fontSize: 8.5,
+                    fontWeight: 700,
+                    padding: '1px 6px',
+                    borderRadius: 3,
+                    fontFamily: T.mono,
+                  }}>
+                    {primaryAlert.trajectory} (+2.4 bpm/min)
+                  </span>
+                </div>
+
+                {/* Right: Investigate Excursion Action Button */}
                 <button
                   onClick={() => { setSelEventId(primaryAlert.id); setTab('INVESTIGATE'); }}
                   style={{
-                    background: 'linear-gradient(180deg, #2b3642 0%, #1a222a 100%)',
-                    border: '1px solid #4a5b6e',
-                    borderRadius: 4,
-                    padding: '5px 12px',
-                    color: '#ffffff',
-                    fontSize: 11,
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: 3,
+                    padding: '4px 10px',
+                    color: '#f8fafc',
+                    fontSize: 10,
                     fontWeight: 700,
                     cursor: 'pointer',
                     fontFamily: T.sans,
                     letterSpacing: '0.04em',
-                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.4)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    transition: 'all 0.12s ease',
                   }}
                 >
-                  <span>INVESTIGATE EXCURSION</span>
-                  <span style={{ fontSize: 12 }}>→</span>
+                  INVESTIGATE EXCURSION →
                 </button>
+              </div>
+
+              {/* Bottom Row: Clean Structured Evidence Metadata (No run-on text) */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                marginTop: 6,
+                paddingTop: 5,
+                borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                fontSize: 9.5,
+                fontFamily: T.mono,
+                color: '#94a3b8',
+              }}>
+                <div>
+                  <span style={{ color: '#64748b' }}>DURATION: </span>
+                  <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{primaryAlert.age}</span>
+                </div>
+                <span style={{ color: '#283548' }}>·</span>
+                <div>
+                  <span style={{ color: '#64748b' }}>PRIMARY SIGNAL: </span>
+                  <span style={{ color: '#fbbf24', fontWeight: 700 }}>HR 108 bpm (+31.7% vs base)</span>
+                </div>
+                <span style={{ color: '#283548' }}>·</span>
+                <div>
+                  <span style={{ color: '#64748b' }}>ATMOSPHERE: </span>
+                  <span style={{ color: '#f87171', fontWeight: 600 }}>CO₂ {co2Val.toFixed(2)} mmHg (Scrubber Breakthrough)</span>
+                </div>
+                <span style={{ color: '#283548' }}>·</span>
+                <div>
+                  <span style={{ color: '#64748b' }}>EVALUATION: </span>
+                  <span style={{ color: '#4ade80', fontWeight: 600 }}>10m Gate Active</span>
+                </div>
               </div>
             </div>
           ) : (
@@ -3640,7 +3707,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       fontSize: 12,
     }}>
 
-      {/* ─── TOP ORBITAL TELEMETRY & SIMULATION TIME DOCK (CLEAN AVIONICS LAYOUT, NO EMOJIS, NO GLOW) ─── */}
+      {/* ─── TOP ORBITAL TELEMETRY CONTROLLER (INLINE CLEAN LAYOUT, NO NESTED BOXES, NO DUPLICATE CLOCKS) ─── */}
       <div style={{
         maxWidth: '1250px',
         margin: '0 auto',
@@ -3652,7 +3719,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 12,
+            gap: 16,
             padding: '6px 12px',
             marginTop: 8,
             marginBottom: 6,
@@ -3662,19 +3729,20 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             flexWrap: 'nowrap',
           }}
         >
-          {/* Left: Spacecraft Position & Signal Propagation Delay */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {/* Left: Position Dropdown & Delay (Clean inline, NO nested boxes!) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             <span style={{ fontSize: 8.5, fontWeight: 700, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: T.mono }}>
-              SPACECRAFT POSITION:
+              POSITION:
             </span>
 
+            {/* Shorter names & delays only */}
             <select
               value={orbitalPosition}
               onChange={e => handleOrbitalPositionSelect(e.target.value as DistancePreset)}
               style={{
                 background: '#06090d',
                 border: '1px solid #283548',
-                color: '#e2e8f0',
+                color: '#f1f5f9',
                 borderRadius: 3,
                 padding: '3px 8px',
                 fontSize: 10.5,
@@ -3684,96 +3752,84 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 outline: 'none',
               }}
             >
-              <option value="LEO">LEO (Low Earth Orbit · 400 km) — Latency: 1.3 ms [Instant]</option>
-              <option value="GATEWAY">Lunar Gateway (Cis-Lunar · 384,400 km) — Latency: 1.28 sec</option>
-              <option value="MARS_MIN">Mars Opposition / Outbound (54.6M km) — Latency: 3.04 min</option>
-              <option value="MARS_MAX">Mars Conjunction / Deep Space (401M km) — Latency: 22.28 min</option>
+              <option value="LEO">LEO · &lt;1 ms</option>
+              <option value="GATEWAY">Lunar Gateway · 1.3s</option>
+              <option value="MARS_MIN">Mars Opposition · 3.0m</option>
+              <option value="MARS_MAX">Mars Conjunction · 22.3m</option>
             </select>
 
-            {/* Dynamic Signal Propagation Delay Badge */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                background: '#06090d',
-                border: '1px solid #283548',
-                padding: '3px 8px',
-                borderRadius: 3,
-              }}
-            >
+            <span style={{ fontSize: 9, color: '#263342' }}>|</span>
+
+            {/* Plain text delay without nested boxes */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
               <span style={{ fontSize: 8.5, fontWeight: 700, fontFamily: T.mono, color: '#64748b' }}>
-                ONE-WAY DELAY:
+                DELAY:
               </span>
-              <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: T.mono, color: orbitalPosition === 'LEO' ? '#4ade80' : orbitalPosition === 'GATEWAY' ? '#94a3b8' : '#f59e0b' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, fontFamily: T.mono, color: orbitalPosition === 'LEO' ? '#4ade80' : orbitalPosition === 'GATEWAY' ? '#cbd5e1' : '#f59e0b' }}>
                 {fmtTime(DISTANCES[orbitalPosition].km / C)}
               </span>
             </div>
           </div>
 
-          {/* Center: Multi-Speed Playback Multiplier (1x, 2x, 5x, 10x) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <span style={{ fontSize: 8.5, fontWeight: 700, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: T.mono }}>
-              SIM RATE:
-            </span>
-            <div style={{ display: 'flex', gap: 2, background: '#06090d', padding: '1px', borderRadius: 3, border: '1px solid #1e293b' }}>
-              {[1, 2, 5, 10].map(spd => {
-                const isActive = speedMultiplier === spd;
-                return (
-                  <button
-                    key={spd}
-                    onClick={() => setSpeedMultiplier(spd)}
-                    title={`Speed up telemetry simulation to ${spd}x`}
-                    style={{
-                      background: isActive ? '#1e293b' : 'transparent',
-                      border: isActive ? '1px solid #334155' : '1px solid transparent',
-                      color: isActive ? '#f8fafc' : '#64748b',
-                      borderRadius: 2,
-                      padding: '2px 8px',
-                      fontSize: 9,
-                      fontWeight: isActive ? 700 : 500,
-                      cursor: 'pointer',
-                      fontFamily: T.mono,
-                      transition: 'all 0.12s ease',
-                    }}
-                  >
-                    {spd}x
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Right: DSN Telemetry Link & Spacecraft Clock Synchronization */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              background: '#06090d',
-              border: '1px solid #1e293b',
-              borderRadius: 3,
-              padding: '3px 8px',
-              flexShrink: 0,
-            }}
-          >
-            <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#64748b' }}>
-              DSN 8.45 GHz · 10 Hz
-            </span>
-
-            <span style={{ fontSize: 9, color: '#1e293b' }}>|</span>
-
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-              <span style={{ fontSize: 8.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontFamily: T.mono }}>SC MET</span>
-              <span style={{ fontSize: 10.5, fontFamily: T.mono, fontWeight: 700, color: '#cbd5e1' }}>
-                {formatSimMet(simMetSeconds)}
+          {/* Right: Sim Speed & Sync Reset (No nested boxes, no duplicate clocks!) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 8.5, fontWeight: 700, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: T.mono }}>
+                SIM SPEED:
               </span>
+              <div style={{ display: 'flex', gap: 2, background: '#06090d', padding: '1px', borderRadius: 3, border: '1px solid #1e293b' }}>
+                {[1, 2, 5, 10].map(spd => {
+                  const isActive = speedMultiplier === spd;
+                  return (
+                    <button
+                      key={spd}
+                      onClick={() => setSpeedMultiplier(spd)}
+                      title={`Set simulation playback to ${spd}x`}
+                      style={{
+                        background: isActive ? '#1e293b' : 'transparent',
+                        border: isActive ? '1px solid #334155' : '1px solid transparent',
+                        color: isActive ? '#f8fafc' : '#64748b',
+                        borderRadius: 2,
+                        padding: '2px 8px',
+                        fontSize: 9,
+                        fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer',
+                        fontFamily: T.mono,
+                        transition: 'all 0.12s ease',
+                      }}
+                    >
+                      {spd}x
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginLeft: 2 }}>
-              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-              <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80', letterSpacing: '0.04em' }}>SYNC</span>
-            </div>
+            <span style={{ fontSize: 9, color: '#263342' }}>|</span>
+
+            {/* Sync State & Reset to 1x Button */}
+            <button
+              onClick={() => setSpeedMultiplier(1)}
+              title={speedMultiplier > 1 ? `Click to sync simulation clock (${formatSimMet(simMetSeconds)}) with spacecraft (resets to 1x)` : `Telemetry synchronized with spacecraft (${formatSimMet(simMetSeconds)})`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                background: speedMultiplier > 1 ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
+                border: speedMultiplier > 1 ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
+                borderRadius: 3,
+                padding: '2px 7px',
+                cursor: speedMultiplier > 1 ? 'pointer' : 'default',
+                color: speedMultiplier > 1 ? '#38bdf8' : '#64748b',
+                fontSize: 9,
+                fontFamily: T.mono,
+                fontWeight: 600,
+                transition: 'all 0.12s ease',
+              }}
+            >
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: speedMultiplier > 1 ? '#38bdf8' : '#22c55e', display: 'inline-block' }} />
+              {speedMultiplier > 1 ? 'SYNC & RESET (1x)' : 'SYNCED (1x REALTIME)'}
+            </button>
           </div>
         </div>
       </div>
