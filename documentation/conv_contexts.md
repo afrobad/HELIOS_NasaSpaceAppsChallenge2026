@@ -6133,3 +6133,43 @@
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
 
+---
+
+## Turn 28: Global MCC Tab Outline Opacity Enhancement & Low-Opacity Solid Color Selection State
+* **Date/Time:** 2026-10-03 00:08:00 (Local Time) / 18:08:00 UTC
+* **Role:** Senior Mission Control Center UX Designer & Lead Frontend Systems Engineer
+* **User Feedback & Request:**
+  > *"INCREASE THE OPACITY OF THE BORDER OUTLINE OF THE TAB SWITCHINGS SECTION AND ADD A LOW OPACITED SOKID COLOR IN THE SELECTED TAB CONTAINER, FOR ALL OVER THE MCC PAGE"*
+
+* **Visual & Ergonomic Rationale:**
+  - Previous inactive tab borders (`#1f2730`) and navigation bar outlines were too subtle against the dark charcoal background, reducing container discoverability.
+  - Selected tabs relied on dark gradients (`#181e25`) which lacked distinct tactile contrast during time-critical mission operations.
+  - Adding a designated container frame with increased border opacity (`border: 1px solid rgba(255, 255, 255, 0.22)`) and a low-opacity solid aerospace steel-cyan fill (`rgba(56, 189, 248, 0.16)`) with a high-opacity border (`1px solid rgba(56, 189, 248, 0.75)`) creates an unmistakable, pristine flight-deck tab indicator.
+
+* **Architecture & Functional Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **Global Theme Tokens Updated:**
+     - `tabBg`: `'rgba(14, 18, 24, 0.65)'` (dark translucent slate).
+     - `tabBorder`: `'rgba(255, 255, 255, 0.16)'` (high-contrast visible outline for unselected state).
+     - `tabActiveBg`: `'rgba(56, 189, 248, 0.16)'` (low-opacity solid aerospace cyan fill).
+     - `tabActiveBorder`: `'rgba(56, 189, 248, 0.75)'` (crisp, high-opacity vibrant boundary).
+  2. **Main Navigation Tab Bar (`tabBtn` & Nav Ribbon):**
+     - Enclosed tab buttons in a dedicated glassmorphic dock: `background: 'rgba(10, 14, 18, 0.75)'`, `border: '1px solid rgba(255, 255, 255, 0.22)'`, `padding: 4px`, `borderRadius: 7px`, with `boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45)'`.
+     - Active tab displays pure white text (`#ffffff`), low-opacity solid cyan fill, and an elevated inset highlight (`inset 0 1px 0 rgba(255, 255, 255, 0.20)`).
+  3. **Crew Sub-Navigation Ribbon (`crewSubTab`):**
+     - Upgraded the 7 sub-tabs (`Overview`, `3D Bio-Scanner`, `Trends`, `Correlation`, `Baseline & Deviation`, `Medical History`, `Procedures`) into an elevated container with `border: '1px solid rgba(255, 255, 255, 0.22)'`.
+     - Selected sub-tab features `background: 'rgba(56, 189, 248, 0.16)'` and `border: '1px solid rgba(56, 189, 248, 0.75)'`.
+  4. **Systems Hardware Filter Tabs (`sysCategoryFilter`):**
+     - Enclosed filter pills (`ALL`, `ECLSS`, `WEARABLES`, `LAB & POC`, `RADIATION`, `COUNTERMEASURES`) inside an aligned dock with `border: '1px solid rgba(255, 255, 255, 0.22)'` and solid cyan active indicator.
+  5. **Comms Distance Presets (`distPreset`):**
+     - Enclosed preset tabs (`LEO`, `GATEWAY`, `MARS_MIN`, `MARS_MAX`) in a dedicated dock with `border: '1px solid rgba(255, 255, 255, 0.22)'` and matching solid active styling.
+  6. **Top 4 Astronaut Cards Selection:**
+     - Updated selected astronaut card background to low-opacity solid cyan (`rgba(56, 189, 248, 0.14)`) with crisp `1.5px solid rgba(56, 189, 248, 0.75)` border.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled in 827ms with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed 19/19 checks.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+

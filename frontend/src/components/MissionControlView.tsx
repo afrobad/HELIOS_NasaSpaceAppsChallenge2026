@@ -32,10 +32,10 @@ const T = {
   active: '#3c4c5c',
   activeBg: '#11161c',
   activeBorder: '#4a5b6d',
-  tabBg: '#0c0f12',
-  tabBorder: '#1f2730',
-  tabActiveBg: '#181e25',
-  tabActiveBorder: '#455568',
+  tabBg: 'rgba(14, 18, 24, 0.65)',
+  tabBorder: 'rgba(255, 255, 255, 0.16)',
+  tabActiveBg: 'rgba(56, 189, 248, 0.16)',
+  tabActiveBorder: 'rgba(56, 189, 248, 0.75)',
   info: '#7ea4cb',
   mono: "'SF Mono', 'Cascadia Code', Consolas, 'Liberation Mono', monospace",
   sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
@@ -501,28 +501,31 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     marginLeft: 2,
   };
 
-  const tabBtn = (t2: MCCTab, label: string): React.ReactNode => (
-    <button
-      key={t2}
-      onClick={() => setTab(t2)}
-      style={{
-        background: tab === t2 ? T.tabActiveBg : T.tabBg,
-        border: `1px solid ${tab === t2 ? T.tabActiveBorder : T.tabBorder}`,
-        borderRadius: 5,
-        padding: '6px 14px',
-        color: tab === t2 ? '#ffffff' : T.textSecondary,
-        fontSize: 11,
-        fontWeight: tab === t2 ? 600 : 500,
-        cursor: 'pointer',
-        fontFamily: T.sans,
-        letterSpacing: '0.03em',
-        boxShadow: tab === t2 ? 'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 5px rgba(0, 0, 0, 0.35)' : 'none',
-        transition: 'all 0.12s ease',
-      }}
-    >
-      {label}
-    </button>
-  );
+  const tabBtn = (t2: MCCTab, label: string): React.ReactNode => {
+    const isSel = tab === t2;
+    return (
+      <button
+        key={t2}
+        onClick={() => setTab(t2)}
+        style={{
+          background: isSel ? 'rgba(56, 189, 248, 0.16)' : 'rgba(14, 18, 24, 0.65)',
+          border: isSel ? '1px solid rgba(56, 189, 248, 0.75)' : '1px solid rgba(255, 255, 255, 0.16)',
+          borderRadius: 5,
+          padding: '7px 16px',
+          color: isSel ? '#ffffff' : '#b8cbde',
+          fontSize: 11,
+          fontWeight: isSel ? 700 : 500,
+          cursor: 'pointer',
+          fontFamily: T.sans,
+          letterSpacing: '0.04em',
+          boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 2px 8px rgba(0, 0, 0, 0.45)' : 'none',
+          transition: 'all 0.12s ease',
+        }}
+      >
+        {label}
+      </button>
+    );
+  };
 
   // ─── Badge helper (dark background with subtle border outline) ───
   const Badge: React.FC<{
@@ -1329,13 +1332,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 key={c.id}
                 onClick={() => setSelCrewId(c.id)}
                 style={{
-                  background: isSelected ? '#192027' : 'linear-gradient(180deg, #171c21 0%, #101317 100%)',
-                  border: isSelected ? '1.5px solid #4a5b6d' : `1px solid ${stats.isAnomaly ? T.warningBorder : T.borderSubtle}`,
+                  background: isSelected ? 'rgba(56, 189, 248, 0.14)' : 'linear-gradient(180deg, #171c21 0%, #101317 100%)',
+                  border: isSelected ? '1.5px solid rgba(56, 189, 248, 0.75)' : `1px solid ${stats.isAnomaly ? T.warningBorder : 'rgba(255, 255, 255, 0.16)'}`,
                   borderRadius: 6,
                   padding: '10px 11px',
                   cursor: 'pointer',
                   transition: 'all 0.14s ease',
-                  boxShadow: isSelected ? '0 3px 12px rgba(0,0,0,0.5)' : 'none',
+                  boxShadow: isSelected ? '0 3px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.18)' : 'none',
                 }}
               >
                 {/* Header row: Avatar + Name + Status Badge */}
@@ -1406,33 +1409,42 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           })}
         </div>
 
-        {/* ─── 3. Sub-Navigation Ribbon (Tabs) ─── */}
+        {/* ─── 3. Sub-Navigation Ribbon (Tabs) with Increased Border Opacity & Low-Opacity Solid Selected Color ─── */}
         <div style={{
           display: 'flex',
           gap: 6,
-          borderBottom: `1px solid ${T.borderSubtle}`,
-          paddingBottom: 8,
-          marginTop: 2,
+          background: 'rgba(10, 14, 18, 0.75)',
+          border: '1px solid rgba(255, 255, 255, 0.22)',
+          padding: '5px 6px',
+          borderRadius: 7,
+          marginTop: 6,
+          marginBottom: 10,
+          flexWrap: 'wrap',
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45)',
         }}>
-          {(['Overview', '3D Bio-Scanner', 'Trends', 'Correlation', 'Baseline & Deviation', 'Medical History', 'Procedures'] as const).map(sub => (
-            <button
-              key={sub}
-              onClick={() => setCrewSubTab(sub)}
-              style={{
-                background: crewSubTab === sub ? '#192635' : '#0c1015',
-                border: crewSubTab === sub ? '1px solid #00e5ff' : '1px solid #202b38',
-                color: crewSubTab === sub ? '#ffffff' : '#b0c5dc',
-                borderRadius: 4,
-                padding: '6px 14px',
-                fontSize: 11,
-                fontWeight: crewSubTab === sub ? 700 : 500,
-                cursor: 'pointer',
-                transition: 'all 0.12s ease',
-              }}
-            >
-              {sub}
-            </button>
-          ))}
+          {(['Overview', '3D Bio-Scanner', 'Trends', 'Correlation', 'Baseline & Deviation', 'Medical History', 'Procedures'] as const).map(sub => {
+            const isSel = crewSubTab === sub;
+            return (
+              <button
+                key={sub}
+                onClick={() => setCrewSubTab(sub)}
+                style={{
+                  background: isSel ? 'rgba(56, 189, 248, 0.16)' : 'rgba(14, 18, 24, 0.65)',
+                  border: isSel ? '1px solid rgba(56, 189, 248, 0.75)' : '1px solid rgba(255, 255, 255, 0.16)',
+                  color: isSel ? '#ffffff' : '#b0c5dc',
+                  borderRadius: 4,
+                  padding: '6px 14px',
+                  fontSize: 11,
+                  fontWeight: isSel ? 700 : 500,
+                  cursor: 'pointer',
+                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 2px 6px rgba(0, 0, 0, 0.35)' : 'none',
+                  transition: 'all 0.12s ease',
+                }}
+              >
+                {sub}
+              </button>
+            );
+          })}
         </div>
 
         {/* ─── 4. Main Deep-Dive Content based on crewSubTab ─── */}
@@ -2653,9 +2665,21 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           ))}
         </div>
 
-        {/* ─── ZONE 3: COMPACT CATEGORY FILTER TABS ─── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 4 }}>
+        {/* ─── ZONE 3: COMPACT CATEGORY FILTER TABS WITH INCREASED BORDER OPACITY & SOLID TINT ─── */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          marginTop: 2,
+          flexWrap: 'wrap',
+          background: 'rgba(10, 14, 18, 0.75)',
+          border: '1px solid rgba(255, 255, 255, 0.22)',
+          padding: '5px 8px',
+          borderRadius: 7,
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45)',
+          width: 'fit-content',
+        }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#9ec7ef', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 4 }}>
             FILTER:
           </span>
           {[
@@ -2672,16 +2696,17 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 key={f.key}
                 onClick={() => setSysCategoryFilter(f.key as any)}
                 style={{
-                  background: isSel ? T.tabActiveBg : T.tabBg,
-                  border: `1px solid ${isSel ? T.tabActiveBorder : T.tabBorder}`,
+                  background: isSel ? 'rgba(56, 189, 248, 0.16)' : 'rgba(14, 18, 24, 0.65)',
+                  border: isSel ? '1px solid rgba(56, 189, 248, 0.75)' : '1px solid rgba(255, 255, 255, 0.16)',
                   borderRadius: 4,
                   padding: '5px 12px',
-                  color: isSel ? '#ffffff' : T.textSecondary,
+                  color: isSel ? '#ffffff' : '#b8cbde',
                   fontSize: 10,
                   fontWeight: isSel ? 700 : 500,
                   cursor: 'pointer',
                   fontFamily: T.sans,
                   letterSpacing: '0.03em',
+                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 2px 6px rgba(0, 0, 0, 0.35)' : 'none',
                   transition: 'all 0.12s ease',
                 }}
               >
@@ -2972,27 +2997,41 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         <div style={labelStyle}>Speed-of-Light Propagation Calculator (τ = d / c)</div>
 
         {/* Distance presets */}
-        <div style={{ display: 'flex', gap: 6, marginTop: 6, marginBottom: 12 }}>
-          {(Object.keys(DISTANCES) as DistancePreset[]).map(k => (
-            <button
-              key={k}
-              onClick={() => setDistPreset(k)}
-              style={{
-                background: distPreset === k ? '#1b232c' : '#0b0e11',
-                border: `1px solid ${distPreset === k ? '#455668' : T.borderSubtle}`,
-                borderRadius: 4,
-                padding: '5px 12px',
-                fontSize: 10,
-                fontWeight: distPreset === k ? 600 : 400,
-                color: distPreset === k ? '#f0f3f6' : T.textMuted,
-                cursor: 'pointer',
-                boxShadow: distPreset === k ? 'inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
-                transition: 'all 0.12s ease',
-              }}
-            >
-              {DISTANCES[k].label}
-            </button>
-          ))}
+        <div style={{
+          display: 'flex',
+          gap: 6,
+          marginTop: 6,
+          marginBottom: 12,
+          background: 'rgba(10, 14, 18, 0.75)',
+          border: '1px solid rgba(255, 255, 255, 0.22)',
+          padding: '5px 8px',
+          borderRadius: 7,
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45)',
+          width: 'fit-content',
+        }}>
+          {(Object.keys(DISTANCES) as DistancePreset[]).map(k => {
+            const isSel = distPreset === k;
+            return (
+              <button
+                key={k}
+                onClick={() => setDistPreset(k)}
+                style={{
+                  background: isSel ? 'rgba(56, 189, 248, 0.16)' : 'rgba(14, 18, 24, 0.65)',
+                  border: isSel ? '1px solid rgba(56, 189, 248, 0.75)' : '1px solid rgba(255, 255, 255, 0.16)',
+                  borderRadius: 4,
+                  padding: '5px 12px',
+                  fontSize: 10,
+                  fontWeight: isSel ? 700 : 500,
+                  color: isSel ? '#ffffff' : '#b8cbde',
+                  cursor: 'pointer',
+                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.20)' : 'none',
+                  transition: 'all 0.12s ease',
+                }}
+              >
+                {DISTANCES[k].label}
+              </button>
+            );
+          })}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
@@ -3292,9 +3331,18 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           justifyContent: 'space-between',
           gap: 8,
           padding: '10px 0',
-          borderBottom: `1px solid ${T.borderSubtle}`,
+          borderBottom: '1px solid rgba(255, 255, 255, 0.18)',
         }}>
-          <div style={{ display: 'flex', gap: 6 }}>
+          {/* Main Tab Switching Container with Increased Opacity Border Outline */}
+          <div style={{
+            display: 'flex',
+            gap: 6,
+            background: 'rgba(10, 14, 18, 0.75)',
+            border: '1px solid rgba(255, 255, 255, 0.22)',
+            padding: '4px',
+            borderRadius: 7,
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45)',
+          }}>
             {tabBtn('OVERVIEW', 'Overview')}
             {tabBtn('CREW', 'Crew')}
             {tabBtn('SYSTEMS', 'Systems')}
