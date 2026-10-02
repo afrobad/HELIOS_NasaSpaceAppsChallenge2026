@@ -458,435 +458,311 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-      {/* ── MAIN TOP NAVBAR CONTAINER ── */}
+      {/* ── MAIN TOP NAVBAR CONTAINER (SINGLE ROW STRICT ALIGNMENT, NO WRAPPING, NO EMOJIS) ── */}
       <header
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '14px 0',
-          flexWrap: 'wrap',
-          gap: '12px',
+          padding: '10px 0',
+          flexWrap: 'nowrap',
+          gap: '14px',
           position: 'relative',
+          width: '100%',
         }}
       >
-      {/* ── LEFT: HERO BRAND LOGO & MINIMAL VIEW SWITCHER ─────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        {/* Brand Logo Hero with Solid Look */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span
-            style={{
-              fontSize: '20px',
-              fontWeight: 900,
-              letterSpacing: '0.12em',
-              color: '#ffffff',
-              fontFamily: "var(--hud-font-brand, 'Orbitron', system-ui, sans-serif)",
-              lineHeight: 1,
-              textShadow: '0 2px 10px rgba(0, 0, 0, 0.8)',
-            }}
-          >
-            HELIOS
-          </span>
-
-          {/* Minimal Non-Uppercase Connection Status Beacon */}
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '2px 8px',
-              borderRadius: '9999px',
-              backgroundColor: 'transparent',
-              border: connected ? '1px solid rgba(34, 197, 94, 0.32)' : '1px solid rgba(239, 68, 68, 0.32)',
-              fontSize: '10px',
-              fontWeight: 500,
-              color: connected ? '#22c55e' : '#ef4444',
-              fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-            }}
-          >
+        {/* ── LEFT: HERO BRAND LOGO, VIEW TABS & STATION IDENTIFIER ─────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          {/* Brand Logo with Solid Modern Avionics Look */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span
               style={{
-                width: '5px',
-                height: '5px',
-                borderRadius: '50%',
-                backgroundColor: connected ? '#22c55e' : '#ef4444',
-                boxShadow: connected ? '0 0 6px rgba(34, 197, 94, 0.7)' : 'none',
+                fontSize: '18px',
+                fontWeight: 900,
+                letterSpacing: '0.12em',
+                color: '#ffffff',
+                fontFamily: "var(--hud-font-brand, 'Orbitron', system-ui, sans-serif)",
+                lineHeight: 1,
               }}
-            />
-            {connected ? 'Live' : 'Offline'}
-          </span>
+            >
+              HELIOS
+            </span>
+
+            {/* Minimal Connection Status Beacon */}
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '1px 6px',
+                borderRadius: '3px',
+                backgroundColor: connected ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                border: connected ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+                fontSize: '9.5px',
+                fontWeight: 600,
+                color: connected ? '#4ade80' : '#ef4444',
+                fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+              }}
+            >
+              <span
+                style={{
+                  width: '4px',
+                  height: '4px',
+                  borderRadius: '50%',
+                  backgroundColor: connected ? '#22c55e' : '#ef4444',
+                }}
+              />
+              {connected ? 'Live' : 'Offline'}
+            </span>
+          </div>
+
+          {/* Minimal Hairline Divider */}
+          <div style={{ width: '1px', height: '16px', backgroundColor: '#1e293b' }} />
+
+          {/* Navigation Items (Dashboard, Health-Telemetry, Earth MCC, 3D Hologram) — NO EMOJIS */}
+          {onSelectView && (
+            <nav
+              aria-label="Main Navigation"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => onSelectView('HUD')}
+                style={{
+                  position: 'relative',
+                  padding: '4px 10px',
+                  fontSize: '11.5px',
+                  fontWeight: activeView === 'HUD' ? 600 : 500,
+                  borderRadius: '4px',
+                  border: activeView === 'HUD' ? '1px solid rgba(255, 255, 255, 0.16)' : '1px solid transparent',
+                  cursor: 'pointer',
+                  background: activeView === 'HUD' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                  color: activeView === 'HUD' ? '#ffffff' : '#8899a6',
+                  fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                  letterSpacing: '0.02em',
+                  transition: 'all 0.12s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Dashboard
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onSelectView('HEALTH_TELEMETRY')}
+                style={{
+                  position: 'relative',
+                  padding: '4px 10px',
+                  fontSize: '11.5px',
+                  fontWeight: activeView === 'HEALTH_TELEMETRY' ? 600 : 500,
+                  borderRadius: '4px',
+                  border: activeView === 'HEALTH_TELEMETRY' ? '1px solid rgba(255, 255, 255, 0.16)' : '1px solid transparent',
+                  cursor: 'pointer',
+                  background: activeView === 'HEALTH_TELEMETRY' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                  color: activeView === 'HEALTH_TELEMETRY' ? '#ffffff' : '#8899a6',
+                  fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                  letterSpacing: '0.02em',
+                  transition: 'all 0.12s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Health-Telemetry
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onSelectView('MCC')}
+                style={{
+                  position: 'relative',
+                  padding: '4px 10px',
+                  fontSize: '11.5px',
+                  fontWeight: activeView === 'MCC' ? 600 : 500,
+                  borderRadius: '4px',
+                  border: activeView === 'MCC' ? '1px solid rgba(255, 255, 255, 0.22)' : '1px solid transparent',
+                  cursor: 'pointer',
+                  background: activeView === 'MCC' ? 'rgba(255, 255, 255, 0.10)' : 'transparent',
+                  color: activeView === 'MCC' ? '#ffffff' : '#8899a6',
+                  fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                  letterSpacing: '0.02em',
+                  transition: 'all 0.12s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Earth MCC
+              </button>
+
+              {/* 3D Hologram Button (CLEAN TEXT, NO EMOJIS) */}
+              <button
+                type="button"
+                onClick={() => onSelectView('SCANNER')}
+                style={{
+                  position: 'relative',
+                  padding: '4px 10px',
+                  fontSize: '11.5px',
+                  fontWeight: activeView === 'SCANNER' ? 600 : 500,
+                  borderRadius: '4px',
+                  border: activeView === 'SCANNER' ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(56, 189, 248, 0.18)',
+                  cursor: 'pointer',
+                  background: activeView === 'SCANNER' ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
+                  color: activeView === 'SCANNER' ? '#38bdf8' : '#7dd3fc',
+                  fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                  letterSpacing: '0.02em',
+                  transition: 'all 0.12s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                3D Hologram
+              </button>
+            </nav>
+          )}
+
+          {/* MCC Sentry Station Identifier (Compact & Dignified) */}
+          {activeView === 'MCC' && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '2px 7px',
+                borderRadius: '3px',
+                background: '#090d12',
+                border: '1px solid #1e293b',
+                fontSize: '9px',
+                fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                letterSpacing: '0.04em',
+                color: '#64748b',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+              <span style={{ fontWeight: 600, color: '#94a3b8' }}>MCC SENTRY</span>
+              <span style={{ color: '#334155' }}>·</span>
+              <span>ARES-VI</span>
+            </div>
+          )}
         </div>
 
-        {/* Minimal Hairline Divider */}
-        <div style={{ width: '1px', height: '18px', backgroundColor: '#222222' }} />
-
-        {/* Navigation Items: Dashboard & Health-Telemetry (Replaces Pill Switch) */}
-        {onSelectView && (
-          <nav
-            aria-label="Main Navigation"
+        {/* ── RIGHT: CONTROLS & CHRONOMETER CLUSTER (UNIFIED ON SAME ROW) ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          {/* Unified Avionics Mission Chronometer (MET + UTC in single compact unit) */}
+          <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
+              gap: '8px',
+              height: '28px',
+              padding: '0 8px',
+              background: '#090d12',
+              borderRadius: '4px',
+              border: '1px solid #1e293b',
+              whiteSpace: 'nowrap',
             }}
           >
-            <button
-              type="button"
-              onClick={() => onSelectView('HUD')}
-              style={{
-                position: 'relative',
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: activeView === 'HUD' ? 600 : 500,
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer',
-                background: activeView === 'HUD' ? 'rgba(255, 255, 255, 0.07)' : 'transparent',
-                color: activeView === 'HUD' ? '#ffffff' : '#888888',
-                fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-                letterSpacing: '0.02em',
-                transition: 'all 0.15s ease',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-              onMouseEnter={(e) => {
-                if (activeView !== 'HUD') {
-                  e.currentTarget.style.color = '#e5e7eb';
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeView !== 'HUD') {
-                  e.currentTarget.style.color = '#888888';
-                  e.currentTarget.style.background = 'transparent';
-                }
-              }}
-            >
-              Dashboard
-              {activeView === 'HUD' && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    bottom: '0px',
-                    left: '10px',
-                    right: '10px',
-                    height: '2px',
-                    background: 'linear-gradient(90deg, #ff7700, #ff9933)',
-                    borderRadius: '2px',
-                    boxShadow: '0 0 6px rgba(255, 119, 0, 0.6)',
-                  }}
-                />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => onSelectView('HEALTH_TELEMETRY')}
-              style={{
-                position: 'relative',
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: activeView === 'HEALTH_TELEMETRY' ? 600 : 500,
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer',
-                background: activeView === 'HEALTH_TELEMETRY' ? 'rgba(255, 255, 255, 0.07)' : 'transparent',
-                color: activeView === 'HEALTH_TELEMETRY' ? '#ffffff' : '#888888',
-                fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-                letterSpacing: '0.02em',
-                transition: 'all 0.15s ease',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-              onMouseEnter={(e) => {
-                if (activeView !== 'HEALTH_TELEMETRY') {
-                  e.currentTarget.style.color = '#e5e7eb';
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeView !== 'HEALTH_TELEMETRY') {
-                  e.currentTarget.style.color = '#888888';
-                  e.currentTarget.style.background = 'transparent';
-                }
-              }}
-            >
-              Health-Telemetry
-              {activeView === 'HEALTH_TELEMETRY' && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    bottom: '0px',
-                    left: '10px',
-                    right: '10px',
-                    height: '2px',
-                    background: 'linear-gradient(90deg, #ff7700, #ff9933)',
-                    borderRadius: '2px',
-                    boxShadow: '0 0 6px rgba(255, 119, 0, 0.6)',
-                  }}
-                />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => onSelectView('MCC')}
-              style={{
-                position: 'relative',
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: activeView === 'MCC' ? 600 : 500,
-                borderRadius: '6px',
-                border: activeView === 'MCC' ? '1px solid rgba(255, 255, 255, 0.16)' : '1px solid transparent',
-                cursor: 'pointer',
-                background: activeView === 'MCC' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                color: activeView === 'MCC' ? '#ffffff' : '#888888',
-                fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-                letterSpacing: '0.02em',
-                transition: 'all 0.15s ease',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-              onMouseEnter={(e) => {
-                if (activeView !== 'MCC') {
-                  e.currentTarget.style.color = '#e5e7eb';
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeView !== 'MCC') {
-                  e.currentTarget.style.color = '#888888';
-                  e.currentTarget.style.background = 'transparent';
-                }
-              }}
-            >
-              Earth MCC
-              {activeView === 'MCC' && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    bottom: '0px',
-                    left: '10px',
-                    right: '10px',
-                    height: '2px',
-                    background: 'linear-gradient(90deg, #64748b, #94a3b8)',
-                    borderRadius: '2px',
-                    boxShadow: '0 0 6px rgba(148, 163, 184, 0.5)',
-                  }}
-                />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => onSelectView('SCANNER')}
-              style={{
-                position: 'relative',
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: activeView === 'SCANNER' ? 700 : 500,
-                borderRadius: '6px',
-                border: activeView === 'SCANNER' ? '1px solid #00e5ff' : '1px solid rgba(0, 229, 255, 0.28)',
-                cursor: 'pointer',
-                background: activeView === 'SCANNER' ? 'rgba(0, 229, 255, 0.16)' : 'rgba(0, 229, 255, 0.06)',
-                color: activeView === 'SCANNER' ? '#00e5ff' : '#67e8f9',
-                fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-                letterSpacing: '0.02em',
-                transition: 'all 0.15s ease',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-              onMouseEnter={(e) => {
-                if (activeView !== 'SCANNER') {
-                  e.currentTarget.style.color = '#ffffff';
-                  e.currentTarget.style.background = 'rgba(0, 229, 255, 0.15)';
-                  e.currentTarget.style.borderColor = '#00e5ff';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeView !== 'SCANNER') {
-                  e.currentTarget.style.color = '#67e8f9';
-                  e.currentTarget.style.background = 'rgba(0, 229, 255, 0.06)';
-                  e.currentTarget.style.borderColor = 'rgba(0, 229, 255, 0.28)';
-                }
-              }}
-            >
-              <span style={{ fontSize: '12px', filter: 'drop-shadow(0 0 4px #00e5ff)' }}>⚡</span>
-              <span>3D Hologram</span>
-              {activeView === 'SCANNER' && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    bottom: '0px',
-                    left: '10px',
-                    right: '10px',
-                    height: '2px',
-                    background: 'linear-gradient(90deg, #00e5ff, #38bdf8)',
-                    borderRadius: '2px',
-                    boxShadow: '0 0 8px rgba(0, 229, 255, 0.9)',
-                  }}
-                />
-              )}
-            </button>
-          </nav>
-        )}
+            {/* MET */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span
+                style={{
+                  fontSize: '8.5px',
+                  color: '#64748b',
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                  fontFamily: "'Tomorrow', sans-serif",
+                }}
+              >
+                MET
+              </span>
+              <span
+                style={{
+                  fontSize: '9.5px',
+                  color: '#94a3b8',
+                  fontWeight: 500,
+                  fontFamily: "'Tomorrow', sans-serif",
+                }}
+              >
+                {getMetParts(metSeconds).day}
+              </span>
+              <span
+                style={{
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  color: '#f1f5f9',
+                  fontFamily: "'Tomorrow', monospace",
+                  fontVariantNumeric: 'tabular-nums',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {getMetParts(metSeconds).time}
+              </span>
+            </div>
 
-        {/* MCC Sentry Console Badge (displayed in navbar on MCC page) */}
-        {activeView === 'MCC' && (
-          <div
+            <div style={{ width: '1px', height: '14px', backgroundColor: '#1e293b' }} />
+
+            {/* UTC */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span
+                style={{
+                  fontSize: '8.5px',
+                  color: '#64748b',
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                  fontFamily: "'Tomorrow', sans-serif",
+                }}
+              >
+                UTC
+              </span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#cbd5e1',
+                  fontFamily: "'Tomorrow', monospace",
+                  fontVariantNumeric: 'tabular-nums',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {utcTime}
+              </span>
+            </div>
+          </div>
+
+          {/* Voice Audio Toggle: Neutral Professional Icon Button */}
+          <button
+            onClick={handleToggleAudio}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '3px 9px',
+              justifyContent: 'center',
+              width: '28px',
+              height: '28px',
               borderRadius: '4px',
-              background: '#0b0e11',
-              border: '1px solid #1f2732',
-              fontSize: '10px',
-              fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-              letterSpacing: '0.04em',
-              color: '#8da0b3',
+              border: audioEngaged ? '1px solid #334155' : '1px solid #1e293b',
+              background: audioEngaged ? '#0f172a' : '#080c10',
+              color: audioEngaged ? '#94a3b8' : '#475569',
+              cursor: 'pointer',
+              transition: 'all 0.12s ease',
             }}
+            title={audioEngaged ? 'Voice Audio: Active (Click to mute)' : 'Voice Audio: Muted (Click to unmute)'}
           >
-            <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#529642', boxShadow: '0 0 5px rgba(82, 150, 66, 0.6)' }} />
-            <span style={{ fontWeight: 600, color: '#b0c2d4' }}>MCC SENTRY</span>
-            <span style={{ color: '#323d4a' }}>·</span>
-            <span style={{ color: '#68788a' }}>ARES-VI GROUND STATION</span>
-          </div>
-        )}
-      </div>
-
-      {/* ── RIGHT: CONTROLS, ICONS & JARVIS IN HEADER ───────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {/* MET Clock with Clear Typographic Hierarchy */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            height: '30px',
-            padding: '0 9px',
-            background: '#0e0e0e',
-            borderRadius: '6px',
-            border: '1px solid #222222',
-          }}
-        >
-          <span
-            style={{
-              fontSize: '9px',
-              color: '#ff7700',
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              background: 'rgba(255, 119, 0, 0.12)',
-              padding: '1px 4px',
-              borderRadius: '3px',
-              fontFamily: "'Tomorrow', sans-serif",
-            }}
-          >
-            MET
-          </span>
-          <span
-            style={{
-              fontSize: '10px',
-              color: '#6b7280',
-              fontWeight: 500,
-              letterSpacing: '0.02em',
-              fontFamily: "'Tomorrow', sans-serif",
-            }}
-          >
-            {getMetParts(metSeconds).day}
-          </span>
-          <span
-            style={{
-              fontSize: '13px',
-              fontWeight: 700,
-              color: '#f3f4f6',
-              fontFamily: "'Tomorrow', sans-serif",
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '0.02em',
-            }}
-          >
-            {getMetParts(metSeconds).time}
-          </span>
+            {audioEngaged ? (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              </svg>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            )}
+          </button>
         </div>
-
-        {/* Live UTC Clock (displayed in HeaderBar, prominent during MCC) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            height: '30px',
-            padding: '0 9px',
-            background: '#0b0e11',
-            borderRadius: '6px',
-            border: '1px solid #1f2730',
-          }}
-        >
-          <span
-            style={{
-              fontSize: '9px',
-              color: '#7e93a8',
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              background: 'rgba(126, 147, 168, 0.12)',
-              padding: '1px 4px',
-              borderRadius: '3px',
-              fontFamily: "'Tomorrow', sans-serif",
-            }}
-          >
-            UTC
-          </span>
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 700,
-              color: '#dbe2ea',
-              fontFamily: "'Tomorrow', sans-serif",
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '0.02em',
-            }}
-          >
-            {utcTime}
-          </span>
-        </div>
-
-        {/* Voice Audio Toggle: ICONS ONLY */}
-        <button
-          onClick={handleToggleAudio}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '30px',
-            height: '30px',
-            borderRadius: '6px',
-            border: audioEngaged ? '1px solid rgba(250, 204, 21, 0.45)' : '1px solid #222222',
-            background: audioEngaged ? 'rgba(250, 204, 21, 0.14)' : '#111111',
-            color: audioEngaged ? '#facc15' : '#666666',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-          title={audioEngaged ? 'Voice Audio: Active (Click to mute)' : 'Voice Audio: Muted (Click to unmute)'}
-        >
-          {audioEngaged ? (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-            </svg>
-          ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <line x1="23" y1="9" x2="17" y2="15" />
-              <line x1="17" y1="9" x2="23" y2="15" />
-            </svg>
-          )}
-        </button>
-
-      </div>
-    </header>
+      </header>
 
 
     {/* ── JARVIS FIXED BOTTOM TRANSMISSION BAR ── */}

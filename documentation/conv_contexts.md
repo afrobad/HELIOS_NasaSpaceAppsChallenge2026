@@ -6456,3 +6456,56 @@
 * **Referenced File Links:**
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+## Turn 37: Full Header & Top Dock Professionalization (Strict Single-Line Alignment, Zero Emojis, No Arcade Glow)
+* **Date/Time:** 2026-10-03 01:20:00 (Local Time) / 19:20:00 UTC
+* **Role:** Lead Flight Telemetry Systems Architect & Senior MCC UX Designer
+* **User Feedback & Request:**
+  > User provided a screenshot showing the global navbar wrapping the MET/UTC clocks onto a second row, and critiqued the top dock:
+  > *"OPTIMIZE THE FULL HEADER SECTIONS VISUAL FOR MCC PAGE, THE HEADER CONTENT IS APPEARING NEXT LINE AND THE CURRENTLY CREATED HEADER HAS SO MANY COLORS AND GLOW ALSO EMOJIS ARE TOTALY FORBIDDEN TO BE USED, ANALYZE DEEPLY USE PROPER PROFESSIONAL COLORS AND PROPER AIGNMENT"*
+
+* **Visual & Ergonomic Rationale:**
+  - **Wrapping Issue Root Cause:**
+    * In [frontend/src/components/HeaderBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HeaderBar.tsx), the `<header>` element was configured with `flexWrap: 'wrap'`.
+    * Combined with large button paddings, wide `ARES-VI GROUND STATION` text, and separate MET and UTC containers, total width exceeded 1210px, causing the mission clocks (`MET`, `UTC`, Audio button) to spill onto row 2 on all standard screens.
+  - **Arcade Glow & Visual Noise Root Cause:**
+    * The top dock in [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx) used heavy cyan/black multi-stop linear gradients, high-contrast cyan glowing borders (`rgba(56, 189, 248, 0.32)`), bright neon box shadows (`0 4px 14px`), and bright yellow text.
+    * It also duplicated the MET and UTC clocks directly below the navbar's MET/UTC clocks, creating cognitive clutter.
+  - **Forbidden Emojis:**
+    * Used casual unicode emojis (`🛰️`, `📡`, `⚡`, `📖`, `🩺`, `❤️`, `🩸`, `🫁`, `🌡️`, `📋`) which clash with NASA flight avionics specifications (NASA-STD-3001).
+
+* **Architecture & Functional Implementations:**
+  1. **Global Header Modernization ([frontend/src/components/HeaderBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HeaderBar.tsx)):**
+     - **Strict Single-Line Alignment (`flexWrap: 'nowrap'`):**
+       * Set `flexWrap: 'nowrap'`, `width: '100%'`, `justifyContent: 'space-between'`, `alignItems: 'center'`.
+       * Total horizontal footprint compacted from >1250px to ~980px, eliminating line wrap on all display resolutions.
+     - **Refined Left Cluster:**
+       * `HELIOS` brand (18px Orbitron/Tomorrow in clean `#ffffff`).
+       * Connection beacon: clean emerald status chip (`#22c55e`, `#4ade80`).
+       * Navigation buttons (`Dashboard`, `Health-Telemetry`, `Earth MCC`, `3D Hologram`): compacted to `padding: 4px 10px`, `fontSize: 11.5px`, clean active states without arcade glow.
+       * Removed `⚡` emoji from `3D Hologram`.
+       * Compacted MCC Ground Station tag to a minimal flight indicator: `MCC SENTRY · ARES-VI`.
+     - **Unified Right Chronometer Cluster:**
+       * Merged `MET` and `UTC` into a single, cohesive, dark slate chronometer capsule (`#090d12`, border `1px solid #1e293b`, height `28px`).
+       * Clean tabular typography: `MET T+14d 08:42:31` (`#f1f5f9`), `UTC 19:11:36` (`#cbd5e1`).
+       * Replaced bright yellow audio toggle with a dignified neutral slate button (`#0f172a`, border `#334155`, stroke `#94a3b8`).
+  2. **MCC Orbital & Propagation Controller Dock ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+     - **Solid Aerospace Dark Styling:** Removed all linear gradients and cyan neon glows; replaced with solid `#090d12` slate background and subtle `1px solid #1e293b` borders.
+     - **Clean Single-Line Alignment:** `flexWrap: 'nowrap'`, `gap: 12`, perfectly aligned to the 1250px container.
+     - **Eliminated Emojis:** Removed `🛰️` and `📡`; replaced with clean monospace labels (`SPACECRAFT POSITION:`, `ONE-WAY DELAY:`).
+     - **De-duplicated Mission Clocks:** Rather than repeating the full MET and UTC clocks sitting directly above, formatted right cluster as an active DSN link & spacecraft clock sync readout:
+       `DSN 8.45 GHz · 10 Hz | SC MET T+14d 08:42:31 · SYNC`.
+  3. **Complete Elimination of Emojis Across MissionControlView:**
+     - Replaced all organ emojis in Event Correlation (`❤️`, `🩸`, `🫁`, `🌡️`) with standard avionics acronyms (`HEART RATE`, `SPO2 ARTERIAL SATURATION`, `RESPIRATION RATE`, `CORE TEMPERATURE`).
+     - Replaced procedure and console buttons (`📖`, `🩺`) with clean text links (`OPEN PROCEDURE: M-204 →`, `OPEN CLINICAL CONSOLE →`).
+     - Replaced clipboard and warning emojis (`📋`, `⚠️`) with standard flight tags (`SHIFT HANDOVER`, `▲ ANOMALY PIN`).
+
+* **Verification & Audit:**
+  - **Emoji Scanner:** `scan_emojis.py` verified 0 forbidden unicode emojis in `HeaderBar.tsx` and `MissionControlView.tsx`.
+  - **TypeScript & Vite Build:** `npm run build` compiled client bundle in 893ms with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed all 19 integration checks.
+
+* **Referenced File Links:**
+  * [frontend/src/components/HeaderBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HeaderBar.tsx)
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)

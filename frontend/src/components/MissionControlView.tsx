@@ -1236,7 +1236,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             {/* Environmental Verdict Footer */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingTop: 6, borderTop: `1px solid ${T.borderSubtle}` }}>
               <div style={{ fontSize: 9.5, color: T.nominal, display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span>✓</span>
+                
                 <span>ECLSS PASS: Cabin atmosphere nominal. No hypoxic or toxic decompress transients.</span>
               </div>
               <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>Margin to CO₂ Limit: +1.18 mmHg</span>
@@ -1363,7 +1363,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 transition: 'all 0.12s ease',
               }}
             >
-              <span style={{ fontSize: 11 }}>⚡</span>
+              
               <span>3D Holographic Scanner</span>
             </button>
 
@@ -1603,7 +1603,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   marginBottom: 10,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 12 }}>{selStats.isAnomaly ? '⚠️' : '✓'}</span>
+                    <span style={{ fontSize: 12 }}>{selStats.isAnomaly ? '▲' : '●'}</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: selStats.isAnomaly ? T.warning : T.nominal }}>
                       {selCrew.crewNo} {selCrew.role}
                     </span>
@@ -1944,22 +1944,22 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     {/* Channel Baseline Matrix */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
-                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>❤️ Heart Rate</span>
+                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>HEART RATE</span>
                         <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.hr} bpm <span style={{ color: '#4ade80' }}>({selStats.hrDeltaPct >= 0 ? '+' : ''}{selStats.hrDeltaPct.toFixed(1)}%)</span></span>
                         <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>NOMINAL [±0.4σ]</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
-                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>🩸 SpO₂ Saturation</span>
+                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>SPO2 ARTERIAL SATURATION</span>
                         <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.spo2.toFixed(1)}% <span style={{ color: '#4ade80' }}>(Optimal)</span></span>
                         <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>OPTIMAL</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
-                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>🫁 Respiration Rate</span>
+                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>RESPIRATION RATE</span>
                         <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.resp} br/min <span style={{ color: '#4ade80' }}>(Eupneic)</span></span>
                         <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>REST BAND</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
-                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>🌡️ Core Temperature</span>
+                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>CORE TEMPERATURE</span>
                         <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.temp.toFixed(1)} °C</span>
                         <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>HOMEOSTATIC</span>
                       </div>
@@ -2084,7 +2084,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       transition: 'all 0.12s ease',
                     }}
                   >
-                    <span>📖</span> Open Procedure: M-204 (Tachycardia Exertion) →
+                    OPEN PROCEDURE: M-204 (TACHYCARDIA EXERTION) →
                   </button>
 
                   {onOpenTriage && (
@@ -2108,7 +2108,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         transition: 'all 0.12s ease',
                       }}
                     >
-                      <span>🩺</span> Open Clinical Telemetry Console →
+                      OPEN CLINICAL TELEMETRY CONSOLE →
                     </button>
                   )}
                 </div>
@@ -2168,7 +2168,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     alignItems: 'center',
                   }}>
                     <span style={{ fontSize: 8, fontFamily: T.mono, color: T.critical, background: '#140808', border: `1px solid ${T.criticalBorder}`, padding: '1px 4px', borderRadius: 3, whiteSpace: 'nowrap' }}>
-                      ⚠️ 14:32 (PLT Anomaly)
+                      [ANOMALY] 14:32 (PLT)
                     </span>
                     <span style={{ width: 1.5, height: 32, background: T.critical, marginTop: 1 }} />
                   </div>
@@ -2199,7 +2199,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   </div>
                   <div style={{ display: 'flex', gap: 10 }}>
                     <span style={{ color: '#ffffff' }}>▲ Current MET</span>
-                    <span style={{ color: T.critical }}>⚠️ Anomaly Pin</span>
+                    <span style={{ color: T.critical }}>▲ ANOMALY PIN</span>
                   </div>
                 </div>
               </div>
@@ -3445,7 +3445,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   transition: 'all 0.12s ease',
                 }}
               >
-                {evt.acknowledged ? '✓ Acknowledged' : 'Acknowledge'}
+                {evt.acknowledged ? 'ACKNOWLEDGED' : 'ACKNOWLEDGE'}
               </button>
             </div>
           </div>
@@ -3556,7 +3556,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   transition: 'all 0.12s ease',
                 }}
               >
-                <span>📖</span> Review Flight Procedure: {evt.procedure} →
+                REVIEW FLIGHT PROCEDURE: {evt.procedure} →
               </button>
             )}
 
@@ -3640,7 +3640,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       fontSize: 12,
     }}>
 
-      {/* ─── TOP ORBITAL TELEMETRY & SIMULATION TIME DOCK (VISUALLY DISTINCT CONTAINER) ─── */}
+      {/* ─── TOP ORBITAL TELEMETRY & SIMULATION TIME DOCK (CLEAN AVIONICS LAYOUT, NO EMOJIS, NO GLOW) ─── */}
       <div style={{
         maxWidth: '1250px',
         margin: '0 auto',
@@ -3653,34 +3653,30 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 12,
-            padding: '8px 14px',
-            marginTop: 10,
+            padding: '6px 12px',
+            marginTop: 8,
             marginBottom: 6,
-            background: 'linear-gradient(90deg, rgba(16, 24, 34, 0.96) 0%, rgba(11, 16, 24, 0.96) 50%, rgba(16, 24, 34, 0.96) 100%)',
-            border: '1px solid rgba(56, 189, 248, 0.32)',
-            borderRadius: 6,
-            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 14px rgba(0, 0, 0, 0.5)',
-            flexWrap: 'wrap',
+            background: '#090d12',
+            border: '1px solid #1e293b',
+            borderRadius: 4,
+            flexWrap: 'nowrap',
           }}
         >
-          {/* Left: Orbital Position Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 13 }}>🛰️</span>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                SPACECRAFT POSITION:
-              </span>
-            </div>
+          {/* Left: Spacecraft Position & Signal Propagation Delay */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <span style={{ fontSize: 8.5, fontWeight: 700, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: T.mono }}>
+              SPACECRAFT POSITION:
+            </span>
 
             <select
               value={orbitalPosition}
               onChange={e => handleOrbitalPositionSelect(e.target.value as DistancePreset)}
               style={{
-                background: '#090d12',
-                border: '1px solid rgba(56, 189, 248, 0.45)',
-                color: '#ffffff',
-                borderRadius: 4,
-                padding: '4px 10px',
+                background: '#06090d',
+                border: '1px solid #283548',
+                color: '#e2e8f0',
+                borderRadius: 3,
+                padding: '3px 8px',
                 fontSize: 10.5,
                 fontWeight: 600,
                 fontFamily: T.sans,
@@ -3699,26 +3695,28 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 5,
-                background: orbitalPosition === 'LEO' ? 'rgba(34, 197, 94, 0.14)' : orbitalPosition === 'GATEWAY' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(245, 158, 11, 0.18)',
-                border: `1px solid ${orbitalPosition === 'LEO' ? 'rgba(34, 197, 94, 0.4)' : orbitalPosition === 'GATEWAY' ? 'rgba(56, 189, 248, 0.4)' : 'rgba(245, 158, 11, 0.45)'}`,
+                gap: 4,
+                background: '#06090d',
+                border: '1px solid #283548',
                 padding: '3px 8px',
-                borderRadius: 4,
+                borderRadius: 3,
               }}
             >
-              <span style={{ fontSize: 10 }}>📡</span>
-              <span style={{ fontSize: 9, fontWeight: 700, fontFamily: T.mono, color: orbitalPosition === 'LEO' ? '#4ade80' : orbitalPosition === 'GATEWAY' ? '#38bdf8' : '#fbbf24' }}>
-                DELAY: {fmtTime(DISTANCES[orbitalPosition].km / C)}
+              <span style={{ fontSize: 8.5, fontWeight: 700, fontFamily: T.mono, color: '#64748b' }}>
+                ONE-WAY DELAY:
+              </span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: T.mono, color: orbitalPosition === 'LEO' ? '#4ade80' : orbitalPosition === 'GATEWAY' ? '#94a3b8' : '#f59e0b' }}>
+                {fmtTime(DISTANCES[orbitalPosition].km / C)}
               </span>
             </div>
           </div>
 
           {/* Center: Multi-Speed Playback Multiplier (1x, 2x, 5x, 10x) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 9, fontWeight: 800, color: '#9ec7ef', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              SIM SPEED:
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <span style={{ fontSize: 8.5, fontWeight: 700, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: T.mono }}>
+              SIM RATE:
             </span>
-            <div style={{ display: 'flex', gap: 3, background: '#080c10', padding: '2px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
+            <div style={{ display: 'flex', gap: 2, background: '#06090d', padding: '1px', borderRadius: 3, border: '1px solid #1e293b' }}>
               {[1, 2, 5, 10].map(spd => {
                 const isActive = speedMultiplier === spd;
                 return (
@@ -3727,17 +3725,16 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     onClick={() => setSpeedMultiplier(spd)}
                     title={`Speed up telemetry simulation to ${spd}x`}
                     style={{
-                      background: isActive ? 'rgba(56, 189, 248, 0.32)' : 'transparent',
-                      border: isActive ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid transparent',
-                      color: isActive ? '#ffffff' : '#8fa9c4',
-                      borderRadius: 3,
-                      padding: '3px 9px',
-                      fontSize: 9.5,
+                      background: isActive ? '#1e293b' : 'transparent',
+                      border: isActive ? '1px solid #334155' : '1px solid transparent',
+                      color: isActive ? '#f8fafc' : '#64748b',
+                      borderRadius: 2,
+                      padding: '2px 8px',
+                      fontSize: 9,
                       fontWeight: isActive ? 700 : 500,
                       cursor: 'pointer',
                       fontFamily: T.mono,
                       transition: 'all 0.12s ease',
-                      textShadow: isActive ? '0 1px 2px rgba(0,0,0,0.6)' : 'none',
                     }}
                   >
                     {spd}x
@@ -3747,36 +3744,34 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             </div>
           </div>
 
-          {/* Right: Spacecraft Onboard Time Container (Matching Spacecraft Monitor) */}
+          {/* Right: DSN Telemetry Link & Spacecraft Clock Synchronization */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
-              background: '#080c11',
-              border: '1px solid rgba(56, 189, 248, 0.28)',
-              borderRadius: 4,
-              padding: '4px 10px',
+              gap: 8,
+              background: '#06090d',
+              border: '1px solid #1e293b',
+              borderRadius: 3,
+              padding: '3px 8px',
+              flexShrink: 0,
             }}
           >
+            <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#64748b' }}>
+              DSN 8.45 GHz · 10 Hz
+            </span>
+
+            <span style={{ fontSize: 9, color: '#1e293b' }}>|</span>
+
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-              <span style={{ fontSize: 8.5, fontWeight: 700, color: '#9ec7ef', textTransform: 'uppercase' }}>MET</span>
-              <span style={{ fontSize: 11.5, fontFamily: T.mono, fontWeight: 700, color: '#fbbf24' }}>
+              <span style={{ fontSize: 8.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', fontFamily: T.mono }}>SC MET</span>
+              <span style={{ fontSize: 10.5, fontFamily: T.mono, fontWeight: 700, color: '#cbd5e1' }}>
                 {formatSimMet(simMetSeconds)}
               </span>
             </div>
 
-            <span style={{ fontSize: 10, color: T.border }}>|</span>
-
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-              <span style={{ fontSize: 8.5, fontWeight: 700, color: '#9ec7ef', textTransform: 'uppercase' }}>UTC</span>
-              <span style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 600, color: '#ffffff' }}>
-                {simUtcTime}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 2 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 6px #22c55e' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginLeft: 2 }}>
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
               <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80', letterSpacing: '0.04em' }}>SYNC</span>
             </div>
           </div>
@@ -3828,7 +3823,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 transition: 'all 0.12s ease',
               }}
             >
-              <span>📋</span> Shift Handover
+              SHIFT HANDOVER
             </button>
 
             <span style={{
@@ -3908,7 +3903,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                ✕
+                ×
               </button>
             </div>
 
@@ -3917,7 +3912,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               <div style={{ background: '#14181d', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 12 }}>
                 <div style={{ ...labelStyle, marginBottom: 6 }}>1. Active / Unresolved Mission Events</div>
                 {events.filter(e => e.priority !== 'NOMINAL').length === 0 ? (
-                  <div style={{ fontSize: 11, color: T.nominal }}>✓ No active anomalies. All telemetry channels within nominal baseline.</div>
+                  <div style={{ fontSize: 11, color: T.nominal }}>● All active channels nominal. All telemetry channels within nominal baseline.</div>
                 ) : (
                   events.filter(e => e.priority !== 'NOMINAL').map(e => (
                     <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', borderBottom: `1px solid ${T.borderSubtle}` }}>
@@ -3988,7 +3983,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   transition: 'all 0.15s ease',
                 }}
               >
-                {copiedHandover ? '✓ Copied to Clipboard!' : '📋 Copy Handover Briefing to Clipboard'}
+                {copiedHandover ? 'COPIED TO CLIPBOARD' : 'COPY HANDOVER BRIEFING'}
               </button>
 
               <button
@@ -4066,7 +4061,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         cursor: 'pointer',
                       }}
                     >
-                      ✕
+                      ×
                     </button>
                   </div>
 
