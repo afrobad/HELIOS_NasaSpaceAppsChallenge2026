@@ -2525,16 +2525,16 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             </div>
           </div>
 
-          {/* 5-Column Minimal Avionics Gauges */}
+          {/* 5-Column Clean, Self-Explanatory Spacecraft Health Gauges */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
-            {/* Counter 1: Hardware */}
+            {/* Counter 1: Installed Systems */}
             <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  HARDWARE
+                  INSTALLED SYSTEMS
                 </span>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.nominal, letterSpacing: '0.04em' }}>
-                  100% ONLINE
+                  ALL ONLINE
                 </span>
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: T.textPrimary, marginTop: 4 }}>
@@ -2545,11 +2545,11 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
             </div>
 
-            {/* Counter 2: Health Index */}
+            {/* Counter 2: System Health */}
             <div style={{ background: '#0a0d10', border: `1px solid ${isCo2Excursion ? T.warningBorder : T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  HEALTH INDEX
+                  SYSTEM HEALTH
                 </span>
                 <span style={{ fontSize: 9, fontWeight: 700, color: isCo2Excursion ? T.warning : T.nominal, letterSpacing: '0.04em' }}>
                   {isCo2Excursion ? 'ADVISORY' : 'NOMINAL'}
@@ -2563,50 +2563,50 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
             </div>
 
-            {/* Counter 3: Consumables */}
+            {/* Counter 3: Life Support Supply (Explaining 71 Days) */}
             <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  CONSUMABLES
+                  LIFE SUPPORT SUPPLY
                 </span>
                 <span style={{ fontSize: 9, fontWeight: 700, color: '#38bdf8', letterSpacing: '0.04em' }}>
-                  RESERVE
+                  SAFE BUFFER
                 </span>
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: T.textPrimary, marginTop: 4 }}>
-                71 – 83d
+                71 DAYS
               </div>
               <div style={{ width: '100%', height: 3, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
                 <div style={{ width: '82%', height: '100%', background: '#38bdf8' }} />
               </div>
             </div>
 
-            {/* Counter 4: Compliance */}
+            {/* Counter 4: Flight Safety Rules */}
             <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  COMPLIANCE
+                  FLIGHT SAFETY RULES
                 </span>
                 <span style={{ fontSize: 9, fontWeight: 700, color: isCo2Excursion ? T.warning : T.nominal, letterSpacing: '0.04em' }}>
-                  {isCo2Excursion ? 'WATCH' : 'COMPLIANT'}
+                  {isCo2Excursion ? 'WATCH' : 'PASSED'}
                 </span>
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: isCo2Excursion ? T.warning : T.nominal, marginTop: 4 }}>
-                {isCo2Excursion ? '96.0%' : '98.0%'}
+                {isCo2Excursion ? '48 / 50' : '49 / 50'}
               </div>
               <div style={{ width: '100%', height: 3, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
                 <div style={{ width: isCo2Excursion ? '96%' : '98%', height: '100%', background: isCo2Excursion ? T.warning : T.nominal }} />
               </div>
             </div>
 
-            {/* Counter 5: Telemetry Cadence */}
+            {/* Counter 5: Telemetry Stream Rate */}
             <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  CADENCE
+                  DATA STREAM RATE
                 </span>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.nominal, letterSpacing: '0.04em' }}>
-                  LOCKED
+                  LIVE SYNC
                 </span>
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: T.textPrimary, marginTop: 4 }}>

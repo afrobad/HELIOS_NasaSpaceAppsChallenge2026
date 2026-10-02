@@ -6279,3 +6279,32 @@
 * **Referenced File Links:**
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+## Turn 32: Spacecraft Metric Labels Humanization & Consumables Clarification
+* **Date/Time:** 2026-10-03 00:25:00 (Local Time) / 18:25:00 UTC
+* **Role:** Senior Mission Control Center UX Designer & Lead Avionics Systems Engineer
+* **User Feedback & Request:**
+  > *"WHY THE LEBELS ARE WIERD AND NOT UNDERSTANDING? AND WHAT DOES 71 – 83d MEANS?"*
+
+* **In-Depth Domain Explanation:**
+  - **What `71 – 83d` meant:** It was shorthand for the autonomous crew life-support buffer range in days:
+    * **71 days:** Limiting consumable is potable water (284 Liters reserve for 4 crew members).
+    * **83 days:** Cryogenic oxygen supply (68.4 kg reserve for 4 crew members).
+    * Writing it as `71 – 83d` was cryptic and unintuitive because "d" was not defined as "days" and displaying an unlabelled range obscured the critical safety bottleneck.
+  - **Why labels felt "weird":**
+    * `HARDWARE`: Too generic/abstract. Replaced with `INSTALLED SYSTEMS` (`16 / 16 ALL ONLINE`).
+    * `HEALTH INDEX`: Ambiguous (confused with astronaut physiological score). Replaced with `SYSTEM HEALTH` (`98.6% NOMINAL`).
+    * `CONSUMABLES` / `71 – 83d`: Obscure shorthand. Replaced with `LIFE SUPPORT SUPPLY` (`71 DAYS SAFE BUFFER`).
+    * `COMPLIANCE`: Sounded like administrative paperwork rather than spacecraft safety constraints. Replaced with `FLIGHT SAFETY RULES` (`49 / 50 PASSED`).
+    * `CADENCE`: Obscure engineering jargon for bus transmission speed. Replaced with `DATA STREAM RATE` (`10.0 Hz LIVE SYNC`).
+
+* **Architecture & Functional Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  - Updated all 5 metric cards with clear, plain-language, self-explanatory aerospace labels and human-readable numbers.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled client bundle in 762ms with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed all 19 integration checks.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
