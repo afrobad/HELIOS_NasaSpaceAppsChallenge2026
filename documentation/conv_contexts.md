@@ -6020,3 +6020,73 @@
   * [frontend/src/components/ScenarioController.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/ScenarioController.tsx)
   * [frontend/src/index.css](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/index.css)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+---
+
+## Turn 26: Overview Tab Live Biometric ECG Waveform Suite & Systems Page Flight Hardware Overhaul
+* **Date/Time:** 2026-10-02 23:50:00 (Local Time) / 17:50:00 UTC
+* **Role:** Senior Mission Control Center UX Designer, Aerospace Life-Support Engineer & Senior Frontend Engineer
+* **User Requests & Directives:**
+  1. Overview Tab: *"I WANT THIS VIEW IN THE OVERVIEW PAGE... MORE GRAPHS OF CHANGES IN THE OVERVIEW SECTION THAN TEXTS... DO IT CLEANLY, BUT WITH THE MCC THEME"*.
+  2. Systems Tab: *"IN THE SYSTEMS PAGE, I WANT EACH SYSTEM NAMES INSTALLED IN THE SPACECRAFT THAT IS RELATED TO HEALTH, ANALYZE THE TELEMETRY PAGE FOR IT, AND EACH SYSTEM USES FOR WHAT, HIGHLIGHT THEM, ALSO UNIVERSAL METRIX SHOULD BE SHOW COUNTING THERE, USE CONTAINER FOR EACH DEVICE CARDS AND SHOW NESESSARY INFORMATIONS AS I SAID IN A PROPER HIERARCHY AND PREVIOUS DESIGN RULES, KEEP THINGS MINIMAL AND SUBTLE HIGHLIGHT NESESSARY THINGS ONLY"*.
+
+* **Architecture & Functional Implementations:**
+  1. **Overview Tab Operational Overhaul ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+     - Directly integrated `<CabinEnvironmentalBar>` and `<CrewGrid>` into `renderOverview()`:
+       * Restored full-viewport sticky ECLSS status bar displaying cabin pressure, pCO₂, ppO₂, temperature, humidity, and airflow.
+       * Rendered the authentic 4-row live biometric telemetry grid with real-time `<EcgRowCanvas>` dual-trace rendering (White ECG Lead-II and Orange SpO₂ Plethysmogram) for all 4 crew members (Cmndr Haley, Pilot Chris, Dr. Sian, Specialist Leo).
+       * Preserved one-click operator navigation `[ TRIAGE / DIAGNOSTIC CONSOLE → ]` routing directly to detailed telemetry or the 3D Holographic Bio-Scanner.
+     - Appended Mission Longitudinal Trajectory (Flight Day 01 → Today [FD-184]) and Continuous 24-Hour ECLSS Cabin Environment Multi-Channel Graphs beneath the live crew grid, providing immediate historical drift context without visual fog.
+
+  2. **Systems Tab Complete Spacecraft Health Hardware Catalog Overhaul:**
+     - **Zone 1: Universal Metrics Counter Banner:**
+       * Multi-counter dashboard displaying high-density operational telemetry:
+         1. `MONITORED HARDWARE`: `16 / 16 (100% ONLINE)` with active subsystem breakdown (11 Continuous · 3 POC Lab · 2 Active Dosimetry).
+         2. `SUBSYSTEM HEALTH INDEX`: `98.6% NOMINAL` (dynamically transitioning to `94.2% ADVISORY` on CO₂ scrubber or environmental excursions).
+         3. `CONSUMABLES FLIGHT MARGIN`: `71 - 83 CREW-DAYS` (O₂ supply 83d / 68.4 kg, H₂O reserve 71d / 284 L, backup LiOH 12 units).
+         4. `FLIGHT RULE COMPLIANCE`: `98.0% (49 of 50 rules in green envelope)` tracking NASA-STD-3001 Vol 2 requirements.
+         5. `TELEMETRY BUS & CADENCE`: `10.0 Hz SYNC LOCKED` at 1.42 Mbps with 42ms DSN-14 relay latency.
+     - **Zone 2: Consumables & Mars Communication Delay Ribbon:**
+       * Displays detailed cryogenic O₂, potable water, LiOH scrubbers, sterile medical kits, and oral K⁺ electrolyte countermeasures.
+       * Features real-time Deep Space Network ground relay status and interactive `[ Enable/Disable Mars 22m Delay ]` toggle button.
+     - **Zone 3: Interactive Category Filter Bar:**
+       * Fast category pills allowing operators to filter between:
+         * `ALL SYSTEMS (16)`
+         * `ECLSS & ATMOSPHERE (5)`
+         * `WEARABLE BIOMETRICS (5)`
+         * `CLINICAL LAB & POC (3)`
+         * `RADIATION & HABITAT (2)`
+         * `COUNTERMEASURES (1)`
+     - **Zone 4: Structured Device Container Cards with Strict Hierarchy:**
+       * Built 16 authentic spacecraft hardware system cards derived from `HealthTelemetryView.tsx` and NASA spaceflight standards:
+         1. `Orion ECLSS Atmospheric Pressure & Gas Assembly (PCA)` (Atmospheric pressurization, ppO₂/ppN₂ regulation)
+         2. `Amine Regenerative CO₂ Scrubber Bed (RCRS / CDRA)` (Cyclic solid-amine CO₂ adsorption, NASA-STD-3001 < 3.0 mmHg limit)
+         3. `Active Thermal Control System (ATCS Dual Internal/External Loop)` (Internal H₂O loop, external Freon radiator loop)
+         4. `Potable Water Reclamation & Processing System (PWS / UPA)` (98% closed-loop sweat/urine recycling, iodinated drinking reserve)
+         5. `Emergency Oxygen Delivery & Medical Suction System (EODS)` (Positive-pressure emergency O₂, aspirator suction)
+         6. `AstroSkin / Bio-Monitor Continuous Wearable Smart Garment` (Multi-lead ECG, RIP respiratory belts, skin thermistors)
+         7. `LifeGuard / CPOD Autonomous Physiological Pod` (Secondary vital signs, GSR skin conductance, autonomic arousal)
+         8. `Wearable Cardiac Vector & Continuous 12-Lead ECG Patch` (Lead-II waveforms, QTc interval calculation, arrhythmia detection)
+         9. `Reflectance PPG & Peripheral Perfusion Sensor` (Dual-wavelength SpO₂, microvascular perfusion index)
+         10. `Double-Sensor Non-Invasive Core Body Temperature Monitor (T-Mini)` (Dual-heat-flux thermometry, space fever detection)
+         11. `Point-of-Care Hematology Cell Analyzer (rHEALTH / CBC)` (Capillary microfluidic laser cytometer, space anemia tracking)
+         12. `Clinical Chemistry & Electrolyte Analyzer (Piccolo Xpress CMP)` (Centrifugal dry-reagent serum K⁺, Na⁺, BUN, creatinine)
+         13. `Multiplex Cytokine & Immunoassay System (71-Plex Luminex)` (71 OSDR cytokines IL-6, TNF-α, systemic inflammation profiling)
+         14. `HERA Spacecraft Radiation Network (Hybrid Electronic Radiation Assessor)` (Distributed 6-node silicon-pixel GCR/SPE detector)
+         15. `Crew Personal Active Dosimeter (CAD) & SPE Alarmer` (Individual chest dosimeter, career absorbed dose enforcement)
+         16. `ARED & CEVIS Exercise Countermeasure Suite with PUMA Analyzer` (600-lb resistive exercise, cycle ergometry, breath-by-breath VO₂)
+       * **Subtle Highlight on Functional Usage:** Each card features a high-contrast container callout (`PRIMARY HEALTH ROLE & PURPOSE`) explaining exactly how the device functions and protects astronaut health.
+       * **Telemetry & Limits Table:** 4 columns with `MEASURED PARAMETER`, `CURRENT VALUE` (crisp monospace numbers), `FLIGHT LIMIT`, and `SAFETY MARGIN & TREND`.
+       * **Interactive Device Footer:** Displays hardware model & serial number + an active `[ VIEW TELEMETRY STREAM → ]` button calling `onSelectView('HEALTH_TELEMETRY')`.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled cleanly in 2.41s with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed 19/19 checks.
+  - **Aesthetics Review:** Retained strict MCC dark olive-charcoal palette (`#070a07`, `#121518`, `#2c3642`, `#9ec7ef`, `#5ebd4c`, `#e6a83c`), no loud neon or visual clutter.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [frontend/src/components/CrewGrid.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/CrewGrid.tsx)
+  * [frontend/src/components/CabinEnvironmentalBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/CabinEnvironmentalBar.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
