@@ -6173,3 +6173,39 @@
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
 
+---
+
+## Turn 29: Removal of External Tab Container Dock & Active Tab Border Opacity Reduction
+* **Date/Time:** 2026-10-03 00:12:00 (Local Time) / 18:12:00 UTC
+* **Role:** Senior Mission Control Center UX Designer & Lead Frontend Systems Engineer
+* **User Feedback & Request:**
+  > User provided a screenshot highlighting the outer container surrounding the main navigation tabs and directed:
+  > *"REMOVE THE EXTERNAL CONTAINER AND REDUCE THE OPACUTY OF THE ACTIVE TABS BORDER OUTLINE"*
+
+* **Visual & Ergonomic Rationale:**
+  - The outer rounded border/background dock wrapping the tab switchings added unnecessary nested visual framing.
+  - The active tab border outline at `0.75` opacity was overly intense against the dark aerospace palette.
+  - Removing the outer wrapper allows the tab buttons to sit cleanly in the navigation bar with natural spacing, while reducing the active tab border opacity to `0.35` (`rgba(56, 189, 248, 0.35)`) delivers a subtle, sleek, professional flight-deck appearance.
+
+* **Architecture & Functional Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **Removed External Container Docks:**
+     - Removed the outer wrapper container box, background dock, and outer borders from:
+       * Main navigation tabs (`<div style={{ display: 'flex', gap: 6 }}>`)
+       * Crew sub-navigation tabs (`crewSubTab`)
+       * Systems hardware filter tabs (`sysCategoryFilter`)
+       * Comms distance presets (`distPreset`)
+  2. **Reduced Active Tab Border Opacity:**
+     - Lowered active tab border opacity to `rgba(56, 189, 248, 0.35)` across all tab types.
+     - Preserved the low-opacity solid selection tint (`rgba(56, 189, 248, 0.14)`) and white label text (`#ffffff`) for clean, effortless legibility.
+     - Standardized unselected tab styling to dark charcoal `#0c0f12` with subtle `#2c3642` border.
+  3. **Crew Selection Cards Refinement:**
+     - Reduced active crew selection card border to `1.5px solid rgba(56, 189, 248, 0.35)` with subtle `rgba(56, 189, 248, 0.12)` background.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled in 753ms with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed 19/19 checks.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+

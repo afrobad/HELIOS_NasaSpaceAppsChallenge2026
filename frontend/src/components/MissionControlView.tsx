@@ -32,10 +32,10 @@ const T = {
   active: '#3c4c5c',
   activeBg: '#11161c',
   activeBorder: '#4a5b6d',
-  tabBg: 'rgba(14, 18, 24, 0.65)',
-  tabBorder: 'rgba(255, 255, 255, 0.16)',
-  tabActiveBg: 'rgba(56, 189, 248, 0.16)',
-  tabActiveBorder: 'rgba(56, 189, 248, 0.75)',
+  tabBg: '#0c0f12',
+  tabBorder: '#2c3642',
+  tabActiveBg: 'rgba(56, 189, 248, 0.14)',
+  tabActiveBorder: 'rgba(56, 189, 248, 0.35)',
   info: '#7ea4cb',
   mono: "'SF Mono', 'Cascadia Code', Consolas, 'Liberation Mono', monospace",
   sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
@@ -508,17 +508,16 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         key={t2}
         onClick={() => setTab(t2)}
         style={{
-          background: isSel ? 'rgba(56, 189, 248, 0.16)' : 'rgba(14, 18, 24, 0.65)',
-          border: isSel ? '1px solid rgba(56, 189, 248, 0.75)' : '1px solid rgba(255, 255, 255, 0.16)',
+          background: isSel ? 'rgba(56, 189, 248, 0.14)' : '#0c0f12',
+          border: isSel ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid #2c3642',
           borderRadius: 5,
-          padding: '7px 16px',
+          padding: '6px 14px',
           color: isSel ? '#ffffff' : '#b8cbde',
           fontSize: 11,
           fontWeight: isSel ? 700 : 500,
           cursor: 'pointer',
           fontFamily: T.sans,
-          letterSpacing: '0.04em',
-          boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 2px 8px rgba(0, 0, 0, 0.45)' : 'none',
+          letterSpacing: '0.03em',
           transition: 'all 0.12s ease',
         }}
       >
@@ -1332,13 +1331,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 key={c.id}
                 onClick={() => setSelCrewId(c.id)}
                 style={{
-                  background: isSelected ? 'rgba(56, 189, 248, 0.14)' : 'linear-gradient(180deg, #171c21 0%, #101317 100%)',
-                  border: isSelected ? '1.5px solid rgba(56, 189, 248, 0.75)' : `1px solid ${stats.isAnomaly ? T.warningBorder : 'rgba(255, 255, 255, 0.16)'}`,
+                  background: isSelected ? 'rgba(56, 189, 248, 0.12)' : 'linear-gradient(180deg, #171c21 0%, #101317 100%)',
+                  border: isSelected ? '1.5px solid rgba(56, 189, 248, 0.35)' : `1px solid ${stats.isAnomaly ? T.warningBorder : T.borderSubtle}`,
                   borderRadius: 6,
                   padding: '10px 11px',
                   cursor: 'pointer',
                   transition: 'all 0.14s ease',
-                  boxShadow: isSelected ? '0 3px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.18)' : 'none',
+                  boxShadow: isSelected ? '0 3px 12px rgba(0,0,0,0.5)' : 'none',
                 }}
               >
                 {/* Header row: Avatar + Name + Status Badge */}
@@ -1409,18 +1408,15 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           })}
         </div>
 
-        {/* ─── 3. Sub-Navigation Ribbon (Tabs) with Increased Border Opacity & Low-Opacity Solid Selected Color ─── */}
+        {/* ─── 3. Sub-Navigation Ribbon (Tabs) — Clean Buttons without External Container Dock ─── */}
         <div style={{
           display: 'flex',
           gap: 6,
-          background: 'rgba(10, 14, 18, 0.75)',
-          border: '1px solid rgba(255, 255, 255, 0.22)',
-          padding: '5px 6px',
-          borderRadius: 7,
-          marginTop: 6,
+          borderBottom: `1px solid ${T.borderSubtle}`,
+          paddingBottom: 8,
+          marginTop: 4,
           marginBottom: 10,
           flexWrap: 'wrap',
-          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45)',
         }}>
           {(['Overview', '3D Bio-Scanner', 'Trends', 'Correlation', 'Baseline & Deviation', 'Medical History', 'Procedures'] as const).map(sub => {
             const isSel = crewSubTab === sub;
@@ -1429,15 +1425,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 key={sub}
                 onClick={() => setCrewSubTab(sub)}
                 style={{
-                  background: isSel ? 'rgba(56, 189, 248, 0.16)' : 'rgba(14, 18, 24, 0.65)',
-                  border: isSel ? '1px solid rgba(56, 189, 248, 0.75)' : '1px solid rgba(255, 255, 255, 0.16)',
+                  background: isSel ? 'rgba(56, 189, 248, 0.14)' : '#0c1015',
+                  border: isSel ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid #202b38',
                   color: isSel ? '#ffffff' : '#b0c5dc',
                   borderRadius: 4,
                   padding: '6px 14px',
                   fontSize: 11,
                   fontWeight: isSel ? 700 : 500,
                   cursor: 'pointer',
-                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 2px 6px rgba(0, 0, 0, 0.35)' : 'none',
                   transition: 'all 0.12s ease',
                 }}
               >
@@ -2665,19 +2660,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           ))}
         </div>
 
-        {/* ─── ZONE 3: COMPACT CATEGORY FILTER TABS WITH INCREASED BORDER OPACITY & SOLID TINT ─── */}
+        {/* ─── ZONE 3: COMPACT CATEGORY FILTER TABS — Clean Buttons without External Container Dock ─── */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          marginTop: 2,
+          marginTop: 4,
           flexWrap: 'wrap',
-          background: 'rgba(10, 14, 18, 0.75)',
-          border: '1px solid rgba(255, 255, 255, 0.22)',
-          padding: '5px 8px',
-          borderRadius: 7,
-          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45)',
-          width: 'fit-content',
         }}>
           <span style={{ fontSize: 9, fontWeight: 700, color: '#9ec7ef', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 4 }}>
             FILTER:
@@ -2696,8 +2685,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 key={f.key}
                 onClick={() => setSysCategoryFilter(f.key as any)}
                 style={{
-                  background: isSel ? 'rgba(56, 189, 248, 0.16)' : 'rgba(14, 18, 24, 0.65)',
-                  border: isSel ? '1px solid rgba(56, 189, 248, 0.75)' : '1px solid rgba(255, 255, 255, 0.16)',
+                  background: isSel ? 'rgba(56, 189, 248, 0.14)' : '#0c0f12',
+                  border: isSel ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid #2c3642',
                   borderRadius: 4,
                   padding: '5px 12px',
                   color: isSel ? '#ffffff' : '#b8cbde',
@@ -2706,7 +2695,6 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   cursor: 'pointer',
                   fontFamily: T.sans,
                   letterSpacing: '0.03em',
-                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 2px 6px rgba(0, 0, 0, 0.35)' : 'none',
                   transition: 'all 0.12s ease',
                 }}
               >
@@ -2996,19 +2984,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       <div style={{ ...cardStyle, gridColumn: 'span 2' }}>
         <div style={labelStyle}>Speed-of-Light Propagation Calculator (τ = d / c)</div>
 
-        {/* Distance presets */}
-        <div style={{
-          display: 'flex',
-          gap: 6,
-          marginTop: 6,
-          marginBottom: 12,
-          background: 'rgba(10, 14, 18, 0.75)',
-          border: '1px solid rgba(255, 255, 255, 0.22)',
-          padding: '5px 8px',
-          borderRadius: 7,
-          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45)',
-          width: 'fit-content',
-        }}>
+        {/* Distance presets — Clean Buttons without External Container Dock */}
+        <div style={{ display: 'flex', gap: 6, marginTop: 6, marginBottom: 12 }}>
           {(Object.keys(DISTANCES) as DistancePreset[]).map(k => {
             const isSel = distPreset === k;
             return (
@@ -3016,15 +2993,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 key={k}
                 onClick={() => setDistPreset(k)}
                 style={{
-                  background: isSel ? 'rgba(56, 189, 248, 0.16)' : 'rgba(14, 18, 24, 0.65)',
-                  border: isSel ? '1px solid rgba(56, 189, 248, 0.75)' : '1px solid rgba(255, 255, 255, 0.16)',
+                  background: isSel ? 'rgba(56, 189, 248, 0.14)' : '#0b0e11',
+                  border: isSel ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid #202b38',
                   borderRadius: 4,
                   padding: '5px 12px',
                   fontSize: 10,
-                  fontWeight: isSel ? 700 : 500,
-                  color: isSel ? '#ffffff' : '#b8cbde',
+                  fontWeight: isSel ? 700 : 400,
+                  color: isSel ? '#ffffff' : T.textMuted,
                   cursor: 'pointer',
-                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.20)' : 'none',
                   transition: 'all 0.12s ease',
                 }}
               >
@@ -3331,18 +3307,10 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           justifyContent: 'space-between',
           gap: 8,
           padding: '10px 0',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.18)',
+          borderBottom: `1px solid ${T.borderSubtle}`,
         }}>
-          {/* Main Tab Switching Container with Increased Opacity Border Outline */}
-          <div style={{
-            display: 'flex',
-            gap: 6,
-            background: 'rgba(10, 14, 18, 0.75)',
-            border: '1px solid rgba(255, 255, 255, 0.22)',
-            padding: '4px',
-            borderRadius: 7,
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45)',
-          }}>
+          {/* Main Tab Switchings — Clean Buttons without External Container Dock */}
+          <div style={{ display: 'flex', gap: 6 }}>
             {tabBtn('OVERVIEW', 'Overview')}
             {tabBtn('CREW', 'Crew')}
             {tabBtn('SYSTEMS', 'Systems')}
