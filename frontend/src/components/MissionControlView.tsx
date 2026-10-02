@@ -2502,105 +2502,118 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* ─── ZONE 1: UNIVERSAL HEALTH METRICS COUNTERS BANNER ─── */}
+        {/* ─── ZONE 1: MINIMAL SPACECRAFT HEALTH METRICS BANNER (DECLUTTERED) ─── */}
         <div
           style={{
-            background: 'linear-gradient(180deg, #1b2026 0%, #101418 100%)',
+            background: 'linear-gradient(180deg, #181d22 0%, #0f1316 100%)',
             border: `1px solid ${T.border}`,
             borderRadius: 6,
-            padding: '12px 16px',
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+            padding: '10px 14px',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={labelStyle}>UNIVERSAL SPACECRAFT HEALTH METRICS · HARDWARE STATUS & COMPLIANCE</div>
+              <div style={labelStyle}>SPACECRAFT HEALTH METRICS</div>
               <Badge color={T.nominal} borderColor={T.nominalBorder}>
-                16 / 16 SYSTEMS ACTIVE
+                16 / 16 ONLINE
               </Badge>
             </div>
-            <div style={{ fontSize: 10, fontFamily: T.mono, color: T.textMuted }}>
-              NASA-STD-3001 VOL 2 · FLIGHT SURGEON CONSOLE · ALL BUS TELEMETRY SYNCED
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontFamily: T.mono, color: T.nominal }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.nominal, display: 'inline-block', boxShadow: `0 0 6px ${T.nominal}` }} />
+              TELEMETRY LOCKED
             </div>
           </div>
 
-          {/* 5-Column Universal Counters */}
+          {/* 5-Column Minimal Avionics Gauges */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
-            {/* Counter 1 */}
-            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '10px 12px' }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                MONITORED HARDWARE
+            {/* Counter 1: Hardware */}
+            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  HARDWARE
+                </span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.nominal, letterSpacing: '0.04em' }}>
+                  100% ONLINE
+                </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-                <span style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: T.textPrimary }}>16 / 16</span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: T.nominal, textTransform: 'uppercase' }}>100% ONLINE</span>
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: T.textPrimary, marginTop: 4 }}>
+                16 / 16
               </div>
-              <div style={{ fontSize: 9, color: T.textSecondary, marginTop: 3 }}>
-                11 Continuous · 3 POC Lab · 2 Active Rad
+              <div style={{ width: '100%', height: 3, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '100%', background: T.nominal }} />
               </div>
             </div>
 
-            {/* Counter 2 */}
-            <div style={{ background: '#0a0d10', border: `1px solid ${isCo2Excursion ? T.warningBorder : T.borderSubtle}`, borderRadius: 4, padding: '10px 12px' }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                SUBSYSTEM HEALTH INDEX
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-                <span style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: isCo2Excursion ? T.warning : T.nominal }}>
-                  {isCo2Excursion ? '94.2%' : '98.6%'}
+            {/* Counter 2: Health Index */}
+            <div style={{ background: '#0a0d10', border: `1px solid ${isCo2Excursion ? T.warningBorder : T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  HEALTH INDEX
                 </span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: isCo2Excursion ? T.warning : T.nominal }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: isCo2Excursion ? T.warning : T.nominal, letterSpacing: '0.04em' }}>
                   {isCo2Excursion ? 'ADVISORY' : 'NOMINAL'}
                 </span>
               </div>
-              <div style={{ fontSize: 9, color: T.textSecondary, marginTop: 3 }}>
-                {isCo2Excursion ? '1 System Excursion (CO₂ Scrubber)' : '0 Critical Faults · 16 Nominal'}
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: isCo2Excursion ? T.warning : T.nominal, marginTop: 4 }}>
+                {isCo2Excursion ? '94.2%' : '98.6%'}
+              </div>
+              <div style={{ width: '100%', height: 3, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
+                <div style={{ width: isCo2Excursion ? '94.2%' : '98.6%', height: '100%', background: isCo2Excursion ? T.warning : T.nominal }} />
               </div>
             </div>
 
-            {/* Counter 3 */}
-            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '10px 12px' }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                CONSUMABLES FLIGHT MARGIN
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-                <span style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: T.textPrimary }}>71 - 83</span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#9ec7ef' }}>CREW-DAYS</span>
-              </div>
-              <div style={{ fontSize: 9, color: T.textSecondary, marginTop: 3 }}>
-                O₂: 83d (68.4 kg) · H₂O: 71d (284 L)
-              </div>
-            </div>
-
-            {/* Counter 4 */}
-            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '10px 12px' }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                FLIGHT RULE COMPLIANCE
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-                <span style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: isCo2Excursion ? T.warning : T.nominal }}>
-                  {isCo2Excursion ? '96.0%' : '98.0%'}
+            {/* Counter 3: Consumables */}
+            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  CONSUMABLES
                 </span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: isCo2Excursion ? T.warning : T.nominal }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: '#38bdf8', letterSpacing: '0.04em' }}>
+                  RESERVE
+                </span>
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: T.textPrimary, marginTop: 4 }}>
+                71 – 83d
+              </div>
+              <div style={{ width: '100%', height: 3, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
+                <div style={{ width: '82%', height: '100%', background: '#38bdf8' }} />
+              </div>
+            </div>
+
+            {/* Counter 4: Compliance */}
+            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  COMPLIANCE
+                </span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: isCo2Excursion ? T.warning : T.nominal, letterSpacing: '0.04em' }}>
                   {isCo2Excursion ? 'WATCH' : 'COMPLIANT'}
                 </span>
               </div>
-              <div style={{ fontSize: 9, color: T.textSecondary, marginTop: 3 }}>
-                {isCo2Excursion ? 'CO₂ 3.0 mmHg rule active gate' : '49 of 50 rules in green zone'}
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: isCo2Excursion ? T.warning : T.nominal, marginTop: 4 }}>
+                {isCo2Excursion ? '96.0%' : '98.0%'}
+              </div>
+              <div style={{ width: '100%', height: 3, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
+                <div style={{ width: isCo2Excursion ? '96%' : '98%', height: '100%', background: isCo2Excursion ? T.warning : T.nominal }} />
               </div>
             </div>
 
-            {/* Counter 5 */}
-            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '10px 12px' }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                TELEMETRY BUS & CADENCE
+            {/* Counter 5: Telemetry Cadence */}
+            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  CADENCE
+                </span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.nominal, letterSpacing: '0.04em' }}>
+                  LOCKED
+                </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-                <span style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: T.textPrimary }}>10.0 Hz</span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: T.nominal }}>SYNC LOCKED</span>
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: T.textPrimary, marginTop: 4 }}>
+                10.0 Hz
               </div>
-              <div style={{ fontSize: 9, color: T.textSecondary, marginTop: 3 }}>
-                Bitrate: 1.42 Mbps · Latency: 42 ms (DSN)
+              <div style={{ width: '100%', height: 3, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '100%', background: T.nominal }} />
               </div>
             </div>
           </div>

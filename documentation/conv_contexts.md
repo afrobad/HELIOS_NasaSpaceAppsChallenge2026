@@ -6248,3 +6248,34 @@
 * **Referenced File Links:**
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+## Turn 31: Systems Health Metrics Banner Decluttering & Minimal Avionics Micro-Gauges
+* **Date/Time:** 2026-10-03 00:23:00 (Local Time) / 18:23:00 UTC
+* **Role:** Senior Mission Control Center UX Designer & Lead Avionics Systems Engineer
+* **User Feedback & Request:**
+  > User uploaded a cropped screenshot of the Zone 1 Universal Spacecraft Health Metrics banner and directed:
+  > *"THIS SECTION IS TOO MUCH TEXT HEAVY"*
+
+* **Visual & Ergonomic Rationale:**
+  - The previous banner was burdened with dense descriptive subtitles on every card (`11 Continuous · 3 POC Lab · 2 Active Rad`, `0 Critical Faults · 16 Nominal`, `O₂: 83d (68.4 kg) · H₂O: 71d (284 L)`, `49 of 50 rules in green zone`, `Bitrate: 1.42 Mbps · Latency: 42 ms (DSN)`) and a verbose header string.
+  - The consumables subtitle was entirely redundant with the dedicated Consumables table located directly below in Zone 2.
+  - Converting the cards into minimal avionics micro-gauges with short category labels, large bold numerical readouts, single-word status chips, and slim 3px visual progress tracks eliminates cognitive text fatigue (>75% text reduction) while providing instantaneous visual status recognition.
+
+* **Architecture & Functional Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **Header Decluttering:**
+     - Simplified title from `UNIVERSAL SPACECRAFT HEALTH METRICS · HARDWARE STATUS & COMPLIANCE` to `SPACECRAFT HEALTH METRICS` with `16 / 16 ONLINE` badge.
+     - Replaced long technical standard text (`NASA-STD-3001 VOL 2 · FLIGHT SURGEON CONSOLE · ALL BUS TELEMETRY SYNCED`) with a sleek live pulsing green dot: `TELEMETRY LOCKED`.
+  2. **Micro-Gauge Modernization (Zone 1 Counters):**
+     - **HARDWARE:** `16 / 16` with `100% ONLINE` tag + 100% nominal bar (removed bulleted breakdown).
+     - **HEALTH INDEX:** `98.6%` (or `94.2%`) with `NOMINAL` / `ADVISORY` tag + responsive gauge bar (removed fault text).
+     - **CONSUMABLES:** `71 – 83d` with `RESERVE` tag + cyan margin bar (removed redundant O2/H2O string).
+     - **COMPLIANCE:** `98.0%` with `COMPLIANT` / `WATCH` tag + green compliance bar (removed 49 of 50 rule count).
+     - **CADENCE:** `10.0 Hz` with `LOCKED` tag + telemetry pulse track (removed bitrate and DSN latency text).
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled client bundle in 795ms with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed all 19 integration checks.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
