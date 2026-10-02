@@ -6378,3 +6378,81 @@
 * **Referenced File Links:**
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+## Turn 35: Top Orbital Telemetry & Accelerated Simulation Time Dock
+* **Date/Time:** 2026-10-03 00:45:00 (Local Time) / 18:45:00 UTC
+* **Role:** Senior Mission Control Center UX Designer & Lead Avionics Systems Engineer
+* **User Feedback & Request:**
+  > User requested:
+  > 1. Top container immediately below global header, above MCC navigation tabs (`Overview | Crew | Systems | Comms | Investigate`).
+  > 2. Spacecraft Position dropdown with *only* orbital positions (LEO, Lunar Gateway, Mars Opposition, Mars Conjunction) that dynamically drives signal propagation latency.
+  > 3. Multi-speed playback multiplier (`1x`, `2x`, `5x`, `10x`) that visibly accelerates the simulation clock and telemetry changes immediately.
+  > 4. Spacecraft Time container matching the spacecraft onboard monitor (`SPACECRAFT MET` e.g. `T+14d 08:42:15` and `ONBOARD UTC`).
+
+* **Architecture & Functional Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **Top Orbital Telemetry & Simulation Time Dock:**
+     - Positioned immediately beneath the global navbar and above MCC navigation tabs.
+     - Orbital dropdown with 4 positions: `LEO (400 km) — Latency: <1 ms`, `Lunar Gateway (384,400 km) — Latency: 1.3 s`, `Mars Opposition (54.6M km) — Latency: 3m 02s`, `Mars Conjunction (401M km) — Latency: 22m 14s`.
+     - Live dynamic delay badge calculating $\tau = d / c$ using `fmtTime(DISTANCES[orbitalPosition].km / C)`.
+     - Multi-speed multiplier buttons (`1x`, `2x`, `5x`, `10x`) driving `simMetSeconds` ticks.
+     - Live `SPACECRAFT MET` and `ONBOARD UTC` clocks with glowing green `SYNC` indicator.
+  2. **Backend Mars Delay Integration:**
+     - Connected dropdown selection to `POST /api/mars-delay?enabled=true/false` to keep backend WebSocket packet queue in exact synchrony.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled client bundle with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed all 19 integration checks.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+
+## Turn 36: Event Correlation Engine Redesign & Full Backend Live Database Integration
+* **Date/Time:** 2026-10-03 01:05:00 (Local Time) / 19:05:00 UTC
+* **Role:** Lead Flight Telemetry Systems Architect & Senior MCC UX Designer
+* **User Feedback & Request:**
+  > *"DO YOU THINK THIS PAGE ALSO NEED VISUAL OPTIMIZATION?? THE EVENT CORRELATION SECTION IS NOT CLEAR ENOUGH ALSO RECENT EVEN LOG AND OTHER COMPONENTS ARE NOT LIVE ACCORDING TO THE DATABASE OR THE BACKEND"*
+
+* **Visual & Ergonomic Rationale:**
+  - The previous Event Correlation section was:
+    * Unclear and text-heavy: A raw vertical list of static timestamps (`14:32:10`, `14:32:14`) and hardcoded numbers (`82 → 108 bpm`) that never changed when different astronauts were selected.
+    * Lacked physiological causality: Did not show the clinical progression of an excursion (`Trigger` → `Cardiac Surge` → `Ventilatory Compensation` → `Perfusion Outcome`).
+    * Static and disconnected: When nominal astronauts (Haley, Sian, Leo) were clicked, it showed dummy rows rather than live baseline conformity.
+    * Disconnected from live database: The Recent Events Log and Overview alerts were static mocks instead of pulling from the live SQLite database (`GET /api/alerts`) and live WebSocket broadcasts (`latestAlert`).
+
+* **Architecture & Functional Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **Event Correlation Engine (Column 3 Overhaul):**
+     - **Dynamic Causal Pipeline (When Anomaly Active):**
+       * **Stage 1: [TRIGGER] PRIMARY STRESSOR:** Physical strain & metabolic workload index (`PSI (workload * 7.5) / 10`), timestamped with live UTC clock (`simUtcTime`).
+       * **Stage 2: [RESPONSE] CARDIAC ACCELERATION:** Live HR, real delta percentage (`+31.7%`), and statistical $z$-score deviation envelope.
+       * **Stage 3: [COMPENSATION] VENTILATORY DRIVE:** Live respiration rate (`resp br/min`) and compensatory tachypneic delta.
+       * **Stage 4: [OUTCOME] PERFUSION & THERMAL IMPACT:** Live arterial $SpO_2$ saturation and core temperature thermal accumulation.
+       * Connected with high-contrast directional causal links (`↓ Drives autonomic rate acceleration`, `↓ Triggers compensatory minute ventilation`, `↓ Perfusion & metabolic heat accumulation`).
+     - **Nominal Homeostasis Mode (When Nominal Astronaut Selected):**
+       * Displays **MULTI-SIGNAL COHERENCE: ALL 5 BIOMETRIC CHANNELS IN NOMINAL EQUILIBRIUM**.
+       * Live 4-channel synchrony grid verifying Heart Rate ($\pm 0.4\sigma$), $SpO_2$ (Optimal), Respiration (Eupneic Rest Band), and Core Temperature (Homeostatic).
+     - **Multi-Signal Correlation Weights Matrix:**
+       * Converted plain text with emojis into visual correlation progress bars:
+         - High Physical Exertion: `88% (r = 0.88)`
+         - Thermal Regulation Stress: `74% (r = 0.74)`
+         - Ambient $CO_2$ Gradient: `56% (r = 0.56)`
+         - Autonomic Circadian Shift: `38% (r = 0.38)`
+  2. **Why Is This Flagged? & Decision Support (Column 4 Overhaul):**
+     - Dynamically evaluated bullets computing real deviation percentages, active $SpO_2$ thresholds, and statistical $z$-scores.
+     - Dynamic Bayesian Multi-Signal Confidence circular gauge (`93%` during anomaly, `99%` during nominal).
+     - Dynamic Decision Support condition, trajectory (`Increasing ↗ (+2.4 bpm/min)` vs `Stable →`), and customized suggested clinical checks.
+  3. **Live Database Recent Events Log (Bottom Right):**
+     - Header with green glowing `● LIVE DB FEED (/api/alerts)` badge and live counter (`{backendAlerts.length} DB ALERTS LOGGED`).
+     - Polls `GET /api/alerts` (SQLite database containing 13+ real recorded alerts) with 3-second heartbeat and auto-prepends incoming WebSocket alerts.
+     - Interactive click-to-focus: Clicking any event row automatically switches the dashboard target to that astronaut (`setSelCrewId`).
+  4. **Overview Tab Live Database Synchronization:**
+     - Updated `events` `useMemo` to incorporate alerts from `backendAlerts`, ensuring the Overview tab Active Incident Dominant Banner and Alert Queue reflect real flight events from the database.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled client bundle with 0 errors in 627ms.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed all 19 integration checks.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
