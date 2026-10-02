@@ -230,7 +230,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   telemetryMap,
   connected,
   marsDelay = false,
-  onToggleMarsDelay,
+  onToggleMarsDelay: _onToggleMarsDelay,
   onSelectView,
   onOpenTriage,
   currentScenario,
@@ -2158,62 +2158,62 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       metrics: SystemMetricItem[];
     }
 
-    // All 16 Installed Spacecraft Health-Critical Systems modeled after NASA Flight Telemetry
+    // 16 Installed Spacecraft Health-Critical Systems with Concise Operational Roles
     const spacecraftSystems: SpacecraftSystemItem[] = [
       {
         id: 'SYS-ECLSS-01',
         name: 'Orion ECLSS Atmospheric Pressure & Gas Assembly (PCA)',
         acronym: 'ECLSS-PCA',
-        category: 'ECLSS' as const,
+        category: 'ECLSS',
         categoryLabel: 'ECLSS & Atmosphere',
-        compartment: 'Service Module / Hab Core Rack-01',
-        hwRef: 'NASA-PCA-BL-401 · S/N: 8812-B',
-        usageDescription: 'Regulates two-gas atmospheric partial pressures (O₂/N₂) to sustain 101.3 kPa (14.7 psi) sea-level equivalent barometric pressure, guards against acute hypoxia, and operates autonomous high-speed valve isolation during sudden cabin depressurization.',
-        status: 'NOMINAL' as const,
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Service Module · Rack-01',
+        hwRef: 'NASA-PCA-BL-401',
+        usageDescription: 'Two-gas O₂/N₂ pressure regulation (101.3 kPa / 14.7 psi) · Hypoxia prevention & automatic depressurization isolation.',
+        status: 'NOMINAL',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.2s ago',
         metrics: [
           { param: 'Cabin Total Pressure', value: '101.3', unit: 'kPa', limit: '99.0 - 103.0 kPa', margin: 'Nominal (±0.0 kPa)', trend: 'STABLE' },
-          { param: 'Oxygen Concentration (ppO₂)', value: '20.9', unit: '%', limit: '19.5 - 23.0 %', margin: '+1.4% safety buffer', trend: 'STABLE' },
-          { param: 'Nitrogen Diluent (ppN₂)', value: '79.2', unit: 'kPa', limit: '77.0 - 81.0 kPa', margin: 'Nominal diluent mix', trend: 'STABLE' },
-          { param: 'Hull Depressurization Rate', value: '0.00', unit: 'kPa/min', limit: '< 0.10 kPa/min', margin: 'Hull seal 100% airtight', trend: 'SEALED' },
+          { param: 'Oxygen (ppO₂)', value: '20.9', unit: '%', limit: '19.5 - 23.0 %', margin: '+1.4% safety buffer', trend: 'STABLE' },
+          { param: 'Nitrogen (ppN₂)', value: '79.2', unit: 'kPa', limit: '77.0 - 81.0 kPa', margin: 'Nominal diluent mix', trend: 'STABLE' },
+          { param: 'Depressurization Rate', value: '0.00', unit: 'kPa/min', limit: '< 0.10 kPa/min', margin: 'Hull seal airtight', trend: 'SEALED' },
         ],
       },
       {
         id: 'SYS-ECLSS-02',
         name: 'Amine Regenerative CO₂ Scrubber Bed (RCRS / CDRA)',
         acronym: 'ECLSS-RCRS',
-        category: 'ECLSS' as const,
+        category: 'ECLSS',
         categoryLabel: 'ECLSS & Atmosphere',
-        compartment: 'Habitation Core · Central ECLSS Rack-02',
-        hwRef: 'RCRS-AMINE-MK2 · S/N: 3940-C',
-        usageDescription: 'Dual-bed solid-amine regenerative scrubbing to continuously extract toxic metabolic carbon dioxide exhaled by the 4 crew members. Enforces NASA-STD-3001 < 3.00 mmHg flight rule limit to prevent hypercapnia, pilot headaches, and cognitive decrement.',
-        status: isCo2Excursion ? ('MONITOR' as const) : ('NOMINAL' as const),
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Hab Core · Rack-02',
+        hwRef: 'RCRS-AMINE-MK2',
+        usageDescription: 'Cyclic solid-amine CO₂ scrubbing · Keeps pCO₂ < 3.00 mmHg to eliminate hypercapnia, headaches & cognitive impairment.',
+        status: isCo2Excursion ? 'MONITOR' : 'NOMINAL',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.2s ago',
         metrics: [
           { param: 'Cabin pCO₂', value: co2.toFixed(2), unit: 'mmHg', limit: '< 3.00 mmHg', margin: `${co2Margin > 0 ? '+' : ''}${co2Margin.toFixed(2)} mmHg margin`, trend: co2 > 2.2 ? 'ELEVATED' : 'STABLE', warning: isCo2Excursion },
-          { param: 'Desiccant/Amine Bed Cycle', value: 'Bed A (Active)', unit: '', limit: 'Cycle ≤ 60 min', margin: 'Bed B desorbing (vacuum)', trend: 'NOMINAL' },
-          { param: 'Inter-Module Cabin Airflow', value: '0.45', unit: 'm/s', limit: '0.30 - 0.60 m/s', margin: 'Prevents CO₂ pocketing', trend: 'STABLE' },
-          { param: 'Desorption Vacuum Heaters', value: '121.4', unit: '°C', limit: '115 - 130 °C', margin: 'Core regeneration nominal', trend: 'STABLE' },
+          { param: 'Scrubber Bed Cycle', value: 'Bed A (Active)', unit: '', limit: 'Cycle ≤ 60 min', margin: 'Bed B desorbing', trend: 'NOMINAL' },
+          { param: 'Cabin Airflow Velocity', value: '0.45', unit: 'm/s', limit: '0.30 - 0.60 m/s', margin: 'Prevents CO₂ pockets', trend: 'STABLE' },
+          { param: 'Desorption Vacuum Heaters', value: '121.4', unit: '°C', limit: '115 - 130 °C', margin: 'Core regen nominal', trend: 'STABLE' },
         ],
       },
       {
         id: 'SYS-ECLSS-03',
         name: 'Active Thermal Control System (ATCS Dual Internal/External Loop)',
         acronym: 'ATCS-CLIMATE',
-        category: 'ECLSS' as const,
+        category: 'ECLSS',
         categoryLabel: 'ECLSS & Atmosphere',
-        compartment: 'Thermal Control Bay & Radiator Trunnion Loop',
-        hwRef: 'ATCS-DUAL-PUMP-V4 · S/N: 2219-F',
-        usageDescription: 'Maintains cabin thermal comfort (21.4°C) and relative humidity (48%) using an internal food-grade water heat-exchanger loop and an external Freon loop. Radiates metabolic and avionics heat into space to prevent astronaut core heat buildup and sweat condensation.',
-        status: 'NOMINAL' as const,
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Thermal Bay · Radiator Trunnion',
+        hwRef: 'ATCS-DUAL-PUMP-V4',
+        usageDescription: 'Cabin climate equilibrium (21.4°C / 48% RH) · Dual-loop water/Freon heat rejection to space radiators.',
+        status: 'NOMINAL',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.3s ago',
         metrics: [
           { param: 'Cabin Air Temperature', value: '21.4', unit: '°C', limit: '18.0 - 24.0 °C', margin: '+0.4°C setpoint hold', trend: 'STABLE' },
-          { param: 'Relative Humidity', value: '48', unit: '%', limit: '30 - 65 %', margin: 'Comfort dew point nominal', trend: 'STABLE' },
-          { param: 'Internal Water Heat Loop', value: '19.8', unit: '°C', limit: '18.0 - 22.0 °C', margin: 'Metabolic heat sink OK', trend: 'STABLE' },
+          { param: 'Relative Humidity', value: '48', unit: '%', limit: '30 - 65 %', margin: 'Comfort zone nominal', trend: 'STABLE' },
+          { param: 'Internal Water Heat Loop', value: '19.8', unit: '°C', limit: '18.0 - 22.0 °C', margin: 'Metabolic sink OK', trend: 'STABLE' },
           { param: 'External Radiator Loop (Freon)', value: '-4.2', unit: '°C', limit: '-10.0 - +5.0 °C', margin: 'Space rejection normal', trend: 'STABLE' },
         ],
       },
@@ -2221,56 +2221,56 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         id: 'SYS-ECLSS-04',
         name: 'Potable Water Reclamation & Processing System (PWS / UPA)',
         acronym: 'ECLSS-PWS',
-        category: 'ECLSS' as const,
+        category: 'ECLSS',
         categoryLabel: 'ECLSS & Atmosphere',
-        compartment: 'Hydration & Sanitation Bulkhead Rack-04',
-        hwRef: 'PWS-UPA-RECYCLE-V3 · S/N: 5122-D',
-        usageDescription: 'Closed-loop vacuum distillation and catalytic oxidation recycling 98% of crew sweat condensate and urine into ultra-pure drinking water. Dispensers add physiological minerals and residual biocidal iodine (1.8 mg/L) to ensure zero microbial growth and sustain hydration.',
-        status: 'NOMINAL' as const,
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Hydration Bulkhead · Rack-04',
+        hwRef: 'PWS-UPA-RECYCLE-V3',
+        usageDescription: '98% closed-loop sweat/urine recycling into pure potable water · Iodinated antimicrobial mineral dispensing.',
+        status: 'NOMINAL',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.4s ago',
         metrics: [
           { param: 'Potable Clean Water Reserve', value: '284', unit: 'L', limit: 'Min > 80 L reserve', margin: '71 crew-days supply', trend: 'STABLE' },
           { param: 'Water Recovery Efficiency', value: '98.2', unit: '%', limit: 'Design > 95.0 %', margin: '+3.2% closed-loop surplus', trend: 'STABLE' },
-          { param: 'Product Water Conductivity', value: '0.42', unit: 'μS/cm', limit: '< 1.00 μS/cm', margin: 'Ultra-high purity level', trend: 'PURIFIED' },
-          { param: 'Biocidal Iodine Concentration', value: '1.8', unit: 'mg/L', limit: '1.0 - 3.0 mg/L', margin: 'Bacteriostatic protection', trend: 'NOMINAL' },
+          { param: 'Product Water Conductivity', value: '0.42', unit: 'μS/cm', limit: '< 1.00 μS/cm', margin: 'Ultra-pure reserve', trend: 'PURIFIED' },
+          { param: 'Biocidal Iodine Residual', value: '1.8', unit: 'mg/L', limit: '1.0 - 3.0 mg/L', margin: 'Antimicrobial nominal', trend: 'NOMINAL' },
         ],
       },
       {
         id: 'SYS-ECLSS-05',
         name: 'Emergency Oxygen Delivery & Medical Suction System (EODS)',
         acronym: 'MED-EODS',
-        category: 'ECLSS' as const,
+        category: 'ECLSS',
         categoryLabel: 'ECLSS & Atmosphere',
-        compartment: 'Medical Emergency Station · Central Bulkhead',
-        hwRef: 'NASA-EODS-SUCT-M1 · S/N: 1104-E',
-        usageDescription: 'Emergency life-support system providing high-pressure 100% positive-pressure oxygen delivery and vacuum aspirator suction. Activated during acute decompression events, cabin toxic gas/smoke exposure, or medical resuscitation to prevent hypoxic cerebral injury.',
-        status: 'ARMED' as const,
-        telemetryMode: 'ON-DEMAND' as const,
+        compartment: 'Medical Station · Central Bulkhead',
+        hwRef: 'NASA-EODS-SUCT-M1',
+        usageDescription: '100% positive-pressure emergency O₂ mask delivery & airway vacuum suction for hypoxia or smoke inhalation.',
+        status: 'ARMED',
+        telemetryMode: 'ON-DEMAND',
         lastSync: 'Standby / Armed',
         metrics: [
           { param: '100% O₂ Emergency Reserve', value: '12.4', unit: 'MPa', limit: 'Min > 10.0 MPa', margin: '180 min positive mask', trend: 'ARMED' },
           { param: 'Medical Suction Vacuum', value: '-40', unit: 'kPa', limit: '-35 to -45 kPa', margin: 'Airway clearing ready', trend: 'STABLE' },
           { param: 'Rapid-Deploy Mask Array', value: '4 / 4', unit: 'Stowed', limit: '4 masks intact', margin: 'All crew positions covered', trend: 'LOCKED' },
-          { param: 'Overpressure Relief Valve', value: 'Nominal', unit: 'Lock', limit: 'Trigger at 15.0 kPa', margin: 'Pressure regulator locked', trend: 'SEALED' },
+          { param: 'Overpressure Relief Valve', value: 'Nominal', unit: 'Lock', limit: 'Trigger at 15.0 kPa', margin: 'Regulator locked', trend: 'SEALED' },
         ],
       },
       {
         id: 'SYS-BIO-01',
         name: 'AstroSkin / Bio-Monitor Continuous Wearable Smart Garment',
         acronym: 'WEAR-ASTROSKIN',
-        category: 'WEARABLE' as const,
+        category: 'WEARABLE',
         categoryLabel: 'Wearable Biometrics',
-        compartment: 'Crew Smart Flight Garment (Continuous Torso)',
-        hwRef: 'CSA-ASTROSKIN-M4 · 4 Garment Network',
-        usageDescription: 'Flight-certified continuous physiological smart garment worn by crew members. Integrates dry silver-chloride ECG electrodes, dual thoracic/abdominal respiratory inductance bands, skin thermistors, and a triaxial accelerometer for real-time 10 Hz telemetry streaming.',
-        status: 'STREAMING' as const,
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Crew Smart Flight Garment',
+        hwRef: 'CSA-ASTROSKIN-M4',
+        usageDescription: 'Continuous biometric flight garment · Multi-lead ECG, dual-band RIP respiration & skin thermometry.',
+        status: 'STREAMING',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.1s ago',
         metrics: [
           { param: 'Crew Heart Rate (Primary)', value: String(hrVal), unit: 'bpm', limit: '50 - 120 bpm (rest)', margin: 'Resting baseline nominal', trend: 'STABLE' },
           { param: 'Dual-Lead Respiration Rate', value: '15', unit: 'brpm', limit: '10 - 24 brpm', margin: 'Ventilatory drive balanced', trend: 'STABLE' },
-          { param: 'Peripheral Skin Temperature', value: '33.2', unit: '°C', limit: '32.0 - 35.0 °C', margin: 'Cutaneous vasomotor OK', trend: 'STABLE' },
+          { param: 'Peripheral Skin Temperature', value: '33.2', unit: '°C', limit: '32.0 - 35.0 °C', margin: 'Vasomotor perfusion OK', trend: 'STABLE' },
           { param: 'Multi-Axis Inertial Load', value: '0.002', unit: 'g', limit: '< 0.05 g resting', margin: 'Microgravity stationarity', trend: 'NOMINAL' },
         ],
       },
@@ -2278,18 +2278,18 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         id: 'SYS-BIO-02',
         name: 'LifeGuard / CPOD Autonomous Physiological Pod',
         acronym: 'WEAR-CPOD',
-        category: 'WEARABLE' as const,
+        category: 'WEARABLE',
         categoryLabel: 'Wearable Biometrics',
-        compartment: 'Crew Flight Harness & EVA Telemetry Port',
-        hwRef: 'NASA-CPOD-MOD2 · S/N: 7041-A',
-        usageDescription: 'Autonomous redundant physiological monitor providing independent telemetry buffering during spacewalks (EVA), high-g reentry, and sleep. Measures skin conductance (GSR) to quantify sympathetic autonomic stress and acute cognitive workload.',
-        status: 'STREAMING' as const,
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Crew Harness · EVA Telemetry Port',
+        hwRef: 'NASA-CPOD-MOD2',
+        usageDescription: 'Autonomous EVA/sleep backup pod · Galvanic skin response (GSR) & sympathetic stress monitoring.',
+        status: 'STREAMING',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.2s ago',
         metrics: [
           { param: 'Pulse Oximetry (SpO₂)', value: spo2Val.toFixed(1), unit: '%', limit: '≥ 95.0 %', margin: `+${(spo2Val - 95.0).toFixed(1)}% above floor`, trend: 'STABLE' },
           { param: 'Galvanic Skin Conductance', value: '4.2', unit: 'μS', limit: '1.0 - 12.0 μS', margin: 'Calm autonomic baseline', trend: 'STABLE' },
-          { param: 'Mesh Telemetry SNR', value: '99.8', unit: '%', limit: '> 90.0 %', margin: 'High-fidelity wireless link', trend: 'LOCKED' },
+          { param: 'Mesh Telemetry SNR', value: '99.8', unit: '%', limit: '> 90.0 %', margin: 'Wireless mesh locked', trend: 'LOCKED' },
           { param: 'Pod Autonomous Battery', value: '96.4', unit: '%', limit: 'Min > 20.0 %', margin: '18.5 hours endurance', trend: 'STABLE' },
         ],
       },
@@ -2297,171 +2297,171 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         id: 'SYS-BIO-03',
         name: 'Wearable Cardiac Vector & Continuous 12-Lead ECG Patch',
         acronym: 'WEAR-12LEAD-ECG',
-        category: 'WEARABLE' as const,
+        category: 'WEARABLE',
         categoryLabel: 'Wearable Biometrics',
-        compartment: 'Chest Multi-Vector Patch Dock',
-        hwRef: 'CARDIO-VEC-12L · S/N: 9410-V',
-        usageDescription: 'High-fidelity cardiac electrophysiology patch computing real-time vector Lead-II traces, heart rate variability (RMSSD), and automated Fridericia QTc intervals. Detects microgravity-induced ventricular repolarization delays and premature ectopic beats.',
-        status: 'STREAMING' as const,
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Chest Vector Patch Dock',
+        hwRef: 'CARDIO-VEC-12L',
+        usageDescription: 'Continuous vector Lead-II ECG · Automated Fridericia QTc interval & arrhythmia monitoring.',
+        status: 'STREAMING',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.1s ago',
         metrics: [
           { param: 'Heart Rhythm Morphology', value: 'Sinus Rhythm', unit: '', limit: 'Sinus rhythm mandatory', margin: '0 ectopics / min', trend: 'NOMINAL' },
-          { param: 'Fridericia QTc Interval', value: qtcVal.toFixed(0), unit: 'ms', limit: '< 450 ms threshold', margin: `${(450 - qtcVal).toFixed(0)} ms margin to limit`, trend: 'STABLE' },
-          { param: 'HRV RMSSD Autonomic Tone', value: String(hrvVal), unit: 'ms', limit: '> 35 ms baseline', margin: 'Parasympathetic reserve OK', trend: 'STABLE' },
-          { param: 'Arrhythmogenic Risk (ARF)', value: '0.72', unit: 'Index', limit: '< 1.20 index', margin: 'Low arrhythmogenic risk', trend: 'NOMINAL' },
+          { param: 'Fridericia QTc Interval', value: qtcVal.toFixed(0), unit: 'ms', limit: '< 450 ms threshold', margin: `${(450 - qtcVal).toFixed(0)} ms margin`, trend: 'STABLE' },
+          { param: 'HRV RMSSD Autonomic Tone', value: String(hrvVal), unit: 'ms', limit: '> 35 ms baseline', margin: 'Vagal reserve OK', trend: 'STABLE' },
+          { param: 'Arrhythmogenic Risk (ARF)', value: '0.72', unit: 'Index', limit: '< 1.20 index', margin: 'Low arrhythmic risk', trend: 'NOMINAL' },
         ],
       },
       {
         id: 'SYS-BIO-04',
         name: 'Reflectance PPG & Peripheral Perfusion Sensor',
         acronym: 'WEAR-PPG-OXI',
-        category: 'WEARABLE' as const,
+        category: 'WEARABLE',
         categoryLabel: 'Wearable Biometrics',
-        compartment: 'Forehead & Digit Multi-Wavelength Optical Port',
-        hwRef: 'PPG-PERF-OXI-MOD3 · S/N: 4402-P',
-        usageDescription: 'Continuous dual-wavelength (660nm/940nm) optical photoplethysmography sensor. Continuously assesses arterial oxygen saturation, peripheral microvascular perfusion index, and vascular stiffness to warn against occult hypoxia and cephalad venous congestion.',
-        status: 'STREAMING' as const,
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Forehead & Digit Optical Port',
+        hwRef: 'PPG-PERF-OXI-MOD3',
+        usageDescription: 'Dual-wavelength SpO₂ & perfusion index · Detects microvascular blood shifts & occult tissue hypoxia.',
+        status: 'STREAMING',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.3s ago',
         metrics: [
-          { param: 'Arterial Oxygen (SpO₂)', value: spo2Val.toFixed(1), unit: '%', limit: '≥ 95.0 %', margin: 'Nominal arterial sat', trend: 'STABLE' },
-          { param: 'Perfusion Index (PI)', value: '3.8', unit: '%', limit: '> 1.0 % minimum', margin: 'Strong pulsatile blood flow', trend: 'NOMINAL' },
-          { param: 'Optical Pulse Waveform', value: '1.42', unit: 'V peak', limit: '0.8 - 2.0 V', margin: 'Sharp dicrotic wave notch', trend: 'STABLE' },
-          { param: 'Motion Optical Artifact', value: '0.02', unit: '%', limit: '< 5.0 %', margin: 'Active motion cancel OK', trend: 'LOCKED' },
+          { param: 'Arterial Oxygen (SpO₂)', value: spo2Val.toFixed(1), unit: '%', limit: '≥ 95.0 %', margin: 'Arterial sat nominal', trend: 'STABLE' },
+          { param: 'Perfusion Index (PI)', value: '3.8', unit: '%', limit: '> 1.0 % minimum', margin: 'Pulsatile flow robust', trend: 'NOMINAL' },
+          { param: 'Optical Pulse Waveform', value: '1.42', unit: 'V peak', limit: '0.8 - 2.0 V', margin: 'Dicrotic notch crisp', trend: 'STABLE' },
+          { param: 'Motion Optical Artifact', value: '0.02', unit: '%', limit: '< 5.0 %', margin: 'Motion cancel OK', trend: 'LOCKED' },
         ],
       },
       {
         id: 'SYS-BIO-05',
         name: 'Double-Sensor Non-Invasive Core Body Temperature Monitor (T-Mini)',
         acronym: 'WEAR-TMINI-CORE',
-        category: 'WEARABLE' as const,
+        category: 'WEARABLE',
         categoryLabel: 'Wearable Biometrics',
-        compartment: 'Temporal Bone Dual Heat-Flux Sensor Array',
-        hwRef: 'TMINI-HEATFLUX-D2 · S/N: 6712-T',
-        usageDescription: 'Dual-heat-flux thermistor computing deep core body temperature without invasive probes. Detects spaceflight-associated core hyperthermia ("space fever"), evaluating metabolic thermal buildup during exercise and circadian temperature troughs during sleep.',
-        status: 'STREAMING' as const,
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Temporal Bone Heat-Flux Array',
+        hwRef: 'TMINI-HEATFLUX-D2',
+        usageDescription: 'Dual-heat-flux non-invasive thermometry · Continuous deep core temperature & space fever monitoring.',
+        status: 'STREAMING',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.4s ago',
         metrics: [
           { param: 'Core Body Temperature', value: tempVal.toFixed(2), unit: '°C', limit: '36.0 - 37.8 °C', margin: 'Normothermic equilibrium', trend: 'STABLE' },
-          { param: 'Thermal Drift Velocity', value: '+0.02', unit: '°C/h', limit: '< 0.25 °C/h', margin: 'Thermal dissipation stable', trend: 'STABLE' },
-          { param: 'Cutaneous Heat Flux', value: '42.8', unit: 'W/m²', limit: '30 - 65 W/m²', margin: 'Thermal radiance normal', trend: 'NOMINAL' },
-          { param: 'Sensor Thermal Coupling', value: '99.2', unit: '%', limit: '> 90.0 %', margin: 'Acoustic/thermal bond tight', trend: 'LOCKED' },
+          { param: 'Thermal Drift Velocity', value: '+0.02', unit: '°C/h', limit: '< 0.25 °C/h', margin: 'Dissipation stable', trend: 'STABLE' },
+          { param: 'Cutaneous Heat Flux', value: '42.8', unit: 'W/m²', limit: '30 - 65 W/m²', margin: 'Radiance normal', trend: 'NOMINAL' },
+          { param: 'Sensor Thermal Coupling', value: '99.2', unit: '%', limit: '> 90.0 %', margin: 'Thermal bond tight', trend: 'LOCKED' },
         ],
       },
       {
         id: 'SYS-LAB-01',
         name: 'Point-of-Care Hematology Cell Analyzer (rHEALTH / CBC)',
         acronym: 'LAB-rHEALTH-CBC',
-        category: 'LAB' as const,
+        category: 'LAB',
         categoryLabel: 'Clinical Lab & POC',
-        compartment: 'Crew Medical Locker · Rack-03 Laboratory Dock',
-        hwRef: 'NASA-rHEALTH-CBC-V2 · S/N: 3108-H',
-        usageDescription: 'Microfluidic laser-scattering cytometer analyzing complete blood counts from a single fingerstick drop of capillary blood. Quantifies red blood cell loss (space anemia), platelet reactivity shifts, and white blood cell differential changes caused by microgravity.',
-        status: 'CALIBRATED' as const,
-        telemetryMode: 'PERIODIC LAB' as const,
+        compartment: 'Crew Medical Locker · Rack-03',
+        hwRef: 'NASA-rHEALTH-CBC-V2',
+        usageDescription: 'Point-of-care microfluidic laser cytometer · Complete blood count (WBC, RBC, PLT, HCT) for space anemia.',
+        status: 'CALIBRATED',
+        telemetryMode: 'PERIODIC LAB',
         lastSync: '48m ago (Lab Calibrated)',
         metrics: [
           { param: 'White Blood Cells (WBC)', value: '5.0', unit: 'k/μL', limit: '4.0 - 10.5 k/μL', margin: 'Normal immune count', trend: 'STABLE' },
           { param: 'Hematocrit (HCT)', value: '43.6', unit: '%', limit: '37.0 - 49.0 %', margin: 'RBC mass preserved', trend: 'STABLE' },
-          { param: 'Platelet Count (PLT)', value: '227', unit: 'k/μL', limit: '150 - 450 k/μL', margin: 'Normal clotting reserve', trend: 'STABLE' },
-          { param: 'Hemoglobin (HGB)', value: '14.7', unit: 'g/dL', limit: '13.0 - 17.5 g/dL', margin: 'O₂ carrying capacity OK', trend: 'STABLE' },
+          { param: 'Platelet Count (PLT)', value: '227', unit: 'k/μL', limit: '150 - 450 k/μL', margin: 'Clotting reserve OK', trend: 'STABLE' },
+          { param: 'Hemoglobin (HGB)', value: '14.7', unit: 'g/dL', limit: '13.0 - 17.5 g/dL', margin: 'Oxygen capacity OK', trend: 'STABLE' },
         ],
       },
       {
         id: 'SYS-LAB-02',
         name: 'Clinical Chemistry & Electrolyte Analyzer (Piccolo Xpress CMP)',
         acronym: 'LAB-PICCOLO-CMP',
-        category: 'LAB' as const,
+        category: 'LAB',
         categoryLabel: 'Clinical Lab & POC',
-        compartment: 'Crew Medical Locker · Centrifuge Station',
-        hwRef: 'PICCOLO-CMP-MK3 · S/N: 5541-C',
-        usageDescription: 'Centrifugal whole-blood dry-chemistry analyzer evaluating comprehensive metabolic panels in 12 minutes. Critical for detecting hypokalemia (low serum potassium K⁺) that triggers tachyarrhythmias, and assessing renal function (BUN/creatinine) and liver transaminases.',
-        status: 'CALIBRATED' as const,
-        telemetryMode: 'PERIODIC LAB' as const,
+        compartment: 'Crew Medical Locker · Centrifuge',
+        hwRef: 'PICCOLO-CMP-MK3',
+        usageDescription: 'Centrifugal whole-blood dry-chemistry · Rapid serum electrolytes (K⁺, Na⁺), renal BUN/Cr & liver panel.',
+        status: 'CALIBRATED',
+        telemetryMode: 'PERIODIC LAB',
         lastSync: '48m ago (Lab Calibrated)',
         metrics: [
-          { param: 'Serum Potassium (K⁺)', value: kVal.toFixed(2), unit: 'mmol/L', limit: '3.5 - 5.0 mmol/L', margin: `+${(kVal - 3.5).toFixed(2)} mmol/L above danger floor`, trend: 'STABLE' },
+          { param: 'Serum Potassium (K⁺)', value: kVal.toFixed(2), unit: 'mmol/L', limit: '3.5 - 5.0 mmol/L', margin: `+${(kVal - 3.5).toFixed(2)} mmol/L safety margin`, trend: 'STABLE' },
           { param: 'Serum Sodium (Na⁺)', value: '138.0', unit: 'mmol/L', limit: '135 - 145 mmol/L', margin: 'Osmolality balanced', trend: 'STABLE' },
-          { param: 'Blood Urea Nitrogen (BUN)', value: '18.0', unit: 'mg/dL', limit: '7 - 20 mg/dL', margin: 'Glomerular filtration normal', trend: 'STABLE' },
-          { param: 'Serum Creatinine (Cr)', value: '1.12', unit: 'mg/dL', limit: '0.7 - 1.3 mg/dL', margin: 'eGFR > 90 mL/min normal', trend: 'STABLE' },
+          { param: 'Blood Urea Nitrogen (BUN)', value: '18.0', unit: 'mg/dL', limit: '7 - 20 mg/dL', margin: 'Filtration normal', trend: 'STABLE' },
+          { param: 'Serum Creatinine (Cr)', value: '1.12', unit: 'mg/dL', limit: '0.7 - 1.3 mg/dL', margin: 'eGFR > 90 normal', trend: 'STABLE' },
         ],
       },
       {
         id: 'SYS-LAB-03',
         name: 'Multiplex Cytokine & Immunoassay System (71-Plex Luminex)',
         acronym: 'LAB-IMMUNO-71P',
-        category: 'LAB' as const,
+        category: 'LAB',
         categoryLabel: 'Clinical Lab & POC',
         compartment: 'Medical Research Lab · Rack-05',
-        hwRef: 'IMMUNO-71P-OSDR · S/N: 2049-I',
-        usageDescription: 'High-dimensional multiplex bead assay profiling all 71 NASA OSDR spaceflight cytokines and acute-phase proteins (IL-6, TNF-α, CRP, Fibrinogen). Detects systemic inflammation cascades, latent Epstein-Barr/herpesvirus reactivation, and radiation-induced immune stress.',
-        status: 'CALIBRATED' as const,
-        telemetryMode: 'PERIODIC LAB' as const,
+        hwRef: 'IMMUNO-71P-OSDR',
+        usageDescription: '71-Plex multiplex bead cytokine assay · Systemic inflammation & latent viral reactivation profiling.',
+        status: 'CALIBRATED',
+        telemetryMode: 'PERIODIC LAB',
         lastSync: '48m ago (Lab Calibrated)',
         metrics: [
-          { param: 'Interleukin-6 (IL-6)', value: '6.86', unit: 'pg/mL', limit: '< 12.0 pg/mL', margin: 'Low inflammatory cascade', trend: 'STABLE' },
-          { param: 'Tumor Necrosis Factor (TNF-α)', value: '75.8', unit: 'pg/mL', limit: '< 110.0 pg/mL', margin: 'Within flight baseline', trend: 'STABLE' },
-          { param: 'High-Sensitivity CRP', value: '1.06', unit: 'mg/L', limit: '< 3.00 mg/L', margin: 'Vascular inflammation low', trend: 'STABLE' },
-          { param: 'Plasma Fibrinogen', value: '260', unit: 'mg/dL', limit: '200 - 400 mg/dL', margin: 'Coagulation equilibrium', trend: 'STABLE' },
+          { param: 'Interleukin-6 (IL-6)', value: '6.86', unit: 'pg/mL', limit: '< 12.0 pg/mL', margin: 'Inflammatory baseline', trend: 'STABLE' },
+          { param: 'Tumor Necrosis Factor (TNF-α)', value: '75.8', unit: 'pg/mL', limit: '< 110.0 pg/mL', margin: 'Flight baseline normal', trend: 'STABLE' },
+          { param: 'High-Sensitivity CRP', value: '1.06', unit: 'mg/L', limit: '< 3.00 mg/L', margin: 'Vascular baseline OK', trend: 'STABLE' },
+          { param: 'Plasma Fibrinogen', value: '260', unit: 'mg/dL', limit: '200 - 400 mg/dL', margin: 'Coagulation normal', trend: 'STABLE' },
         ],
       },
       {
         id: 'SYS-RAD-01',
         name: 'HERA Spacecraft Radiation Network (Hybrid Electronic Radiation Assessor)',
         acronym: 'RAD-HERA-NET',
-        category: 'RADIATION' as const,
+        category: 'RADIATION',
         categoryLabel: 'Radiation & Habitat',
-        compartment: 'Distributed 6-Node Spacecraft Habitat Array',
-        hwRef: 'HERA-NET-6NODE · S/N: 4901-R',
-        usageDescription: 'Silicon-pixel autonomous spacecraft dosimeter network. Measures LET energy spectra of Galactic Cosmic Rays (GCR) and provides automated flight-surgeon alarms during Solar Particle Events (SPE), commanding crew into the water-shielded storm shelter.',
-        status: 'NOMINAL' as const,
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Distributed 6-Node Habitat Array',
+        hwRef: 'HERA-NET-6NODE',
+        usageDescription: 'Autonomous 6-node habitat radiation grid · Real-time GCR flux tracking & Solar Particle Event shelter alarm.',
+        status: 'NOMINAL',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.2s ago',
         metrics: [
-          { param: 'Ambient Habitat Dose Rate', value: '0.04', unit: 'mSv/h', limit: '< 0.20 mSv/h (SPE trigger)', margin: 'Quiet interplanetary state', trend: 'STABLE' },
-          { param: 'Solar Proton Flux (>10 MeV)', value: '0.42', unit: 'p/(cm²·s·sr)', limit: '< 10.0 threshold', margin: 'Far below SPE trigger gate', trend: 'STABLE' },
-          { param: 'Heavy Ion LET Peak', value: '0.8', unit: 'keV/μm', limit: '< 2.5 keV/μm', margin: 'GCR background baseline', trend: 'NOMINAL' },
-          { param: 'Sensor Network Active Nodes', value: '6 / 6', unit: 'Online', limit: 'Min ≥ 4 nodes active', margin: '100% geometric volume covered', trend: 'LOCKED' },
+          { param: 'Habitat Ambient Dose Rate', value: '0.04', unit: 'mSv/h', limit: '< 0.20 mSv/h (SPE trigger)', margin: 'Interplanetary quiet', trend: 'STABLE' },
+          { param: 'Solar Proton Flux (>10 MeV)', value: '0.42', unit: 'p/(cm²·s·sr)', limit: '< 10.0 threshold', margin: 'Below shelter gate', trend: 'STABLE' },
+          { param: 'Heavy Ion LET Peak', value: '0.8', unit: 'keV/μm', limit: '< 2.5 keV/μm', margin: 'GCR background normal', trend: 'NOMINAL' },
+          { param: 'Sensor Network Active Nodes', value: '6 / 6', unit: 'Online', limit: 'Min ≥ 4 nodes active', margin: '100% volume covered', trend: 'LOCKED' },
         ],
       },
       {
         id: 'SYS-RAD-02',
         name: 'Crew Personal Active Dosimeter (CAD) & SPE Alarmer',
         acronym: 'RAD-CAD-P1',
-        category: 'RADIATION' as const,
+        category: 'RADIATION',
         categoryLabel: 'Radiation & Habitat',
-        compartment: 'Suit Worn Personal Dosimeter (All 4 Crew)',
-        hwRef: 'NASA-CAD-MOD3 · S/N: 1823-C',
-        usageDescription: 'Real-time active solid-state dosimeter worn continuously on each astronaut\'s chest. Measures personal organ absorbed dose equivalent, enforces cumulative career radiation flight rules, and triggers an autonomous vibration/audio alarm on sudden radiation spikes.',
-        status: 'NOMINAL' as const,
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Personal Suit Clip-On (4 Crew)',
+        hwRef: 'NASA-CAD-MOD3',
+        usageDescription: 'Personal chest dosimeter · Cumulative organ absorbed dose tracking & audible radiation spike alert.',
+        status: 'NOMINAL',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.3s ago',
         metrics: [
           { param: 'Crew Instantaneous Dose Rate', value: '0.05', unit: 'mSv/h', limit: '< 0.15 mSv/h', margin: 'Normal cruise exposure', trend: 'STABLE' },
-          { param: 'Accumulated Mission Dose', value: '0.052', unit: 'Gy', limit: '< 0.600 Gy career limit', margin: '91.3% career margin intact', trend: 'NOMINAL' },
-          { param: 'Local Audio/Vibration Alarm', value: 'Armed', unit: 'Silent', limit: 'Trigger at 0.50 mSv/h', margin: 'Alarm threshold standby', trend: 'ARMED' },
-          { param: 'Mesh Radio Telemetry Lock', value: '100', unit: '%', limit: '> 95% continuous', margin: 'Direct flight deck sync', trend: 'LOCKED' },
+          { param: 'Accumulated Mission Dose', value: '0.052', unit: 'Gy', limit: '< 0.600 Gy career limit', margin: '91.3% career margin remaining', trend: 'NOMINAL' },
+          { param: 'Local Audio Alarm State', value: 'Armed', unit: 'Silent', limit: 'Trigger at 0.50 mSv/h', margin: 'Alarm standby normal', trend: 'ARMED' },
+          { param: 'Mesh Radio Telemetry Lock', value: '100', unit: '%', limit: '> 95% continuous', margin: 'Direct bridge lock', trend: 'LOCKED' },
         ],
       },
       {
         id: 'SYS-CTR-01',
         name: 'ARED & CEVIS Exercise Countermeasure Suite with PUMA Analyzer',
         acronym: 'CTR-ARED-CEVIS',
-        category: 'COUNTERMEASURE' as const,
+        category: 'COUNTERMEASURE',
         categoryLabel: 'Countermeasures & Neuro',
-        compartment: 'Exercise Bay · Vibration Isolation System (VIS)',
-        hwRef: 'ARED-CEVIS-PUMA-MOD4 · S/N: 6019-E',
-        usageDescription: 'Advanced Resistive Exercise Device and Cycle Ergometer with PUMA portable metabolic analyzer. Delivers up to 600 lbs of vacuum-cylinder resistance and 350W cycling with breath-by-breath VO₂/VCO₂ telemetry to prevent microgravity bone loss, muscle atrophy, and deconditioning.',
-        status: 'NOMINAL' as const,
-        telemetryMode: 'CONTINUOUS 10 Hz' as const,
+        compartment: 'Exercise Bay · VIS Mount',
+        hwRef: 'ARED-CEVIS-PUMA-MOD4',
+        usageDescription: '600-lb resistive loading & cycle ergometer with PUMA VO₂ analyzer · Prevents osteopenia & muscle atrophy.',
+        status: 'NOMINAL',
+        telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: 'Active Session Logged',
         metrics: [
-          { param: 'Daily Resistive Workload', value: '108', unit: 'kJ/session', limit: 'Target ≥ 95 kJ/crew/day', margin: '113% of daily target met', trend: 'COMPLIANT' },
-          { param: 'Cycle Ergometer Peak Power', value: '220', unit: 'Watts', limit: 'Target 180 - 240 W', margin: 'Cardiovascular target met', trend: 'NOMINAL' },
-          { param: 'Peak Aerobic VO₂ Uptake', value: '38.4', unit: 'mL/kg/min', limit: 'Baseline > 35.0', margin: 'Aerobic stamina preserved', trend: 'STABLE' },
-          { param: 'Hull Vibration Transmission', value: '0.003', unit: 'g force', limit: '< 0.015 g dynamic', margin: 'Isolated from spacecraft frame', trend: 'LOCKED' },
+          { param: 'Daily Resistive Workload', value: '108', unit: 'kJ/session', limit: 'Target ≥ 95 kJ/crew/day', margin: '113% target achieved', trend: 'COMPLIANT' },
+          { param: 'Cycle Ergometer Peak Power', value: '220', unit: 'Watts', limit: 'Target 180 - 240 W', margin: 'Cardiac target met', trend: 'NOMINAL' },
+          { param: 'Peak Aerobic VO₂ Uptake', value: '38.4', unit: 'mL/kg/min', limit: 'Baseline > 35.0', margin: 'Aerobic fitness OK', trend: 'STABLE' },
+          { param: 'Hull Vibration Transmission', value: '0.003', unit: 'g force', limit: '< 0.015 g dynamic', margin: 'Isolated from frame', trend: 'LOCKED' },
         ],
       },
     ];
@@ -2479,6 +2479,15 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     const countRad = spacecraftSystems.filter(s => s.category === 'RADIATION').length;
     const countCtr = spacecraftSystems.filter(s => s.category === 'COUNTERMEASURE').length;
 
+    // Consumables dataset with strict 4-column alignment
+    const consumablesTable = [
+      { label: 'O₂ Cryogenic Supply', value: '68.4', unit: 'kg', baseline: '80.0 kg', margin: '83 crew-days reserve' },
+      { label: 'Potable H₂O Reserve', value: '284', unit: 'L', baseline: '300 L', margin: '71 crew-days supply' },
+      { label: 'LiOH Backup Canisters', value: '12', unit: 'units', baseline: '12 units', margin: 'Emergency scrubbers sealed' },
+      { label: 'Medical Supply Packs', value: '4 / 4', unit: 'kits', baseline: '4 kits', margin: 'All medical kits sterile' },
+      { label: 'Oral K⁺ Electrolyte Packs', value: '16', unit: 'units', baseline: '16 units', margin: 'Arrhythmia countermeasure' },
+    ];
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* ─── ZONE 1: UNIVERSAL HEALTH METRICS COUNTERS BANNER ─── */}
@@ -2495,7 +2504,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={labelStyle}>UNIVERSAL SPACECRAFT HEALTH METRICS · HARDWARE STATUS & COMPLIANCE</div>
               <Badge color={T.nominal} borderColor={T.nominalBorder}>
-                16 OF 16 SYSTEMS ACTIVE
+                16 / 16 SYSTEMS ACTIVE
               </Badge>
             </div>
             <div style={{ fontSize: 10, fontFamily: T.mono, color: T.textMuted }}>
@@ -2585,77 +2594,76 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           </div>
         </div>
 
-        {/* ─── ZONE 2: CONSUMABLES & MARS LINK RIBBON ─── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 14 }}>
-          {/* Consumables & Emergency Equipment */}
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <div style={labelStyle}>Spacecraft Consumables & Emergency Reserves</div>
-              <span style={{ fontSize: 9, color: T.textMuted }}>4 Crew Autonomous Margin</span>
-            </div>
-            <MetricRow label="O₂ Cryo Supply" value="68.4" unit=" kg" baseline="80.0" delta="83 crew-days reserve" />
-            <MetricRow label="Potable H₂O Reserve" value="284" unit=" L" baseline="300" delta="71 crew-days supply" />
-            <MetricRow label="LiOH Backup Canisters" value="12" unit=" units" delta="manual scrubbers sealed" />
-            <MetricRow label="Medical Supply Packs" value="4 / 4" unit=" complete" delta="all kits sterile" />
-            <MetricRow label="Oral K⁺ Electrolyte Packs" value="16" unit=" units" delta="cardiac countermeasure" />
-            <div style={{ fontSize: 9, color: T.textMuted, marginTop: 6, lineHeight: 1.4 }}>
-              NASA Human Integration Design Handbook (HIDH) standards: O₂ 0.82 kg/crew/day · H₂O 2.5 L/crew/day.
-            </div>
+        {/* ─── ZONE 2: STRICTLY ALIGNED SPACECRAFT CONSUMABLES CONTAINER (MARS DELAY REMOVED) ─── */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={labelStyle}>SPACECRAFT CONSUMABLES & EMERGENCY FLIGHT MARGINS</div>
+            <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>NASA-STD-3001 · 4 CREW AUTONOMOUS BUFFER</span>
           </div>
 
-          {/* Telemetry Stream & Mars Delay Relay */}
-          <div style={cardStyle}>
-            <div style={labelStyle}>Telemetry Stream & Ground Relay Simulation</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-              <Dot color={connected ? T.nominal : T.critical} />
-              <span style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>
-                {connected ? 'LIVE · 10 Hz Telemetry Stream Connected' : 'DISCONNECTED'}
-              </span>
-            </div>
-            <div style={{ fontSize: 10, color: T.textMuted, marginTop: 4, lineHeight: 1.4 }}>
-              Source: astronaut_telemetry_stream.csv · Replaying authentic Orion/Gateway health telemetry.
-            </div>
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.borderSubtle}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Dot color={marsDelay ? T.warning : T.nominal} />
-                <span style={{ fontSize: 11, color: T.textPrimary }}>
-                  {marsDelay ? 'Mars 22-min simulated speed-of-light delay active' : 'Real-time ground station relay active'}
-                </span>
-              </div>
-              {onToggleMarsDelay && (
-                <button
-                  onClick={() => onToggleMarsDelay(!marsDelay)}
-                  style={{
-                    marginTop: 8,
-                    background: '#0c0f13',
-                    border: `1px solid ${marsDelay ? T.warningBorder : T.border}`,
-                    borderRadius: 4,
-                    padding: '6px 14px',
-                    color: marsDelay ? T.warning : T.textSecondary,
-                    fontSize: 10,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.12s ease',
-                  }}
-                >
-                  {marsDelay ? 'Disable Mars Delay (Ground Real-Time)' : 'Enable Mars 22m Delay'}
-                </button>
-              )}
-            </div>
+          {/* 4-Column Table Header with Strict Column Grid */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '220px 140px 130px 1fr',
+              padding: '6px 8px',
+              background: '#0a0e13',
+              borderRadius: '4px 4px 0 0',
+              borderBottom: `1px solid ${T.border}`,
+              fontSize: 9,
+              fontWeight: 700,
+              color: T.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            <div>CONSUMABLE RESOURCE</div>
+            <div style={{ textAlign: 'right' }}>CURRENT QUANTITY</div>
+            <div style={{ textAlign: 'right' }}>NOMINAL BASELINE</div>
+            <div style={{ textAlign: 'right' }}>FLIGHT MARGIN / STATUS</div>
           </div>
+
+          {/* Table Rows with Identical Column Widths */}
+          {consumablesTable.map((item, idx) => (
+            <div
+              key={item.label}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '220px 140px 130px 1fr',
+                alignItems: 'center',
+                padding: '8px 8px',
+                background: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.01)',
+                borderBottom: idx < consumablesTable.length - 1 ? `1px solid ${T.borderSubtle}` : 'none',
+              }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 500, color: T.textSecondary }}>{item.label}</span>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: T.textPrimary }}>
+                  {item.value}
+                </span>
+                <span style={{ fontSize: 10, color: T.textMuted, marginLeft: 4 }}>{item.unit}</span>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: 11, fontFamily: T.mono, color: T.textMuted }}>
+                base {item.baseline}
+              </div>
+              <div style={{ textAlign: 'right', fontSize: 11, fontFamily: T.mono, color: '#9ec7ef', fontWeight: 600 }}>
+                {item.margin}
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* ─── ZONE 3: CATEGORY FILTER TABS ─── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 4 }}>
-            FILTER HARDWARE:
+        {/* ─── ZONE 3: COMPACT CATEGORY FILTER TABS ─── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: 4 }}>
+            FILTER:
           </span>
           {[
-            { key: 'ALL', label: `ALL SYSTEMS (${countAll})` },
-            { key: 'ECLSS', label: `ECLSS & ATMOSPHERE (${countEclss})` },
-            { key: 'WEARABLE', label: `WEARABLE BIOMETRICS (${countWearable})` },
-            { key: 'LAB', label: `CLINICAL LAB & POC (${countLab})` },
-            { key: 'RADIATION', label: `RADIATION & HABITAT (${countRad})` },
+            { key: 'ALL', label: `ALL (${countAll})` },
+            { key: 'ECLSS', label: `ECLSS (${countEclss})` },
+            { key: 'WEARABLE', label: `WEARABLES (${countWearable})` },
+            { key: 'LAB', label: `LAB & POC (${countLab})` },
+            { key: 'RADIATION', label: `RADIATION (${countRad})` },
             { key: 'COUNTERMEASURE', label: `COUNTERMEASURES (${countCtr})` },
           ].map(f => {
             const isSel = sysCategoryFilter === f.key;
@@ -2694,7 +2702,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   background: 'linear-gradient(180deg, #161b20 0%, #0e1215 100%)',
                   border: `1px solid ${isWarn ? T.warningBorder : T.border}`,
                   borderRadius: 6,
-                  padding: '14px 16px',
+                  padding: '12px 14px',
                   boxSizing: 'border-box',
                   display: 'flex',
                   flexDirection: 'column',
@@ -2770,38 +2778,38 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
                   {/* Primary System Name & Acronym */}
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 2 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.01em' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.01em' }}>
                       {sys.name}
                     </div>
                   </div>
 
-                  {/* ─── SUBTLE HIGHLIGHT: WHAT EACH SYSTEM IS USED FOR ─── */}
+                  {/* ─── PUNCHY HIGHLIGHT: WHAT EACH SYSTEM IS USED FOR (MINIMAL, NON-TEXT-HEAVY) ─── */}
                   <div
                     style={{
                       background: 'rgba(56, 189, 248, 0.04)',
                       borderLeft: '2px solid #38bdf8',
                       borderRadius: '0 4px 4px 0',
-                      padding: '8px 10px',
-                      margin: '10px 0 12px',
+                      padding: '6px 10px',
+                      margin: '8px 0 10px',
                     }}
                   >
                     <div
                       style={{
-                        fontSize: 9,
+                        fontSize: 8,
                         fontWeight: 700,
                         color: '#38bdf8',
                         letterSpacing: '0.06em',
                         textTransform: 'uppercase',
-                        marginBottom: 3,
+                        marginBottom: 2,
                         display: 'flex',
                         alignItems: 'center',
                         gap: 5,
                       }}
                     >
                       <span style={{ width: 4, height: 4, borderRadius: '50%', backgroundColor: '#38bdf8', display: 'inline-block' }} />
-                      PRIMARY HEALTH ROLE & PURPOSE
+                      PRIMARY ROLE & PURPOSE
                     </div>
-                    <div style={{ fontSize: 11, color: '#e2e8f0', lineHeight: 1.45 }}>
+                    <div style={{ fontSize: 10, color: '#e2e8f0', lineHeight: 1.4, fontWeight: 500 }}>
                       {sys.usageDescription}
                     </div>
                   </div>
@@ -2862,7 +2870,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginTop: 12,
+                    marginTop: 10,
                     paddingTop: 8,
                     borderTop: `1px solid ${T.borderSubtle}`,
                   }}
@@ -2894,7 +2902,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         e.currentTarget.style.color = '#9ec7ef';
                       }}
                     >
-                      VIEW TELEMETRY STREAM →
+                      VIEW IN TELEMETRY →
                     </button>
                   )}
                 </div>

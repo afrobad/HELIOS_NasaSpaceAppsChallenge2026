@@ -6090,3 +6090,46 @@
   * [frontend/src/components/CabinEnvironmentalBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/CabinEnvironmentalBar.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
 
+---
+
+## Turn 27: Systems Page Declutter, Perfect Column Grid Alignment & Mars Delay Removal
+* **Date/Time:** 2026-10-03 00:02:00 (Local Time) / 18:02:00 UTC
+* **Role:** Senior Mission Control Center UX Designer & Lead Frontend Systems Engineer
+* **User Feedback & Request:**
+  > User provided a screenshot showing unaligned columns in the Consumables container and directed:
+  > *"ITS CURRENTLY TOO MUCH TEXT HEAVY AND UN ALIGNED THE SECOND ROW CONTAINER AND REMOVE MARS DELAY SIMULATION SECTION OR CONTAINER"*
+
+* **Root Cause & Visual Friction Analysis:**
+  1. **Un-aligned Consumables Columns:**
+     - The previous implementation reused `MetricRow` which relied on `justifyContent: 'space-between'` with dynamic flex children. Rows with `baseline` had 4 items, while rows without `baseline` had 3 items, causing the `value` to jump horizontally across columns (e.g. `12 units`, `4 / 4`, and `16 units` were pushed far to the right).
+  2. **Redundant Mars Delay Container:**
+     - The Mars 22-min delay toggle was duplicated inside the Systems tab alongside the primary controls in the top navigation bar and Comms tab, consuming half of Zone 2 with unnecessary visual clutter.
+  3. **Excessive Text Density Across Device Cards:**
+     - Each of the 16 hardware cards previously featured dense 40-word continuous paragraphs under `usageDescription`, overwhelming the operator and violating the minimal aerospace dashboard standard.
+
+* **Architecture & Functional Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **Removal of Mars Delay Container:**
+     - Completely removed the `Telemetry Stream & Ground Relay Simulation` card from the Systems tab, allowing the primary consumables hardware to breathe cleanly.
+  2. **100% Column-Aligned Consumables Grid Table:**
+     - Replaced flexbox rows with a strict 4-column CSS grid table: `gridTemplateColumns: '220px 140px 130px 1fr'`.
+     - Standardized all 5 rows with identical column structures:
+       * Column 1: `CONSUMABLE RESOURCE` (clean slate `#b8cbde`)
+       * Column 2: `CURRENT QUANTITY` (right-aligned, tabular monospace bold `#ffffff`)
+       * Column 3: `NOMINAL BASELINE` (right-aligned, tabular monospace `#849db5`)
+       * Column 4: `FLIGHT MARGIN / STATUS` (right-aligned, tabular monospace steel-cyan `#9ec7ef`)
+     - Eliminated the verbose explanatory footer footnote to maintain a clean operational layout.
+  3. **Concise Operational Roles (< 60% Text Reduction):**
+     - Replaced long descriptive paragraphs on all 16 hardware system cards with crisp, scannable, punchy 1-line operational definitions.
+     - Adjusted the highlighted container styling (`padding: '6px 10px'`, `fontSize: 10`, `lineHeight: 1.4`) to emphasize key operational keywords (e.g. `Two-gas O₂/N₂ pressure regulation (101.3 kPa) · Hypoxia prevention & automatic depressurization isolation`).
+  4. **Compact Category Filter Buttons:**
+     - Streamlined filter labels: `ALL (16)`, `ECLSS (5)`, `WEARABLES (5)`, `LAB & POC (3)`, `RADIATION (2)`, `COUNTERMEASURES (1)`.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled in 784ms with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed 19/19 checks.
+  - **Visual Alignment:** Zero staggered lines, 100% pixel-aligned tabular metrics.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
