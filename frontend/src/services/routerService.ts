@@ -10,7 +10,7 @@
  */
 
 export interface AppRouteState {
-  view: 'HUD' | 'HEALTH_TELEMETRY';
+  view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER';
   astronautId: string;
 }
 
@@ -106,6 +106,20 @@ export function parseCurrentRoute(): AppRouteState {
   }
 
   const path = window.location.pathname;
+  if (path.includes('/scanner') || path.includes('/hologram')) {
+    return {
+      view: 'SCANNER',
+      astronautId: 'AST-02_PILOT',
+    };
+  }
+
+  if (path.includes('/mcc')) {
+    return {
+      view: 'MCC',
+      astronautId: 'AST-01_COMMANDER',
+    };
+  }
+
   const telemetryIdx = path.indexOf('/telemetry');
 
   if (telemetryIdx !== -1) {

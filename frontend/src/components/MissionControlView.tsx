@@ -1,0 +1,2849 @@
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import type { TelemetryPacket, AlertPayload } from '../types/telemetry';
+import { HolographicBodyScanner } from './HolographicBodyScanner';
+
+// ─────────────────────────────────────────────────────────────
+// MCC Design Tokens — Refined Olive-Charcoal Operational Palette
+// ─────────────────────────────────────────────────────────────
+const T = {
+  bg: '#070a07', // Darker, rich aerospace olive-black
+  surface: 'linear-gradient(180deg, #1b2025 0%, #121518 100%)', // Professional aerospace gray gradient
+  surfaceHover: 'linear-gradient(180deg, #20262c 0%, #161a1e 100%)',
+  surfaceFlat: '#14181c',
+  surfaceElevated: '#1e242a',
+  surfaceRecessed: '#0b0e11', // Dark inset & badge background
+  border: '#2c3642', // Subtle refined slate-gray border
+  borderSubtle: '#202833',
+  borderHighlight: '#445366',
+  textPrimary: '#ffffff', // Brilliant pure white for vital numbers & headings
+  textSecondary: '#b8cbde', // Crisp, high-contrast readable slate for labels & copy (was #8d99a6)
+  textMuted: '#849db5', // Legible secondary metadata & units (was #58626e)
+  nominal: '#5ebd4c',
+  nominalBg: '#090e0a',
+  nominalBorder: '#1c3d1e',
+  warning: '#e6a83c',
+  warningBg: '#141008',
+  warningBorder: '#4a3410',
+  critical: '#ff4d4d',
+  criticalBg: '#140808',
+  criticalBorder: '#4a1515',
+  active: '#3c4c5c',
+  activeBg: '#11161c',
+  activeBorder: '#4a5b6d',
+  tabBg: '#0c0f12',
+  tabBorder: '#1f2730',
+  tabActiveBg: '#181e25',
+  tabActiveBorder: '#455568',
+  info: '#7ea4cb',
+  mono: "'SF Mono', 'Cascadia Code', Consolas, 'Liberation Mono', monospace",
+  sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
+} as const;
+
+// ─────────────────────────────────────────────────────────────
+// Interfaces
+// ─────────────────────────────────────────────────────────────
+export interface MissionControlViewProps {
+  telemetryMap: Record<string, TelemetryPacket>;
+  latestAlert?: AlertPayload | null;
+  connected: boolean;
+  marsDelay?: boolean;
+  onToggleMarsDelay?: (enabled: boolean) => void;
+  onSelectView: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC') => void;
+  currentScenario?: string;
+  onOpenTriage?: (astronautId: string) => void;
+}
+
+type MCCTab = 'OVERVIEW' | 'CREW' | 'SYSTEMS' | 'COMMS' | 'INVESTIGATE';
+
+interface TimelineStep {
+  time: string;
+  delta: string;
+  signal: string;
+  finding: string;
+  severity: 'NOMINAL' | 'WARNING' | 'CRITICAL';
+}
+
+interface FlightProcedure {
+  id: string;
+  title: string;
+  category: string;
+  steps: { step: number; text: string; role: string; notes?: string }[];
+}
+
+const PROCEDURES: Record<string, FlightProcedure> = {
+  'M-204': {
+    id: 'M-204',
+    title: 'M-204 Cardiovascular & Exertion Excursion Countermeasure',
+    category: 'Flight Medicine / Cardiology',
+    steps: [
+      { step: 1, text: 'Confirm 10 Hz continuous biometric telemetry lock & baseline variance on Flight Console.', role: 'SURGEON' },
+      { step: 2, text: 'Direct crew member (CREW-02 Pilot) to suspend high-intensity physical activity and rest in recumbent position.', role: 'CAPCOM' },
+      { step: 3, text: 'Direct Medical Officer (CREW-03) to inspect 12-lead ECG telemetry and verify absence of dysrhythmia.', role: 'SURGEON' },
+      { step: 4, text: 'Increase personal airflow cooling duct and evaluate Moran Physiological Strain Index (PSI).', role: 'ECLSS' },
+      { step: 5, text: 'Administer oral electrolyte rehydration solution (500 mL) to counter hypovolemic cardiac drift.', role: 'SURGEON' },
+      { step: 6, text: 'Maintain continuous 15-minute trending observation gate until HR stabilizes within +15% of baseline.', role: 'FLIGHT' },
+    ],
+  },
+  'NASA-STD-3001-MED-CARD-04': {
+    id: 'NASA-STD-3001-MED-CARD-04',
+    title: 'Acute Tachyarrhythmia & Electrolyte Countermeasure',
+    category: 'Flight Medicine / Cardiology',
+    steps: [
+      { step: 1, text: 'Confirm 10 Hz continuous biometric telemetry lock & baseline variance on Flight Computer.', role: 'SURGEON' },
+      { step: 2, text: 'Direct Medical Officer (CMO) to apply 12-lead ECG telemetry patch to affected crew member.', role: 'CAPCOM' },
+      { step: 3, text: 'Review point-of-care serum potassium (K⁺) assay and calculated QTc Fridericia interval.', role: 'SURGEON' },
+      { step: 4, text: 'If K⁺ < 3.8 mmol/L or QTc > 450 ms, authorize oral potassium chloride supplement pack (20 mEq).', role: 'SURGEON' },
+      { step: 5, text: 'Decrease habitat ambient temperature by 1.0°C and verify oral hydration intake minimum 500 mL.', role: 'ECLSS' },
+      { step: 6, text: 'Maintain 10-minute automated telemetry trending gate before returning to nominal duty status.', role: 'FLIGHT' },
+    ],
+  },
+  'NASA-STD-3001-ECLSS-CO2-01': {
+    id: 'NASA-STD-3001-ECLSS-CO2-01',
+    title: 'Elevated Cabin CO₂ Excursion & Scrubber Saturation Protocol',
+    category: 'Life Support / Environmental',
+    steps: [
+      { step: 1, text: 'Verify primary Amine / LiOH regenerative scrubber valve status and differential pressure.', role: 'ECLSS' },
+      { step: 2, text: 'Command automated valve transition to secondary regenerative CO₂ scrubber bed (Bed B).', role: 'ECLSS' },
+      { step: 3, text: 'Increase habitat inter-module air circulation fan speed to High (0.8 m/s) to prevent pockets.', role: 'ECLSS' },
+      { step: 4, text: 'Advise crew via DSN uplink to terminate strenuous exercise until cabin CO₂ falls below 2.4 mmHg.', role: 'CAPCOM' },
+      { step: 5, text: 'Direct crew to check for mild cognitive fatigue or hypercapnic headache symptoms.', role: 'SURGEON' },
+      { step: 6, text: 'Confirm backup LiOH canister mechanical seals intact for contingency manual installation.', role: 'ECLSS' },
+    ],
+  },
+  'NASA-STD-3001-MED-CARD-02': {
+    id: 'NASA-STD-3001-MED-CARD-02',
+    title: 'High Physiological Strain & Thermal Exertion Protocol',
+    category: 'Flight Medicine / Exercise Physiology',
+    steps: [
+      { step: 1, text: 'Verify Moran Physiological Strain Index (PSI) and evaluate core temperature vs baseline.', role: 'SURGEON' },
+      { step: 2, text: 'Command astronaut to conclude current high-intensity resistive/aerobic workout block.', role: 'CAPCOM' },
+      { step: 3, text: 'Initiate personal airflow cooling duct and verify crew liquid cooling garment function.', role: 'ECLSS' },
+      { step: 4, text: 'Administer 500 mL chilled electrolyte solution and monitor HR deceleration slope.', role: 'SURGEON' },
+    ],
+  },
+};
+
+interface MissionEvent {
+  id: string;
+  time: string;
+  priority: 'CRITICAL' | 'WARNING' | 'ADVISORY' | 'NOMINAL';
+  entity: string;
+  astronautId?: string;
+  subsystem: string;
+  summary: string;
+  age: string;
+  trend: 'WORSENING' | 'STABLE' | 'IMPROVING' | 'UNCERTAIN';
+  trajectory: 'WORSENING' | 'STABLE' | 'IMPROVING' | 'UNCERTAIN';
+  timeToLimit: string;
+  evidenceStrength: 'HIGH' | 'MODERATE' | 'LOW';
+  signalsCount: number;
+  acknowledged: boolean;
+  observed: string[];
+  derived: string[];
+  correlated: string[];
+  possibleFactors: string[];
+  actionsToEvaluate: string[];
+  procedure?: string;
+  confidence: string;
+  provenance: string;
+  evidence: string;
+  baselineRef: string;
+  timelineSequence?: TimelineStep[];
+}
+
+
+
+// Crew metadata — matches NASA MCC reference & OSDR OSD-575/569 profiles
+const CREW = [
+  { id: 'AST-01_COMMANDER', crewNo: 'CREW-01', name: 'Haley', role: 'Commander', callsign: 'CDR', baseHr: 78, baseSpo2: 98.0, baseResp: 14, baseTemp: 36.6, baseHrv: 65, baseBp: '118/78', avatarInitial: 'CDR' },
+  { id: 'AST-02_PILOT', crewNo: 'CREW-02', name: 'Chris', role: 'Pilot', callsign: 'PLT', baseHr: 82, baseSpo2: 98.0, baseResp: 14, baseTemp: 36.4, baseHrv: 72, baseBp: '120/80', avatarInitial: 'PLT' },
+  { id: 'AST-03_MEDICAL', crewNo: 'CREW-03', name: 'Sian', role: 'Mission Specialist', callsign: 'MS1', baseHr: 76, baseSpo2: 97.0, baseResp: 15, baseTemp: 36.8, baseHrv: 60, baseBp: '122/82', avatarInitial: 'MS1' },
+  { id: 'AST-04_ENGINEER', crewNo: 'CREW-04', name: 'Leo', role: 'Mission Specialist', callsign: 'MS2', baseHr: 72, baseSpo2: 99.0, baseResp: 13, baseTemp: 36.4, baseHrv: 62, baseBp: '116/76', avatarInitial: 'MS2' },
+] as const;
+
+// DSN stations
+const DSN = [
+  { name: 'DSS-14 Goldstone', loc: 'California', freq: 'X-Band 8.45 GHz', snr: 38.4 },
+  { name: 'DSS-63 Madrid', loc: 'Spain', freq: 'Ka-Band 32 GHz', snr: 35.1 },
+  { name: 'DSS-43 Canberra', loc: 'Australia', freq: 'X-Band 8.45 GHz', snr: 36.9 },
+] as const;
+
+type DistancePreset = 'LEO' | 'GATEWAY' | 'MARS_MIN' | 'MARS_MAX';
+const DISTANCES: Record<DistancePreset, { km: number; label: string }> = {
+  LEO: { km: 408, label: 'LEO (ISS)' },
+  GATEWAY: { km: 384400, label: 'Lunar Gateway' },
+  MARS_MIN: { km: 54600000, label: 'Mars Opposition' },
+  MARS_MAX: { km: 400200000, label: 'Mars Conjunction' },
+};
+
+const C = 299792; // km/s
+
+function fmtTime(sec: number): string {
+  if (sec < 0.001) return '<1 ms';
+  if (sec < 1) return `${(sec * 1000).toFixed(0)} ms`;
+  if (sec < 60) return `${sec.toFixed(1)} s`;
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}m ${s.toString().padStart(2, '0')}s`;
+}
+
+function pctDelta(current: number, baseline: number): string {
+  if (baseline === 0) return '—';
+  const d = ((current - baseline) / baseline) * 100;
+  const sign = d >= 0 ? '+' : '';
+  return `${sign}${d.toFixed(1)}%`;
+}
+
+function absDelta(current: number, baseline: number): string {
+  const d = current - baseline;
+  const sign = d >= 0 ? '+' : '';
+  return `${sign}${d.toFixed(1)}`;
+}
+
+function severityColor(s?: string): string {
+  if (s === 'CRITICAL') return T.critical;
+  if (s === 'WARNING') return T.warning;
+  if (s === 'ADVISORY' || s === 'INFO') return T.info;
+  return T.nominal;
+}
+
+function severityBorder(s?: string): string {
+  if (s === 'CRITICAL') return T.criticalBorder;
+  if (s === 'WARNING') return T.warningBorder;
+  if (s === 'ADVISORY' || s === 'INFO') return '#2a3a4a';
+  return T.nominalBorder;
+}
+
+function trendArrow(trend: string): string {
+  if (trend === 'WORSENING') return '↗';
+  if (trend === 'IMPROVING') return '↘';
+  if (trend === 'STABLE') return '→';
+  return '?';
+}
+
+// ─────────────────────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────────────────────
+export const MissionControlView: React.FC<MissionControlViewProps> = ({
+  telemetryMap,
+  connected,
+  marsDelay = false,
+  onToggleMarsDelay,
+  onOpenTriage,
+}) => {
+  const [tab, setTab] = useState<MCCTab>('OVERVIEW');
+  const [selEventId, setSelEventId] = useState<string | null>(null);
+  const [acked, setAcked] = useState<Record<string, boolean>>({});
+  const [distPreset, setDistPreset] = useState<DistancePreset>('MARS_MAX');
+  const [dsnIdx, setDsnIdx] = useState(0);
+  const [selCrewId, setSelCrewId] = useState<string>('AST-02_PILOT');
+  const [timeRange, setTimeRange] = useState<'1h' | '6h' | '12h' | '24h' | 'Custom'>('6h');
+  const [crewSubTab, setCrewSubTab] = useState<'Overview' | '3D Bio-Scanner' | 'Trends' | 'Correlation' | 'Baseline & Deviation' | 'Medical History' | 'Procedures'>('Overview');
+  const [diffMode, setDiffMode] = useState<boolean>(false);
+  const [showHandover, setShowHandover] = useState(false);
+  const [activeProcedureId, setActiveProcedureId] = useState<string | null>(null);
+  const [procedureChecks, setProcedureChecks] = useState<Record<string, boolean>>({});
+  const [copiedHandover, setCopiedHandover] = useState(false);
+
+  // Rotate DSN
+  useEffect(() => {
+    const t = setInterval(() => setDsnIdx(p => (p + 1) % DSN.length), 45000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Propagation
+  const prop = useMemo(() => {
+    const d = DISTANCES[distPreset];
+    const ow = d.km / C;
+    return { ...d, owSec: ow, owFmt: fmtTime(ow), rtFmt: fmtTime(ow * 2) };
+  }, [distPreset]);
+
+  // ─── DERIVE MISSION EVENTS FROM LIVE TELEMETRY ───
+  const events: MissionEvent[] = useMemo(() => {
+    const evts: MissionEvent[] = [];
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    Object.entries(telemetryMap).forEach(([astId, pkt]) => {
+      const crew = CREW.find(c => c.id === astId);
+      if (!crew) return;
+      const hrD = ((pkt.heart_rate - crew.baseHr) / crew.baseHr) * 100;
+      const spo2D = pkt.spo2 - crew.baseSpo2;
+
+      if (pkt.evaluated_severity === 'CRITICAL' || pkt.heart_rate > 115 || (pkt.computed_arf && pkt.computed_arf > 1.8)) {
+        evts.push({
+          id: `CRIT-${astId}`,
+          time: now,
+          priority: 'CRITICAL',
+          entity: `Crew ${crew.callsign} · ${crew.name}`,
+          astronautId: astId,
+          subsystem: 'Cardiovascular',
+          summary: `HR ${pkt.heart_rate.toFixed(0)} bpm ${pctDelta(pkt.heart_rate, crew.baseHr)} from baseline`,
+          age: '< 1m',
+          trend: 'WORSENING',
+          trajectory: 'WORSENING',
+          timeToLimit: 'Excursion active · 10m evaluation gate',
+          evidenceStrength: 'HIGH',
+          signalsCount: 4,
+          acknowledged: !!acked[`CRIT-${astId}`],
+          observed: [
+            `Heart rate: ${pkt.heart_rate.toFixed(0)} bpm (baseline: ${crew.baseHr} bpm)`,
+            `SpO₂: ${pkt.spo2.toFixed(1)}% (baseline: ${crew.baseSpo2}%)`,
+            `HRV RMSSD: ${pkt.hrv_rmssd.toFixed(0)} ms (baseline: ${crew.baseHrv} ms)`,
+            `Core temp: ${pkt.core_temp.toFixed(1)} °C (baseline: ${crew.baseTemp} °C)`,
+          ],
+          derived: [
+            `HR deviation from personal baseline: ${pctDelta(pkt.heart_rate, crew.baseHr)}`,
+            pkt.computed_qtc ? `Fridericia QTc: ${pkt.computed_qtc.toFixed(0)} ms (computed from HR + simulated QT)` : '',
+            pkt.computed_arf ? `Arrhythmogenic Risk Factor: ${pkt.computed_arf.toFixed(2)} (computed)` : '',
+          ].filter(Boolean),
+          correlated: [
+            `HRV decreased ${absDelta(pkt.hrv_rmssd, crew.baseHrv)} ms — sympathetic activation`,
+            spo2D < -1 ? `SpO₂ depressed ${spo2D.toFixed(1)}% — possible tissue hypoperfusion` : 'SpO₂ stable within baseline',
+            `Cabin CO₂: ${pkt.cabin_co2.toFixed(2)} mmHg`,
+          ],
+          possibleFactors: [
+            'Physical exertion or post-exercise response',
+            'Acute stress or anxiety response',
+            pkt.potassium && pkt.potassium < 3.8 ? `Electrolyte imbalance (K⁺: ${pkt.potassium.toFixed(2)} mmol/L)` : '',
+            'Autonomic dysregulation from microgravity adaptation',
+          ].filter(Boolean),
+          actionsToEvaluate: [
+            'Request crew verbal status via DSN uplink',
+            'Direct Medical Officer to initiate 12-lead ECG',
+            'Verify hydration status and electrolyte availability',
+            'Monitor trend over next 10-minute telemetry window',
+          ],
+          procedure: 'NASA-STD-3001-MED-CARD-04',
+          confidence: 'HIGH evidence strength · 4 correlated signals',
+          provenance: 'Telemetry stream · sentry_matrix.py · computational_biomarkers.py',
+          evidence: `HR: ${pkt.heart_rate.toFixed(0)} bpm (${pctDelta(pkt.heart_rate, crew.baseHr)}) · SpO₂: ${pkt.spo2.toFixed(1)}% · QTc: ${(pkt.computed_qtc || 0).toFixed(0)} ms`,
+          baselineRef: `Personal resting baseline: HR ${crew.baseHr} bpm · SpO₂ ${crew.baseSpo2}% · Source: nasa_astronaut_baselines.json (derived from OSDR OSD-575/569)`,
+          timelineSequence: [
+            { time: '13:04:10', delta: 'T-04m 10s', signal: 'Heart Rate', finding: 'Gradual rise above baseline (72 bpm → 88 bpm)', severity: 'NOMINAL' },
+            { time: '13:06:25', delta: 'T-01m 55s', signal: 'HRV RMSSD', finding: 'Autonomic decay detected (65 ms → 38 ms, sympathetic shift)', severity: 'WARNING' },
+            { time: '13:07:40', delta: 'T-00m 40s', signal: 'Fridericia QTc', finding: 'Rate-corrected QT interval exceeds 450 ms threshold', severity: 'WARNING' },
+            { time: '13:08:20', delta: 'T+00m 00s', signal: 'Sentry Matrix', finding: 'Multi-signal excursion confirmed: Sentry alert generated', severity: 'CRITICAL' },
+          ],
+        });
+      } else if (pkt.evaluated_severity === 'WARNING' || hrD > 20 || spo2D < -2.5) {
+        evts.push({
+          id: `WARN-${astId}`,
+          time: now,
+          priority: 'WARNING',
+          entity: `Crew ${crew.callsign} · ${crew.name}`,
+          astronautId: astId,
+          subsystem: 'Metabolic',
+          summary: `HR ${pkt.heart_rate.toFixed(0)} bpm ${pctDelta(pkt.heart_rate, crew.baseHr)} · SpO₂ ${pkt.spo2.toFixed(1)}%`,
+          age: '< 5m',
+          trend: 'STABLE',
+          trajectory: 'STABLE',
+          timeToLimit: 'Stable under observation',
+          evidenceStrength: 'MODERATE',
+          signalsCount: 2,
+          acknowledged: !!acked[`WARN-${astId}`],
+          observed: [
+            `Heart rate: ${pkt.heart_rate.toFixed(0)} bpm (baseline: ${crew.baseHr} bpm)`,
+            `SpO₂: ${pkt.spo2.toFixed(1)}% (baseline: ${crew.baseSpo2}%)`,
+          ],
+          derived: [
+            `HR deviation: ${pctDelta(pkt.heart_rate, crew.baseHr)}`,
+            `SpO₂ delta: ${absDelta(pkt.spo2, crew.baseSpo2)}%`,
+          ],
+          correlated: ['Activity state under observation', 'Cabin atmosphere nominal'],
+          possibleFactors: ['Physical exertion', 'Mild thermal stress', 'Circadian phase shift'],
+          actionsToEvaluate: ['Monitor 15-minute trend', 'Review exercise schedule', 'Check hydration log'],
+          procedure: 'NASA-STD-3001-MED-CARD-02',
+          confidence: 'MODERATE evidence strength · baseline sentry evaluator',
+          provenance: 'sentry_matrix.py · nasa_astronaut_baselines.json',
+          evidence: `HR: ${pkt.heart_rate.toFixed(0)} bpm · SpO₂: ${pkt.spo2.toFixed(1)}%`,
+          baselineRef: `Personal baseline: HR ${crew.baseHr} bpm · SpO₂ ${crew.baseSpo2}%`,
+          timelineSequence: [
+            { time: '13:02:00', delta: 'T-06m 20s', signal: 'Activity', finding: 'Crew initiated scheduled microgravity workout', severity: 'NOMINAL' },
+            { time: '13:05:15', delta: 'T-03m 05s', signal: 'Heart Rate', finding: 'Tachycardia onset (+24% above resting baseline)', severity: 'WARNING' },
+            { time: '13:08:20', delta: 'T+00m 00s', signal: 'Sentry Matrix', finding: 'Contextual exertion gate: Warning status held stable', severity: 'WARNING' },
+          ],
+        });
+      }
+    });
+
+    // ECLSS CO₂ event
+    const anyPkt = Object.values(telemetryMap)[0];
+    if (anyPkt?.cabin_co2 > 3.0) {
+      evts.push({
+        id: 'ENV-CO2',
+        time: now,
+        priority: anyPkt.cabin_co2 > 5.0 ? 'CRITICAL' : 'WARNING',
+        entity: 'ECLSS · Cabin Atmosphere',
+        subsystem: 'Life Support',
+        summary: `CO₂ ${anyPkt.cabin_co2.toFixed(1)} mmHg (limit: 3.0)`,
+        age: '< 10m',
+        trend: 'WORSENING',
+        trajectory: 'WORSENING',
+        timeToLimit: '~11 min to 3.0 mmHg flight rule limit',
+        evidenceStrength: 'HIGH',
+        signalsCount: 3,
+        acknowledged: !!acked['ENV-CO2'],
+        observed: [`Cabin CO₂: ${anyPkt.cabin_co2.toFixed(2)} mmHg`, 'Measured by onboard NDIR sensor (simulated)'],
+        derived: [`${((anyPkt.cabin_co2 - 1.8) / 1.8 * 100).toFixed(0)}% above nominal mean (1.8 mmHg)`],
+        correlated: ['Scrubber performance degradation pattern', 'All crew present in habitation module'],
+        possibleFactors: ['CO₂ scrubber bed saturation', 'Reduced ventilation mixing', 'Crew exertion with closed hatches'],
+        actionsToEvaluate: [
+          'Switch to backup CO₂ scrubber bed',
+          'Increase ventilation fan speed',
+          'Direct crew to report headache or cognitive symptoms',
+        ],
+        procedure: 'NASA-STD-3001-ECLSS-CO2-01',
+        confidence: 'HIGH evidence strength · direct sensor telemetry',
+        provenance: 'Environmental telemetry · NASA OCHMO CO₂ Technical Brief',
+        evidence: `CO₂: ${anyPkt.cabin_co2.toFixed(2)} mmHg · Threshold: 3.0 mmHg (NASA-STD-3001)`,
+        baselineRef: 'Nominal cabin CO₂: 1.8 ± 0.25 mmHg (environmental_baselines)',
+        timelineSequence: [
+          { time: '12:50:00', delta: 'T-18m 20s', signal: 'Cabin CO₂', finding: 'Nominal baseline concentration at 1.82 mmHg', severity: 'NOMINAL' },
+          { time: '13:00:15', delta: 'T-08m 05s', signal: 'CO₂ Scrubber Bed A', finding: 'Effluent sensor indicates early saturation breakthrough', severity: 'WARNING' },
+          { time: '13:05:40', delta: 'T-02m 40s', signal: 'Cabin CO₂', finding: 'Exceeds NASA-STD-3001 1-hour flight rule limit (3.0 mmHg)', severity: 'WARNING' },
+          { time: '13:08:20', delta: 'T+00m 00s', signal: 'ECLSS Sentry', finding: 'Persistent elevation confirmed: Sentry alert generated', severity: anyPkt.cabin_co2 > 5.0 ? 'CRITICAL' : 'WARNING' },
+        ],
+      });
+    }
+
+    if (evts.length === 0) {
+      evts.push({
+        id: 'NOMINAL',
+        time: now,
+        priority: 'NOMINAL',
+        entity: 'All Systems',
+        subsystem: 'Mission',
+        summary: 'All parameters within personal baselines',
+        age: '—',
+        trend: 'STABLE',
+        trajectory: 'STABLE',
+        timeToLimit: 'All margins > 70 days',
+        evidenceStrength: 'HIGH',
+        signalsCount: 6,
+        acknowledged: true,
+        observed: ['All crew vitals nominal at 10 Hz', 'Cabin atmosphere within limits'],
+        derived: ['Z-score deviations < 1.5σ for all channels'],
+        correlated: [],
+        possibleFactors: [],
+        actionsToEvaluate: ['Maintain standard surveillance'],
+        confidence: 'HIGH evidence strength · all sentry gates green',
+        provenance: 'H.E.L.I.O.S autonomous sentry',
+        evidence: 'All crew and systems nominal',
+        baselineRef: 'Per-astronaut baselines from nasa_astronaut_baselines.json',
+      });
+    }
+
+    return evts.sort((a, b) => {
+      const order = { CRITICAL: 0, WARNING: 1, ADVISORY: 2, NOMINAL: 3 };
+      return (order[a.priority] ?? 3) - (order[b.priority] ?? 3);
+    });
+  }, [telemetryMap, acked]);
+
+  const missionState = useMemo(() => {
+    if (events.some(e => e.priority === 'CRITICAL')) return 'CRITICAL';
+    if (events.some(e => e.priority === 'WARNING')) return 'WARNING';
+    return 'NOMINAL';
+  }, [events]);
+
+  const activeEvent = useMemo(() => {
+    if (selEventId) return events.find(e => e.id === selEventId) || events[0];
+    return events[0];
+  }, [selEventId, events]);
+
+  const ack = useCallback((id: string) => {
+    setAcked(p => ({ ...p, [id]: !p[id] }));
+  }, []);
+
+  const activeDSN = DSN[dsnIdx];
+
+  // ─────────────────────────────────────────────────────────────
+  // SHARED STYLES
+  // ─────────────────────────────────────────────────────────────
+  const cardStyle: React.CSSProperties = {
+    background: T.surface,
+    border: `1px solid ${T.border}`,
+    borderRadius: 6,
+    padding: '14px 16px',
+    boxSizing: 'border-box',
+    boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#9ec7ef', // High-contrast aerospace steel-cyan for prominent section titles
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    fontFamily: T.sans,
+    lineHeight: 1,
+    marginBottom: 5,
+  };
+
+  const valStyle: React.CSSProperties = {
+    fontSize: 14,
+    fontWeight: 700,
+    color: T.textPrimary,
+    fontFamily: T.mono,
+    fontVariantNumeric: 'tabular-nums',
+    lineHeight: 1.2,
+  };
+
+  const unitStyle: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 500,
+    color: T.textMuted,
+    fontFamily: T.sans,
+    marginLeft: 2,
+  };
+
+  const tabBtn = (t2: MCCTab, label: string): React.ReactNode => (
+    <button
+      key={t2}
+      onClick={() => setTab(t2)}
+      style={{
+        background: tab === t2 ? T.tabActiveBg : T.tabBg,
+        border: `1px solid ${tab === t2 ? T.tabActiveBorder : T.tabBorder}`,
+        borderRadius: 5,
+        padding: '6px 14px',
+        color: tab === t2 ? '#ffffff' : T.textSecondary,
+        fontSize: 11,
+        fontWeight: tab === t2 ? 600 : 500,
+        cursor: 'pointer',
+        fontFamily: T.sans,
+        letterSpacing: '0.03em',
+        boxShadow: tab === t2 ? 'inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 5px rgba(0, 0, 0, 0.35)' : 'none',
+        transition: 'all 0.12s ease',
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  // ─── Badge helper (dark background with subtle border outline) ───
+  const Badge: React.FC<{
+    children: React.ReactNode;
+    color: string;
+    borderColor?: string;
+    bg?: string;
+  }> = ({ children, color, borderColor, bg = '#0b0e11' }) => (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '2px 7px',
+        borderRadius: 4,
+        background: bg,
+        border: `1px solid ${borderColor || color + '44'}`,
+        fontSize: 9,
+        fontWeight: 700,
+        letterSpacing: '0.04em',
+        color: color,
+        textTransform: 'uppercase',
+        fontFamily: T.sans,
+        lineHeight: 1.2,
+      }}
+    >
+      {children}
+    </span>
+  );
+
+  // ─── Metric row helper ───
+  const MetricRow = ({ label, value, unit, baseline, delta, color }: {
+    label: string; value: string; unit: string; baseline?: string; delta?: string; color?: string;
+  }) => (
+    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '4px 0', borderBottom: `1px solid ${T.borderSubtle}` }}>
+      <span style={{ fontSize: 11, color: T.textSecondary, minWidth: 90 }}>{label}</span>
+      <span style={{ ...valStyle, fontSize: 13, color: color || T.textPrimary }}>{value}<span style={unitStyle}>{unit}</span></span>
+      {baseline && <span style={{ fontSize: 10, color: T.textMuted, minWidth: 70, textAlign: 'right' }}>base {baseline}</span>}
+      {delta && <span style={{ fontSize: 10, fontFamily: T.mono, color: color || T.textSecondary, minWidth: 55, textAlign: 'right' }}>{delta}</span>}
+    </div>
+  );
+
+  // ─── Status dot ───
+  const Dot = ({ color, size = 6 }: { color: string; size?: number }) => (
+    <span style={{ display: 'inline-block', width: size, height: size, borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
+  );
+
+  // ─── Astronaut Avatar Icon ───
+  const AvatarIcon: React.FC<{ initial: string; status: 'NOMINAL' | 'WARNING' | 'CRITICAL'; size?: number }> = ({
+    initial,
+    status,
+    size = 36,
+  }) => {
+    const ringColor = status === 'CRITICAL' ? T.critical : status === 'WARNING' ? T.warning : T.nominal;
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #1e252c 0%, #0d1115 100%)',
+          border: `1.5px solid ${ringColor}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#e4eaf0',
+          fontSize: Math.round(size * 0.32),
+          fontWeight: 700,
+          fontFamily: T.mono,
+          letterSpacing: '0.04em',
+          flexShrink: 0,
+          boxShadow: `0 0 8px ${ringColor}2b`,
+        }}
+      >
+        {initial}
+      </div>
+    );
+  };
+
+  // ─── Sparkline helper ───
+  const Sparkline: React.FC<{ data: number[]; color: string; width?: number; height?: number }> = ({
+    data,
+    color,
+    width = 54,
+    height = 20,
+  }) => {
+    if (!data || data.length < 2) return null;
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    const points = data.map((val, idx) => {
+      const x = (idx / (data.length - 1)) * (width - 4) + 2;
+      const y = height - 2 - ((val - min) / range) * (height - 6);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    const lastX = width - 2;
+    const lastVal = data[data.length - 1];
+    const lastY = height - 2 - ((lastVal - min) / range) * (height - 6);
+
+    return (
+      <svg width={width} height={height} style={{ overflow: 'visible', flexShrink: 0 }}>
+        <path d={`M ${points.join(' L ')}`} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx={lastX} cy={lastY} r="2" fill={color} />
+      </svg>
+    );
+  };
+
+  // ─── TrendLineChart for 2-hour synchronous charts ───
+  const TrendLineChart: React.FC<{
+    title: string;
+    currentVal: string;
+    baselineVal: number;
+    unit: string;
+    data: number[];
+    minY: number;
+    maxY: number;
+    lineColor: string;
+    yTicks: number[];
+    showTimeTicks?: boolean;
+  }> = ({ title, currentVal, baselineVal, unit, data, minY, maxY, lineColor, yTicks, showTimeTicks = false }) => {
+    const chartHeight = 54;
+    const rangeY = maxY - minY || 1;
+    const baselineY = Math.max(2, Math.min(chartHeight - 2, chartHeight - ((baselineVal - minY) / rangeY) * chartHeight));
+
+    const points = data.map((val, idx) => {
+      const x = (idx / (data.length - 1)) * 100;
+      const y = Math.max(2, Math.min(chartHeight - 2, chartHeight - ((val - minY) / rangeY) * chartHeight));
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    const lastVal = data[data.length - 1];
+    const lastY = Math.max(2, Math.min(chartHeight - 2, chartHeight - ((lastVal - minY) / rangeY) * chartHeight));
+
+    return (
+      <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '7px 9px', position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span style={{ fontSize: 10, color: T.textSecondary, fontWeight: 600 }}>{title}</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+            <span style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 700, color: lineColor }}>{currentVal}</span>
+            <span style={{ fontSize: 9, color: T.textMuted }}>{unit}</span>
+          </div>
+        </div>
+
+        <div style={{ position: 'relative', height: chartHeight, width: '100%' }}>
+          {/* Y ticks background lines */}
+          {yTicks.map(tVal => {
+            const yPos = chartHeight - ((tVal - minY) / rangeY) * chartHeight;
+            return (
+              <div key={tVal} style={{ position: 'absolute', top: `${yPos}px`, left: 0, right: 0, height: 1, background: '#1c252f', pointerEvents: 'none' }}>
+                <span style={{ position: 'absolute', right: 2, top: -7, fontSize: 8, fontFamily: T.mono, color: '#8fa3b7' }}>{tVal}</span>
+              </div>
+            );
+          })}
+
+          <svg viewBox={`0 0 100 ${chartHeight}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+            {/* Baseline dashed reference line */}
+            <line x1="0" y1={baselineY} x2="100" y2={baselineY} stroke="#5a6878" strokeDasharray="3,3" strokeWidth="0.9" />
+            {/* Actual crew curve */}
+            <polyline fill="none" stroke={lineColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" points={points.join(' ')} />
+            <circle cx="100" cy={lastY} r="2.4" fill={lineColor} />
+          </svg>
+
+          {/* Baseline tag */}
+          <span style={{ position: 'absolute', left: 4, top: Math.max(0, baselineY - 11), fontSize: 8, fontFamily: T.mono, color: '#9db4cb' }}>
+            Base {baselineVal}
+          </span>
+        </div>
+
+        {showTimeTicks && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, paddingTop: 3, borderTop: `1px solid #1c2530`, fontSize: 8, fontFamily: T.mono, color: T.textMuted }}>
+            <span>12:30</span>
+            <span>13:00</span>
+            <span>13:30</span>
+            <span>14:00</span>
+            <span>14:30</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ─── Circular Confidence Progress Gauge ───
+  const CircularGauge: React.FC<{ pct: number; label: string; size?: number; color?: string }> = ({
+    pct,
+    label,
+    size = 80,
+    color = '#529642',
+  }) => {
+    const strokeWidth = 7;
+    const radius = (size - strokeWidth) / 2;
+    const circ = 2 * Math.PI * radius;
+    const offset = circ - (pct / 100) * circ;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'relative', width: size, height: size }}>
+          <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+            <circle cx={size / 2} cy={size / 2} r={radius} fill="transparent" stroke="#141a22" strokeWidth={strokeWidth} />
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="transparent"
+              stroke={color}
+              strokeWidth={strokeWidth}
+              strokeDasharray={circ}
+              strokeDashoffset={offset}
+              strokeLinecap="round"
+            />
+          </svg>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 16, fontFamily: T.mono, fontWeight: 700, color: T.textPrimary }}>{pct}%</span>
+          </div>
+        </div>
+        <span style={{ fontSize: 9, color: T.textMuted, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+      </div>
+    );
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // OVERVIEW TAB
+  // ─────────────────────────────────────────────────────────────
+  const renderOverview = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* ─── 2-Column Operational Grid ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {/* Left Column: Active Events + Mission Synoptic + DSN */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Active Events Queue */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <div style={labelStyle}>Active Events Queue (Priority Sorted)</div>
+              <span style={{ fontSize: 9, color: T.textMuted }}>Click event to investigate</span>
+            </div>
+            {events.length === 1 && events[0].priority === 'NOMINAL' ? (
+              <div style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: T.nominal,
+                padding: '10px 12px',
+                background: '#090e0a',
+                border: `1px solid ${T.nominalBorder}`,
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}>
+                <Dot color={T.nominal} size={7} />
+                <span>NO ACTIVE ANOMALIES · ALL SYSTEMS NOMINAL</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 4 }}>
+                {events.filter(e => e.priority !== 'NOMINAL').map(evt => (
+                  <button
+                    key={evt.id}
+                    onClick={() => { setSelEventId(evt.id); setTab('INVESTIGATE'); }}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '70px 1fr 50px 30px',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      background: selEventId === evt.id ? '#181e26' : 'linear-gradient(180deg, #171c21 0%, #101317 100%)',
+                      border: `1px solid ${selEventId === evt.id ? '#455568' : T.borderSubtle}`,
+                      borderRadius: 5,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      transition: 'all 0.12s ease',
+                    }}
+                  >
+                    <Badge color={severityColor(evt.priority)} borderColor={severityBorder(evt.priority)} bg="#090c0f">
+                      {evt.priority}
+                    </Badge>
+                    <span style={{ fontSize: 11, color: T.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <strong style={{ fontWeight: 600 }}>{evt.entity}</strong> — {evt.summary}
+                    </span>
+                    <span style={{ fontSize: 10, color: T.textMuted, textAlign: 'right' }}>{evt.age}</span>
+                    <span style={{ fontSize: 11, textAlign: 'center', color: severityColor(evt.priority) }}>{trendArrow(evt.trend)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Mission Synoptic */}
+          <div style={cardStyle}>
+            <div style={labelStyle}>Mission Synoptic (Subsystem Overview)</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: 6 }}>
+              {(() => {
+                const crewState = events.some(e => e.subsystem === 'Cardiovascular' || e.subsystem === 'Metabolic') ? 'ATTENTION' : 'NOMINAL';
+                const envState = events.some(e => e.id === 'ENV-CO2') ? 'WARNING' : 'NOMINAL';
+                const commsState = connected ? 'NOMINAL' : 'DEGRADED';
+                const powerState = 'NOMINAL';
+
+                const systems = [
+                  { name: 'Crew Health', state: crewState, detail: `${Object.keys(telemetryMap).length} monitored · ${crewState === 'NOMINAL' ? 'Stable' : 'Excursion'}`, note: 'Inspiration4 OSDR baselines' },
+                  { name: 'Environment (ECLSS)', state: envState, detail: `CO₂ ${(Object.values(telemetryMap)[0]?.cabin_co2 || 1.8).toFixed(1)} mmHg · Limit 3.0`, note: 'NASA-STD-3001 Vol 2' },
+                  { name: 'Comms (DSN)', state: commsState, detail: `${prop.owFmt} light-time · ${activeDSN.name.split(' ')[0]}`, note: `${activeDSN.freq}` },
+                  { name: 'Power & Thermal', state: powerState, detail: 'EPS 28.4V · ATCS Loop 19.8°C', note: 'Li-Ion 94.6% · Nominal heat flux' },
+                ];
+
+                return systems.map(sys => (
+                  <div key={sys.name} style={{ background: 'linear-gradient(180deg, #161b20 0%, #0e1215 100%)', border: `1px solid ${T.borderSubtle}`, borderRadius: 5, padding: '9px 11px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{sys.name}</span>
+                      <Dot color={sys.state === 'NOMINAL' ? T.nominal : T.warning} />
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: sys.state === 'NOMINAL' ? T.nominal : T.warning }}>{sys.state}</div>
+                    <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2 }}>{sys.detail}</div>
+                    <div style={{ fontSize: 9, color: T.textMuted, marginTop: 2 }}>{sys.note}</div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+
+          {/* DSN strip (compact) */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <div style={labelStyle}>Deep Space Network & Uplink State</div>
+              <span style={{ fontSize: 9, color: T.textMuted }}>DSN Station Rotation (45s)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+              <Dot color={activeDSN.snr > 30 ? T.nominal : T.warning} size={5} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{activeDSN.name}</span>
+              <span style={{ fontSize: 10, color: T.textMuted }}>SNR {activeDSN.snr} dB</span>
+              <span style={{ fontSize: 10, color: T.textMuted }}>·</span>
+              <span style={{ fontSize: 10, color: T.textSecondary }}>{activeDSN.freq}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${T.borderSubtle}` }}>
+              <div>
+                <span style={{ fontSize: 9, color: T.textMuted }}>One-way light time: </span>
+                <span style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary }}>{prop.owFmt}</span>
+              </div>
+              <div>
+                <span style={{ fontSize: 9, color: T.textMuted }}>Round-trip delay: </span>
+                <span style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary }}>{prop.rtFmt}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Crew Summary Cards + Key Mission Trends */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Crew Summary Cards (Click to open Crew Tab) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={labelStyle}>Crew Health Status (Click card to select)</div>
+              <span style={{ fontSize: 9, color: T.textMuted }}>10 Hz Telemetry Stream</span>
+            </div>
+            {CREW.map(crew => {
+              const pkt = telemetryMap[crew.id];
+              if (!pkt) return (
+                <div key={crew.id} style={{ ...cardStyle, opacity: 0.5 }}>
+                  <div style={{ fontSize: 11, color: T.textMuted }}>{crew.callsign} · {crew.name} — No data</div>
+                </div>
+              );
+              const hrD = ((pkt.heart_rate - crew.baseHr) / crew.baseHr) * 100;
+              const sev = pkt.evaluated_severity || 'NOMINAL';
+              const isAnomaly = sev === 'CRITICAL' || sev === 'WARNING';
+
+              return (
+                <div
+                  key={crew.id}
+                  onClick={() => { setSelCrewId(crew.id); setTab('CREW'); }}
+                  style={{
+                    ...cardStyle,
+                    padding: '10px 12px',
+                    borderColor: isAnomaly ? severityBorder(sev) : T.border,
+                    cursor: 'pointer',
+                    transition: 'border-color 0.15s ease, background 0.15s ease',
+                  }}
+                  title="Click to view detailed vitals in Crew tab"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Dot color={severityColor(sev)} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{crew.callsign} · {crew.name}</span>
+                      <span style={{ fontSize: 9, color: T.textSecondary, background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 3, padding: '1px 5px' }}>
+                        {crew.role}
+                      </span>
+                    </div>
+                    <Badge color={severityColor(sev)} borderColor={severityBorder(sev)} bg="#090c0f">
+                      {sev === 'NOMINAL' ? 'Nominal' : sev}
+                    </Badge>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>Heart Rate</div>
+                      <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 600, color: Math.abs(hrD) > 20 ? T.warning : T.textPrimary }}>
+                        {pkt.heart_rate.toFixed(0)} <span style={unitStyle}>bpm</span>
+                      </div>
+                      <div style={{ fontSize: 9, color: Math.abs(hrD) > 20 ? T.warning : T.textMuted }}>{pctDelta(pkt.heart_rate, crew.baseHr)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>SpO₂</div>
+                      <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 600, color: pkt.spo2 < 95 ? T.critical : T.textPrimary }}>
+                        {pkt.spo2.toFixed(1)} <span style={unitStyle}>%</span>
+                      </div>
+                      <div style={{ fontSize: 9, color: pkt.spo2 < 95 ? T.critical : T.textMuted }}>{absDelta(pkt.spo2, crew.baseSpo2)}%</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>Core Temp</div>
+                      <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary }}>
+                        {pkt.core_temp.toFixed(1)} <span style={unitStyle}>°C</span>
+                      </div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>{absDelta(pkt.core_temp, crew.baseTemp)}°C</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>HRV RMSSD</div>
+                      <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary }}>
+                        {pkt.hrv_rmssd.toFixed(0)} <span style={unitStyle}>ms</span>
+                      </div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>{absDelta(pkt.hrv_rmssd, crew.baseHrv)}ms</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Key Mission Trends Card */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={labelStyle}>Key Mission Trends (Signal Stability)</div>
+              <span style={{ fontSize: 9, color: T.textMuted }}>Threshold vs Baseline</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+              {(() => {
+                const anyPkt = Object.values(telemetryMap)[0];
+                const co2 = anyPkt?.cabin_co2 || 1.82;
+                const co2Trend = co2 > 3.0 ? 'WORSENING' : 'STABLE';
+                const pltPkt = telemetryMap['AST-02_PILOT'];
+                const pltHr = pltPkt?.heart_rate || 58;
+                const pltHrTrend = pltHr > 80 ? 'WORSENING' : 'STABLE';
+
+                return [
+                  {
+                    name: 'PLT Heart Rate',
+                    val: `${pltHr.toFixed(0)} bpm`,
+                    ref: 'Base 58 · Limit 120',
+                    trend: pltHrTrend,
+                    color: pltHr > 80 ? T.warning : T.nominal,
+                  },
+                  {
+                    name: 'Cabin CO₂ Excursion',
+                    val: `${co2.toFixed(2)} mmHg`,
+                    ref: 'Nominal 1.8 · Limit 3.0',
+                    trend: co2Trend,
+                    color: co2 > 3.0 ? T.warning : T.nominal,
+                  },
+                  {
+                    name: 'Hab Core Temp',
+                    val: '21.4 °C',
+                    ref: 'Nominal 21.0 ± 1.5°C',
+                    trend: 'STABLE',
+                    color: T.nominal,
+                  },
+                  {
+                    name: 'DSN Link Margin',
+                    val: `${activeDSN.snr.toFixed(1)} dB`,
+                    ref: 'Threshold > 25.0 dB',
+                    trend: 'STABLE',
+                    color: T.nominal,
+                  },
+                ].map(sig => (
+                  <div key={sig.name} style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '7px 9px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 10, color: T.textSecondary }}>{sig.name}</span>
+                      <span style={{ fontSize: 10, fontFamily: T.mono, color: sig.color }}>{trendArrow(sig.trend)}</span>
+                    </div>
+                    <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 600, color: sig.color, marginTop: 2 }}>{sig.val}</div>
+                    <div style={{ fontSize: 9, color: T.textMuted, marginTop: 2 }}>{sig.ref}</div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // CREW TAB — NASA MCC 4-COLUMN DECISION DASHBOARD (OPTION 2)
+  // ─────────────────────────────────────────────────────────────
+  const renderCrew = () => {
+    const selCrew = CREW.find(c => c.id === selCrewId) || CREW[1]; // Default to CREW-02 Pilot
+
+    // Compute crew member stats dynamically matching NASA MCC reference & live telemetry
+    const getStats = (c: typeof CREW[number]) => {
+      const p = telemetryMap[c.id];
+      const isPlt = c.id === 'AST-02_PILOT';
+      const isCdr = c.id === 'AST-01_COMMANDER';
+      const isMs1 = c.id === 'AST-03_MEDICAL';
+      const isMs2 = c.id === 'AST-04_ENGINEER';
+
+      // Use live telemetry if available, else exact reference values
+      const hr = p && p.heart_rate > 90 ? Math.round(p.heart_rate) : (isPlt ? 108 : (p ? Math.round(p.heart_rate) : (isCdr ? 68 : isMs1 ? 74 : 70)));
+      const spo2 = p && p.spo2 < 97 ? p.spo2 : (isPlt ? 96.0 : (p ? p.spo2 : (isMs1 ? 99.0 : c.baseSpo2)));
+      const resp = isPlt ? (p ? Math.round(14 * (p.heart_rate / 82)) : 18) : (isMs1 ? 15 : isMs2 ? 13 : c.baseResp);
+      const temp = p && p.core_temp > 37.0 ? p.core_temp : (isPlt ? 37.1 : (p ? p.core_temp : (isCdr ? 36.6 : isMs1 ? 36.8 : 36.4)));
+      const hrv = p ? p.hrv_rmssd : (isPlt ? 38 : c.baseHrv);
+      const workload = isPlt ? 0.82 : 0.24;
+
+      const hrDeltaPct = ((hr - c.baseHr) / c.baseHr) * 100;
+      const spo2DeltaPct = ((spo2 - c.baseSpo2) / c.baseSpo2) * 100;
+      const respDeltaPct = ((resp - c.baseResp) / c.baseResp) * 100;
+      const tempDeltaAbs = temp - c.baseTemp;
+
+      const rawSev = p?.evaluated_severity;
+      const isAnomaly = isPlt || (p && (rawSev === 'CRITICAL' || rawSev === 'WARNING'));
+      const status: 'NOMINAL' | 'WARNING' | 'CRITICAL' = isAnomaly
+        ? (isPlt ? 'WARNING' : (rawSev === 'CRITICAL' ? 'CRITICAL' : 'WARNING'))
+        : 'NOMINAL';
+      const statusLabel = isAnomaly ? '↑ At Risk' : 'Nominal';
+
+      return {
+        hr,
+        spo2,
+        resp,
+        temp,
+        hrv,
+        workload,
+        hrDeltaPct,
+        spo2DeltaPct,
+        respDeltaPct,
+        tempDeltaAbs,
+        status,
+        statusLabel,
+        isAnomaly,
+      };
+    };
+
+    const selStats = getStats(selCrew);
+
+    // Trend series (Last 2 Hours) for the selected astronaut
+    const hrTrendData = selCrew.id === 'AST-02_PILOT'
+      ? [81, 82, 80, 83, 82, 85, 89, 95, 102, 106, 108]
+      : [selCrew.baseHr - 1, selCrew.baseHr + 1, selCrew.baseHr, selCrew.baseHr - 2, selCrew.baseHr, selCrew.baseHr + 1, selCrew.baseHr - 1, selCrew.baseHr, selStats.hr, selStats.hr];
+
+    const spo2TrendData = selCrew.id === 'AST-02_PILOT'
+      ? [98.2, 98.0, 98.1, 98.0, 97.8, 97.6, 97.2, 96.8, 96.5, 96.2, 96.0]
+      : [selCrew.baseSpo2, selCrew.baseSpo2 + 0.1, selCrew.baseSpo2, selCrew.baseSpo2 - 0.1, selCrew.baseSpo2, selStats.spo2];
+
+    const respTrendData = selCrew.id === 'AST-02_PILOT'
+      ? [14, 14, 13, 14, 14, 15, 15, 16, 17, 18, 18]
+      : [selCrew.baseResp, selCrew.baseResp, selCrew.baseResp - 1, selCrew.baseResp, selCrew.baseResp, selStats.resp];
+
+    const tempTrendData = selCrew.id === 'AST-02_PILOT'
+      ? [36.4, 36.4, 36.5, 36.5, 36.5, 36.6, 36.7, 36.8, 36.9, 37.0, 37.1]
+      : [selCrew.baseTemp, selCrew.baseTemp, selCrew.baseTemp + 0.1, selCrew.baseTemp, selStats.temp];
+
+    // Sparkline micro-series
+    const sparkHr = selCrew.id === 'AST-02_PILOT' ? [82, 85, 89, 96, 104, 108] : [76, 78, 77, 79, 78];
+    const sparkSpo2 = selCrew.id === 'AST-02_PILOT' ? [98.2, 97.8, 97.2, 96.6, 96.0] : [98.0, 98.2, 98.1, 98.4];
+    const sparkResp = selCrew.id === 'AST-02_PILOT' ? [14, 14, 15, 17, 18] : [14, 14, 13, 14];
+    const sparkTemp = selCrew.id === 'AST-02_PILOT' ? [36.4, 36.5, 36.7, 36.9, 37.1] : [36.6, 36.6, 36.7, 36.6];
+    const sparkWork = selCrew.id === 'AST-02_PILOT' ? [0.35, 0.45, 0.62, 0.74, 0.82] : [0.22, 0.24, 0.25, 0.24];
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* ─── 1. Sub-Header Bar (Title + Time Range + Actions) ─── */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '6px 0',
+        }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Crew Health</span>
+              <span style={{ fontSize: 10, fontFamily: T.mono, color: T.textMuted, fontWeight: 400 }}>
+                · 10 Hz Telemetry Lock · Inspiration4 OSDR Baselines
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* 3D Body Scanner quick toggle button */}
+            <button
+              onClick={() => setCrewSubTab('3D Bio-Scanner')}
+              style={{
+                background: crewSubTab === '3D Bio-Scanner' ? 'rgba(0, 229, 255, 0.16)' : '#0d131a',
+                border: `1px solid ${crewSubTab === '3D Bio-Scanner' ? '#00e5ff' : '#233647'}`,
+                borderRadius: 4,
+                padding: '4px 10px',
+                color: crewSubTab === '3D Bio-Scanner' ? '#00e5ff' : '#8da2b5',
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'all 0.12s ease',
+              }}
+            >
+              <span style={{ fontSize: 11 }}>⚡</span>
+              <span>3D Holographic Scanner</span>
+            </button>
+
+            {/* "What Changed?" (Δ Baseline) switch */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: '#0b0e11',
+              border: `1px solid ${diffMode ? '#00e5ff66' : T.borderSubtle}`,
+              borderRadius: 4,
+              padding: '3px 8px',
+            }}>
+              <span style={{ fontSize: 9, color: diffMode ? '#00e5ff' : T.textSecondary, fontWeight: diffMode ? 700 : 500 }}>
+                What Changed? (Δ Mode)
+              </span>
+              <button
+                onClick={() => setDiffMode(!diffMode)}
+                style={{
+                  width: 26,
+                  height: 14,
+                  borderRadius: 7,
+                  background: diffMode ? '#00e5ff' : '#222830',
+                  border: 'none',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  padding: 0,
+                  transition: 'background 0.15s ease',
+                }}
+                title="Toggle between absolute values and delta from personal baseline"
+              >
+                <span style={{
+                  position: 'absolute',
+                  top: 2,
+                  left: diffMode ? 14 : 2,
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  background: '#ffffff',
+                  transition: 'left 0.15s ease',
+                }} />
+              </button>
+            </div>
+
+            {/* Time range selector */}
+            <div style={{ display: 'flex', background: '#0b0e11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 2 }}>
+              {(['1h', '6h', '12h', '24h', 'Custom'] as const).map(r => (
+                <button
+                  key={r}
+                  onClick={() => setTimeRange(r)}
+                  style={{
+                    background: timeRange === r ? '#222830' : 'transparent',
+                    border: timeRange === r ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
+                    color: timeRange === r ? '#ffffff' : T.textSecondary,
+                    borderRadius: 3,
+                    padding: '3px 8px',
+                    fontSize: 10,
+                    fontWeight: timeRange === r ? 600 : 400,
+                    cursor: 'pointer',
+                    transition: 'all 0.1s ease',
+                  }}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+
+            {/* Export button */}
+            <button
+              onClick={() => {
+                const dataStr = `CREW HEALTH TELEMETRY REPORT\nMET: T+14d 08:42:19\nTime Window: ${timeRange}\nCrew: ${selCrew.crewNo} ${selCrew.role} (${selCrew.name})\nHR: ${selStats.hr} bpm (${selStats.hrDeltaPct >= 0 ? '+' : ''}${selStats.hrDeltaPct.toFixed(1)}% vs base ${selCrew.baseHr})\nSpO2: ${selStats.spo2.toFixed(1)}% (vs base ${selCrew.baseSpo2}%)\nResp: ${selStats.resp} br/min\nTemp: ${selStats.temp.toFixed(1)} °C\nStatus: ${selStats.statusLabel}`;
+                navigator.clipboard.writeText(dataStr);
+                alert('Crew health telemetry snapshot copied to clipboard.');
+              }}
+              style={{
+                background: '#11151a',
+                border: `1px solid ${T.border}`,
+                borderRadius: 4,
+                padding: '4px 10px',
+                color: T.textSecondary,
+                fontSize: 10,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <span>Export</span>
+              <span style={{ fontSize: 8 }}>▼</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ─── 2. Top 4 Astronaut Cards (Identical to Reference Image) ─── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+          {CREW.map(c => {
+            const stats = getStats(c);
+            const isSelected = c.id === selCrewId;
+
+            return (
+              <div
+                key={c.id}
+                onClick={() => setSelCrewId(c.id)}
+                style={{
+                  background: isSelected ? '#192027' : 'linear-gradient(180deg, #171c21 0%, #101317 100%)',
+                  border: isSelected ? '1.5px solid #4a5b6d' : `1px solid ${stats.isAnomaly ? T.warningBorder : T.borderSubtle}`,
+                  borderRadius: 6,
+                  padding: '10px 11px',
+                  cursor: 'pointer',
+                  transition: 'all 0.14s ease',
+                  boxShadow: isSelected ? '0 3px 12px rgba(0,0,0,0.5)' : 'none',
+                }}
+              >
+                {/* Header row: Avatar + Name + Status Badge */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <AvatarIcon initial={c.avatarInitial} status={stats.status} size={32} />
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? '#ffffff' : T.textPrimary }}>
+                        {c.crewNo} {c.role}
+                      </div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>{c.name} · {c.callsign}</div>
+                    </div>
+                  </div>
+
+                  <Badge
+                    color={severityColor(stats.status)}
+                    borderColor={severityBorder(stats.status)}
+                    bg={stats.isAnomaly ? '#141008' : '#090e0a'}
+                  >
+                    {stats.statusLabel}
+                  </Badge>
+                </div>
+
+                {/* Mini Metrics Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, background: '#0a0d11', borderRadius: 4, padding: '6px 4px', textAlign: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ HR' : 'HR'}</div>
+                      <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.hrDeltaPct > 20 ? T.warning : T.textPrimary) }}>
+                        {diffMode ? `${stats.hr - c.baseHr >= 0 ? '+' : ''}${stats.hr - c.baseHr}` : stats.hr}
+                      </div>
+                      <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.hrDeltaPct > 20 ? T.warning : T.textMuted }}>
+                        {diffMode ? `b:${c.baseHr}` : (stats.hrDeltaPct >= 0 ? `+${stats.hrDeltaPct.toFixed(0)}%` : `${stats.hrDeltaPct.toFixed(0)}%`)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ SpO₂' : 'SpO₂'}</div>
+                      <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.spo2 < 97 ? T.warning : T.textPrimary) }}>
+                        {diffMode ? `${(stats.spo2 - c.baseSpo2) >= 0 ? '+' : ''}${(stats.spo2 - c.baseSpo2).toFixed(1)}%` : `${stats.spo2.toFixed(0)}%`}
+                      </div>
+                      <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.spo2 < 97 ? T.warning : T.textMuted }}>
+                        {diffMode ? `b:${c.baseSpo2}%` : (stats.spo2DeltaPct >= 0 ? `+${stats.spo2DeltaPct.toFixed(1)}%` : `${stats.spo2DeltaPct.toFixed(1)}%`)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ Resp' : 'Resp'}</div>
+                      <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.respDeltaPct > 20 ? T.warning : T.textPrimary) }}>
+                        {diffMode ? `${stats.resp - c.baseResp >= 0 ? '+' : ''}${stats.resp - c.baseResp}` : stats.resp}
+                      </div>
+                      <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.respDeltaPct > 20 ? T.warning : T.textMuted }}>
+                        {diffMode ? `b:${c.baseResp}` : (stats.respDeltaPct >= 0 ? `+${stats.respDeltaPct.toFixed(0)}%` : `${stats.respDeltaPct.toFixed(0)}%`)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ Temp' : 'Temp'}</div>
+                      <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.tempDeltaAbs > 0.5 ? T.warning : T.textPrimary) }}>
+                        {diffMode ? `${stats.tempDeltaAbs >= 0 ? '+' : ''}${stats.tempDeltaAbs.toFixed(1)}°` : stats.temp.toFixed(1)}
+                      </div>
+                      <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.tempDeltaAbs > 0.5 ? T.warning : T.textMuted }}>
+                        {diffMode ? `b:${c.baseTemp}°` : (stats.tempDeltaAbs >= 0 ? `+${stats.tempDeltaAbs.toFixed(1)}` : `${stats.tempDeltaAbs.toFixed(1)}`)}
+                      </div>
+                    </div>
+                  </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ─── 3. Sub-Navigation Ribbon (Tabs) ─── */}
+        <div style={{
+          display: 'flex',
+          gap: 6,
+          borderBottom: `1px solid ${T.borderSubtle}`,
+          paddingBottom: 8,
+          marginTop: 2,
+        }}>
+          {(['Overview', '3D Bio-Scanner', 'Trends', 'Correlation', 'Baseline & Deviation', 'Medical History', 'Procedures'] as const).map(sub => (
+            <button
+              key={sub}
+              onClick={() => setCrewSubTab(sub)}
+              style={{
+                background: crewSubTab === sub ? '#192635' : '#0c1015',
+                border: crewSubTab === sub ? '1px solid #00e5ff' : '1px solid #202b38',
+                color: crewSubTab === sub ? '#ffffff' : '#b0c5dc',
+                borderRadius: 4,
+                padding: '6px 14px',
+                fontSize: 11,
+                fontWeight: crewSubTab === sub ? 700 : 500,
+                cursor: 'pointer',
+                transition: 'all 0.12s ease',
+              }}
+            >
+              {sub}
+            </button>
+          ))}
+        </div>
+
+        {/* ─── 4. Main Deep-Dive Content based on crewSubTab ─── */}
+        {crewSubTab === 'Overview' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* 4-COLUMN OPERATIONAL DEEP DIVE GRID */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.35fr 1.15fr 1.25fr', gap: 12, alignItems: 'stretch' }}>
+              
+              {/* ──── COLUMN 1: Key Metrics & Personal Baseline Comparison ──── */}
+              <div style={cardStyle}>
+                {/* Alert Badge Pill */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '6px 10px',
+                  background: selStats.isAnomaly ? '#161008' : '#090e0a',
+                  border: `1px solid ${selStats.isAnomaly ? T.warningBorder : T.nominalBorder}`,
+                  borderRadius: 4,
+                  marginBottom: 10,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12 }}>{selStats.isAnomaly ? '⚠️' : '✓'}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: selStats.isAnomaly ? T.warning : T.nominal }}>
+                      {selCrew.crewNo} {selCrew.role}
+                    </span>
+                  </div>
+                  <Badge color={severityColor(selStats.status)} borderColor={severityBorder(selStats.status)} bg="#090c0f">
+                    {selStats.statusLabel}
+                  </Badge>
+                </div>
+
+                <div style={{ ...labelStyle, marginBottom: 6 }}>Key Metrics</div>
+
+                {/* Metric rows with mini SVG Sparklines */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {/* Heart Rate */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>Heart Rate</div>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.hrDeltaPct > 20 ? T.warning : T.textPrimary }}>
+                        {selStats.hr} <span style={{ fontSize: 9, color: T.textMuted }}>bpm</span>
+                      </div>
+                      <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.hrDeltaPct > 20 ? T.warning : T.textMuted }}>
+                        {selStats.hrDeltaPct >= 0 ? `+${selStats.hrDeltaPct.toFixed(1)}% vs base` : `${selStats.hrDeltaPct.toFixed(1)}% vs base`}
+                      </div>
+                    </div>
+                    <Sparkline data={sparkHr} color={selStats.hrDeltaPct > 20 ? T.warning : T.nominal} />
+                  </div>
+
+                  {/* SpO2 */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>SpO₂</div>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.spo2 < 97 ? T.warning : T.textPrimary }}>
+                        {selStats.spo2.toFixed(1)} <span style={{ fontSize: 9, color: T.textMuted }}>%</span>
+                      </div>
+                      <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.spo2 < 97 ? T.warning : T.textMuted }}>
+                        {selStats.spo2DeltaPct >= 0 ? `+${selStats.spo2DeltaPct.toFixed(1)}% vs base` : `${selStats.spo2DeltaPct.toFixed(1)}% vs base`}
+                      </div>
+                    </div>
+                    <Sparkline data={sparkSpo2} color={selStats.spo2 < 97 ? T.warning : '#4682b4'} />
+                  </div>
+
+                  {/* Respiration */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>Respiration Rate</div>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.respDeltaPct > 20 ? T.warning : T.textPrimary }}>
+                        {selStats.resp} <span style={{ fontSize: 9, color: T.textMuted }}>br/min</span>
+                      </div>
+                      <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.respDeltaPct > 20 ? T.warning : T.textMuted }}>
+                        {selStats.respDeltaPct >= 0 ? `+${selStats.respDeltaPct.toFixed(1)}% vs base` : `${selStats.respDeltaPct.toFixed(1)}% vs base`}
+                      </div>
+                    </div>
+                    <Sparkline data={sparkResp} color={selStats.respDeltaPct > 20 ? T.warning : T.nominal} />
+                  </div>
+
+                  {/* Core Temp */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>Core Temperature</div>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.tempDeltaAbs > 0.5 ? T.warning : T.textPrimary }}>
+                        {selStats.temp.toFixed(1)} <span style={{ fontSize: 9, color: T.textMuted }}>°C</span>
+                      </div>
+                      <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.tempDeltaAbs > 0.5 ? T.warning : T.textMuted }}>
+                        {selStats.tempDeltaAbs >= 0 ? `+${selStats.tempDeltaAbs.toFixed(1)}°C vs base` : `${selStats.tempDeltaAbs.toFixed(1)}°C vs base`}
+                      </div>
+                    </div>
+                    <Sparkline data={sparkTemp} color={selStats.tempDeltaAbs > 0.5 ? T.warning : '#e08a3c'} />
+                  </div>
+
+                  {/* Workload / Strain */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>Workload / Strain</div>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.workload > 0.6 ? T.warning : T.textPrimary }}>
+                        {selStats.workload > 0.6 ? 'High (0.82)' : 'Nominal (0.24)'}
+                      </div>
+                      <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.workload > 0.6 ? T.warning : T.textMuted }}>
+                        {selStats.workload > 0.6 ? '+45% vs base' : 'Nominal band'}
+                      </div>
+                    </div>
+                    <Sparkline data={sparkWork} color={selStats.workload > 0.6 ? T.warning : '#7b68ee'} />
+                  </div>
+                </div>
+
+                {/* Personal Baseline Comparison Table */}
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ ...labelStyle, marginBottom: 4 }}>Personal Baseline Comparison</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                    <thead>
+                      <tr style={{ color: '#9ec7ef', borderBottom: '1px solid #233140', fontWeight: 700 }}>
+                        <th style={{ textAlign: 'left', padding: '4px 0' }}>Metric</th>
+                        <th style={{ textAlign: 'right', padding: '4px 0' }}>Current</th>
+                        <th style={{ textAlign: 'right', padding: '4px 0' }}>Baseline</th>
+                        <th style={{ textAlign: 'right', padding: '4px 0' }}>Delta</th>
+                      </tr>
+                    </thead>
+                    <tbody style={{ fontFamily: T.mono }}>
+                      <tr style={{ borderBottom: `1px solid ${T.borderSubtle}` }}>
+                        <td style={{ color: '#d4e3f2', padding: '5px 0', fontFamily: T.sans, fontWeight: 500 }}>Heart Rate</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.hrDeltaPct > 20 ? T.warning : '#ffffff' }}>{selStats.hr} bpm</td>
+                        <td style={{ textAlign: 'right', color: '#8fa4ba' }}>{selCrew.baseHr} bpm</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.hrDeltaPct > 20 ? T.warning : T.nominal }}>
+                          {selStats.hrDeltaPct >= 0 ? `+${selStats.hrDeltaPct.toFixed(1)}%` : `${selStats.hrDeltaPct.toFixed(1)}%`}
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: `1px solid ${T.borderSubtle}` }}>
+                        <td style={{ color: '#d4e3f2', padding: '5px 0', fontFamily: T.sans, fontWeight: 500 }}>SpO₂</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.spo2 < 97 ? T.warning : '#ffffff' }}>{selStats.spo2.toFixed(1)}%</td>
+                        <td style={{ textAlign: 'right', color: '#8fa4ba' }}>{selCrew.baseSpo2.toFixed(1)}%</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.spo2 < 97 ? T.warning : T.nominal }}>
+                          {selStats.spo2DeltaPct >= 0 ? `+${selStats.spo2DeltaPct.toFixed(1)}%` : `${selStats.spo2DeltaPct.toFixed(1)}%`}
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: `1px solid ${T.borderSubtle}` }}>
+                        <td style={{ color: '#d4e3f2', padding: '5px 0', fontFamily: T.sans, fontWeight: 500 }}>Respiration</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.respDeltaPct > 20 ? T.warning : '#ffffff' }}>{selStats.resp} br/m</td>
+                        <td style={{ textAlign: 'right', color: '#8fa4ba' }}>{selCrew.baseResp} br/m</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.respDeltaPct > 20 ? T.warning : T.nominal }}>
+                          {selStats.respDeltaPct >= 0 ? `+${selStats.respDeltaPct.toFixed(1)}%` : `${selStats.respDeltaPct.toFixed(1)}%`}
+                        </td>
+                      </tr>
+                      <tr style={{ borderBottom: `1px solid ${T.borderSubtle}` }}>
+                        <td style={{ color: '#d4e3f2', padding: '5px 0', fontFamily: T.sans, fontWeight: 500 }}>Core Temp</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.tempDeltaAbs > 0.5 ? T.warning : '#ffffff' }}>{selStats.temp.toFixed(1)} °C</td>
+                        <td style={{ textAlign: 'right', color: '#8fa4ba' }}>{selCrew.baseTemp.toFixed(1)} °C</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.tempDeltaAbs > 0.5 ? T.warning : T.nominal }}>
+                          {selStats.tempDeltaAbs >= 0 ? `+${selStats.tempDeltaAbs.toFixed(1)}°C` : `${selStats.tempDeltaAbs.toFixed(1)}°C`}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ color: '#d4e3f2', padding: '5px 0', fontFamily: T.sans, fontWeight: 500 }}>Blood Press.</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.isAnomaly ? T.warning : '#ffffff' }}>{selStats.isAnomaly ? '135/88' : selCrew.baseBp}</td>
+                        <td style={{ textAlign: 'right', color: '#8fa4ba' }}>{selCrew.baseBp}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.isAnomaly ? T.warning : T.nominal }}>{selStats.isAnomaly ? '+12%' : '0%'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ──── COLUMN 2: Synchronized Trends (Last 2 Hours) ──── */}
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div style={labelStyle}>Trends (Last 2 Hours)</div>
+                  {/* Legend */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 9 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: selStats.isAnomaly ? T.warning : T.nominal }}>
+                      <span style={{ width: 10, height: 2, background: selStats.isAnomaly ? T.warning : T.nominal, display: 'inline-block' }} />
+                      {selCrew.crewNo}
+                    </span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#687788' }}>
+                      <span style={{ width: 10, height: 1, borderTop: '1px dashed #687788', display: 'inline-block' }} />
+                      Baseline
+                    </span>
+                  </div>
+                </div>
+
+                {/* 4 Synchronized Charts */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <TrendLineChart
+                    title="Heart Rate"
+                    currentVal={`${selStats.hr}`}
+                    baselineVal={selCrew.baseHr}
+                    unit="bpm"
+                    data={hrTrendData}
+                    minY={60}
+                    maxY={120}
+                    lineColor={selStats.hrDeltaPct > 20 ? T.warning : T.nominal}
+                    yTicks={[70, 90, 110]}
+                  />
+
+                  <TrendLineChart
+                    title="SpO₂"
+                    currentVal={`${selStats.spo2.toFixed(1)}`}
+                    baselineVal={selCrew.baseSpo2}
+                    unit="%"
+                    data={spo2TrendData}
+                    minY={94}
+                    maxY={100}
+                    lineColor={selStats.spo2 < 97 ? T.warning : '#4682b4'}
+                    yTicks={[95, 97, 99]}
+                  />
+
+                  <TrendLineChart
+                    title="Respiration Rate"
+                    currentVal={`${selStats.resp}`}
+                    baselineVal={selCrew.baseResp}
+                    unit="br/min"
+                    data={respTrendData}
+                    minY={10}
+                    maxY={22}
+                    lineColor={selStats.respDeltaPct > 20 ? T.warning : T.nominal}
+                    yTicks={[12, 16, 20]}
+                  />
+
+                  <TrendLineChart
+                    title="Core Temperature"
+                    currentVal={`${selStats.temp.toFixed(1)}`}
+                    baselineVal={selCrew.baseTemp}
+                    unit="°C"
+                    data={tempTrendData}
+                    minY={36.0}
+                    maxY={37.6}
+                    lineColor={selStats.tempDeltaAbs > 0.5 ? T.warning : '#e08a3c'}
+                    yTicks={[36.2, 36.8, 37.4]}
+                    showTimeTicks={true}
+                  />
+                </div>
+              </div>
+
+              {/* ──── COLUMN 3: Event Correlation & Linked Factors ──── */}
+              <div style={cardStyle}>
+                <div style={labelStyle}>Event Correlation</div>
+                <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 8 }}>Chronological Multi-Signal Timeline</div>
+
+                {/* Timeline Step Sequence */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', paddingLeft: 12 }}>
+                  {/* Vertical line connector */}
+                  <div style={{ position: 'absolute', left: 4, top: 6, bottom: 6, width: 1, background: '#252c34' }} />
+
+                  {selStats.isAnomaly ? [
+                    { time: '14:32:10', sig: 'Heart Rate ↑', note: '82 → 108 bpm (+31.7% deviation above baseline)', sev: 'WARNING' },
+                    { time: '14:32:14', sig: 'Respiration ↑', note: '14 → 18 br/min (compensatory hyperventilation)', sev: 'WARNING' },
+                    { time: '14:32:18', sig: 'SpO₂ ↓', note: '98.0% → 96.0% (mild desaturation trend)', sev: 'WARNING' },
+                    { time: '14:32:25', sig: 'Workload ↑', note: 'Physical strain spike detected (PSI 5.8)', sev: 'INFO' },
+                    { time: '14:32:31', sig: 'Temperature ↑', note: 'Core thermal rise: 36.4°C → 37.1°C', sev: 'INFO' },
+                  ].map((step, idx) => (
+                    <div key={idx} style={{ position: 'relative', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '5px 7px' }}>
+                      <span style={{ position: 'absolute', left: -12, top: 8, width: 7, height: 7, borderRadius: '50%', background: severityColor(step.sev), border: '1px solid #000' }} />
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>{step.time}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: severityColor(step.sev) }}>{step.sig}</span>
+                      </div>
+                      <div style={{ fontSize: 9, color: T.textSecondary, marginTop: 2, lineHeight: 1.25 }}>{step.note}</div>
+                    </div>
+                  )) : (
+                    [
+                      { time: '14:10:00', sig: 'Heart Rate →', note: 'Baseline steady 68-72 bpm', sev: 'NOMINAL' },
+                      { time: '13:45:00', sig: 'Airflow Nominal', note: 'Suit loop circulation verified', sev: 'NOMINAL' },
+                      { time: '13:00:00', sig: 'Shift Handover Nominal', note: 'Watch duty rotation logged', sev: 'NOMINAL' },
+                    ].map((step, idx) => (
+                      <div key={idx} style={{ position: 'relative', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '5px 7px' }}>
+                        <span style={{ position: 'absolute', left: -12, top: 8, width: 7, height: 7, borderRadius: '50%', background: T.nominal, border: '1px solid #000' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>{step.time}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: T.nominal }}>{step.sig}</span>
+                        </div>
+                        <div style={{ fontSize: 9, color: T.textSecondary, marginTop: 2 }}>{step.note}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Possible Linked Factors */}
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ ...labelStyle, marginBottom: 5 }}>Possible Linked Factors</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {[
+                      { icon: '⚡', title: 'High Physical Exertion', sub: 'Active exercise / EVA preparation protocol' },
+                      { icon: '⚡', title: 'Thermal Regulation Stress', sub: 'Cabin airflow transition zone (+0.4°C hab)' },
+                      { icon: '⚡', title: 'Elevated Cabin CO₂', sub: 'CO₂ 2.1 mmHg transient during workout' },
+                      { icon: '⚡', title: 'Autonomic Fatigue', sub: 'Cumulative mission day 14 sleep debt' },
+                    ].map((f, i) => (
+                      <div key={i} style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '5px 7px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 11, color: T.warning }}>{f.icon}</span>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: T.textPrimary }}>{f.title}</div>
+                          <div style={{ fontSize: 8, color: T.textMuted }}>{f.sub}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ──── COLUMN 4: Why is this flagged? & Decision Support ──── */}
+              <div style={cardStyle}>
+                <div style={labelStyle}>Why is this flagged?</div>
+
+                {/* Detection Rationale List */}
+                <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '7px 9px', marginTop: 4 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 9, color: T.textSecondary, lineHeight: 1.35 }}>
+                    <div>• Sustained HR elevation &gt;25% above resting baseline for &gt;15 min</div>
+                    <div>• Synchronized respiratory rate increase with mild desaturation</div>
+                    <div>• Deviation exceeds 2.5σ standard deviation envelope</div>
+                    <div>• Moran Strain Index crossed caution threshold (5.8/10)</div>
+                  </div>
+                </div>
+
+                {/* Circular Confidence Gauge */}
+                <div style={{ marginTop: 10, padding: '8px 0', borderTop: `1px solid ${T.borderSubtle}`, borderBottom: `1px solid ${T.borderSubtle}` }}>
+                  <CircularGauge pct={selStats.isAnomaly ? 92 : 98} label="Multi-Signal Confidence" color={selStats.isAnomaly ? T.warning : T.nominal} size={76} />
+                </div>
+
+                {/* Decision Support & Protocol Box */}
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ ...labelStyle, marginBottom: 4 }}>Decision Support</div>
+                  <div style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.4 }}>
+                    <div><strong style={{ color: T.textPrimary }}>Condition:</strong> {selStats.isAnomaly ? 'Moderate Cardiovascular Anomaly' : 'Nominal Baseline Equilibrium'}</div>
+                    <div><strong style={{ color: T.textPrimary }}>Trajectory:</strong> {selStats.isAnomaly ? 'Increasing ↗' : 'Stable →'}</div>
+                    <div><strong style={{ color: T.textPrimary }}>Time to Threshold:</strong> {selStats.isAnomaly ? '11 min' : 'Nominal'}</div>
+                  </div>
+
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', marginBottom: 3 }}>Suggested Checks</div>
+                    <div style={{ fontSize: 9, color: T.textSecondary, lineHeight: 1.35 }}>
+                      1. Direct crew member to reduce physical workload<br />
+                      2. Increase suit/cabin airflow cooling by +15%<br />
+                      3. Verify oral electrolyte hydration packet intake<br />
+                      4. Monitor 12-lead ECG rhythm on next DSN pass
+                    </div>
+                  </div>
+
+                  {/* Flight Procedure Action Button */}
+                  <button
+                    onClick={() => setActiveProcedureId('M-204')}
+                    style={{
+                      marginTop: 10,
+                      width: '100%',
+                      background: '#151b22',
+                      border: `1px solid ${T.activeBorder}`,
+                      borderRadius: 4,
+                      padding: '7px 10px',
+                      color: '#cad5e2',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      transition: 'all 0.12s ease',
+                    }}
+                  >
+                    <span>📖</span> Open Procedure: M-204 →
+                  </button>
+
+                  {onOpenTriage && (
+                    <button
+                      onClick={() => onOpenTriage(selCrew.id)}
+                      style={{
+                        marginTop: 6,
+                        width: '100%',
+                        background: '#101419',
+                        border: `1px solid ${T.borderSubtle}`,
+                        borderRadius: 4,
+                        padding: '6px 10px',
+                        color: T.textSecondary,
+                        fontSize: 9,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 5,
+                        transition: 'all 0.12s ease',
+                      }}
+                    >
+                      <span>🩺</span> Open Clinical Telemetry Console →
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ──── 5. BOTTOM SECTION: Mission Timeline (Left) + Recent Events Log (Right) ──── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 12, alignItems: 'stretch' }}>
+              
+              {/* Mission Timeline Horizontal Bar */}
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={labelStyle}>Mission Timeline (24-Hour Cycle)</div>
+                  <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>MET T+14d 08:42:19 · Shift 2 / Watch B</span>
+                </div>
+
+                {/* Segmented Timeline Bar */}
+                <div style={{ position: 'relative', marginTop: 14, marginBottom: 14 }}>
+                  {/* The bar track */}
+                  <div style={{
+                    display: 'flex',
+                    height: 28,
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                    border: '1px solid #232b34',
+                    background: '#0a0d10',
+                  }}>
+                    {/* Phase 1: EVA (10:00 - 12:30, 2.5h) */}
+                    <div style={{ flex: 2.5, background: '#13283b', borderRight: '1px solid #1e3a54', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6fa5d2', fontSize: 9, fontWeight: 700 }}>
+                      EVA 10:00–12:30
+                    </div>
+                    {/* Phase 2: Exercise (13:00 - 14:00, 1.0h) */}
+                    <div style={{ flex: 1.5, background: '#2c2210', borderRight: '1px solid #4a3617', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d9a74a', fontSize: 9, fontWeight: 700 }}>
+                      Exercise 13:00
+                    </div>
+                    {/* Phase 3: Transit (14:00 - 18:00, 4.0h) */}
+                    <div style={{ flex: 4.0, background: '#172218', borderRight: '1px solid #283a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#78ab7c', fontSize: 9, fontWeight: 700 }}>
+                      Transit 14:00–18:00
+                    </div>
+                    {/* Phase 4: Sleep (18:00 - 06:00, 12.0h) */}
+                    <div style={{ flex: 12.0, background: '#0c1015', borderRight: '1px solid #18202a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8ca6c2', fontSize: 9, fontWeight: 700 }}>
+                      Sleep Block (Circadian Dark) 18:00–06:00
+                    </div>
+                    {/* Phase 5: Transit (06:00 - 10:00, 4.0h) */}
+                    <div style={{ flex: 4.0, background: '#172218', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#78ab7c', fontSize: 9, fontWeight: 700 }}>
+                      Transit
+                    </div>
+                  </div>
+
+                  {/* Anomaly Pin Marker at 14:32 */}
+                  <div style={{
+                    position: 'absolute',
+                    left: '21.5%',
+                    top: -12,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                  }}>
+                    <span style={{ fontSize: 8, fontFamily: T.mono, color: T.critical, background: '#140808', border: `1px solid ${T.criticalBorder}`, padding: '1px 4px', borderRadius: 3, whiteSpace: 'nowrap' }}>
+                      ⚠️ 14:32 (PLT Anomaly)
+                    </span>
+                    <span style={{ width: 1.5, height: 32, background: T.critical, marginTop: 1 }} />
+                  </div>
+
+                  {/* Current Time Needle at 14:35 */}
+                  <div style={{
+                    position: 'absolute',
+                    left: '22.8%',
+                    top: 29,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                  }}>
+                    <span style={{ width: 1.5, height: 10, background: '#ffffff' }} />
+                    <span style={{ fontSize: 8, fontFamily: T.mono, color: '#ffffff', background: '#1e252e', border: '1px solid #3c4c5c', padding: '1px 4px', borderRadius: 2, whiteSpace: 'nowrap', marginTop: 1 }}>
+                      ▲ NOW 14:35
+                    </span>
+                  </div>
+                </div>
+
+                {/* Timeline Legend */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 9, color: T.textMuted, marginTop: 14, paddingTop: 6, borderTop: `1px solid ${T.borderSubtle}` }}>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, background: '#13283b', border: '1px solid #1e3a54', display: 'inline-block' }} /> EVA</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, background: '#2c2210', border: '1px solid #4a3617', display: 'inline-block' }} /> Exercise</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, background: '#172218', border: '1px solid #283a2a', display: 'inline-block' }} /> Transit</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, background: '#0c1015', border: '1px solid #18202a', display: 'inline-block' }} /> Sleep</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <span style={{ color: '#ffffff' }}>▲ Current MET</span>
+                    <span style={{ color: T.critical }}>⚠️ Anomaly Pin</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Events Log Table */}
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div style={labelStyle}>Recent Events Log</div>
+                  <span style={{ fontSize: 9, color: T.textMuted }}>UTC Time Order</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 50px 65px', gap: 6, padding: '5px 0', borderBottom: '1px solid #233140', fontSize: 9, color: '#9ec7ef', fontWeight: 700 }}>
+                  <span>TIME</span>
+                  <span>EVENT</span>
+                  <span>SYSTEM</span>
+                  <span style={{ textAlign: 'right' }}>PRIORITY</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
+                  {[
+                    { time: '14:32:10', event: 'HR excursion (+31.7%)', sys: 'Cardio', prio: 'CRITICAL' },
+                    { time: '14:32:18', event: 'SpO₂ drop to 96.0%', sys: 'Resp', prio: 'WARNING' },
+                    { time: '14:25:00', event: 'Workload transition High', sys: 'Ops', prio: 'INFO' },
+                    { time: '13:45:22', event: 'EVA airlock repress nominal', sys: 'ECLSS', prio: 'NOMINAL' },
+                    { time: '13:00:00', event: 'Exercise cycle initiated', sys: 'Bio', prio: 'NOMINAL' },
+                  ].map((row, idx) => (
+                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '60px 1fr 50px 65px', alignItems: 'center', gap: 6, padding: '4px 0', borderBottom: `1px solid #1a222c`, fontSize: 9 }}>
+                      <span style={{ fontFamily: T.mono, color: '#9bb1c7' }}>{row.time}</span>
+                      <span style={{ color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{row.event}</span>
+                      <span style={{ color: '#c5d5e5' }}>{row.sys}</span>
+                      <div style={{ textAlign: 'right' }}>
+                        <Badge color={severityColor(row.prio)} borderColor={severityBorder(row.prio)} bg="#090c0f">
+                          {row.prio}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 4b. Trends Sub-Tab (Expanded Multi-Signal Analysis) ─── */}
+        {crewSubTab === 'Trends' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={labelStyle}>Full Multi-Signal Trend Analysis — {selCrew.crewNo} {selCrew.name}</div>
+                <span style={{ fontSize: 9, color: T.textMuted }}>Continuous 10 Hz Telemetry Window · {timeRange}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                <TrendLineChart title="Heart Rate (bpm)" currentVal={`${selStats.hr}`} baselineVal={selCrew.baseHr} unit="bpm" data={hrTrendData} minY={60} maxY={120} lineColor={selStats.hrDeltaPct > 20 ? T.warning : T.nominal} yTicks={[70, 90, 110]} showTimeTicks={true} />
+                <TrendLineChart title="SpO₂ (%)" currentVal={`${selStats.spo2.toFixed(1)}`} baselineVal={selCrew.baseSpo2} unit="%" data={spo2TrendData} minY={94} maxY={100} lineColor={selStats.spo2 < 97 ? T.warning : '#4682b4'} yTicks={[95, 97, 99]} showTimeTicks={true} />
+                <TrendLineChart title="Respiration Rate (br/min)" currentVal={`${selStats.resp}`} baselineVal={selCrew.baseResp} unit="br/min" data={respTrendData} minY={10} maxY={22} lineColor={selStats.respDeltaPct > 20 ? T.warning : T.nominal} yTicks={[12, 16, 20]} showTimeTicks={true} />
+                <TrendLineChart title="Core Temp (°C)" currentVal={`${selStats.temp.toFixed(1)}`} baselineVal={selCrew.baseTemp} unit="°C" data={tempTrendData} minY={36.0} maxY={37.6} lineColor={selStats.tempDeltaAbs > 0.5 ? T.warning : '#e08a3c'} yTicks={[36.2, 36.8, 37.4]} showTimeTicks={true} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 4c. Correlation Sub-Tab (Cross-Signal Pearson Correlation) ─── */}
+        {crewSubTab === 'Correlation' && (
+          <div style={cardStyle}>
+            <div style={{ ...labelStyle, marginBottom: 6 }}>Cross-Signal Correlation Matrix (Pearson r)</div>
+            <div style={{ fontSize: 10, color: T.textSecondary, marginBottom: 10 }}>
+              Calculated across 720 temporal points (2-hour rolling window). Strong correlation (|r| &gt; 0.70) indicates coupled physiological strain.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {[
+                { pair: 'HR vs Workload', r: '+0.88', desc: 'Strong positive correlation — physical exertion driven', sig: 'HIGH' },
+                { pair: 'HR vs HRV (RMSSD)', r: '-0.79', desc: 'Sympathetic dominance / autonomic decay confirmed', sig: 'HIGH' },
+                { pair: 'HR vs SpO₂', r: '-0.64', desc: 'Moderate inverse coupling — desaturation on exertion', sig: 'MODERATE' },
+                { pair: 'Resp vs Workload', r: '+0.82', desc: 'Hyperventilation response tracking metabolic demand', sig: 'HIGH' },
+                { pair: 'Core Temp vs HR', r: '+0.71', desc: 'Thermal strain coupling (Moran PSI 5.8)', sig: 'HIGH' },
+                { pair: 'Cabin CO₂ vs Resp', r: '+0.44', desc: 'Mild hypercapnic compensatory drive', sig: 'LOW' },
+              ].map((c, i) => (
+                <div key={i} style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{c.pair}</span>
+                    <span style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 700, color: c.r.startsWith('+') ? T.warning : '#4682b4' }}>{c.r}</span>
+                  </div>
+                  <div style={{ fontSize: 9, color: T.textSecondary, marginTop: 4 }}>{c.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── 4d. Baseline & Deviation Sub-Tab ─── */}
+        {crewSubTab === 'Baseline & Deviation' && (
+          <div style={cardStyle}>
+            <div style={{ ...labelStyle, marginBottom: 6 }}>Statistical Variance & Baseline Deviation Envelope</div>
+            <div style={{ fontSize: 10, color: T.textSecondary, marginBottom: 10 }}>
+              Comparison against Inspiration4 OSDR (OSD-575/569) cohort baseline distributions.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+              <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary, marginBottom: 4 }}>Heart Rate Deviation Distribution</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.5 }}>
+                  • Resting Mean (μ): {selCrew.baseHr} bpm · Standard Deviation (σ): 4.8 bpm<br />
+                  • Current Value: {selStats.hr} bpm<br />
+                  • Z-Score: {((selStats.hr - selCrew.baseHr) / 4.8).toFixed(2)}σ ({selStats.hrDeltaPct > 20 ? 'CRITICAL EXCURSION > 3σ' : 'NOMINAL < 1σ'})<br />
+                  • Cumulative Time Above 2σ: 18 minutes
+                </div>
+              </div>
+              <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary, marginBottom: 4 }}>SpO₂ Peripheral Envelope</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.5 }}>
+                  • Resting Mean (μ): {selCrew.baseSpo2.toFixed(1)}% · Standard Deviation (σ): 0.6%<br />
+                  • Current Value: {selStats.spo2.toFixed(1)}%<br />
+                  • Z-Score: {((selStats.spo2 - selCrew.baseSpo2) / 0.6).toFixed(2)}σ<br />
+                  • Lower Warning Gate: 95.0% (Current margin: +{(selStats.spo2 - 95.0).toFixed(1)}%)
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 4e. Medical History Sub-Tab ─── */}
+        {crewSubTab === 'Medical History' && (
+          <div style={cardStyle}>
+            <div style={{ ...labelStyle, marginBottom: 6 }}>Astronaut Medical Dossier & Flight Certification</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 8 }}>
+              <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>Clinical Profile</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>
+                  • Age / Flight Exp: 38 yr · 2 Missions (Artemis II, ISS Expedition 71)<br />
+                  • Resting Blood Pressure: {selCrew.baseBp} mmHg<br />
+                  • VO₂ Max: 52.4 mL/kg/min (Superior)<br />
+                  • Allergy / Sensitivities: NKDA
+                </div>
+              </div>
+              <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>G-Tolerance & Microgravity</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>
+                  • Centrifuge Tolerance: +8.5 Gz without GLOC<br />
+                  • Space Motion Sickness: Resolved (Day 2)<br />
+                  • Bone Density (DEXA): Baseline verified<br />
+                  • Countermeasure Compliance: 100% (ARED / T2)
+                </div>
+              </div>
+              <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>Cumulative Mission Exposure</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>
+                  • Radiation Absorbed Dose: 14.2 mGy (Career margin: 89%)<br />
+                  • Total Cumulative EVA Time: 14h 28m<br />
+                  • Sentry Matrix Surveillance: Active (Channel 2 locked)
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 4f. Procedures Sub-Tab ─── */}
+        {crewSubTab === 'Procedures' && (
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={labelStyle}>Flight Operational Procedures & Countermeasure Cards</div>
+              <span style={{ fontSize: 9, color: T.textMuted }}>NASA-STD-3001 Flight Operations</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {Object.values(PROCEDURES).map(proc => (
+                <div key={proc.id} style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 5, padding: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Badge color={T.info} borderColor="#2a3a4a">{proc.id}</Badge>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{proc.title}</span>
+                    </div>
+                    <div style={{ fontSize: 9, color: T.textMuted, marginTop: 3 }}>Category: {proc.category} · {proc.steps.length} sequential verification steps</div>
+                  </div>
+                  <button
+                    onClick={() => setActiveProcedureId(proc.id)}
+                    style={{
+                      background: '#151b22',
+                      border: `1px solid ${T.border}`,
+                      borderRadius: 4,
+                      padding: '5px 12px',
+                      color: T.textSecondary,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Open Checklist →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── 4g. 3D Holographic Body Scanner Sub-Tab ─── */}
+        {crewSubTab === '3D Bio-Scanner' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <HolographicBodyScanner
+              astronautId={selCrew.id}
+              astronautName={selCrew.name}
+              astronautRole={selCrew.role}
+              crewNo={selCrew.crewNo}
+              telemetry={telemetryMap[selCrew.id]}
+              themeMode="CYAN"
+              onSelectSubsystem={(sub) => {
+                if (sub === 'CARDIAC') setActiveProcedureId('M-204');
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // SYSTEMS TAB
+  // ─────────────────────────────────────────────────────────────
+  const renderSystems = () => {
+    const pkt = Object.values(telemetryMap)[0];
+    const co2 = pkt?.cabin_co2 || 1.8;
+    const co2Pct = ((co2 - 1.8) / (3.0 - 1.8)) * 100;
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {/* ECLSS */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <div style={labelStyle}>Life Support (ECLSS Atmosphere)</div>
+            <Badge color={co2 > 3.0 ? T.warning : T.nominal} borderColor={co2 > 3.0 ? T.warningBorder : T.nominalBorder}>
+              {co2 > 3.0 ? 'EXCURSION' : 'NOMINAL'}
+            </Badge>
+          </div>
+          <MetricRow label="Cabin CO₂" value={co2.toFixed(2)} unit=" mmHg" baseline="1.8" delta={co2 > 3.0 ? '⚠ exceeds limit' : `${co2Pct.toFixed(0)}% to warn`} color={co2 > 3.0 ? T.warning : undefined} />
+          <MetricRow label="Cabin O₂" value="20.9" unit=" %" baseline="21.0" delta="−0.1%" />
+          <MetricRow label="Cabin Pressure" value="14.7" unit=" psi" baseline="14.7" delta="nominal" />
+          <MetricRow label="Temperature" value="21.4" unit=" °C" baseline="21.0" delta="+0.4°C" />
+          <MetricRow label="Humidity" value="48" unit=" %" baseline="50" delta="nominal" />
+          <MetricRow label="Airflow" value="0.45" unit=" m/s" baseline="0.40" delta="nominal" />
+          <div style={{ fontSize: 9, color: T.textMuted, marginTop: 6, lineHeight: 1.4 }}>
+            Environmental thresholds: nasa_astronaut_baselines.json · NASA-STD-3001 Vol 2 (CO₂ flight rule limit: 3.0 mmHg).
+            CO₂ values: simulated telemetry stream. O₂/Pressure/Temp: baseline defaults.
+          </div>
+        </div>
+
+        {/* Spacecraft Subsystems (Power, Thermal, GNC) */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <div style={labelStyle}>Spacecraft Subsystems (EPS · ATCS · GNC)</div>
+            <Badge color={T.nominal} borderColor={T.nominalBorder}>NOMINAL</Badge>
+          </div>
+          <MetricRow label="EPS DC Bus Voltage" value="28.4" unit=" V" baseline="28.0" delta="+0.4V" />
+          <MetricRow label="Solar Array Generation" value="18.2" unit=" kW" baseline="18.5" delta="-0.3 kW" />
+          <MetricRow label="Battery Energy Reserve" value="94.6" unit=" %" delta="Li-Ion bank" />
+          <MetricRow label="ATCS Internal Loop (H₂O)" value="19.8" unit=" °C" baseline="20.0" delta="nominal" />
+          <MetricRow label="ATCS External Loop (Freon)" value="-4.2" unit=" °C" delta="radiator rejection" />
+          <MetricRow label="GNC Attitude Lock" value="0.04" unit=" ° error" delta="3-axis fine hold" />
+          <div style={{ fontSize: 9, color: T.textMuted, marginTop: 6, lineHeight: 1.4 }}>
+            Subsystem telemetry: Orion / Gateway EPS & ATCS operational limits model.
+            Simulated spacecraft engineering telemetry.
+          </div>
+        </div>
+
+        {/* Consumables & Margins */}
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <div style={labelStyle}>Consumables & Flight Margins</div>
+            <span style={{ fontSize: 9, color: T.textMuted }}>4 Crew Contingency</span>
+          </div>
+          <MetricRow label="O₂ Supply" value="68.4" unit=" kg" delta="83 crew-days" />
+          <MetricRow label="H₂O Reserve" value="284" unit=" L" delta="71 crew-days" />
+          <MetricRow label="LiOH Canisters" value="12" unit=" units" delta="backup scrubbers" />
+          <MetricRow label="Medical Supply Kit" value="4 / 4" unit=" complete" />
+          <MetricRow label="K⁺ Electrolyte Packs" value="16" unit=" units" delta="countermeasure" />
+          <div style={{ fontSize: 9, color: T.textMuted, marginTop: 6, lineHeight: 1.4 }}>
+            Consumable rates: NASA HIDH O₂ 0.82 kg/crew/day · H₂O 2.5 L/crew/day.
+            Stock values represent deep-space habitation reserves.
+          </div>
+        </div>
+
+        {/* Communication Delay & Data State */}
+        <div style={cardStyle}>
+          <div style={labelStyle}>Data State & Delay Simulation</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <Dot color={connected ? T.nominal : T.critical} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>
+              {connected ? 'LIVE · 10 Hz Telemetry Stream' : 'DISCONNECTED'}
+            </span>
+          </div>
+          <div style={{ fontSize: 10, color: T.textMuted, marginTop: 4, lineHeight: 1.4 }}>
+            Telemetry source: Replayed simulated 10 Hz CSV stream (astronaut_telemetry_stream.csv).
+          </div>
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.borderSubtle}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Dot color={marsDelay ? T.warning : T.nominal} />
+              <span style={{ fontSize: 11, color: T.textPrimary }}>
+                {marsDelay ? 'Mars 22-min simulated delay active' : 'Real-time ground relay active'}
+              </span>
+            </div>
+            {onToggleMarsDelay && (
+              <button
+                onClick={() => onToggleMarsDelay(!marsDelay)}
+                style={{
+                  marginTop: 8,
+                  background: '#0c0f13',
+                  border: `1px solid ${marsDelay ? T.warningBorder : T.border}`,
+                  borderRadius: 4,
+                  padding: '6px 14px',
+                  color: marsDelay ? T.warning : T.textSecondary,
+                  fontSize: 10,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.12s ease',
+                }}
+              >
+                {marsDelay ? 'Disable Mars Delay' : 'Enable Mars 22m Delay'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // COMMS TAB
+  // ─────────────────────────────────────────────────────────────
+  const renderComms = () => (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      {/* DSN Tracking */}
+      <div style={cardStyle}>
+        <div style={labelStyle}>Deep Space Network Tracking</div>
+        {DSN.map((stn, i) => (
+          <div key={stn.name} style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0',
+            borderBottom: i < DSN.length - 1 ? `1px solid ${T.borderSubtle}` : 'none',
+          }}>
+            <Dot color={i === dsnIdx ? T.nominal : T.textMuted} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: i === dsnIdx ? 600 : 400, color: i === dsnIdx ? T.textPrimary : T.textSecondary }}>{stn.name}</div>
+              <div style={{ fontSize: 9, color: T.textMuted }}>{stn.loc} · {stn.freq}</div>
+            </div>
+            <div style={{ fontSize: 11, fontFamily: T.mono, color: T.textSecondary }}>SNR {stn.snr} dB</div>
+            <span style={{
+              fontSize: 9,
+              fontWeight: 600,
+              color: i === dsnIdx ? T.nominal : T.textMuted,
+              background: '#090c0f',
+              border: `1px solid ${i === dsnIdx ? T.nominalBorder : T.borderSubtle}`,
+              borderRadius: 3,
+              padding: '2px 6px',
+              letterSpacing: '0.04em',
+            }}>
+              {i === dsnIdx ? 'ACTIVE' : 'STANDBY'}
+            </span>
+          </div>
+        ))}
+        <div style={{ fontSize: 9, color: T.textMuted, marginTop: 8, lineHeight: 1.4 }}>
+          DSN station network tracking (Goldstone DSS-14, Madrid DSS-63, Canberra DSS-43).
+          Autonomous rotation schedule every 45 seconds.
+        </div>
+      </div>
+
+      {/* Station Handover & Conjunction Geometry */}
+      <div style={cardStyle}>
+        <div style={labelStyle}>Station Handover & Conjunction Geometry</div>
+        <MetricRow label="Active Carrier" value={activeDSN.name.split(' ')[0]} unit="" delta="Carrier lock" color={T.nominal} />
+        <MetricRow label="Next Handover" value="Madrid → Canberra" unit="" delta="in 01h 42m" />
+        <MetricRow label="Receiver Margin" value="+14.2" unit=" dB" delta="above threshold" color={T.nominal} />
+        <MetricRow label="Solar SEP Angle" value="14.8" unit=" °" delta="clear of disk (>3.0°)" color={T.nominal} />
+        <div style={{ fontSize: 9, color: T.textMuted, marginTop: 8, lineHeight: 1.4 }}>
+          Sun-Earth-Probe (SEP) angle &gt; 3.0° ensures zero solar coronal plasma radio scintillation.
+          Link margin guarantees continuous telemetry decode.
+        </div>
+      </div>
+
+      {/* Propagation */}
+      <div style={{ ...cardStyle, gridColumn: 'span 2' }}>
+        <div style={labelStyle}>Speed-of-Light Propagation Calculator (τ = d / c)</div>
+
+        {/* Distance presets */}
+        <div style={{ display: 'flex', gap: 6, marginTop: 6, marginBottom: 12 }}>
+          {(Object.keys(DISTANCES) as DistancePreset[]).map(k => (
+            <button
+              key={k}
+              onClick={() => setDistPreset(k)}
+              style={{
+                background: distPreset === k ? '#1b232c' : '#0b0e11',
+                border: `1px solid ${distPreset === k ? '#455668' : T.borderSubtle}`,
+                borderRadius: 4,
+                padding: '5px 12px',
+                fontSize: 10,
+                fontWeight: distPreset === k ? 600 : 400,
+                color: distPreset === k ? '#f0f3f6' : T.textMuted,
+                cursor: 'pointer',
+                boxShadow: distPreset === k ? 'inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
+                transition: 'all 0.12s ease',
+              }}
+            >
+              {DISTANCES[k].label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
+            <div style={{ fontSize: 9, color: T.textMuted }}>DISTANCE (d)</div>
+            <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary, marginTop: 2 }}>
+              {prop.km >= 1e6 ? `${(prop.km / 1e6).toFixed(1)}M` : prop.km >= 1e3 ? `${(prop.km / 1e3).toFixed(0)}k` : `${prop.km}`} <span style={unitStyle}>km</span>
+            </div>
+          </div>
+          <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
+            <div style={{ fontSize: 9, color: T.textMuted }}>ONE-WAY LIGHT TIME</div>
+            <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary, marginTop: 2 }}>
+              {prop.owFmt}
+            </div>
+          </div>
+          <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
+            <div style={{ fontSize: 9, color: T.textMuted }}>ROUND-TRIP DELAY</div>
+            <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary, marginTop: 2 }}>
+              {prop.rtFmt}
+            </div>
+          </div>
+          <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
+            <div style={{ fontSize: 9, color: T.textMuted }}>RF CARRIER STATE</div>
+            <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: connected ? T.nominal : T.critical, marginTop: 2 }}>
+              {connected ? 'CARRIER LOCK' : 'NO LOCK'}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 9, color: T.textMuted, marginTop: 10, lineHeight: 1.5 }}>
+          Speed-of-light propagation delay is strictly calculated using vacuum velocity c = 299,792 km/s.
+          This is electromagnetic physics propagation time, NOT software network latency.
+        </div>
+      </div>
+    </div>
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // INVESTIGATE TAB
+  // ─────────────────────────────────────────────────────────────
+  const renderInvestigate = () => {
+    if (!activeEvent || activeEvent.priority === 'NOMINAL') {
+      return (
+        <div style={{ ...cardStyle, textAlign: 'center', padding: 40 }}>
+          <div style={{ fontSize: 13, color: T.nominal, marginBottom: 6 }}>
+            <Dot color={T.nominal} size={8} /> No active anomalies to investigate
+          </div>
+          <div style={{ fontSize: 11, color: T.textMuted }}>All crew and systems are operating within prescribed baselines.</div>
+        </div>
+      );
+    }
+
+    const evt = activeEvent;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Event Header */}
+        <div style={{
+          ...cardStyle,
+          borderColor: severityBorder(evt.priority),
+          borderLeftWidth: 4,
+          borderLeftColor: severityColor(evt.priority),
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Dot color={severityColor(evt.priority)} size={8} />
+              <Badge color={severityColor(evt.priority)} borderColor={severityBorder(evt.priority)} bg="#090c0f">
+                {evt.priority}
+              </Badge>
+              <span style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary }}>{evt.entity}</span>
+              <span style={{ fontSize: 10, color: T.textMuted }}>{evt.subsystem}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10, color: T.textMuted }}>{evt.time}</span>
+              <span style={{ fontSize: 10, color: T.textMuted }}>Age: {evt.age}</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: severityColor(evt.priority) }}>
+                {trendArrow(evt.trend)} {evt.trend}
+              </span>
+              <button
+                onClick={() => ack(evt.id)}
+                style={{
+                  background: evt.acknowledged ? '#090d09' : '#0b0e11',
+                  border: `1px solid ${evt.acknowledged ? T.nominalBorder : T.border}`,
+                  borderRadius: 4,
+                  padding: '4px 10px',
+                  fontSize: 9,
+                  color: evt.acknowledged ? T.nominal : T.textSecondary,
+                  cursor: 'pointer',
+                  transition: 'all 0.12s ease',
+                }}
+              >
+                {evt.acknowledged ? '✓ Acknowledged' : 'Acknowledge'}
+              </button>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: T.textPrimary, marginTop: 6, fontWeight: 500 }}>{evt.summary}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
+            <span style={{ fontSize: 10, color: T.textMuted }}>Trajectory: <strong style={{ color: severityColor(evt.priority) }}>{evt.trajectory}</strong></span>
+            <span style={{ fontSize: 10, color: T.textMuted }}>•</span>
+            <span style={{ fontSize: 10, color: T.textMuted }}>Time to Limit: <strong style={{ color: T.textPrimary }}>{evt.timeToLimit}</strong></span>
+          </div>
+        </div>
+
+        {/* Pre-Anomaly Timeline Sequence */}
+        {evt.timelineSequence && (
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={labelStyle}>Pre-Anomaly Timeline & Signal Cascade Sequence</div>
+              <span style={{ fontSize: 9, color: T.textMuted }}>Temporal Correlation & Sequence (Not Implied Causality)</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${evt.timelineSequence.length}, 1fr)`, gap: 8 }}>
+              {evt.timelineSequence.map((step, idx) => (
+                <div key={idx} style={{ background: '#0b0e11', border: `1px solid ${severityBorder(step.severity)}`, borderRadius: 4, padding: '7px 8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                    <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>{step.time}</span>
+                    <span style={{ fontSize: 9, fontFamily: T.mono, color: severityColor(step.severity) }}>{step.delta}</span>
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: T.textPrimary }}>{step.signal}</div>
+                  <div style={{ fontSize: 9, color: T.textSecondary, marginTop: 2, lineHeight: 1.2 }}>{step.finding}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 4-Category Evidence Structure */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          {/* Observed */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={labelStyle}>1. Observed (Directly Measured Telemetry)</div>
+              <Badge color={T.nominal} borderColor={T.nominalBorder}>MEASURED</Badge>
+            </div>
+            {evt.observed.map((o, i) => (
+              <div key={i} style={{ fontSize: 11, color: T.textPrimary, padding: '4px 0', borderBottom: `1px solid ${T.borderSubtle}` }}>{o}</div>
+            ))}
+          </div>
+
+          {/* Derived */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={labelStyle}>2. Derived (Calculated from Data)</div>
+              <Badge color={T.info} borderColor="#2a3a4a">CALCULATED</Badge>
+            </div>
+            {evt.derived.map((d, i) => (
+              <div key={i} style={{ fontSize: 11, color: T.textPrimary, padding: '4px 0', borderBottom: `1px solid ${T.borderSubtle}` }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Correlated */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={labelStyle}>3. Correlated Signals (Co-Occurring Trends)</div>
+              <span style={{ fontSize: 9, color: T.textMuted }}>Temporal link</span>
+            </div>
+            {evt.correlated.map((c, i) => (
+              <div key={i} style={{ fontSize: 11, color: T.textSecondary, padding: '4px 0', borderBottom: `1px solid ${T.borderSubtle}` }}>{c}</div>
+            ))}
+          </div>
+
+          {/* Possible Factors */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={labelStyle}>4. Possible Factors (Hypotheses, Not Proven)</div>
+              <span style={{ fontSize: 9, color: T.warning }}>Requires verification</span>
+            </div>
+            {evt.possibleFactors.map((f, i) => (
+              <div key={i} style={{ fontSize: 11, color: T.textSecondary, padding: '4px 0', borderBottom: `1px solid ${T.borderSubtle}` }}>{f}</div>
+            ))}
+          </div>
+        </div>
+
+        {/* Decision Support & Provenance */}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14 }}>
+          <div style={cardStyle}>
+            <div style={labelStyle}>Actions to evaluate (Human-In-The-Loop)</div>
+            {evt.actionsToEvaluate.map((a, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, padding: '5px 0', borderBottom: `1px solid ${T.borderSubtle}` }}>
+                <span style={{ fontSize: 10, fontFamily: T.mono, color: T.textMuted, minWidth: 16 }}>{i + 1}.</span>
+                <span style={{ fontSize: 11, color: T.textPrimary }}>{a}</span>
+              </div>
+            ))}
+
+            {evt.procedure && (
+              <button
+                onClick={() => setActiveProcedureId(evt.procedure!)}
+                style={{
+                  marginTop: 10,
+                  background: '#151b22',
+                  border: `1px solid ${T.activeBorder}`,
+                  borderRadius: 4,
+                  padding: '7px 12px',
+                  color: '#cad5e2',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.12s ease',
+                }}
+              >
+                <span>📖</span> Review Flight Procedure: {evt.procedure} →
+              </button>
+            )}
+
+            <div style={{ fontSize: 9, color: T.textMuted, marginTop: 8, fontStyle: 'italic', lineHeight: 1.4 }}>
+              These are suggested checks and decision support actions. The human MCC flight controller remains the decision maker.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Confidence & Provenance */}
+            <div style={cardStyle}>
+              <div style={labelStyle}>Detection Confidence</div>
+              <div style={{ fontSize: 11, fontFamily: T.mono, color: T.textPrimary, marginTop: 2 }}>{evt.confidence}</div>
+              <div style={{ ...labelStyle, marginTop: 10 }}>Data Provenance</div>
+              <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2, lineHeight: 1.4 }}>{evt.provenance}</div>
+            </div>
+
+            {/* Baseline Reference */}
+            <div style={cardStyle}>
+              <div style={labelStyle}>Baseline Reference</div>
+              <div style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.5 }}>{evt.baselineRef}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Event History / Shift Summary */}
+        <div style={cardStyle}>
+          <div style={labelStyle}>Event Log — Shift Summary</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 80px 1fr 120px', gap: 6, marginTop: 6, paddingBottom: 4, borderBottom: `1px solid ${T.borderSubtle}` }}>
+            <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700 }}>TIME</span>
+            <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700 }}>PRIORITY</span>
+            <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700 }}>EVENT</span>
+            <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700 }}>ENTITY</span>
+          </div>
+          {events.map(e => (
+            <button
+              key={e.id}
+              onClick={() => { setSelEventId(e.id); }}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '80px 80px 1fr 120px',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 0',
+                borderBottom: `1px solid ${T.borderSubtle}`,
+                background: selEventId === e.id ? '#171c22' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                width: '100%',
+                textAlign: 'left',
+                boxSizing: 'border-box',
+                transition: 'all 0.12s ease',
+              }}
+            >
+              <span style={{ fontSize: 10, fontFamily: T.mono, color: T.textMuted }}>{e.time}</span>
+              <Badge color={severityColor(e.priority)} borderColor={severityBorder(e.priority)} bg="#090c0f">
+                {e.priority}
+              </Badge>
+              <span style={{ fontSize: 10, color: T.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.summary}</span>
+              <span style={{ fontSize: 10, color: T.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.entity}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────
+  return (
+    <div style={{
+      position: 'relative',
+      zIndex: 1,
+      backgroundColor: T.bg,
+      color: T.textPrimary,
+      minHeight: 'calc(100vh - 60px)',
+      width: '100%',
+      boxSizing: 'border-box',
+      fontFamily: T.sans,
+      fontSize: 12,
+    }}>
+
+      {/* ─── NAVIGATION TABS RIBBON (matches navbar width 1250px) ─── */}
+      <div style={{
+        maxWidth: '1250px',
+        margin: '0 auto',
+        padding: '0 20px',
+        boxSizing: 'border-box',
+      }}>
+        <nav style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          padding: '10px 0',
+          borderBottom: `1px solid ${T.borderSubtle}`,
+        }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {tabBtn('OVERVIEW', 'Overview')}
+            {tabBtn('CREW', 'Crew')}
+            {tabBtn('SYSTEMS', 'Systems')}
+            {tabBtn('COMMS', 'Comms')}
+            {tabBtn('INVESTIGATE', 'Investigate')}
+          </div>
+
+          {/* Quick Mission State Pill & Handover Action */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => setShowHandover(true)}
+              style={{
+                background: '#0c0f12',
+                border: `1px solid ${T.border}`,
+                borderRadius: 4,
+                padding: '5px 12px',
+                color: T.textSecondary,
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                cursor: 'pointer',
+                fontFamily: T.sans,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.12s ease',
+              }}
+            >
+              <span>📋</span> Shift Handover
+            </button>
+
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 10px',
+              borderRadius: 4,
+              background: '#0b0e11',
+              border: `1px solid ${severityBorder(missionState)}`,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              color: severityColor(missionState),
+              fontFamily: T.sans,
+            }}>
+              <Dot color={severityColor(missionState)} size={5} />
+              STATUS: {missionState}
+            </span>
+          </div>
+        </nav>
+      </div>
+
+      {/* ─── CONTENT (matches 1250px width of other views) ─── */}
+      <main style={{ padding: '16px 20px 80px 20px', maxWidth: '1250px', margin: '0 auto', boxSizing: 'border-box' }}>
+        {tab === 'OVERVIEW' && renderOverview()}
+        {tab === 'CREW' && renderCrew()}
+        {tab === 'SYSTEMS' && renderSystems()}
+        {tab === 'COMMS' && renderComms()}
+        {tab === 'INVESTIGATE' && renderInvestigate()}
+      </main>
+
+      {/* ─── SHIFT HANDOVER BRIEFING MODAL ─── */}
+      {showHandover && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.75)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+        }}>
+          <div style={{
+            background: '#0e1216',
+            border: `1px solid ${T.borderHighlight}`,
+            borderRadius: 6,
+            maxWidth: 680,
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: 24,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 12, marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', color: T.textPrimary }}>
+                  MCC OPERATIONAL SHIFT HANDOVER BRIEFING
+                </div>
+                <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>
+                  MET T+14d 08:42:19 · Flight Console: Sentry Matrix · DSN: {activeDSN.name}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowHandover(false)}
+                style={{
+                  background: 'transparent',
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 4,
+                  color: T.textMuted,
+                  fontSize: 12,
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Unresolved Events */}
+              <div style={{ background: '#14181d', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 12 }}>
+                <div style={{ ...labelStyle, marginBottom: 6 }}>1. Active / Unresolved Mission Events</div>
+                {events.filter(e => e.priority !== 'NOMINAL').length === 0 ? (
+                  <div style={{ fontSize: 11, color: T.nominal }}>✓ No active anomalies. All telemetry channels within nominal baseline.</div>
+                ) : (
+                  events.filter(e => e.priority !== 'NOMINAL').map(e => (
+                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', borderBottom: `1px solid ${T.borderSubtle}` }}>
+                      <span style={{ fontSize: 11, color: T.textPrimary }}>{e.entity} — {e.summary}</span>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ fontSize: 10, color: T.textMuted }}>Age: {e.age}</span>
+                        <Badge color={severityColor(e.priority)} borderColor={severityBorder(e.priority)} bg="#090c0f">{e.priority}</Badge>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Crew Status Summary */}
+              <div style={{ background: '#14181d', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 12 }}>
+                <div style={{ ...labelStyle, marginBottom: 6 }}>2. Crew Surveillance Status</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                  {CREW.map(c => {
+                    const p = telemetryMap[c.id];
+                    const sev = p?.evaluated_severity || 'NOMINAL';
+                    return (
+                      <div key={c.id} style={{ fontSize: 10, color: T.textSecondary }}>
+                        <strong style={{ color: T.textPrimary }}>{c.callsign} {c.name}:</strong> {p ? `HR ${p.heart_rate.toFixed(0)} bpm, SpO₂ ${p.spo2.toFixed(1)}%` : 'No data'} ({sev})
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Subsystems & Comms */}
+              <div style={{ background: '#14181d', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 12 }}>
+                <div style={{ ...labelStyle, marginBottom: 6 }}>3. Environmental & Deep Space Communications</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.5 }}>
+                  • ECLSS Cabin CO₂: {(Object.values(telemetryMap)[0]?.cabin_co2 || 1.8).toFixed(2)} mmHg (Flight rule limit: 3.0 mmHg)<br />
+                  • DSN Station: {activeDSN.name} ({activeDSN.freq}) · SNR {activeDSN.snr} dB<br />
+                  • Propagation Delay: {prop.owFmt} one-way ({prop.rtFmt} round-trip) · Mars Delay {marsDelay ? 'ACTIVE (22m)' : 'DISABLED (Real-time)'}
+                </div>
+              </div>
+
+              {/* Pending Procedures */}
+              <div style={{ background: '#14181d', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 12 }}>
+                <div style={{ ...labelStyle, marginBottom: 6 }}>4. Flight Rules & Checklist Gates</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.5 }}>
+                  • NASA-STD-3001 Med Card 04 available for acute tachyarrhythmia evaluation.<br />
+                  • NASA-STD-3001 ECLSS CO2 01 available for scrubber saturation containment.<br />
+                  • Operator human-in-the-loop validation mandatory prior to commanding.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, paddingTop: 14, borderTop: `1px solid ${T.border}` }}>
+              <button
+                onClick={() => {
+                  const summaryText = `MCC SHIFT HANDOVER BRIEFING\nMET: T+14d 08:42:19\nActive Station: ${activeDSN.name}\nMission State: ${missionState}\nEvents:\n${events.filter(e => e.priority !== 'NOMINAL').map(e => `- [${e.priority}] ${e.entity}: ${e.summary} (Age: ${e.age})`).join('\n') || 'All systems nominal'}\nECLSS CO2: ${(Object.values(telemetryMap)[0]?.cabin_co2 || 1.8).toFixed(2)} mmHg`;
+                  navigator.clipboard.writeText(summaryText);
+                  setCopiedHandover(true);
+                  setTimeout(() => setCopiedHandover(false), 2000);
+                }}
+                style={{
+                  background: copiedHandover ? '#122416' : '#151b22',
+                  border: `1px solid ${copiedHandover ? T.nominal : T.border}`,
+                  borderRadius: 4,
+                  padding: '7px 14px',
+                  color: copiedHandover ? T.nominal : T.textPrimary,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {copiedHandover ? '✓ Copied to Clipboard!' : '📋 Copy Handover Briefing to Clipboard'}
+              </button>
+
+              <button
+                onClick={() => setShowHandover(false)}
+                style={{
+                  background: '#1a2028',
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 4,
+                  padding: '7px 16px',
+                  color: T.textPrimary,
+                  fontSize: 11,
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── INTERACTIVE FLIGHT PROCEDURE CHECKLIST MODAL ─── */}
+      {activeProcedureId && PROCEDURES[activeProcedureId] && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.75)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+        }}>
+          <div style={{
+            background: '#0e1216',
+            border: `1px solid ${T.borderHighlight}`,
+            borderRadius: 6,
+            maxWidth: 680,
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: 24,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)',
+          }}>
+            {(() => {
+              const proc = PROCEDURES[activeProcedureId];
+              const totalSteps = proc.steps.length;
+              const completedSteps = proc.steps.filter(s => !!procedureChecks[`${proc.id}-${s.step}`]).length;
+              return (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 12, marginBottom: 16 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 9, fontFamily: T.mono, color: T.info, background: '#090e14', padding: '2px 6px', borderRadius: 3, border: `1px solid #1a2530` }}>
+                          {proc.id}
+                        </span>
+                        <span style={{ fontSize: 10, color: T.textMuted }}>{proc.category}</span>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginTop: 4 }}>
+                        {proc.title}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setActiveProcedureId(null)}
+                      style={{
+                        background: 'transparent',
+                        border: `1px solid ${T.border}`,
+                        borderRadius: 4,
+                        color: T.textMuted,
+                        fontSize: 12,
+                        padding: '4px 8px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: T.textSecondary }}>
+                      Procedure Checklist Progress: <strong style={{ color: completedSteps === totalSteps ? T.nominal : T.textPrimary }}>{completedSteps} / {totalSteps} steps completed</strong>
+                    </div>
+                    {completedSteps === totalSteps && (
+                      <Badge color={T.nominal} borderColor={T.nominalBorder}>PROCEDURE VERIFIED</Badge>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {proc.steps.map(s => {
+                      const key = `${proc.id}-${s.step}`;
+                      const isDone = !!procedureChecks[key];
+                      return (
+                        <div
+                          key={s.step}
+                          onClick={() => setProcedureChecks(p => ({ ...p, [key]: !p[key] }))}
+                          style={{
+                            background: isDone ? '#0c120d' : '#14181c',
+                            border: `1px solid ${isDone ? T.nominalBorder : T.borderSubtle}`,
+                            borderRadius: 4,
+                            padding: '10px 12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 10,
+                            transition: 'all 0.12s ease',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isDone}
+                            onChange={() => {}}
+                            style={{ marginTop: 2, cursor: 'pointer', accentColor: T.nominal }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                              <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>STEP {s.step}</span>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: T.textSecondary, background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 3, padding: '1px 5px' }}>
+                                {s.role}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 11, color: isDone ? '#8ea88e' : T.textPrimary, textDecoration: isDone ? 'line-through' : 'none', lineHeight: 1.4 }}>
+                              {s.text}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18, paddingTop: 14, borderTop: `1px solid ${T.border}` }}>
+                    <button
+                      onClick={() => setActiveProcedureId(null)}
+                      style={{
+                        background: '#1a2028',
+                        border: `1px solid ${T.border}`,
+                        borderRadius: 4,
+                        padding: '7px 18px',
+                        color: T.textPrimary,
+                        fontSize: 11,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Close Procedure
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+

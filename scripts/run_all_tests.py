@@ -31,6 +31,7 @@ def run_master_test_suite():
         ("SQLite WAL Concurrency & Throughput Benchmark", "test_database_wal"),
         ("FastAPI REST & Telemetry Streaming Endpoints", "test_api_streaming"),
         ("JARVIS AI Decision Engine & Voice Warnings", "test_ai_infrastructure"),
+        ("Mission Control Center (MCC) Operations & Edge Cases", "test_mcc_operations"),
     ]
 
     total_tests = 0

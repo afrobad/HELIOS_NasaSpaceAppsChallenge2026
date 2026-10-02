@@ -6,37 +6,13 @@ interface HeaderBarProps {
   connected: boolean;
   marsDelay?: boolean;
   onToggleMarsDelay?: (enabled: boolean) => void;
-  activeView?: 'HUD' | 'HEALTH_TELEMETRY';
-  onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY') => void;
+  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER';
+  onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER') => void;
   latestAlert?: AlertPayload | null;
   selectedAstronautId?: string;
   /** When true, renders ONLY the fixed bottom JARVIS bar — no top navbar */
   jarvisOnly?: boolean;
 }
-
-const getAstronautName = (id?: string): string => {
-  switch (id) {
-    case 'AST-01_COMMANDER':
-    case 'crew_1':
-      return 'Commander Haley';
-    case 'AST-02_PILOT':
-    case 'crew_2':
-      return 'Pilot Chris';
-    case 'AST-03_MEDICAL':
-    case 'AST-03_MEDICAL_SPECIALIST':
-    case 'crew_3':
-      return 'Doctor Sian';
-    case 'AST-04_ENGINEER':
-    case 'AST-04_MISSION_SPECIALIST':
-    case 'crew_4':
-      return 'Specialist Leo';
-    case 'ALL_CREW':
-    case 'all_crew':
-      return 'All Crew Stations';
-    default:
-      return 'Commander Haley';
-  }
-};
 
 const formatChemicalSubscripts = (text: string): string => {
   if (!text) return '';
@@ -62,11 +38,12 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   activeView = 'HUD',
   onSelectView,
   latestAlert,
-  selectedAstronautId = 'AST-01_COMMANDER',
+  selectedAstronautId: _selectedAstronautId = 'AST-01_COMMANDER',
   jarvisOnly = false,
 }) => {
   const [audioEngaged, setAudioEngaged] = useState<boolean>(true);
   const [metSeconds, setMetSeconds] = useState<number>(14 * 3600 + 43 * 60 + 18);
+  const [utcTime, setUtcTime] = useState<string>(() => new Date().toISOString().substring(11, 19) + ' UTC');
 
   // JARVIS in Header State
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
@@ -77,10 +54,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const [activeSeverity, setActiveSeverity] = useState<'CRITICAL' | 'WARNING' | 'INFO' | 'NOMINAL'>(
     latestAlert?.severity || 'NOMINAL'
   );
-  const [showJarvisTooltip, setShowJarvisTooltip] = useState<boolean>(false);
-  const [queryText, setQueryText] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [ollamaOnline, setOllamaOnline] = useState<boolean>(true);
   const [displayedWordCount, setDisplayedWordCount] = useState<number>(0);
 
   const isSpeakingRef = useRef<boolean>(false);
@@ -115,27 +88,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
     const timer = setInterval(() => {
       setMetSeconds((prev) => prev + 1);
+      setUtcTime(new Date().toISOString().substring(11, 19) + ' UTC');
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Poll AI status periodically
-  useEffect(() => {
-    const checkAi = async () => {
-      try {
-        const res = await fetch('/api/ai/status');
-        if (res.ok) {
-          const data = await res.json();
-          setOllamaOnline(data.ai_engine?.status === 'ONLINE');
-        }
-      } catch {
-        setOllamaOnline(false);
-      }
-    };
-    checkAi();
-    const interval = setInterval(checkAi, 20000);
-    return () => clearInterval(interval);
-  }, []);
 
   const getMetParts = (totalSec: number) => {
     const d = Math.floor(totalSec / 86400);
@@ -186,36 +143,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     };
   }, [activeSeverity]);
 
-  const priorityTheme = useMemo(() => {
-    if (activeSeverity === 'CRITICAL') {
-      return {
-        color: '#facc15',
-        border: 'rgba(250, 204, 21, 0.25)',
-        bg: 'rgba(250, 204, 21, 0.05)',
-        innerBg: 'rgba(250, 204, 21, 0.04)',
-        badgeBg: 'rgba(250, 204, 21, 0.18)',
-        glow: '0 16px 36px -4px rgba(0, 0, 0, 0.9), 0 0 12px -4px rgba(250, 204, 21, 0.18)',
-      };
-    }
-    if (activeSeverity === 'WARNING') {
-      return {
-        color: '#f59e0b',
-        border: 'rgba(245, 158, 11, 0.18)',
-        bg: 'rgba(245, 158, 11, 0.05)',
-        innerBg: 'rgba(245, 158, 11, 0.04)',
-        badgeBg: 'rgba(245, 158, 11, 0.18)',
-        glow: '0 16px 36px -4px rgba(0, 0, 0, 0.9), 0 0 12px -4px rgba(245, 158, 11, 0.1)',
-      };
-    }
-    return {
-      color: '#22c55e',
-      border: 'rgba(34, 197, 94, 0.15)',
-      bg: 'rgba(34, 197, 94, 0.03)',
-      innerBg: 'rgba(34, 197, 94, 0.03)',
-      badgeBg: 'rgba(34, 197, 94, 0.14)',
-      glow: '0 16px 36px -4px rgba(0, 0, 0, 0.9)',
-    };
-  }, [activeSeverity]);
 
   const handleToggleAudio = () => {
     const next = !audioEngaged;
@@ -269,7 +196,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           setIsTransmitting(true);
           setActiveSpeech(cleanText);
           activeSpeechTextRef.current = cleanText;
-          setShowJarvisTooltip(true);
 
           const words = cleanText.split(/\s+/).filter(Boolean);
           speechWordsRef.current = words;
@@ -327,7 +253,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     // Keep transmission navbar readable after transmission ends (12 seconds)
     if (autoDismissTimerRef.current) clearTimeout(autoDismissTimerRef.current);
     autoDismissTimerRef.current = setTimeout(() => {
-      setShowJarvisTooltip(false);
       setIsTransmitting(false);
     }, 12000);
   };
@@ -384,56 +309,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     }
   }, [latestAlert, activeSeverity]);
 
-  // Handle Quick Query from JARVIS tooltip
-  const handleSendQuery = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!queryText.trim() || isProcessing) return;
-
-    const query = queryText.trim();
-    setQueryText('');
-    setIsProcessing(true);
-
-    audioService.stopSpeaking();
-
-    try {
-      const res = await fetch('/api/voice/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query,
-          astronaut_id: selectedAstronautId,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        speakStatement(data.speech_text, 'chime', {
-          ...data.audio_config,
-          severity: data.severity || 'NOMINAL',
-        });
-      }
-    } catch {
-      speakStatement(
-        `All systems continue nominal monitoring, ${getAstronautName(selectedAstronautId)}. Proceed with flight protocol.`,
-        'chime',
-        { severity: 'NOMINAL' }
-      );
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const targetCrewName = getAstronautName(latestAlert?.astronaut_id || selectedAstronautId);
-
-  // Retain references for backed-up tooltip/pod code
-  void priorityTheme;
-  void showJarvisTooltip;
-  void setShowJarvisTooltip;
-  void queryText;
-  void setQueryText;
-  void isProcessing;
-  void handleSendQuery;
-  void ollamaOnline;
 
   // ── JARVIS FIXED BOTTOM BAR (shared across HUD and Telemetry views) ──
   const jarvisBar = (
@@ -753,7 +628,132 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 />
               )}
             </button>
+            <button
+              type="button"
+              onClick={() => onSelectView('MCC')}
+              style={{
+                position: 'relative',
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: activeView === 'MCC' ? 600 : 500,
+                borderRadius: '6px',
+                border: activeView === 'MCC' ? '1px solid rgba(255, 255, 255, 0.16)' : '1px solid transparent',
+                cursor: 'pointer',
+                background: activeView === 'MCC' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                color: activeView === 'MCC' ? '#ffffff' : '#888888',
+                fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                letterSpacing: '0.02em',
+                transition: 'all 0.15s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              onMouseEnter={(e) => {
+                if (activeView !== 'MCC') {
+                  e.currentTarget.style.color = '#e5e7eb';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeView !== 'MCC') {
+                  e.currentTarget.style.color = '#888888';
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
+            >
+              Earth MCC
+              {activeView === 'MCC' && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: '0px',
+                    left: '10px',
+                    right: '10px',
+                    height: '2px',
+                    background: 'linear-gradient(90deg, #64748b, #94a3b8)',
+                    borderRadius: '2px',
+                    boxShadow: '0 0 6px rgba(148, 163, 184, 0.5)',
+                  }}
+                />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectView('SCANNER')}
+              style={{
+                position: 'relative',
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: activeView === 'SCANNER' ? 700 : 500,
+                borderRadius: '6px',
+                border: activeView === 'SCANNER' ? '1px solid #00e5ff' : '1px solid rgba(0, 229, 255, 0.28)',
+                cursor: 'pointer',
+                background: activeView === 'SCANNER' ? 'rgba(0, 229, 255, 0.16)' : 'rgba(0, 229, 255, 0.06)',
+                color: activeView === 'SCANNER' ? '#00e5ff' : '#67e8f9',
+                fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                letterSpacing: '0.02em',
+                transition: 'all 0.15s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              onMouseEnter={(e) => {
+                if (activeView !== 'SCANNER') {
+                  e.currentTarget.style.color = '#ffffff';
+                  e.currentTarget.style.background = 'rgba(0, 229, 255, 0.15)';
+                  e.currentTarget.style.borderColor = '#00e5ff';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeView !== 'SCANNER') {
+                  e.currentTarget.style.color = '#67e8f9';
+                  e.currentTarget.style.background = 'rgba(0, 229, 255, 0.06)';
+                  e.currentTarget.style.borderColor = 'rgba(0, 229, 255, 0.28)';
+                }
+              }}
+            >
+              <span style={{ fontSize: '12px', filter: 'drop-shadow(0 0 4px #00e5ff)' }}>⚡</span>
+              <span>3D Hologram</span>
+              {activeView === 'SCANNER' && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: '0px',
+                    left: '10px',
+                    right: '10px',
+                    height: '2px',
+                    background: 'linear-gradient(90deg, #00e5ff, #38bdf8)',
+                    borderRadius: '2px',
+                    boxShadow: '0 0 8px rgba(0, 229, 255, 0.9)',
+                  }}
+                />
+              )}
+            </button>
           </nav>
+        )}
+
+        {/* MCC Sentry Console Badge (displayed in navbar on MCC page) */}
+        {activeView === 'MCC' && (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '3px 9px',
+              borderRadius: '4px',
+              background: '#0b0e11',
+              border: '1px solid #1f2732',
+              fontSize: '10px',
+              fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+              letterSpacing: '0.04em',
+              color: '#8da0b3',
+            }}
+          >
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#529642', boxShadow: '0 0 5px rgba(82, 150, 66, 0.6)' }} />
+            <span style={{ fontWeight: 600, color: '#b0c2d4' }}>MCC SENTRY</span>
+            <span style={{ color: '#323d4a' }}>·</span>
+            <span style={{ color: '#68788a' }}>ARES-VI GROUND STATION</span>
+          </div>
         )}
       </div>
 
@@ -811,6 +811,47 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </span>
         </div>
 
+        {/* Live UTC Clock (displayed in HeaderBar, prominent during MCC) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            height: '30px',
+            padding: '0 9px',
+            background: '#0b0e11',
+            borderRadius: '6px',
+            border: '1px solid #1f2730',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '9px',
+              color: '#7e93a8',
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              background: 'rgba(126, 147, 168, 0.12)',
+              padding: '1px 4px',
+              borderRadius: '3px',
+              fontFamily: "'Tomorrow', sans-serif",
+            }}
+          >
+            UTC
+          </span>
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 700,
+              color: '#dbe2ea',
+              fontFamily: "'Tomorrow', sans-serif",
+              fontVariantNumeric: 'tabular-nums',
+              letterSpacing: '0.02em',
+            }}
+          >
+            {utcTime}
+          </span>
+        </div>
+
         {/* Voice Audio Toggle: ICONS ONLY */}
         <button
           onClick={handleToggleAudio}
@@ -844,315 +885,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           )}
         </button>
 
-        {/* ── BACKED-UP ORIGINAL JARVIS BUTTON POD & TOOLTIP (TEMPORARILY DISABLED AS REQUESTED; TOGGLE false TO true TO RESTORE) ── */}
-        {false && (
-        <div style={{ position: 'relative' }}>
-          {/* Header Button Pod: Clear Active vs Inactive State */}
-          <button
-            onClick={() => setShowJarvisTooltip((prev) => !prev)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              width: '92px',
-              height: '30px',
-              padding: '0 8px',
-              borderRadius: '6px',
-              flexShrink: 0,
-              boxSizing: 'border-box',
-              border: isSpeaking
-                ? '1.5px solid #facc15'
-                : showJarvisTooltip
-                ? '1px solid #383838'
-                : '1px solid #222222',
-              background: isSpeaking
-                ? 'rgba(250, 204, 21, 0.16)'
-                : showJarvisTooltip
-                ? '#161616'
-                : '#0e0e0e',
-              color: isSpeaking ? '#fde047' : showJarvisTooltip ? '#e5e5e5' : '#6b7280',
-              cursor: 'pointer',
-              boxShadow: isSpeaking ? '0 0 12px rgba(250, 204, 21, 0.35)' : 'none',
-              transition: 'all 0.15s ease',
-            }}
-            title={
-              isSpeaking
-                ? 'JARVIS Transmitting (Click to view transcript)'
-                : ollamaOnline
-                ? 'JARVIS Standby · Ollama AI Online'
-                : 'JARVIS Standby · Ollama Offline'
-            }
-          >
-            {/* Animated Equalizer Bars - Muted dark gray on inactive, vibrant pulsing yellow on active */}
-            <div
-              style={{
-                width: '12px',
-                height: '14px',
-                display: 'flex',
-                alignItems: 'flex-end',
-                gap: '2px',
-                flexShrink: 0,
-                overflow: 'hidden',
-              }}
-            >
-              <span
-                className={isSpeaking ? 'hud-bar-anim-1' : ''}
-                style={{
-                  width: '2px',
-                  height: '14px',
-                  backgroundColor: isSpeaking ? '#facc15' : '#404040',
-                  borderRadius: '1px',
-                  transform: isSpeaking ? undefined : 'scaleY(0.25)',
-                  transformOrigin: 'bottom',
-                  transition: 'background-color 0.2s ease, transform 0.2s ease',
-                }}
-              />
-              <span
-                className={isSpeaking ? 'hud-bar-anim-2' : ''}
-                style={{
-                  width: '2px',
-                  height: '14px',
-                  backgroundColor: isSpeaking ? '#facc15' : '#404040',
-                  borderRadius: '1px',
-                  transform: isSpeaking ? undefined : 'scaleY(0.4)',
-                  transformOrigin: 'bottom',
-                  transition: 'background-color 0.2s ease, transform 0.2s ease',
-                }}
-              />
-              <span
-                className={isSpeaking ? 'hud-bar-anim-3' : ''}
-                style={{
-                  width: '2px',
-                  height: '14px',
-                  backgroundColor: isSpeaking ? '#facc15' : '#404040',
-                  borderRadius: '1px',
-                  transform: isSpeaking ? undefined : 'scaleY(0.25)',
-                  transformOrigin: 'bottom',
-                  transition: 'background-color 0.2s ease, transform 0.2s ease',
-                }}
-              />
-            </div>
-
-            {/* Invariant Center Label */}
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: isSpeaking ? 800 : 600,
-                letterSpacing: '0.04em',
-                flex: 1,
-                textAlign: 'center',
-                fontFamily: "'Tomorrow', sans-serif",
-                color: isSpeaking ? '#fde047' : showJarvisTooltip ? '#e5e5e5' : '#6b7280',
-              }}
-            >
-              JARVIS
-            </span>
-
-            {/* Invariant Fixed Status Slot */}
-            <div
-              style={{
-                width: '8px',
-                height: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  width: '5px',
-                  height: '5px',
-                  borderRadius: '50%',
-                  backgroundColor: isSpeaking ? '#facc15' : ollamaOnline ? '#4b5563' : '#262626',
-                  boxShadow: isSpeaking ? '0 0 7px #facc15' : 'none',
-                  transition: 'all 0.2s ease',
-                }}
-              />
-            </div>
-          </button>
-
-          {/* ── PRIORITY-OUTLINED TRANSMITTING TOOLTIP FROM NAVBAR ────────── */}
-          {showJarvisTooltip && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                right: 0,
-                width: '370px',
-                maxWidth: '90vw',
-                backgroundColor: '#0c0c0c',
-                border: `1px solid ${priorityTheme.border}`,
-                borderRadius: '8px',
-                padding: '12px',
-                boxShadow: priorityTheme.glow,
-                zIndex: 1000,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                animation: 'hudFadeIn 0.18s ease-out',
-              }}
-            >
-              {/* Pointer Arrow */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '-5px',
-                  right: '26px',
-                  width: '8px',
-                  height: '8px',
-                  backgroundColor: '#0c0c0c',
-                  borderTop: `1px solid ${priorityTheme.border}`,
-                  borderLeft: `1px solid ${priorityTheme.border}`,
-                  transform: 'rotate(45deg)',
-                }}
-              />
-
-              {/* Tooltip Header Row */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span
-                    style={{
-                      width: '5px',
-                      height: '5px',
-                      borderRadius: '50%',
-                      backgroundColor: priorityTheme.color,
-                      boxShadow: `0 0 6px ${priorityTheme.color}`,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: '9px',
-                      fontWeight: 800,
-                      letterSpacing: '0.06em',
-                      color: priorityTheme.color,
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    JARVIS
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '8px',
-                      fontWeight: 700,
-                      padding: '1px 5px',
-                      borderRadius: '4px',
-                      backgroundColor: priorityTheme.badgeBg,
-                      color: priorityTheme.color,
-                    }}
-                  >
-                    {activeSeverity}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {/* Replay Audio Button */}
-                  <button
-                    onClick={() => {
-                      if (activeSpeech) {
-                        speakStatement(
-                          activeSpeech,
-                          activeSeverity === 'CRITICAL' ? 'klaxon' : 'chime',
-                          { severity: activeSeverity }
-                        );
-                      }
-                    }}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#a3a3a3',
-                      cursor: 'pointer',
-                      padding: '2px',
-                      display: 'flex',
-                    }}
-                    title="Replay Audio"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                    </svg>
-                  </button>
-
-                  {/* Close Dismiss Button */}
-                  <button
-                    onClick={() => setShowJarvisTooltip(false)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#737373',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      lineHeight: 1,
-                      padding: '2px',
-                    }}
-                    title="Dismiss"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              {/* Message Transcript Text: Minimal tint — no border */}
-              <div
-                style={{
-                  fontSize: '11px',
-                  lineHeight: 1.55,
-                  color: '#f9fafb',
-                  fontWeight: 500,
-                  padding: '9px 11px',
-                  backgroundColor: priorityTheme.innerBg,
-                  borderRadius: '6px',
-                  border: '1px solid rgba(255, 255, 255, 0.04)',                }}
-              >
-                {formatChemicalSubscripts(activeSpeech)}
-              </div>
-
-              {/* Tooltip Footer: Recipient & Quick Ask Input */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '9px' }}>
-                <span style={{ color: '#737373' }}>
-                  Target: <strong style={{ color: '#cbd5e1' }}>{targetCrewName}</strong>
-                </span>
-
-                <form onSubmit={handleSendQuery} style={{ display: 'flex', gap: '4px' }}>
-                  <input
-                    type="text"
-                    placeholder="Ask JARVIS..."
-                    value={queryText}
-                    onChange={(e) => setQueryText(e.target.value)}
-                    style={{
-                      background: '#131313',
-                      border: '1px solid #242424',
-                      borderRadius: '4px',
-                      color: '#ffffff',
-                      fontSize: '9px',
-                      padding: '3px 6px',
-                      width: '110px',
-                      outline: 'none',
-                    }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={isProcessing || !queryText.trim()}
-                    style={{
-                      background: '#222222',
-                      border: '1px solid #333333',
-                      borderRadius: '4px',
-                      color: '#ffffff',
-                      fontSize: '9px',
-                      padding: '2px 5px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Ask
-                  </button>
-                </form>
-              </div>
-            </div>
-          )}
-        </div>
-        )}
       </div>
     </header>
+
 
     {/* ── JARVIS FIXED BOTTOM TRANSMISSION BAR ── */}
     {jarvisBar}

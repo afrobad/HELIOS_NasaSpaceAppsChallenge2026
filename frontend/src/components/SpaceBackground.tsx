@@ -1,7 +1,7 @@
 import React, { memo, useRef, useEffect } from 'react';
 
 export interface SpaceBackgroundProps {
-  activeView?: 'HUD' | 'HEALTH_TELEMETRY';
+  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER';
 }
 
 /**
@@ -9,6 +9,7 @@ export interface SpaceBackgroundProps {
  *
  * - Flight HUD Overview: Raw Rotating Earth 1080p Video Loop.
  * - Health Telemetry Console: Blue Infinite Star Tunnel 15-second 1080p Loop (Um2JFPX-uH0).
+ * - Earth Mission Control Center (MCC): Calm, deep-navy operational environment (NASA-STD-3001).
  *
  * Performance Architecture:
  * - 100% Raw video playback with native colors and zero filters/glows.
@@ -18,11 +19,20 @@ export interface SpaceBackgroundProps {
  */
 export const SpaceBackground: React.FC<SpaceBackgroundProps> = memo(({ activeView = 'HUD' }) => {
   const isTelemetry = activeView === 'HEALTH_TELEMETRY';
+  const isMCC = activeView === 'MCC';
   const earthVideoRef = useRef<HTMLVideoElement>(null);
   const telemetryVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (isTelemetry) {
+    if (isMCC) {
+      // MCC operational environment requires calm, static deep-navy background
+      if (earthVideoRef.current && !earthVideoRef.current.paused) {
+        earthVideoRef.current.pause();
+      }
+      if (telemetryVideoRef.current && !telemetryVideoRef.current.paused) {
+        telemetryVideoRef.current.pause();
+      }
+    } else if (isTelemetry) {
       if (earthVideoRef.current && !earthVideoRef.current.paused) {
         earthVideoRef.current.pause();
       }
@@ -37,7 +47,7 @@ export const SpaceBackground: React.FC<SpaceBackgroundProps> = memo(({ activeVie
         earthVideoRef.current.play().catch(() => {});
       }
     }
-  }, [isTelemetry]);
+  }, [isTelemetry, isMCC]);
 
   return (
     <div
@@ -49,6 +59,7 @@ export const SpaceBackground: React.FC<SpaceBackgroundProps> = memo(({ activeVie
         pointerEvents: 'none',
         overflow: 'hidden',
         backgroundColor: '#000000',
+        display: isMCC ? 'none' : 'block',
       }}
     >
       {/* ── Raw Rotating Earth Video (HUD Overview, 1080p 60fps) ── */}
@@ -68,7 +79,7 @@ export const SpaceBackground: React.FC<SpaceBackgroundProps> = memo(({ activeVie
           objectFit: 'cover',
           objectPosition: 'center center',
           pointerEvents: 'none',
-          opacity: isTelemetry ? 0 : 1,
+          opacity: (isTelemetry || isMCC) ? 0 : 1,
           transition: 'opacity 0.4s ease',
           willChange: 'opacity',
         }}

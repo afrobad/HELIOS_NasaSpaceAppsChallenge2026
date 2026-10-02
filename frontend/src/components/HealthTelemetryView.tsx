@@ -17,8 +17,8 @@ interface HealthTelemetryViewProps {
   marsDelay: boolean;
   connected?: boolean;
   onToggleMarsDelay?: (enabled: boolean) => void;
-  activeView?: 'HUD' | 'HEALTH_TELEMETRY';
-  onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY') => void;
+  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER';
+  onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER') => void;
   latestAlert?: AlertPayload | null;
   onAstronautChange?: (astronautId: string) => void;
 }
@@ -1566,7 +1566,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
 
               {/* Left-Aligned Name Stack with Alerts Kept Underneath */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-start' }}>
-                {/* Top Row: Name + Role Tag */}
+                {/* Top Row: Name */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span
                     style={{
@@ -1579,21 +1579,6 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                     }}
                   >
                     {activeCrew.name}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '9px',
-                      fontWeight: 700,
-                      padding: '1px 5px',
-                      borderRadius: '3px',
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.18)',
-                      color: '#e2e8f0',
-                      fontFamily: "'Tomorrow', sans-serif",
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    {activeCrew.roleShort}
                   </span>
                 </div>
 
@@ -1656,8 +1641,8 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
               {/* Subtle Vertical Divider */}
               <div style={{ width: '1px', height: '38px', backgroundColor: 'rgba(255, 255, 255, 0.16)' }} />
 
-              {/* Physiological Reserve Index (PRI) with Fixed Layout (Zero Shift & Pinned % Position) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-start', flexShrink: 0 }}>
+              {/* Reserve (PRI) Column */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-start', flexShrink: 0 }}>
                 <span
                   style={{
                     fontSize: '9.5px',
@@ -1666,92 +1651,100 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                     letterSpacing: '0.08em',
                     textTransform: 'uppercase',
                     fontFamily: "'Tomorrow', sans-serif",
+                    lineHeight: 1,
                   }}
                 >
                   Reserve (PRI)
                 </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {/* Pinned-width container ensures organ meters to the right never shift */}
-                  <div
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'baseline',
+                    flexShrink: 0,
+                  }}
+                >
+                  <span
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'baseline',
-                      minWidth: '82px',
-                      flexShrink: 0,
+                      fontSize: '32px',
+                      fontWeight: 800,
+                      color: overallPill.color,
+                      fontFamily: 'var(--hud-font-mono, monospace)',
+                      fontVariantNumeric: 'tabular-nums',
+                      letterSpacing: '-0.02em',
+                      lineHeight: 1,
+                      display: 'inline-block',
+                      textAlign: 'left',
+                      textShadow: `0 0 18px ${overallPill.color}35`,
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: '32px',
-                        fontWeight: 800,
-                        color: overallPill.color,
-                        fontFamily: 'var(--hud-font-mono, monospace)',
-                        fontVariantNumeric: 'tabular-nums',
-                        letterSpacing: '-0.02em',
-                        lineHeight: 1,
-                        display: 'inline-block',
-                        minWidth: '58px',
-                        textAlign: 'right',
-                        textShadow: `0 0 18px ${overallPill.color}35`,
-                      }}
-                    >
-                      {healthPercent}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '20px',
-                        fontWeight: 800,
-                        color: overallPill.color,
-                        fontFamily: "'Tomorrow', sans-serif",
-                        marginLeft: '2px',
-                        lineHeight: 1,
-                        display: 'inline-block',
-                        width: '20px',
-                        textAlign: 'left',
-                        textShadow: `0 0 14px ${overallPill.color}35`,
-                      }}
-                    >
-                      %
-                    </span>
-                  </div>
+                    {healthPercent}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '20px',
+                      fontWeight: 800,
+                      color: overallPill.color,
+                      fontFamily: "'Tomorrow', sans-serif",
+                      marginLeft: '2px',
+                      lineHeight: 1,
+                      display: 'inline-block',
+                      textAlign: 'left',
+                      textShadow: `0 0 14px ${overallPill.color}35`,
+                    }}
+                  >
+                    %
+                  </span>
+                </div>
+              </div>
 
-                  {/* 5-System Multi-Organ Reserve Pips (Health Systems) */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px',
-                      background: 'rgba(0, 0, 0, 0.40)',
-                      padding: '3px 8px',
-                      borderRadius: '5px',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      flexShrink: 0,
-                    }}
-                    title={`Health Systems Reserve: Cardiovascular: ${clinicalSummary.reserveBreakdown.cardiovascular}% | Respiratory: ${clinicalSummary.reserveBreakdown.respiratory}% | Metabolic: ${clinicalSummary.reserveBreakdown.metabolic}% | Immune: ${clinicalSummary.reserveBreakdown.immune}% | Radiation: ${clinicalSummary.reserveBreakdown.radiation}%`}
-                  >
-                    <div style={{ fontSize: '7.5px', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif", marginBottom: '1px' }}>
-                      Health Systems
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      {[
-                        { label: 'Cardio', val: clinicalSummary.reserveBreakdown.cardiovascular },
-                        { label: 'Resp', val: clinicalSummary.reserveBreakdown.respiratory },
-                        { label: 'Metab', val: clinicalSummary.reserveBreakdown.metabolic },
-                        { label: 'Immune', val: clinicalSummary.reserveBreakdown.immune },
-                        { label: 'Rad', val: clinicalSummary.reserveBreakdown.radiation },
-                      ].map((sys) => {
-                        const sysColor = sys.val < 50 ? '#ef4444' : sys.val < 75 ? '#f59e0b' : '#22c55e';
-                        return (
-                          <div key={sys.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5px' }}>
-                            <span style={{ fontSize: '7.5px', color: '#f1f5f9', fontWeight: 700, lineHeight: 1, fontFamily: "'Tomorrow', sans-serif" }}>{sys.label}</span>
-                            <div style={{ width: '18px', height: '3px', borderRadius: '1px', background: 'rgba(255,255,255,0.18)', overflow: 'hidden' }}>
-                              <div style={{ width: `${sys.val}%`, height: '100%', background: sysColor, transition: 'width 300ms ease' }} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+              {/* Subtle Vertical Divider between PRI and Health Systems */}
+              <div style={{ width: '1px', height: '34px', backgroundColor: 'rgba(255, 255, 255, 0.10)' }} />
+
+              {/* Health Systems Column with Parallel Aligned Top Label */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start', flexShrink: 0 }}>
+                <span
+                  style={{
+                    fontSize: '9.5px',
+                    fontWeight: 700,
+                    color: '#cbd5e1',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    fontFamily: "'Tomorrow', sans-serif",
+                    lineHeight: 1,
+                  }}
+                >
+                  Health Systems
+                </span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    background: 'rgba(0, 0, 0, 0.40)',
+                    padding: '5px 9px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(255, 255, 255, 0.10)',
+                    flexShrink: 0,
+                  }}
+                  title={`Health Systems Reserve: Cardiovascular: ${clinicalSummary.reserveBreakdown.cardiovascular}% | Respiratory: ${clinicalSummary.reserveBreakdown.respiratory}% | Metabolic: ${clinicalSummary.reserveBreakdown.metabolic}% | Immune: ${clinicalSummary.reserveBreakdown.immune}% | Radiation: ${clinicalSummary.reserveBreakdown.radiation}%`}
+                >
+                  {[
+                    { label: 'Cardio', val: clinicalSummary.reserveBreakdown.cardiovascular },
+                    { label: 'Resp', val: clinicalSummary.reserveBreakdown.respiratory },
+                    { label: 'Metab', val: clinicalSummary.reserveBreakdown.metabolic },
+                    { label: 'Immune', val: clinicalSummary.reserveBreakdown.immune },
+                    { label: 'Rad', val: clinicalSummary.reserveBreakdown.radiation },
+                  ].map((sys) => {
+                    const sysColor = sys.val < 50 ? '#ef4444' : sys.val < 75 ? '#f59e0b' : '#22c55e';
+                    return (
+                      <div key={sys.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2.5px' }}>
+                        <span style={{ fontSize: '8px', color: '#f1f5f9', fontWeight: 700, lineHeight: 1, fontFamily: "'Tomorrow', sans-serif" }}>{sys.label}</span>
+                        <div style={{ width: '20px', height: '3.5px', borderRadius: '1.5px', background: 'rgba(255,255,255,0.18)', overflow: 'hidden' }}>
+                          <div style={{ width: `${sys.val}%`, height: '100%', background: sysColor, transition: 'width 300ms ease' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1918,31 +1911,16 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
             </div>
           </div>
 
-          {/* ── CENTER: CREW SELECTOR (HORIZONTALLY CENTERED) ── */}
+          {/* ── CREW SELECTOR TABS ── */}
           <div
             style={{
               width: '100%',
               display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
               alignItems: 'center',
               justifyContent: 'center',
-              marginTop: '4px',
+              marginTop: '6px',
             }}
           >
-            <span
-              style={{
-                fontSize: '9.5px',
-                fontWeight: 700,
-                color: '#cbd5e1',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                fontFamily: "'Tomorrow', sans-serif",
-                textAlign: 'center',
-              }}
-            >
-              Crew Selection (4)
-            </span>
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '6px' }}>
               {CREW_MEMBERS.map((crew) => {
                 const isSelected = crew.id === selectedId;
@@ -2060,22 +2038,19 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                       {shortName}
                     </span>
 
-                    {/* Role Tag */}
+                    {/* Subtle Designation Text */}
                     <span
                       style={{
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        padding: '1px 5px',
-                        borderRadius: '3px',
-                        background: isSelected ? 'rgba(56, 189, 248, 0.20)' : 'rgba(255, 255, 255, 0.08)',
-                        border: isSelected ? '1px solid #555555' : '1px solid rgba(255, 255, 255, 0.10)',
-                        color: isSelected ? '#ffffff' : '#94a3b8',
+                        fontSize: '9.5px',
+                        fontWeight: 500,
+                        color: isSelected ? 'rgba(255, 255, 255, 0.65)' : '#71717a',
                         fontFamily: "'Tomorrow', sans-serif",
-                        letterSpacing: '0.04em',
+                        letterSpacing: '0.02em',
                         lineHeight: 1,
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      {crew.roleShort}
+                      {crew.role}
                     </span>
                   </button>
                 );
@@ -2083,34 +2058,6 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
             </div>
           </div>
 
-          {/* ── COMMENTED OUT: 149/149 BIOMARKERS & 10 HZ TELEMETRY BUS (PROPERLY HIDDEN AS REQUESTED) ──
-          <div style={{ display: 'none' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
-                Biomarkers
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', fontFamily: "'Tomorrow', sans-serif", fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                  149 / 149
-                </span>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-              </div>
-            </div>
-
-            <div style={{ width: '1px', height: '28px', backgroundColor: 'rgba(255, 255, 255, 0.08)' }} />
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: "'Tomorrow', sans-serif" }}>
-                Telemetry Bus
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: marsDelay ? '#f59e0b' : '#38bdf8', fontFamily: "'Tomorrow', sans-serif", lineHeight: 1 }}>
-                  {marsDelay ? '22m Delay (Relay)' : 'Live · 10 Hz'}
-                </span>
-              </div>
-            </div>
-          </div>
-          */}
         </div>
 
         {/* ── 3. MAIN CONTENT: 10 CATEGORICAL CARDS + DEDICATED FULL-HEIGHT SIDEBAR */}
@@ -2446,6 +2393,34 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                   >
                     VIEW ANALYSIS →
                   </button>
+                  {onSelectView && (
+                    <button
+                      onClick={() => onSelectView('SCANNER')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '5px 12px',
+                        borderRadius: '6px',
+                        background: 'linear-gradient(180deg, rgba(0, 229, 255, 0.22) 0%, rgba(0, 229, 255, 0.08) 100%)',
+                        border: '1px solid rgba(0, 229, 255, 0.45)',
+                        color: '#00e5ff',
+                        fontSize: '10.5px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontFamily: "'Tomorrow', sans-serif",
+                        letterSpacing: '0.05em',
+                        boxShadow: '0 0 10px rgba(0, 229, 255, 0.2)',
+                        transition: 'all 0.15s ease',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}
+                      title="Open 3D Holographic Anatomical Body Scanner"
+                    >
+                      <span style={{ fontSize: '11px' }}>⚡</span>
+                      <span>3D SCAN →</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

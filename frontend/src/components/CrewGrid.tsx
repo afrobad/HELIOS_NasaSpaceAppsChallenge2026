@@ -106,7 +106,7 @@ const renderMissionBadge = (stateRaw?: string) => {
         gap: '4px',
         padding: '2px 7px',
         borderRadius: '9999px',
-        fontSize: '9px',
+        fontSize: '10px',
         fontWeight: 600,
         letterSpacing: '0.04em',
         color: cfg.color,
@@ -117,7 +117,7 @@ const renderMissionBadge = (stateRaw?: string) => {
         cursor: 'default',
       }}
     >
-      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
         <path d={cfg.iconPath} />
       </svg>
       {cfg.label}
@@ -185,15 +185,15 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
             {/* ── ZONE 1: INTEGRATED CREW IDENTITY & TRIAGE BLOCK ──────── */}
             <div
               style={{
-                width: '148px',
+                width: '124px',
                 flexShrink: 0,
-                padding: '12px 10px',
+                padding: '10px 8px',
                 borderRight: '1px solid var(--hud-border-subtle)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px',
+                gap: '6px',
                 textAlign: 'center',
                 background: 'rgba(0, 0, 0, 0.25)',
                 boxSizing: 'border-box',
@@ -203,8 +203,8 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
               <div
                 style={{
                   position: 'relative',
-                  width: '46px',
-                  height: '46px',
+                  width: '40px',
+                  height: '40px',
                   borderRadius: '10px',
                   overflow: 'hidden',
                   flexShrink: 0,
@@ -255,7 +255,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span
                     style={{
-                      fontSize: '11px',
+                      fontSize: '11.5px',
                       fontWeight: 800,
                       color: '#ffffff',
                       letterSpacing: '0.04em',
@@ -274,7 +274,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    maxWidth: '136px',
+                    maxWidth: '110px',
                   }}
                 >
                   {crew.name}
@@ -389,7 +389,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                     />
                     <span
                       style={{
-                        fontSize: '9.5px',
+                        fontSize: '10px',
                         fontWeight: 700,
                         color: summary.primaryConcern.color,
                         letterSpacing: '0.04em',
@@ -414,10 +414,10 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                   >
                     <span
                       style={{
-                        fontSize: '9px',
+                        fontSize: '10px',
                         fontWeight: 700,
                         color: isCritical ? '#facc15' : isWarning ? '#fde047' : '#34d399',
-                        padding: '1px 5px',
+                        padding: '1px 6px',
                         borderRadius: '3px',
                         background: 'rgba(0,0,0,0.3)',
                         border: '1px solid rgba(255,255,255,0.1)',
@@ -496,7 +496,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                           >
                             <span
                               style={{
-                                fontSize: '9px',
+                                fontSize: '10px',
                                 fontWeight: 700,
                                 color: 'rgba(148, 163, 184, 0.85)',
                                 letterSpacing: '0.03em',
@@ -506,7 +506,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                             </span>
                             <span
                               style={{
-                                fontSize: '8px',
+                                fontSize: '9px',
                                 fontWeight: 700,
                                 padding: '0 4px',
                                 borderRadius: '2px',
@@ -564,28 +564,28 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                     })}
                   </div>
                 ) : (
-                  /* NOMINAL: Visually Quiet Baseline Profile */
+                  /* NOMINAL: Clean 4-Primary Vitals — Minimal & Scannable */
                   <div
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '7px',
+                      gap: '8px',
                     }}
                   >
                     <div
                       style={{
-                        fontSize: '9px',
-                        color: 'rgba(148, 163, 184, 0.80)',
+                        fontSize: '10px',
+                        color: 'rgba(148, 163, 184, 0.75)',
                         lineHeight: 1.35,
                       }}
                     >
-                      All biometrics aligned with resting baseline. Zero critical delta.
+                      All biometrics aligned with resting baseline.
                     </div>
                     <div
                       style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(4, 1fr)',
-                        gap: '4px',
+                        gap: '5px',
                       }}
                     >
                       {/* HR */}
@@ -594,14 +594,14 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                         style={{
                           background: 'rgba(255, 255, 255, 0.03)',
                           border: '1px solid rgba(255, 255, 255, 0.07)',
-                          borderRadius: '4px',
-                          padding: '4px 6px',
+                          borderRadius: '5px',
+                          padding: '5px 7px',
                           cursor: 'default',
                         }}
                       >
-                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>HR</div>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
-                          {summary.nominalVitals.hr.val} <span style={{ fontSize: '7.5px', color: '#64748b' }}>bpm</span>
+                        <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>HR</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)', lineHeight: 1.1 }}>
+                          {summary.nominalVitals.hr.val} <span style={{ fontSize: '8.5px', color: '#64748b' }}>bpm</span>
                         </div>
                         <div className="hud-tooltip hud-tooltip-down">
                           Heart Rate · Ventricular contractions per minute (Baseline: {profile.restHr} bpm)
@@ -614,14 +614,14 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                         style={{
                           background: 'rgba(255, 255, 255, 0.03)',
                           border: '1px solid rgba(255, 255, 255, 0.07)',
-                          borderRadius: '4px',
-                          padding: '4px 6px',
+                          borderRadius: '5px',
+                          padding: '5px 7px',
                           cursor: 'default',
                         }}
                       >
-                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>SpO₂</div>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
-                          {summary.nominalVitals.spo2.val}<span style={{ fontSize: '7.5px', color: '#64748b' }}>%</span>
+                        <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>SpO₂</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)', lineHeight: 1.1 }}>
+                          {summary.nominalVitals.spo2.val}<span style={{ fontSize: '8.5px', color: '#64748b' }}>%</span>
                         </div>
                         <div className="hud-tooltip hud-tooltip-down">
                           Oxygen Saturation · Peripheral arterial blood oxygen fraction (Normal: ≥95%)
@@ -634,14 +634,14 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                         style={{
                           background: 'rgba(255, 255, 255, 0.03)',
                           border: '1px solid rgba(255, 255, 255, 0.07)',
-                          borderRadius: '4px',
-                          padding: '4px 6px',
+                          borderRadius: '5px',
+                          padding: '5px 7px',
                           cursor: 'default',
                         }}
                       >
-                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>TEMP</div>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
-                          {summary.nominalVitals.temp.val}<span style={{ fontSize: '7.5px', color: '#64748b' }}>°C</span>
+                        <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>TEMP</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)', lineHeight: 1.1 }}>
+                          {summary.nominalVitals.temp.val}<span style={{ fontSize: '8.5px', color: '#64748b' }}>°C</span>
                         </div>
                         <div className="hud-tooltip hud-tooltip-down-right">
                           Core Temperature · Internal thermal homeostasis (Baseline: {profile.restTemp}°C)
@@ -654,97 +654,17 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                         style={{
                           background: 'rgba(255, 255, 255, 0.03)',
                           border: '1px solid rgba(255, 255, 255, 0.07)',
-                          borderRadius: '4px',
-                          padding: '4px 6px',
+                          borderRadius: '5px',
+                          padding: '5px 7px',
                           cursor: 'default',
                         }}
                       >
-                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>BP</div>
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
-                          {summary.nominalVitals.bp.val}
+                        <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>BP</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)', lineHeight: 1.1 }}>
+                          {summary.nominalVitals.bp.val} <span style={{ fontSize: '8.5px', color: '#64748b' }}>mmHg</span>
                         </div>
                         <div className="hud-tooltip hud-tooltip-down-right">
                           Blood Pressure · Systolic/diastolic arterial perfusion pressure ({summary.nominalVitals.bp.val} mmHg)
-                        </div>
-                      </div>
-
-                      {/* HRV (Autonomic Strain) */}
-                      <div
-                        className="hud-tooltip-trigger"
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: '1px solid rgba(255, 255, 255, 0.07)',
-                          borderRadius: '4px',
-                          padding: '4px 6px',
-                          cursor: 'default',
-                        }}
-                      >
-                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>HRV</div>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
-                          {summary.nominalVitals.hrv?.val ?? 55} <span style={{ fontSize: '7.5px', color: '#64748b' }}>ms</span>
-                        </div>
-                        <div className="hud-tooltip hud-tooltip-up">
-                          Heart Rate Variability · RMSSD parasympathetic recovery tone (Baseline: {profile.restHrv} ms)
-                        </div>
-                      </div>
-
-                      {/* K+ (Serum Potassium) */}
-                      <div
-                        className="hud-tooltip-trigger"
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: '1px solid rgba(255, 255, 255, 0.07)',
-                          borderRadius: '4px',
-                          padding: '4px 6px',
-                          cursor: 'default',
-                        }}
-                      >
-                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>K⁺</div>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
-                          {summary.nominalVitals.k?.val ?? 4.2} <span style={{ fontSize: '7.5px', color: '#64748b' }}>mM</span>
-                        </div>
-                        <div className="hud-tooltip hud-tooltip-up">
-                          Serum Potassium · Electrolyte governing myocardial excitability (Baseline: {profile.k} mM)
-                        </div>
-                      </div>
-
-                      {/* QTc (Ventricular Repolarization) */}
-                      <div
-                        className="hud-tooltip-trigger"
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: '1px solid rgba(255, 255, 255, 0.07)',
-                          borderRadius: '4px',
-                          padding: '4px 6px',
-                          cursor: 'default',
-                        }}
-                      >
-                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>QTc</div>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
-                          {summary.nominalVitals.qtc?.val ?? 415} <span style={{ fontSize: '7.5px', color: '#64748b' }}>ms</span>
-                        </div>
-                        <div className="hud-tooltip hud-tooltip-up-right">
-                          Corrected QT Interval · Ventricular electrical repolarization time on Lead-II (≤450 ms)
-                        </div>
-                      </div>
-
-                      {/* HCT (Hematocrit / Fluid Shift) */}
-                      <div
-                        className="hud-tooltip-trigger"
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: '1px solid rgba(255, 255, 255, 0.07)',
-                          borderRadius: '4px',
-                          padding: '4px 6px',
-                          cursor: 'default',
-                        }}
-                      >
-                        <div style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>HCT</div>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)' }}>
-                          {summary.nominalVitals.hct?.val ?? 44.0}<span style={{ fontSize: '7.5px', color: '#64748b' }}>%</span>
-                        </div>
-                        <div className="hud-tooltip hud-tooltip-up-right">
-                          Hematocrit · Red cell volume fraction; monitors microgravity fluid shift (Baseline: {profile.hct}%)
                         </div>
                       </div>
                     </div>
@@ -769,7 +689,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                     display: 'flex',
                     alignItems: 'center',
                     gap: '5px',
-                    fontSize: '9.5px',
+                    fontSize: '10px',
                     fontWeight: 700,
                     color: summary.trajectory.color,
                     letterSpacing: '0.03em',
