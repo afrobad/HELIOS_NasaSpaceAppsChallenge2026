@@ -34,8 +34,8 @@ const T = {
   activeBorder: '#4a5b6d',
   tabBg: '#0c0f12',
   tabBorder: '#2c3642',
-  tabActiveBg: 'rgba(56, 189, 248, 0.14)',
-  tabActiveBorder: 'rgba(56, 189, 248, 0.35)',
+  tabActiveBg: 'rgba(56, 189, 248, 0.30)',
+  tabActiveBorder: 'rgba(56, 189, 248, 0.55)',
   info: '#7ea4cb',
   mono: "'SF Mono', 'Cascadia Code', Consolas, 'Liberation Mono', monospace",
   sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
@@ -508,16 +508,18 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         key={t2}
         onClick={() => setTab(t2)}
         style={{
-          background: isSel ? 'rgba(56, 189, 248, 0.14)' : '#0c0f12',
-          border: isSel ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid #2c3642',
+          background: isSel ? 'rgba(56, 189, 248, 0.30)' : '#0c0f12',
+          border: isSel ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid #2c3642',
           borderRadius: 5,
-          padding: '6px 14px',
-          color: isSel ? '#ffffff' : '#b8cbde',
+          padding: '6px 15px',
+          color: isSel ? '#ffffff' : '#9ec7ef',
           fontSize: 11,
           fontWeight: isSel ? 700 : 500,
           cursor: 'pointer',
           fontFamily: T.sans,
-          letterSpacing: '0.03em',
+          letterSpacing: '0.04em',
+          textShadow: isSel ? '0 1px 2px rgba(0, 0, 0, 0.75)' : 'none',
+          boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
           transition: 'all 0.12s ease',
         }}
       >
@@ -1425,14 +1427,17 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 key={sub}
                 onClick={() => setCrewSubTab(sub)}
                 style={{
-                  background: isSel ? 'rgba(56, 189, 248, 0.14)' : '#0c1015',
-                  border: isSel ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid #202b38',
-                  color: isSel ? '#ffffff' : '#b0c5dc',
+                  background: isSel ? 'rgba(56, 189, 248, 0.30)' : '#0c1015',
+                  border: isSel ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid #202b38',
+                  color: isSel ? '#ffffff' : '#9ec7ef',
                   borderRadius: 4,
                   padding: '6px 14px',
                   fontSize: 11,
                   fontWeight: isSel ? 700 : 500,
                   cursor: 'pointer',
+                  letterSpacing: '0.03em',
+                  textShadow: isSel ? '0 1px 2px rgba(0, 0, 0, 0.75)' : 'none',
+                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
                   transition: 'all 0.12s ease',
                 }}
               >
@@ -2685,16 +2690,18 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 key={f.key}
                 onClick={() => setSysCategoryFilter(f.key as any)}
                 style={{
-                  background: isSel ? 'rgba(56, 189, 248, 0.14)' : '#0c0f12',
-                  border: isSel ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid #2c3642',
+                  background: isSel ? 'rgba(56, 189, 248, 0.30)' : '#0c0f12',
+                  border: isSel ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid #2c3642',
                   borderRadius: 4,
                   padding: '5px 12px',
-                  color: isSel ? '#ffffff' : '#b8cbde',
+                  color: isSel ? '#ffffff' : '#9ec7ef',
                   fontSize: 10,
                   fontWeight: isSel ? 700 : 500,
                   cursor: 'pointer',
                   fontFamily: T.sans,
-                  letterSpacing: '0.03em',
+                  letterSpacing: '0.04em',
+                  textShadow: isSel ? '0 1px 2px rgba(0, 0, 0, 0.75)' : 'none',
+                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
                   transition: 'all 0.12s ease',
                 }}
               >
@@ -2993,14 +3000,17 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 key={k}
                 onClick={() => setDistPreset(k)}
                 style={{
-                  background: isSel ? 'rgba(56, 189, 248, 0.14)' : '#0b0e11',
-                  border: isSel ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid #202b38',
+                  background: isSel ? 'rgba(56, 189, 248, 0.30)' : '#0b0e11',
+                  border: isSel ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid #202b38',
                   borderRadius: 4,
                   padding: '5px 12px',
                   fontSize: 10,
-                  fontWeight: isSel ? 700 : 400,
-                  color: isSel ? '#ffffff' : T.textMuted,
+                  fontWeight: isSel ? 700 : 500,
+                  color: isSel ? '#ffffff' : '#9ec7ef',
                   cursor: 'pointer',
+                  letterSpacing: '0.03em',
+                  textShadow: isSel ? '0 1px 2px rgba(0, 0, 0, 0.75)' : 'none',
+                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
                   transition: 'all 0.12s ease',
                 }}
               >
