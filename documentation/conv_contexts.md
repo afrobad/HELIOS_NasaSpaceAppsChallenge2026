@@ -6550,3 +6550,70 @@
 * **Referenced File Links:**
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+## Turn 39: Complete Deep MCC Signal Integration with Live Backend Telemetry & Scenario Engine
+* **Date/Time:** 2026-10-03 01:50:00 (Local Time) / 19:50:00 UTC
+* **Role:** Lead Flight Telemetry Systems Architect & Aerospace Software Engineer
+* **User Feedback & Request:**
+  > User requested deep full-stack synchronization across the entire Mission Control Center:
+  > *"NOW,, ANALYZE DEEPLY, AND LET EACH AND EVERY PORTION AND SIGNAL TO BE CONNECTED WITH THE BACKEND AS THE HEALTH TELEMETRY PAGES SIGNALS, INCLUDING THE SCENARIO CHANGES."*
+  > Zero emojis anywhere (strictly forbidden). Clean professional styling with zero hardcoded astronaut arrays.
+
+* **Architecture & Functional Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **NASA OSDR Inspiration4 Parity across Mission Control View:**
+     - Directly imported authentic `NASA_OSDR_PROFILES` from `HealthTelemetryView.tsx`.
+     - Connected every crew member (`AST-01_COMMANDER`, `AST-02_PILOT`, `AST-03_MEDICAL`, `AST-04_ENGINEER`) to their true clinical baseline biomarkers: WBC, RBC, Hgb, Hct, PLT, Na, K, Glu, BUN, Cr, Alb, ALT, AST, CRP, Fibrinogen, TNF-alpha, IL-6, IFN-gamma, IL-1beta.
+     - Eliminated all static fallback arrays and hardcoded Pilot-only mock data.
+  2. **Scenario-Aware Mission Events Engine (`events` useMemo):**
+     - Connected `currentScenario` phase and telemetry excursions directly to live MCC critical incident alerts:
+       * `SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA`: Evaluates Serum K+ (< 3.5 mEq/L) and QTc (> 450 ms) to trigger targeted myocardial arrhythmia alerts.
+       * `SCENARIO_3_SOLAR_RADIATION_STORM`: Evaluates HERA radiation flux (> 5.0 mGy/d) and CAD microdosimetry for acute particle events.
+       * `SCENARIO_7_VENOUS_THROMBOSIS_RISK`: Evaluates TRM index (> 1.60) and internal jugular flow stasis.
+       * `SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH`: Evaluates cabin CO2 (> 3.0 mmHg) and collective hypoxia.
+       * `SCENARIO_4_AMMONIA_COOLANT_LEAK`: Evaluates ATCS loop coolant integrity and NH3 ppm levels.
+       * Merges backend alerts from SQLite `/api/alerts` dynamically.
+  3. **Four-Column Decision Dashboard Connected to Live Telemetry (`renderCrew`):**
+     - **Dynamic Telemetry Extraction (`getStats`):**
+       * Real-time biometrics: HR, SpO2, Respiration Rate, Core Temp, HRV, Workload.
+       * Real-time clinical biomarkers: Potassium, QTc, ARF, TRM, RSI, Radiation Flux, Radiation Dose, Hematocrit, Platelets, WBC, IL-6, CRP, Lymphocytes.
+       * Live Z-Score Computation: Dynamically computes z-scores for HR, HRV, SpO2, Respiration, and Core Temperature against each astronaut's individual baseline mean and standard deviation.
+     - **Dynamic Sparklines & 2-Hour Trends:** Generated in real time for any active crew member (`selCrewId`), reflecting true live physiological variance.
+     - **Scenario-Adaptive Causal Pipeline (Column 3):**
+       * Dynamically renders 4-stage pathophysiological pathways based on active conditions:
+         - Hypokalemia & Arrhythmia 4-Stage Pathway (K+ depletion -> QTc prolongation -> Arrhythmia Risk Index -> Myocardial Excursion).
+         - Solar Radiation Storm 4-Stage Pathway (SPE detection -> HERA dosimeter spike -> Lymphocyte apoptosis -> Cumulative tissue dose).
+         - Venous Thrombosis Risk 4-Stage Pathway (Cephalad fluid shift -> IJV cross-section dilation -> Flow velocity reduction -> TRM index escalation).
+         - Cabin CO2 Scrubber Saturation 4-Stage Pathway (Bed A saturation -> Cabin pCO2 breakthrough -> Crew compensatory hyperventilation -> Respiratory acidosis).
+         - Cardiovascular / Exertion excursion pathway.
+         - Nominal Homeostasis pathway showing all 5 biometric channels in balance with real-time Z-scores.
+     - **Multi-Signal Correlation Weights:** Computes dynamic live-weighted Pearson correlation progress bars tailored to the active condition.
+     - **Detection Rationale & Bayesian Decision Support (Column 4):**
+       * Dynamic rationale text explaining exact clinical delta vs baseline.
+       * Dynamic Bayesian posterior confidence gauge (95-99%).
+       * Live condition, trajectory trend, and estimated time to threshold.
+       * Active scenario-tailored suggested clinical diagnostic checks.
+       * Responsive action buttons directly linked to matching checklists (`CARD-04`, `RAD-SPE-01`, `THROMB-01`, `ECLSS-CO2-01`, `M-204`, etc.).
+  4. **Interactive Crew Sub-Tabs Fully Bound to Live Telemetry & OSDR Dossiers:**
+     - **Trends Sub-Tab:** 4 synchronized live multi-signal trend charts for the selected astronaut.
+     - **Correlation Sub-Tab:** Scenario-aware dynamic Pearson r correlation matrix across 6 clinical biomarker pairs.
+     - **Baseline & Deviation Sub-Tab:** Dynamic 4-channel Z-scores (HR, SpO2, Resp, Core Temp) with live cohort distribution envelope.
+     - **Medical History Dossier:** Full authentic NASA OSDR Inspiration4 flight medical records (CBC, CMP, cytokine panels, flight certification).
+     - **Procedures Sub-Tab:** 7 aerospace clinical checklists (`M-204`, `CARD-04`, `ECLSS-CO2-01`, `MED-CARD-02`, `RAD-SPE-01`, `THROMB-01`, `ECLSS-AMMONIA-01`).
+     - **3D Bio-Scanner Sub-Tab:** Live holographic 3D avatar scanner integration.
+  5. **Spacecraft Health Systems & Device Catalog Overhaul (`renderSystems`):**
+     - 16 installed spacecraft devices bound to live packet data (`telemetryMap[selCrewId] || pkt`):
+       * Environmental: PCA (Atmospheric Pressure Controller), CDRA (Carbon Dioxide Removal Assembly), ATCS (Active Thermal Control System), WPA (Water Processor Assembly), EODS (Emergency O2 Delivery System).
+       * Crew Biomonitors: AstroSkin Smart Garment, CPOD (Continuous Pulse Oximeter), Cardio-Patch 12-Lead ECG, PPG (Ear-Clip Perfusion Index), T-Mini Ultrasound Probe.
+       * Diagnostic & Assays: rHEALTH Flow Cytometer, Piccolo Xpress CMP Analyzer, Luminex MAGPIX Cytokine Assays.
+       * Dosimeters: HERA (Hybrid Electronic Radiation Assessor), CAD (Crew Active Dosimeter).
+       * Countermeasure: ARED / CEVIS Ergometer.
+     - Dynamic consumables table tracking real-time reserve margins and countermeasure availability (LiOH backup, K+ supplement packs, etc.).
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `npm run build` compiled client bundle in 874ms with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed all 19 integration checks (19 passed, 0 failed).
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [frontend/src/components/HealthTelemetryView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HealthTelemetryView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)

@@ -3,6 +3,7 @@ import type { TelemetryPacket, AlertPayload } from '../types/telemetry';
 import { HolographicBodyScanner } from './HolographicBodyScanner';
 import { CrewGrid } from './CrewGrid';
 import { CabinEnvironmentalBar } from './CabinEnvironmentalBar';
+import { NASA_OSDR_PROFILES } from './HealthTelemetryView';
 
 // ─────────────────────────────────────────────────────────────
 // MCC Design Tokens — Refined Olive-Charcoal Operational Palette
@@ -121,6 +122,42 @@ const PROCEDURES: Record<string, FlightProcedure> = {
       { step: 2, text: 'Command astronaut to conclude current high-intensity resistive/aerobic workout block.', role: 'CAPCOM' },
       { step: 3, text: 'Initiate personal airflow cooling duct and verify crew liquid cooling garment function.', role: 'ECLSS' },
       { step: 4, text: 'Administer 500 mL chilled electrolyte solution and monitor HR deceleration slope.', role: 'SURGEON' },
+    ],
+  },
+  'NASA-STD-3001-RAD-SPE-01': {
+    id: 'NASA-STD-3001-RAD-SPE-01',
+    title: 'Solar Particle Event Radiation Shelter Protocol',
+    category: 'Space Environment / Radiation Health',
+    steps: [
+      { step: 1, text: 'Confirm solar proton flux > 10 MeV threshold on HERA and CAD silicon detectors.', role: 'SURGEON' },
+      { step: 2, text: 'Direct all 4 crew members to terminate EVA and transfer into storm shelter.', role: 'CAPCOM' },
+      { step: 3, text: 'Deploy supplemental water-wall radiation shielding around central habitat core.', role: 'ECLSS' },
+      { step: 4, text: 'Perform serial leukocyte assay and calculate Radiation Susceptibility Index (RSI).', role: 'SURGEON' },
+      { step: 5, text: 'Maintain dosimeter logging rate at 10 Hz until geomagnetic / solar flux recedes.', role: 'FLIGHT' },
+    ],
+  },
+  'NASA-STD-3001-THROMB-01': {
+    id: 'NASA-STD-3001-THROMB-01',
+    title: 'Internal Jugular Venous Thrombosis Countermeasure',
+    category: 'Vascular Medicine / Microgravity Hemodynamics',
+    steps: [
+      { step: 1, text: 'Verify TRM risk index > 1.50 and evaluate internal jugular venous flow stagnation.', role: 'SURGEON' },
+      { step: 2, text: 'Command astronaut recumbency with lower body negative pressure (LBNP) therapy.', role: 'FLIGHT' },
+      { step: 3, text: 'Initiate oral hydration fluid expansion (750 mL balanced electrolyte solution).', role: 'SURGEON' },
+      { step: 4, text: 'Prepare subcutaneous low-molecular-weight heparin (Enoxaparin 40 mg).', role: 'SURGEON' },
+      { step: 5, text: 'Perform serial point-of-care vascular compression ultrasound of jugular flow.', role: 'SURGEON' },
+    ],
+  },
+  'NASA-STD-3001-ECLSS-AMMONIA-01': {
+    id: 'NASA-STD-3001-ECLSS-AMMONIA-01',
+    title: 'External/Internal Ammonia Coolant Breach Containment',
+    category: 'Life Support / Hazardous Materials',
+    steps: [
+      { step: 1, text: 'Command all crew to don emergency quick-don positive pressure breathing masks.', role: 'ALL CREW' },
+      { step: 2, text: 'Isolate suspected thermal loop heat exchanger isolation valves.', role: 'ECLSS' },
+      { step: 3, text: 'Deploy catalytic ammonia trace contaminant filter scrubbers in hab module.', role: 'ECLSS' },
+      { step: 4, text: 'Direct crew to report ocular burning or mucosal irritation symptoms to CMO.', role: 'SURGEON' },
+      { step: 5, text: 'Verify cabin atmosphere below OSHA/NASA 10 ppm permissible limit.', role: 'FLIGHT' },
     ],
   },
 };
@@ -403,13 +440,245 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       });
     });
 
+    // 2. Derive scenario-aware physiological & environmental excursions from live telemetryMap
+    const scenarioKey = currentScenario || Object.values(telemetryMap)[0]?.scenario_phase || 'NOMINAL_CRUISE';
+    const isCo2Scen = scenarioKey.includes('CO2') || (Object.values(telemetryMap)[0]?.cabin_co2 || 0) > 3.0;
+    const isHypokalemiaScen = scenarioKey.includes('HYPOKALEMIA');
+    const isRadiationScen = scenarioKey.includes('RADIATION') || scenarioKey.includes('SOLAR');
+    const isThrombosisScen = scenarioKey.includes('THROMBOSIS');
+    const isAmmoniaScen = scenarioKey.includes('AMMONIA') || scenarioKey.includes('COOLANT');
+
     Object.entries(telemetryMap).forEach(([astId, pkt]) => {
       const crew = CREW.find(c => c.id === astId);
       if (!crew) return;
       const hrD = ((pkt.heart_rate - crew.baseHr) / crew.baseHr) * 100;
       const spo2D = pkt.spo2 - crew.baseSpo2;
 
-      if (pkt.evaluated_severity === 'CRITICAL' || pkt.heart_rate > 115 || (pkt.computed_arf && pkt.computed_arf > 1.8)) {
+      // Special Scenario: Acute Hypokalemia & Tachyarrhythmia
+      if (isHypokalemiaScen || (pkt.potassium !== undefined && pkt.potassium < 3.5) || (pkt.computed_qtc && pkt.computed_qtc > 450)) {
+        const kVal = pkt.potassium !== undefined ? pkt.potassium : 3.20;
+        const qtcVal = pkt.computed_qtc || 482;
+        const arfVal = pkt.computed_arf || 1.85;
+        const isCrit = kVal < 3.2 || qtcVal > 480;
+
+        evts.push({
+          id: `HYPO-${astId}`,
+          time: now,
+          priority: isCrit ? 'CRITICAL' : 'WARNING',
+          entity: `Crew ${crew.callsign} · ${crew.name}`,
+          astronautId: astId,
+          subsystem: 'Cardiology / Electrolytes',
+          summary: `Serum K⁺ ${kVal.toFixed(2)} mmol/L · QTc ${qtcVal.toFixed(0)} ms Prolongation`,
+          age: '< 2m',
+          trend: 'WORSENING',
+          trajectory: 'WORSENING',
+          timeToLimit: '6 min to Ectopic Gate',
+          evidenceStrength: 'HIGH',
+          signalsCount: 4,
+          acknowledged: !!acked[`HYPO-${astId}`],
+          observed: [
+            `Serum Potassium (K⁺): ${kVal.toFixed(2)} mmol/L (Floor: 3.50 mmol/L)`,
+            `Fridericia QTc Interval: ${qtcVal.toFixed(0)} ms (Gate: 450 ms)`,
+            `Heart Rate: ${pkt.heart_rate.toFixed(0)} bpm (baseline: ${crew.baseHr} bpm)`,
+            `Arrhythmogenic Risk Factor (ARF): ${arfVal.toFixed(2)} (Safe: < 1.0)`,
+          ],
+          derived: [
+            `I_Kr repolarization delay: +${(qtcVal - 402).toFixed(0)} ms above baseline`,
+            `Hypokalemic shift: ${(kVal - 4.4).toFixed(2)} mmol/L below mean`,
+          ],
+          correlated: [
+            'ST segment flattening observed on 12-lead ECG telemetry',
+            'Compensatory chronotropic rate surge',
+          ],
+          possibleFactors: [
+            'Microgravity fluid redistribution & aldosterone mineral excretion',
+            'Intense exercise session without electrolyte replacement',
+          ],
+          actionsToEvaluate: [
+            'Review point-of-care serum potassium and verify repeat assay',
+            'Authorize oral potassium chloride supplement pack (20 mEq)',
+            'Direct Medical Officer (Dr. Sian) to confirm 12-lead rhythm pass',
+            'Maintain continuous 10-minute ECG telemetry monitoring gate',
+          ],
+          procedure: 'NASA-STD-3001-MED-CARD-04',
+          confidence: 'HIGH certainty · multi-parameter biochemical & ECG lock',
+          provenance: 'Telemetry feeder · labAssayService · Fridericia QTc engine',
+          evidence: `K⁺ ${kVal.toFixed(2)} mmol/L · QTc ${qtcVal.toFixed(0)} ms · ARF ${arfVal.toFixed(2)}`,
+          baselineRef: 'NASA-STD-3001 Vol 1/2 · Normal K⁺: 3.5 - 5.0 mmol/L',
+          timelineSequence: [
+            { time: '13:00:00', delta: 'T-08m 20s', signal: 'Serum K⁺', finding: 'Potassium drops below normal floor (3.42 mmol/L)', severity: 'WARNING' },
+            { time: '13:04:15', delta: 'T-04m 05s', signal: 'Fridericia QTc', finding: 'Rate-corrected QT interval exceeds 450 ms threshold', severity: 'WARNING' },
+            { time: '13:07:30', delta: 'T-00m 50s', signal: 'ARF Engine', finding: 'Arrhythmogenic risk factor surges to 1.85', severity: 'CRITICAL' },
+            { time: '13:08:20', delta: 'T+00m 00s', signal: 'Sentry Matrix', finding: 'Autonomous sentry alert generated for CARD-04 protocol', severity: isCrit ? 'CRITICAL' : 'WARNING' },
+          ],
+        });
+      }
+      // Special Scenario: Solar Particle Event / Radiation Storm
+      else if (isRadiationScen || (pkt.radiation_flux && pkt.radiation_flux > 5.0)) {
+        const fluxVal = pkt.radiation_flux || 42.5;
+        const doseVal = pkt.radiation_dose_gy || 0.082;
+        const rsiVal = pkt.computed_rsi || 0.68;
+
+        evts.push({
+          id: `RAD-${astId}`,
+          time: now,
+          priority: fluxVal > 20 ? 'CRITICAL' : 'WARNING',
+          entity: `Crew ${crew.callsign} · ${crew.name}`,
+          astronautId: astId,
+          subsystem: 'Radiation Environment',
+          summary: `Solar Particle Event · Flux ${fluxVal.toFixed(1)} mGy/d · Dose ${(doseVal * 1000).toFixed(0)} mSv`,
+          age: '< 1m',
+          trend: 'WORSENING',
+          trajectory: 'WORSENING',
+          timeToLimit: '15 min to Storm Shelter Gate',
+          evidenceStrength: 'HIGH',
+          signalsCount: 4,
+          acknowledged: !!acked[`RAD-${astId}`],
+          observed: [
+            `Solar Proton Flux: ${fluxVal.toFixed(1)} mGy/d (Threshold: 5.0 mGy/d)`,
+            `Cumulative Mission Dose: ${(doseVal * 1000).toFixed(1)} mSv`,
+            `Radiation Susceptibility Index (RSI): ${rsiVal.toFixed(2)} (Safe: < 0.20)`,
+            `Silicon Mesh CAD Detectors: Coincident flux alarm active`,
+          ],
+          derived: [
+            `Flux elevation: +${((fluxVal - 1.24) / 1.24 * 100).toFixed(0)}% above GCR quiet baseline`,
+            `Estimated 24h absorbed dose rate exceeds permissible EVA envelope`,
+          ],
+          correlated: [
+            'HERA 6-node silicon detector grid coincident triggering',
+            'Deep Space Network solar coronal plasma warning confirmed',
+          ],
+          possibleFactors: [
+            'Coronal Mass Ejection (CME) directed along Parker spiral interplanetary magnetic field',
+          ],
+          actionsToEvaluate: [
+            'Direct all 4 crew members into water-wall protected central storm shelter',
+            'Deploy auxiliary polyethylene shielding blankets over crew berths',
+            'Suspend all scheduled EVA and exterior robotic arm operations',
+            'Monitor leukocyte counts and DNA double-strand break indices',
+          ],
+          procedure: 'NASA-STD-3001-RAD-SPE-01',
+          confidence: 'CONFIRMED · HERA silicon coincidence 99% certainty',
+          provenance: 'HERA telemetry bus · Silicon microdosimeter mesh',
+          evidence: `Flux ${fluxVal.toFixed(1)} mGy/d · RSI ${rsiVal.toFixed(2)} · CAD Active`,
+          baselineRef: 'NASA-STD-3001 GCR Baseline 1.24 mGy/d · Career Limit 600 mSv',
+          timelineSequence: [
+            { time: '13:01:00', delta: 'T-07m 20s', signal: 'DSN Space Weather', finding: 'Solar flare optical & X-ray burst detected by SOHO/GOES', severity: 'NOMINAL' },
+            { time: '13:05:10', delta: 'T-03m 10s', signal: 'HERA Silicon Grid', finding: 'High-energy proton flux crosses 10 MeV threshold', severity: 'WARNING' },
+            { time: '13:08:20', delta: 'T+00m 00s', signal: 'CAD Dosimeters', finding: 'Personal dosimeters sound acoustic storm alarm', severity: 'CRITICAL' },
+          ],
+        });
+      }
+      // Special Scenario: Internal Jugular Venous Thrombosis
+      else if (isThrombosisScen || (pkt.computed_trm && pkt.computed_trm > 1.6)) {
+        const trmVal = pkt.computed_trm || 2.15;
+        const hctVal = pkt.hematocrit || 48.5;
+        const pltVal = pkt.platelet_count || 365;
+
+        evts.push({
+          id: `THROMB-${astId}`,
+          time: now,
+          priority: 'WARNING',
+          entity: `Crew ${crew.callsign} · ${crew.name}`,
+          astronautId: astId,
+          subsystem: 'Vascular / Thrombosis',
+          summary: `TRM Index ${trmVal.toFixed(2)} · Jugular Venous Stasis Risk`,
+          age: '< 4m',
+          trend: 'STABLE',
+          trajectory: 'STABLE',
+          timeToLimit: '4h Ultrasound Surveillance Gate',
+          evidenceStrength: 'HIGH',
+          signalsCount: 4,
+          acknowledged: !!acked[`THROMB-${astId}`],
+          observed: [
+            `Thrombosis Risk Model (TRM): ${trmVal.toFixed(2)} (High Risk: > 1.50)`,
+            `Hematocrit (Hct): ${hctVal.toFixed(1)}% (Baseline: ${crew.id === 'AST-02_PILOT' ? '36.4%' : '43.6%'})`,
+            `Platelet Count (PLT): ${pltVal.toFixed(0)} ×10³/µL (Elevated)`,
+            `Jugular Vein Flow Velocity: Stasis waveform (< 4 cm/s)`,
+          ],
+          derived: [
+            `Virchow Triad vascular index: Stasis + Hemoconcentration + Endothelial stress`,
+          ],
+          correlated: [
+            'Cephalad fluid shift persistence in microgravity',
+            'Vascular ultrasound waveform retrograde flow detection',
+          ],
+          possibleFactors: [
+            'Microgravity venous stagnation in internal jugular vein',
+            'Relative hemoconcentration from fluid volume loss',
+          ],
+          actionsToEvaluate: [
+            'Direct Medical Officer (Dr. Sian) to perform vascular compression ultrasound',
+            'Administer 500 mL oral rehydration electrolyte solution',
+            'Prepare subcutaneous low-molecular-weight heparin (Enoxaparin 40 mg)',
+            'Verify lower body negative pressure (LBNP) device readiness',
+          ],
+          procedure: 'NASA-STD-3001-THROMB-01',
+          confidence: 'HIGH evidence strength · Multimodal TRM ML engine',
+          provenance: 'TRM Virchow model · rHEALTH cytometer · vascular ultrasound',
+          evidence: `TRM ${trmVal.toFixed(2)} · Hct ${hctVal.toFixed(1)}% · PLT ${pltVal.toFixed(0)}k`,
+          baselineRef: 'NASA-STD-3001 Venous Hemodynamics Standard',
+          timelineSequence: [
+            { time: '12:55:00', delta: 'T-13m 20s', signal: 'Vascular Doppler', finding: 'Internal jugular vein flow velocity drops below 4 cm/s', severity: 'NOMINAL' },
+            { time: '13:03:10', delta: 'T-05m 10s', signal: 'rHEALTH Lab', finding: 'Hemoconcentration detected: Hct 48.5%, Platelets 365k', severity: 'WARNING' },
+            { time: '13:08:20', delta: 'T+00m 00s', signal: 'TRM Sentry', finding: 'TRM index reaches 2.15: Thrombosis countermeasure advisory', severity: 'WARNING' },
+          ],
+        });
+      }
+      // Special Scenario: Ammonia Coolant Vapor Leak
+      else if (isAmmoniaScen) {
+        evts.push({
+          id: `AMMONIA-${astId}`,
+          time: now,
+          priority: 'CRITICAL',
+          entity: `Crew ${crew.callsign} · ${crew.name}`,
+          astronautId: astId,
+          subsystem: 'Life Support / Hazardous Materials',
+          summary: 'Toxic Ammonia Coolant Breach · Airway Ingress',
+          age: '< 1m',
+          trend: 'WORSENING',
+          trajectory: 'WORSENING',
+          timeToLimit: 'Immediate Mask Donning Gate',
+          evidenceStrength: 'HIGH',
+          signalsCount: 4,
+          acknowledged: !!acked[`AMMONIA-${astId}`],
+          observed: [
+            'External/Internal loop differential pressure drop detected',
+            `Airway chemical reactivity: SpO₂ ${pkt.spo2.toFixed(1)}%`,
+            `Sympathetic tachycardia reflex: ${pkt.heart_rate.toFixed(0)} bpm`,
+            'Cabin trace ammonia contaminant sensor rising',
+          ],
+          derived: [
+            'Chemical pneumonitis threat from vapor phase inhalation',
+            'Secondary bronchial constriction pattern',
+          ],
+          correlated: [
+            'Thermal loop Freon pressure decay',
+            'Hab ventilation inter-module circulation surge',
+          ],
+          possibleFactors: [
+            'Micrometeorite strike on external radiator heat exchanger loop',
+          ],
+          actionsToEvaluate: [
+            'Command all 4 crew members to don positive-pressure emergency breathing masks',
+            'Isolate suspected thermal loop bypass valves',
+            'Deploy catalytic ammonia trace contaminant scrubbers',
+            'Verify cabin ppm below permissible ceiling (10 ppm)',
+          ],
+          procedure: 'NASA-STD-3001-ECLSS-AMMONIA-01',
+          confidence: 'CONFIRMED · redundant differential pressure & trace gas sensor lock',
+          provenance: 'ATCS telemetry · Trace contaminant monitor · OSHA/NASA STD-3001',
+          evidence: `SpO₂ ${pkt.spo2.toFixed(1)}% · HR ${pkt.heart_rate.toFixed(0)} bpm · Loop-A P-Drop`,
+          baselineRef: 'Permissible exposure limit: < 10 ppm NH₃',
+          timelineSequence: [
+            { time: '13:02:00', delta: 'T-06m 20s', signal: 'ATCS Sensor', finding: 'External radiator coolant pressure delta detected', severity: 'WARNING' },
+            { time: '13:06:15', delta: 'T-02m 05s', signal: 'Trace Gas NDIR', finding: 'Vapor phase ammonia ingress into cabin ventilation', severity: 'CRITICAL' },
+            { time: '13:08:20', delta: 'T+00m 00s', signal: 'Sentry Matrix', finding: 'Autonomous emergency alert: ECLSS-AMMONIA-01 procedure armed', severity: 'CRITICAL' },
+          ],
+        });
+      }
+      // General Cardiovascular / Exertion Critical
+      else if (pkt.evaluated_severity === 'CRITICAL' || pkt.heart_rate > 115 || (pkt.computed_arf && pkt.computed_arf > 1.8)) {
         evts.push({
           id: `CRIT-${astId}`,
           time: now,
@@ -453,7 +722,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             'Verify hydration status and electrolyte availability',
             'Monitor trend over next 10-minute telemetry window',
           ],
-          procedure: 'NASA-STD-3001-MED-CARD-04',
+          procedure: 'M-204',
           confidence: 'HIGH evidence strength · 4 correlated signals',
           provenance: 'Telemetry stream · sentry_matrix.py · computational_biomarkers.py',
           evidence: `HR: ${pkt.heart_rate.toFixed(0)} bpm (${pctDelta(pkt.heart_rate, crew.baseHr)}) · SpO₂: ${pkt.spo2.toFixed(1)}% · QTc: ${(pkt.computed_qtc || 0).toFixed(0)} ms`,
@@ -465,7 +734,9 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             { time: '13:08:20', delta: 'T+00m 00s', signal: 'Sentry Matrix', finding: 'Multi-signal excursion confirmed: Sentry alert generated', severity: 'CRITICAL' },
           ],
         });
-      } else if (pkt.evaluated_severity === 'WARNING' || hrD > 20 || spo2D < -2.5) {
+      }
+      // General Cardiovascular / Exertion Warning
+      else if (pkt.evaluated_severity === 'WARNING' || hrD > 20 || spo2D < -2.5) {
         evts.push({
           id: `WARN-${astId}`,
           time: now,
@@ -506,42 +777,48 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       }
     });
 
-    // ECLSS CO₂ event
+    // ECLSS Cabin Atmosphere Event (CO2 Scrubber Saturation)
     const anyPkt = Object.values(telemetryMap)[0];
-    if (anyPkt?.cabin_co2 > 3.0) {
+    const co2Val = anyPkt?.cabin_co2 || 1.82;
+    if (isCo2Scen || co2Val > 3.0) {
       evts.push({
         id: 'ENV-CO2',
         time: now,
-        priority: anyPkt.cabin_co2 > 5.0 ? 'CRITICAL' : 'WARNING',
+        priority: co2Val > 5.0 ? 'CRITICAL' : 'WARNING',
         entity: 'ECLSS · Cabin Atmosphere',
         subsystem: 'Life Support',
-        summary: `CO₂ ${anyPkt.cabin_co2.toFixed(1)} mmHg (limit: 3.0)`,
+        summary: `Cabin CO₂ ${co2Val.toFixed(2)} mmHg (Scrubber Bed Saturation)`,
         age: '< 10m',
         trend: 'WORSENING',
         trajectory: 'WORSENING',
-        timeToLimit: '~11 min to 3.0 mmHg flight rule limit',
+        timeToLimit: co2Val > 3.0 ? 'Exceeded by +' + (co2Val - 3.0).toFixed(2) + ' mmHg' : '~11 min to 3.0 mmHg limit',
         evidenceStrength: 'HIGH',
-        signalsCount: 3,
+        signalsCount: 4,
         acknowledged: !!acked['ENV-CO2'],
-        observed: [`Cabin CO₂: ${anyPkt.cabin_co2.toFixed(2)} mmHg`, 'Measured by onboard NDIR sensor (simulated)'],
-        derived: [`${((anyPkt.cabin_co2 - 1.8) / 1.8 * 100).toFixed(0)}% above nominal mean (1.8 mmHg)`],
-        correlated: ['Scrubber performance degradation pattern', 'All crew present in habitation module'],
-        possibleFactors: ['CO₂ scrubber bed saturation', 'Reduced ventilation mixing', 'Crew exertion with closed hatches'],
+        observed: [
+          `Cabin CO₂: ${co2Val.toFixed(2)} mmHg (Threshold: 3.00 mmHg)`,
+          `Measured by redundant onboard NDIR gas sensors`,
+          `Regenerative CO₂ Scrubber Bed A effluent saturation detected`,
+        ],
+        derived: [`${((co2Val - 1.8) / 1.8 * 100).toFixed(0)}% above nominal baseline (1.80 mmHg)`],
+        correlated: ['Secondary hyperventilation response across crew telemetry', 'Thermal loop temperature steady'],
+        possibleFactors: ['Amine regenerative scrubber bed A saturation', 'Inter-module airflow bypass damper issue'],
         actionsToEvaluate: [
-          'Switch to backup CO₂ scrubber bed',
-          'Increase ventilation fan speed',
-          'Direct crew to report headache or cognitive symptoms',
+          'Command automated valve transition to secondary scrubber bed (Bed B)',
+          'Increase habitat inter-module ventilation fan speed to High (0.8 m/s)',
+          'Direct crew to report headache or mild cognitive fatigue symptoms',
+          'Confirm backup LiOH canister seals intact for contingency installation',
         ],
         procedure: 'NASA-STD-3001-ECLSS-CO2-01',
-        confidence: 'HIGH evidence strength · direct sensor telemetry',
+        confidence: 'HIGH certainty · redundant NDIR sensor telemetry',
         provenance: 'Environmental telemetry · NASA OCHMO CO₂ Technical Brief',
-        evidence: `CO₂: ${anyPkt.cabin_co2.toFixed(2)} mmHg · Threshold: 3.0 mmHg (NASA-STD-3001)`,
-        baselineRef: 'Nominal cabin CO₂: 1.8 ± 0.25 mmHg (environmental_baselines)',
+        evidence: `CO₂: ${co2Val.toFixed(2)} mmHg · Limit: 3.00 mmHg (NASA-STD-3001)`,
+        baselineRef: 'Nominal cabin CO₂: 1.80 ± 0.25 mmHg (environmental_baselines)',
         timelineSequence: [
           { time: '12:50:00', delta: 'T-18m 20s', signal: 'Cabin CO₂', finding: 'Nominal baseline concentration at 1.82 mmHg', severity: 'NOMINAL' },
           { time: '13:00:15', delta: 'T-08m 05s', signal: 'CO₂ Scrubber Bed A', finding: 'Effluent sensor indicates early saturation breakthrough', severity: 'WARNING' },
           { time: '13:05:40', delta: 'T-02m 40s', signal: 'Cabin CO₂', finding: 'Exceeds NASA-STD-3001 1-hour flight rule limit (3.0 mmHg)', severity: 'WARNING' },
-          { time: '13:08:20', delta: 'T+00m 00s', signal: 'ECLSS Sentry', finding: 'Persistent elevation confirmed: Sentry alert generated', severity: anyPkt.cabin_co2 > 5.0 ? 'CRITICAL' : 'WARNING' },
+          { time: '13:08:20', delta: 'T+00m 00s', signal: 'ECLSS Sentry', finding: 'Persistent elevation confirmed: Sentry alert generated', severity: co2Val > 5.0 ? 'CRITICAL' : 'WARNING' },
         ],
       });
     }
@@ -577,7 +854,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       const order = { CRITICAL: 0, WARNING: 1, ADVISORY: 2, NOMINAL: 3 };
       return (order[a.priority] ?? 3) - (order[b.priority] ?? 3);
     });
-  }, [telemetryMap, acked, backendAlerts]);
+  }, [telemetryMap, acked, backendAlerts, currentScenario]);
 
   const missionState = useMemo(() => {
     if (events.some(e => e.priority === 'CRITICAL')) return 'CRITICAL';
@@ -998,37 +1275,73 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
 
               {/* Bottom Row: Clean Structured Evidence Metadata (No run-on text) */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14,
-                marginTop: 6,
-                paddingTop: 5,
-                borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-                fontSize: 9.5,
-                fontFamily: T.mono,
-                color: '#94a3b8',
-              }}>
-                <div>
-                  <span style={{ color: '#64748b' }}>DURATION: </span>
-                  <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{primaryAlert.age}</span>
-                </div>
-                <span style={{ color: '#283548' }}>·</span>
-                <div>
-                  <span style={{ color: '#64748b' }}>PRIMARY SIGNAL: </span>
-                  <span style={{ color: '#fbbf24', fontWeight: 700 }}>HR 108 bpm (+31.7% vs base)</span>
-                </div>
-                <span style={{ color: '#283548' }}>·</span>
-                <div>
-                  <span style={{ color: '#64748b' }}>ATMOSPHERE: </span>
-                  <span style={{ color: '#f87171', fontWeight: 600 }}>CO₂ {co2Val.toFixed(2)} mmHg (Scrubber Breakthrough)</span>
-                </div>
-                <span style={{ color: '#283548' }}>·</span>
-                <div>
-                  <span style={{ color: '#64748b' }}>EVALUATION: </span>
-                  <span style={{ color: '#4ade80', fontWeight: 600 }}>10m Gate Active</span>
-                </div>
-              </div>
+              {(() => {
+                const targetAstId = primaryAlert.astronautId || 'AST-02_PILOT';
+                const targetCrew = CREW.find(c => c.id === targetAstId) || CREW[1];
+                const targetPkt = telemetryMap[targetAstId] || anyPkt;
+                const scenKey = currentScenario || targetPkt?.scenario_phase || 'NOMINAL_CRUISE';
+                const isHypo = scenKey.includes('HYPOKALEMIA') || (targetPkt?.potassium !== undefined && targetPkt.potassium < 3.5);
+                const isRad = scenKey.includes('RADIATION') || scenKey.includes('SOLAR') || (targetPkt?.radiation_flux !== undefined && targetPkt.radiation_flux > 5.0);
+                const isThromb = scenKey.includes('THROMBOSIS') || (targetPkt?.computed_trm !== undefined && targetPkt.computed_trm > 1.6);
+                const isCo2Breach = scenKey.includes('CO2') || co2Val > 3.0;
+
+                const targetHr = targetPkt ? Math.round(targetPkt.heart_rate) : 108;
+                const targetHrD = ((targetHr - targetCrew.baseHr) / targetCrew.baseHr) * 100;
+                const targetK = targetPkt?.potassium !== undefined ? targetPkt.potassium : 3.20;
+                const targetQtc = targetPkt?.computed_qtc || 482;
+                const targetFlux = targetPkt?.radiation_flux || 42.5;
+                const targetDose = targetPkt?.radiation_dose_gy || 0.082;
+                const targetTrm = targetPkt?.computed_trm || 2.15;
+
+                let primarySignalStr = `HR ${targetHr} bpm (${targetHrD >= 0 ? '+' : ''}${targetHrD.toFixed(1)}% vs base)`;
+                if (isHypo) {
+                  primarySignalStr = `Serum K⁺ ${targetK.toFixed(2)} mmol/L · QTc ${targetQtc.toFixed(0)} ms`;
+                } else if (isRad) {
+                  primarySignalStr = `Proton Flux ${targetFlux.toFixed(1)} mGy/d · Dose ${(targetDose * 1000).toFixed(0)} mSv`;
+                } else if (isThromb) {
+                  primarySignalStr = `TRM Index ${targetTrm.toFixed(2)} · Hct ${(targetPkt?.hematocrit || 48.5).toFixed(1)}%`;
+                } else if (isCo2Breach) {
+                  primarySignalStr = `Cabin CO₂ ${co2Val.toFixed(2)} mmHg (Scrubber Saturation)`;
+                }
+
+                return (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    marginTop: 6,
+                    paddingTop: 5,
+                    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                    fontSize: 9.5,
+                    fontFamily: T.mono,
+                    color: '#94a3b8',
+                  }}>
+                    <div>
+                      <span style={{ color: '#64748b' }}>DURATION: </span>
+                      <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{primaryAlert.age}</span>
+                    </div>
+                    <span style={{ color: '#283548' }}>·</span>
+                    <div>
+                      <span style={{ color: '#64748b' }}>PRIMARY SIGNAL: </span>
+                      <span style={{ color: '#fbbf24', fontWeight: 700 }}>{primarySignalStr}</span>
+                    </div>
+                    <span style={{ color: '#283548' }}>·</span>
+                    <div>
+                      <span style={{ color: '#64748b' }}>ATMOSPHERE: </span>
+                      <span style={{ color: co2Val > 3.0 ? '#f87171' : '#4ade80', fontWeight: 600 }}>
+                        {co2Val > 3.0 ? `CO₂ ${co2Val.toFixed(2)} mmHg (Scrubber Breakthrough)` : `CO₂ ${co2Val.toFixed(2)} mmHg (Nominal Envelope)`}
+                      </span>
+                    </div>
+                    <span style={{ color: '#283548' }}>·</span>
+                    <div>
+                      <span style={{ color: '#64748b' }}>EVALUATION: </span>
+                      <span style={{ color: '#4ade80', fontWeight: 600 }}>
+                        10m Gate Active · {primaryAlert.procedure ? primaryAlert.procedure.replace('NASA-STD-3001-', '') : 'NASA-STD-3001'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <div style={{
@@ -1280,16 +1593,28 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   points="30,80 120,79 220,80 320,79 410,80 480,80"
                 />
 
-                {/* 3. Partial Pressure CO2 (Amber curve with transient workout bump) */}
-                <polyline
-                  fill="none"
-                  stroke="#e6a83c"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  points="30,115 100,114 180,112 260,98 320,90 390,102 450,110 480,111"
-                />
-                <circle cx="480" cy="111" r="2.5" fill="#e6a83c" />
+                {/* 3. Partial Pressure CO2 (Dynamic curve scaling to real co2Val & scenario) */}
+                {(() => {
+                  const clamped = Math.max(1.0, Math.min(6.0, co2Val));
+                  const nowY = (155 - ((clamped - 1.0) / 5.0) * 115).toFixed(1);
+                  const isElevated = co2Val > 2.4 || (currentScenario && currentScenario.includes('CO2'));
+                  const dynamicPoints = isElevated
+                    ? `30,120 100,118 180,114 260,102 320,82 390,66 450,${(Number(nowY) + 4).toFixed(1)} 480,${nowY}`
+                    : `30,120 100,118 180,119 260,118 320,119 390,118 450,119 480,${nowY}`;
+                  return (
+                    <>
+                      <polyline
+                        fill="none"
+                        stroke={co2Val > 3.0 ? '#ff4d4d' : '#e6a83c'}
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        points={dynamicPoints}
+                      />
+                      <circle cx="480" cy={nowY} r="2.8" fill={co2Val > 3.0 ? '#ff4d4d' : '#e6a83c'} />
+                    </>
+                  );
+                })()}
 
                 {/* Time Axis Markers */}
                 <text x="30" y="168" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-24h</text>
@@ -1302,11 +1627,18 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
             {/* Environmental Verdict Footer */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingTop: 6, borderTop: `1px solid ${T.borderSubtle}` }}>
-              <div style={{ fontSize: 9.5, color: T.nominal, display: 'flex', alignItems: 'center', gap: 5 }}>
-                
-                <span>ECLSS PASS: Cabin atmosphere nominal. No hypoxic or toxic decompress transients.</span>
+              <div style={{ fontSize: 9.5, color: co2Val > 3.0 ? T.critical : T.nominal, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span>
+                  {co2Val > 3.0
+                    ? 'ECLSS CAUTION: Cabin CO₂ exceeds 1-hour flight rule limit (3.00 mmHg). Backup scrubber Bed B activation required.'
+                    : 'ECLSS PASS: Cabin atmosphere nominal. No hypoxic or toxic decompress transients.'}
+                </span>
               </div>
-              <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>Margin to CO₂ Limit: +1.18 mmHg</span>
+              <span style={{ fontSize: 9, fontFamily: T.mono, color: co2Val > 3.0 ? T.critical : T.textMuted }}>
+                {co2Val > 3.0
+                  ? `EXCEEDED BY +${(co2Val - 3.0).toFixed(2)} mmHg`
+                  : `Margin to CO₂ Limit: +${(3.0 - co2Val).toFixed(2)} mmHg`}
+              </span>
             </div>
           </div>
         </div>
@@ -1318,25 +1650,73 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   // ─────────────────────────────────────────────────────────────
   // CREW TAB — NASA MCC 4-COLUMN DECISION DASHBOARD (OPTION 2)
   // ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // CREW TAB — NASA MCC 4-COLUMN DECISION DASHBOARD (FULLY DYNAMIC & SCENARIO-AWARE)
+  // ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // CREW TAB — NASA MCC 4-COLUMN DECISION DASHBOARD (FULLY DYNAMIC & SCENARIO-AWARE)
+  // ─────────────────────────────────────────────────────────────
   const renderCrew = () => {
     const selCrew = CREW.find(c => c.id === selCrewId) || CREW[1]; // Default to CREW-02 Pilot
+    const anyPkt = Object.values(telemetryMap)[0];
+    const co2Val = anyPkt?.cabin_co2 || 1.82;
+
+    // Helper: generate realistic, smooth 2-hour trend history ending precisely at live metric value
+    const generateTrendSeries = (baseVal: number, currentVal: number, count = 11, noise = 0.5) => {
+      const arr: number[] = [];
+      for (let i = 0; i < count; i++) {
+        const frac = i / (count - 1);
+        const curve = Math.pow(frac, 1.8);
+        const jitter = i < count - 1 ? Math.sin(i * 1.7 + baseVal) * noise : 0;
+        const val = baseVal + (currentVal - baseVal) * curve + jitter;
+        arr.push(Number(val.toFixed(1)));
+      }
+      return arr;
+    };
 
     // Compute crew member stats dynamically matching NASA MCC reference & live telemetry
     const getStats = (c: typeof CREW[number]) => {
       const p = telemetryMap[c.id];
+      const osdr = NASA_OSDR_PROFILES[c.id] || NASA_OSDR_PROFILES['AST-02_PILOT'];
       const isPlt = c.id === 'AST-02_PILOT';
-      const isCdr = c.id === 'AST-01_COMMANDER';
       const isMs1 = c.id === 'AST-03_MEDICAL';
       const isMs2 = c.id === 'AST-04_ENGINEER';
 
       // Live priority: if live telemetry packet exists, use actual measured sensor readings
-      const hr = p ? Math.round(p.heart_rate) : (isPlt ? 108 : (isCdr ? 68 : isMs1 ? 74 : 70));
-      const spo2 = p ? p.spo2 : (isPlt ? 96.0 : (isMs1 ? 99.0 : c.baseSpo2));
-      const resp = p ? Math.round(c.baseResp * (p.heart_rate / c.baseHr)) : (isPlt ? 18 : (isMs1 ? 15 : isMs2 ? 13 : c.baseResp));
-      const temp = p ? p.core_temp : (isPlt ? 37.1 : (isCdr ? 36.6 : isMs1 ? 36.8 : 36.4));
-      const hrv = p ? p.hrv_rmssd : (isPlt ? 38 : c.baseHrv);
-      const workload = p ? (p.mission_state === 'WORKOUT' ? 0.82 : 0.24) : (isPlt ? 0.82 : 0.24);
+      const hr = p ? Math.round(p.heart_rate) : Math.round(osdr.restHr);
+      const spo2 = p ? p.spo2 : osdr.restSpo2;
+      const resp = p
+        ? (p.heart_rate > c.baseHr + 20 ? Math.round(c.baseResp * 1.35) : Math.round(c.baseResp * (p.heart_rate / c.baseHr)))
+        : (isPlt ? 18 : (isMs1 ? 15 : isMs2 ? 13 : c.baseResp));
+      const temp = p ? p.core_temp : osdr.restTemp;
+      const hrv = p ? p.hrv_rmssd : osdr.restHrv;
+      const workload = p
+        ? (p.mission_state === 'WORKOUT' ? 0.82 : (p.heart_rate > c.baseHr + 15 ? 0.65 : 0.24))
+        : (isPlt ? 0.82 : 0.24);
 
+      // Clinical biomarkers & computed metrics from live telemetry packet with OSDR fallback
+      const potassium = p?.potassium !== undefined ? p.potassium : osdr.k;
+      const qtc = p?.computed_qtc !== undefined ? p.computed_qtc : (p?.heart_rate ? Math.round(390 * Math.pow(60 / p.heart_rate, 0.33)) : 402);
+      const arf = p?.computed_arf !== undefined ? p.computed_arf : 0.72;
+      const trm = p?.computed_trm !== undefined ? p.computed_trm : 1.02;
+      const rsi = p?.computed_rsi !== undefined ? p.computed_rsi : 0.12;
+      const radFlux = p?.radiation_flux !== undefined ? p.radiation_flux : 0.04;
+      const radDose = p?.radiation_dose_gy !== undefined ? p.radiation_dose_gy : 0.05;
+      const hct = p?.hematocrit !== undefined ? p.hematocrit : osdr.hct;
+      const plt = p?.platelet_count !== undefined ? p.platelet_count : osdr.plt;
+      const wbc = p?.wbc_count !== undefined ? p.wbc_count : osdr.wbc;
+      const il6 = p?.il_6 !== undefined ? p.il_6 : osdr.il6;
+      const crp = p?.crp !== undefined ? p.crp : osdr.crp;
+      const lymphocytes = p?.lymphocyte_count !== undefined ? p.lymphocyte_count : 1.8;
+
+      // Z-scores
+      const z_score_hr = p?.z_score_hr !== undefined ? p.z_score_hr : Number(((hr - c.baseHr) / 4.8).toFixed(2));
+      const z_score_hrv = p?.z_score_hrv !== undefined ? p.z_score_hrv : Number(((hrv - c.baseHrv) / 8.0).toFixed(2));
+      const z_score_spo2 = Number(((spo2 - c.baseSpo2) / 0.6).toFixed(2));
+      const z_score_resp = Number(((resp - c.baseResp) / 1.5).toFixed(2));
+      const z_score_temp = Number(((temp - c.baseTemp) / 0.25).toFixed(2));
+
+      // Deltas
       const hrDeltaPct = ((hr - c.baseHr) / c.baseHr) * 100;
       const spo2DeltaPct = ((spo2 - c.baseSpo2) / c.baseSpo2) * 100;
       const respDeltaPct = ((resp - c.baseResp) / c.baseResp) * 100;
@@ -1344,9 +1724,17 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
       const rawSev = p?.evaluated_severity;
       const hasDbAlert = backendAlerts.some(a => (a.astronaut_id === c.id || a.astronaut_id === 'ALL_CREW') && a.severity !== 'NOMINAL');
-      const isAnomaly = (p && (rawSev === 'CRITICAL' || rawSev === 'WARNING' || hrDeltaPct > 20 || spo2 < 97)) || (!p && isPlt) || hasDbAlert;
+      const scenKey = currentScenario || p?.scenario_phase || anyPkt?.scenario_phase || 'NOMINAL_CRUISE';
+      const isAnomaly = (p && (rawSev === 'CRITICAL' || rawSev === 'WARNING' || hrDeltaPct > 20 || spo2 < 97 || potassium < 3.5 || qtc > 450 || trm > 1.6 || radFlux > 5.0)) ||
+        (!p && isPlt) ||
+        hasDbAlert ||
+        (scenKey.includes('HYPOKALEMIA') && (c.id === 'AST-02_PILOT' || potassium < 3.5)) ||
+        (scenKey.includes('THROMBOSIS') && (c.id === 'AST-02_PILOT' || trm > 1.6)) ||
+        (scenKey.includes('RADIATION') && radFlux > 5.0) ||
+        ((scenKey.includes('CO2') || co2Val > 3.0) && c.id === 'AST-02_PILOT');
+
       const status: 'NOMINAL' | 'WARNING' | 'CRITICAL' = isAnomaly
-        ? (rawSev === 'CRITICAL' ? 'CRITICAL' : 'WARNING')
+        ? (rawSev === 'CRITICAL' || hrDeltaPct > 35 || potassium < 3.2 || qtc > 470 || radFlux > 20 || spo2 < 92 ? 'CRITICAL' : 'WARNING')
         : 'NOMINAL';
       const statusLabel = isAnomaly ? '↑ At Risk' : 'Nominal';
 
@@ -1357,6 +1745,24 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         temp,
         hrv,
         workload,
+        potassium,
+        qtc,
+        arf,
+        trm,
+        rsi,
+        radFlux,
+        radDose,
+        hct,
+        plt,
+        wbc,
+        il6,
+        crp,
+        lymphocytes,
+        z_score_hr,
+        z_score_hrv,
+        z_score_spo2,
+        z_score_resp,
+        z_score_temp,
         hrDeltaPct,
         spo2DeltaPct,
         respDeltaPct,
@@ -1364,34 +1770,122 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         status,
         statusLabel,
         isAnomaly,
+        osdr,
       };
     };
 
     const selStats = getStats(selCrew);
+    const selPkt = telemetryMap[selCrew.id];
+    const scen = currentScenario || selPkt?.scenario_phase || anyPkt?.scenario_phase || 'NOMINAL_CRUISE';
 
-    // Trend series (Last 2 Hours) for the selected astronaut
-    const hrTrendData = selCrew.id === 'AST-02_PILOT'
-      ? [81, 82, 80, 83, 82, 85, 89, 95, 102, 106, 108]
-      : [selCrew.baseHr - 1, selCrew.baseHr + 1, selCrew.baseHr, selCrew.baseHr - 2, selCrew.baseHr, selCrew.baseHr + 1, selCrew.baseHr - 1, selCrew.baseHr, selStats.hr, selStats.hr];
+    // Scenario flags for selected astronaut
+    const isHypo = scen.includes('HYPOKALEMIA') || selStats.potassium < 3.50 || selStats.qtc > 450;
+    const isRad = scen.includes('RADIATION') || scen.includes('SOLAR') || scen.includes('CYTOGENIC') || selStats.radFlux > 5.0;
+    const isThromb = scen.includes('THROMBOSIS') || selStats.trm > 1.60;
+    const isCo2 = scen.includes('CO2') || co2Val > 3.0;
+    const isAmmonia = scen.includes('AMMONIA') || scen.includes('COOLANT');
+    const isDecomp = scen.includes('DECOMPRESSION') || scen.includes('HYPOXIA') || selStats.spo2 < 92.0;
+    const isImmune = scen.includes('SEPSIS') || scen.includes('CYTOKINE') || scen.includes('VIRUS') || selStats.il6 > 15.0;
+    const isExertion = (selStats.hrDeltaPct > 20 || selPkt?.mission_state === 'WORKOUT') && !isHypo && !isRad && !isThromb && !isCo2 && !isAmmonia && !isDecomp && !isImmune;
 
-    const spo2TrendData = selCrew.id === 'AST-02_PILOT'
-      ? [98.2, 98.0, 98.1, 98.0, 97.8, 97.6, 97.2, 96.8, 96.5, 96.2, 96.0]
-      : [selCrew.baseSpo2, selCrew.baseSpo2 + 0.1, selCrew.baseSpo2, selCrew.baseSpo2 - 0.1, selCrew.baseSpo2, selStats.spo2];
+    // Live Synchronous Trend series (Last 2 Hours) dynamically generated for ANY selected astronaut
+    const hrTrendData = generateTrendSeries(selCrew.baseHr, selStats.hr, 11, 1.2);
+    const spo2TrendData = generateTrendSeries(selCrew.baseSpo2, selStats.spo2, 11, 0.12);
+    const respTrendData = generateTrendSeries(selCrew.baseResp, selStats.resp, 11, 0.35);
+    const tempTrendData = generateTrendSeries(selCrew.baseTemp, selStats.temp, 11, 0.03);
 
-    const respTrendData = selCrew.id === 'AST-02_PILOT'
-      ? [14, 14, 13, 14, 14, 15, 15, 16, 17, 18, 18]
-      : [selCrew.baseResp, selCrew.baseResp, selCrew.baseResp - 1, selCrew.baseResp, selCrew.baseResp, selStats.resp];
+    // Sparkline micro-series dynamically generated for ANY selected astronaut
+    const sparkHr = generateTrendSeries(selCrew.baseHr, selStats.hr, 6, 0.8);
+    const sparkSpo2 = generateTrendSeries(selCrew.baseSpo2, selStats.spo2, 5, 0.1);
+    const sparkResp = generateTrendSeries(selCrew.baseResp, selStats.resp, 5, 0.3);
+    const sparkTemp = generateTrendSeries(selCrew.baseTemp, selStats.temp, 5, 0.02);
+    const sparkWork = generateTrendSeries(0.24, selStats.workload, 5, 0.02);
 
-    const tempTrendData = selCrew.id === 'AST-02_PILOT'
-      ? [36.4, 36.4, 36.5, 36.5, 36.5, 36.6, 36.7, 36.8, 36.9, 37.0, 37.1]
-      : [selCrew.baseTemp, selCrew.baseTemp, selCrew.baseTemp + 0.1, selCrew.baseTemp, selStats.temp];
+    // Dynamic Pearson correlation factors based on scenario
+    const correlationFactors = useMemo(() => {
+      if (isHypo) {
+        return [
+          { title: 'Serum K⁺ vs QTc Interval', sub: 'I_Kr channel delayed repolarization', weight: 94, r: '-0.94', color: '#ff4d4d' },
+          { title: 'Fridericia QTc vs ARF Index', sub: 'Arrhythmogenic substrate coupling', weight: 88, r: '+0.88', color: '#fbbf24' },
+          { title: 'Heart Rate vs Sympathetic Drift', sub: 'Compensatory chronotropic response', weight: 76, r: '+0.76', color: '#fbbf24' },
+          { title: 'Fluid Loss vs Aldosterone Excretion', sub: 'Microgravity renal potassium wasting', weight: 62, r: '+0.62', color: '#38bdf8' },
+        ];
+      }
+      if (isRad) {
+        return [
+          { title: 'HERA Proton Flux vs CAD Silicon', sub: 'Hull microdosimeter coincident triggering', weight: 96, r: '+0.96', color: '#ff4d4d' },
+          { title: 'Cumulative Dose vs RSI Index', sub: 'DNA double-strand break susceptibility', weight: 89, r: '+0.89', color: '#fbbf24' },
+          { title: 'GCR Background vs Solar Flare', sub: 'Coronal mass ejection particle influx', weight: 74, r: '+0.74', color: '#fbbf24' },
+          { title: 'Leukocyte Radio-Sensitivity', sub: 'Circulating lymphocyte decline slope', weight: 58, r: '+0.58', color: '#38bdf8' },
+        ];
+      }
+      if (isThromb) {
+        return [
+          { title: 'Jugular Flow Stasis vs TRM Index', sub: 'Internal jugular vein flow velocity stagnation', weight: 92, r: '+0.92', color: '#fbbf24' },
+          { title: 'Hematocrit Hemoconcentration', sub: 'Relative plasma volume contraction', weight: 85, r: '+0.85', color: '#fbbf24' },
+          { title: 'Cephalad Fluid Shift Persistence', sub: 'Chronic microgravity headward engorgement', weight: 78, r: '+0.78', color: '#fbbf24' },
+          { title: 'Endothelial Shear Stress Variance', sub: 'Venous valve wall remodeling response', weight: 54, r: '+0.54', color: '#38bdf8' },
+        ];
+      }
+      if (isCo2) {
+        return [
+          { title: 'Cabin CO₂ vs Minute Ventilation', sub: 'Hypercapnic respiratory drive coupling', weight: 90, r: '+0.90', color: '#fbbf24' },
+          { title: 'Scrubber Effluent vs Hab Concentration', sub: 'Bed A breakthrough gradient tracking', weight: 94, r: '+0.94', color: '#fbbf24' },
+          { title: 'Hypercapnic Autonomic Coupling', sub: 'Chemoreceptor chronotropic tachycardia', weight: 68, r: '+0.68', color: '#38bdf8' },
+          { title: 'Thermal Loop Radiator Heat Flux', sub: 'Environmental loop convective balance', weight: 34, r: '+0.34', color: '#94a3b8' },
+        ];
+      }
+      if (isAmmonia) {
+        return [
+          { title: 'Radiator P-Drop vs Ammonia Sensor', sub: 'ATCS loop differential pressure ingress', weight: 95, r: '+0.95', color: '#ff4d4d' },
+          { title: 'Airway Reactivity vs Minute Resp', sub: 'Mucosal chemical irritation bronchospasm', weight: 86, r: '+0.86', color: '#fbbf24' },
+          { title: 'Sympathetic Tachycardia Reflex', sub: 'Arterial hypoperfusion compensatory drive', weight: 78, r: '+0.78', color: '#fbbf24' },
+          { title: 'Cabin Recirculation Flow Speed', sub: 'Trace contaminant scrubber filtration rate', weight: 44, r: '+0.44', color: '#38bdf8' },
+        ];
+      }
+      if (isDecomp) {
+        return [
+          { title: 'Cabin Total Pressure vs SpO₂', sub: 'Alveolar oxygen diffusion gradient loss', weight: 96, r: '+0.96', color: '#ff4d4d' },
+          { title: 'Hypoxemic Gradient vs Heart Rate', sub: 'Carotid chemoreceptor tachycardic reflex', weight: 88, r: '+0.88', color: '#fbbf24' },
+          { title: 'Ventilatory Drive Compensation', sub: 'Tidal volume and tachypnea elevation', weight: 82, r: '+0.82', color: '#fbbf24' },
+          { title: 'Avcoat Hull Depressurization Rate', sub: 'Pressure seal leak rate: -0.8 kPa/min', weight: 65, r: '+0.65', color: '#38bdf8' },
+        ];
+      }
+      if (isImmune) {
+        return [
+          { title: 'Interleukin-6 vs WBC Count', sub: 'Innate immune sentinel mobilization', weight: 91, r: '+0.91', color: '#ff4d4d' },
+          { title: 'C-Reactive Protein (CRP) Surge', sub: 'Acute phase hepatic reactant cascade', weight: 86, r: '+0.86', color: '#fbbf24' },
+          { title: 'Core Body Temperature Slope', sub: 'Endotoxin pyrogen hypothalamic resetting', weight: 72, r: '+0.72', color: '#fbbf24' },
+          { title: 'Microgravity Lymphocyte Ratio', sub: 'T-cell suppression / cytokine dysregulation', weight: 60, r: '+0.60', color: '#38bdf8' },
+        ];
+      }
+      if (isExertion) {
+        return [
+          { title: 'High Physical Exertion', sub: 'Active cycle / EVA mass-handling protocol', weight: 88, r: '+0.88', color: '#fbbf24' },
+          { title: 'Thermal Regulation Heat Flux', sub: 'Cabin ventilation convective balance (+0.4°C)', weight: 74, r: '+0.74', color: '#fbbf24' },
+          { title: 'Ambient CO₂ Excretion Gradient', sub: 'Metabolic respiratory exchange ratio', weight: 56, r: '+0.56', color: '#38bdf8' },
+          { title: 'Autonomic Circadian Shift', sub: 'Mission flight day rest-phase envelope', weight: 38, r: '+0.38', color: '#94a3b8' },
+        ];
+      }
+      // Nominal
+      return [
+        { title: 'Cardiorespiratory Coupling', sub: 'Sinus arrhythmia & eupneic tidal rhythm', weight: 42, r: '+0.42', color: '#4ade80' },
+        { title: 'Autonomic Parasympathetic Tone', sub: 'Vagal baroreflex baseline stability', weight: 35, r: '+0.35', color: '#4ade80' },
+        { title: 'Baroreflex Homeostasis', sub: 'Stable mean arterial pressure regulation', weight: 31, r: '+0.31', color: '#4ade80' },
+        { title: 'Circadian Metabolic Rhythm', sub: 'Entrained core temperature oscillation', weight: 28, r: '+0.28', color: '#4ade80' },
+      ];
+    }, [isHypo, isRad, isThromb, isCo2, isAmmonia, isDecomp, isImmune, isExertion]);
 
-    // Sparkline micro-series
-    const sparkHr = selCrew.id === 'AST-02_PILOT' ? [82, 85, 89, 96, 104, 108] : [76, 78, 77, 79, 78];
-    const sparkSpo2 = selCrew.id === 'AST-02_PILOT' ? [98.2, 97.8, 97.2, 96.6, 96.0] : [98.0, 98.2, 98.1, 98.4];
-    const sparkResp = selCrew.id === 'AST-02_PILOT' ? [14, 14, 15, 17, 18] : [14, 14, 13, 14];
-    const sparkTemp = selCrew.id === 'AST-02_PILOT' ? [36.4, 36.5, 36.7, 36.9, 37.1] : [36.6, 36.6, 36.7, 36.6];
-    const sparkWork = selCrew.id === 'AST-02_PILOT' ? [0.35, 0.45, 0.62, 0.74, 0.82] : [0.22, 0.24, 0.25, 0.24];
+    // Active procedure target based on scenario
+    const targetProcedureId = useMemo(() => {
+      if (isHypo) return 'NASA-STD-3001-MED-CARD-04';
+      if (isRad) return 'NASA-STD-3001-RAD-SPE-01';
+      if (isThromb) return 'NASA-STD-3001-THROMB-01';
+      if (isCo2) return 'NASA-STD-3001-ECLSS-CO2-01';
+      if (isAmmonia) return 'NASA-STD-3001-ECLSS-AMMONIA-01';
+      if (isExertion) return 'M-204';
+      return 'NASA-STD-3001-MED-CARD-02';
+    }, [isHypo, isRad, isThromb, isCo2, isAmmonia, isExertion]);
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1430,7 +1924,6 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 transition: 'all 0.12s ease',
               }}
             >
-              
               <span>3D Holographic Scanner</span>
             </button>
 
@@ -1525,7 +2018,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           </div>
         </div>
 
-        {/* ─── 2. Top 4 Astronaut Cards (Identical to Reference Image) ─── */}
+        {/* ─── 2. Top 4 Astronaut Cards (Dynamically Connected) ─── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
           {CREW.map(c => {
             const stats = getStats(c);
@@ -1568,46 +2061,46 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
                 {/* Mini Metrics Row */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, background: '#0a0d11', borderRadius: 4, padding: '6px 4px', textAlign: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ HR' : 'HR'}</div>
-                      <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.hrDeltaPct > 20 ? T.warning : T.textPrimary) }}>
-                        {diffMode ? `${stats.hr - c.baseHr >= 0 ? '+' : ''}${stats.hr - c.baseHr}` : stats.hr}
-                      </div>
-                      <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.hrDeltaPct > 20 ? T.warning : T.textMuted }}>
-                        {diffMode ? `b:${c.baseHr}` : (stats.hrDeltaPct >= 0 ? `+${stats.hrDeltaPct.toFixed(0)}%` : `${stats.hrDeltaPct.toFixed(0)}%`)}
-                      </div>
+                  <div>
+                    <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ HR' : 'HR'}</div>
+                    <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.hrDeltaPct > 20 ? T.warning : T.textPrimary) }}>
+                      {diffMode ? `${stats.hr - c.baseHr >= 0 ? '+' : ''}${stats.hr - c.baseHr}` : stats.hr}
                     </div>
-
-                    <div>
-                      <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ SpO₂' : 'SpO₂'}</div>
-                      <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.spo2 < 97 ? T.warning : T.textPrimary) }}>
-                        {diffMode ? `${(stats.spo2 - c.baseSpo2) >= 0 ? '+' : ''}${(stats.spo2 - c.baseSpo2).toFixed(1)}%` : `${stats.spo2.toFixed(0)}%`}
-                      </div>
-                      <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.spo2 < 97 ? T.warning : T.textMuted }}>
-                        {diffMode ? `b:${c.baseSpo2}%` : (stats.spo2DeltaPct >= 0 ? `+${stats.spo2DeltaPct.toFixed(1)}%` : `${stats.spo2DeltaPct.toFixed(1)}%`)}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ Resp' : 'Resp'}</div>
-                      <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.respDeltaPct > 20 ? T.warning : T.textPrimary) }}>
-                        {diffMode ? `${stats.resp - c.baseResp >= 0 ? '+' : ''}${stats.resp - c.baseResp}` : stats.resp}
-                      </div>
-                      <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.respDeltaPct > 20 ? T.warning : T.textMuted }}>
-                        {diffMode ? `b:${c.baseResp}` : (stats.respDeltaPct >= 0 ? `+${stats.respDeltaPct.toFixed(0)}%` : `${stats.respDeltaPct.toFixed(0)}%`)}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ Temp' : 'Temp'}</div>
-                      <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.tempDeltaAbs > 0.5 ? T.warning : T.textPrimary) }}>
-                        {diffMode ? `${stats.tempDeltaAbs >= 0 ? '+' : ''}${stats.tempDeltaAbs.toFixed(1)}°` : stats.temp.toFixed(1)}
-                      </div>
-                      <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.tempDeltaAbs > 0.5 ? T.warning : T.textMuted }}>
-                        {diffMode ? `b:${c.baseTemp}°` : (stats.tempDeltaAbs >= 0 ? `+${stats.tempDeltaAbs.toFixed(1)}` : `${stats.tempDeltaAbs.toFixed(1)}`)}
-                      </div>
+                    <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.hrDeltaPct > 20 ? T.warning : T.textMuted }}>
+                      {diffMode ? `b:${c.baseHr}` : (stats.hrDeltaPct >= 0 ? `+${stats.hrDeltaPct.toFixed(0)}%` : `${stats.hrDeltaPct.toFixed(0)}%`)}
                     </div>
                   </div>
+
+                  <div>
+                    <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ SpO₂' : 'SpO₂'}</div>
+                    <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.spo2 < 97 ? T.warning : T.textPrimary) }}>
+                      {diffMode ? `${(stats.spo2 - c.baseSpo2) >= 0 ? '+' : ''}${(stats.spo2 - c.baseSpo2).toFixed(1)}%` : `${stats.spo2.toFixed(0)}%`}
+                    </div>
+                    <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.spo2 < 97 ? T.warning : T.textMuted }}>
+                      {diffMode ? `b:${c.baseSpo2}%` : (stats.spo2DeltaPct >= 0 ? `+${stats.spo2DeltaPct.toFixed(1)}%` : `${stats.spo2DeltaPct.toFixed(1)}%`)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ Resp' : 'Resp'}</div>
+                    <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.respDeltaPct > 20 ? T.warning : T.textPrimary) }}>
+                      {diffMode ? `${stats.resp - c.baseResp >= 0 ? '+' : ''}${stats.resp - c.baseResp}` : stats.resp}
+                    </div>
+                    <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.respDeltaPct > 20 ? T.warning : T.textMuted }}>
+                      {diffMode ? `b:${c.baseResp}` : (stats.respDeltaPct >= 0 ? `+${stats.respDeltaPct.toFixed(0)}%` : `${stats.respDeltaPct.toFixed(0)}%`)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ Temp' : 'Temp'}</div>
+                    <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.tempDeltaAbs > 0.5 ? T.warning : T.textPrimary) }}>
+                      {diffMode ? `${stats.tempDeltaAbs >= 0 ? '+' : ''}${stats.tempDeltaAbs.toFixed(1)}°` : stats.temp.toFixed(1)}
+                    </div>
+                    <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.tempDeltaAbs > 0.5 ? T.warning : T.textMuted }}>
+                      {diffMode ? `b:${c.baseTemp}°` : (stats.tempDeltaAbs >= 0 ? `+${stats.tempDeltaAbs.toFixed(1)}` : `${stats.tempDeltaAbs.toFixed(1)}`)}
+                    </div>
+                  </div>
+                </div>
               </div>
             );
           })}
@@ -1655,7 +2148,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* 4-COLUMN OPERATIONAL DEEP DIVE GRID */}
             <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.35fr 1.15fr 1.25fr', gap: 12, alignItems: 'stretch' }}>
-              
+
               {/* ──── COLUMN 1: Key Metrics & Personal Baseline Comparison ──── */}
               <div style={cardStyle}>
                 {/* Alert Badge Pill */}
@@ -1745,7 +2238,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     <div>
                       <div style={{ fontSize: 9, color: T.textMuted }}>Workload / Strain</div>
                       <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.workload > 0.6 ? T.warning : T.textPrimary }}>
-                        {selStats.workload > 0.6 ? 'High (0.82)' : 'Nominal (0.24)'}
+                        {selStats.workload > 0.6 ? `High (${(selStats.workload).toFixed(2)})` : `Nominal (${(selStats.workload).toFixed(2)})`}
                       </div>
                       <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.workload > 0.6 ? T.warning : T.textMuted }}>
                         {selStats.workload > 0.6 ? '+45% vs base' : 'Nominal band'}
@@ -1881,120 +2374,336 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 </div>
               </div>
 
-              {/* ──── COLUMN 3: EVENT CORRELATION ENGINE (CRYSTAL CLEAR CAUSAL PIPELINE) ──── */}
+              {/* ──── COLUMN 3: EVENT CORRELATION ENGINE (DYNAMICALLY TIED TO ACTIVE SCENARIO) ──── */}
               <div style={cardStyle}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                   <div style={labelStyle}>EVENT CORRELATION ENGINE</div>
-                  <span style={{ fontSize: 8.5, fontWeight: 700, color: selStats.isAnomaly ? '#fbbf24' : '#4ade80', background: selStats.isAnomaly ? 'rgba(245, 158, 11, 0.14)' : 'rgba(34, 197, 94, 0.14)', border: `1px solid ${selStats.isAnomaly ? 'rgba(245, 158, 11, 0.4)' : 'rgba(34, 197, 94, 0.4)'}`, padding: '2px 6px', borderRadius: 3 }}>
+                  <span style={{
+                    fontSize: 8.5,
+                    fontWeight: 700,
+                    color: selStats.isAnomaly ? '#fbbf24' : '#4ade80',
+                    background: selStats.isAnomaly ? 'rgba(245, 158, 11, 0.14)' : 'rgba(34, 197, 94, 0.14)',
+                    border: `1px solid ${selStats.isAnomaly ? 'rgba(245, 158, 11, 0.4)' : 'rgba(34, 197, 94, 0.4)'}`,
+                    padding: '2px 6px',
+                    borderRadius: 3,
+                  }}>
                     {selStats.isAnomaly ? '● CAUSAL CHAIN ACTIVE' : '● NOMINAL HOMEOSTASIS'}
                   </span>
                 </div>
                 <div style={{ fontSize: 9.5, color: '#9ec7ef', marginBottom: 8 }}>
-                  Causal Multi-Signal Synthesis · Target: <strong style={{ color: '#ffffff' }}>{selCrew.callsign}</strong>
+                  Causal Multi-Signal Synthesis · Target: <strong style={{ color: '#ffffff' }}>{selCrew.callsign} ({selCrew.name})</strong>
                 </div>
 
-                {/* Causal Step Pipeline */}
-                {selStats.isAnomaly ? (
+                {/* Scenario-Aware Causal Step Pipeline */}
+                {isHypo ? (
+                  /* ─── SCENARIO 6: HYPOKALEMIA & ARRHYTHMIA CAUSAL PIPELINE ─── */
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5, position: 'relative' }}>
-                    {/* Stage 1: Trigger / Primary Stressor */}
-                    <div style={{ background: '#0a0e14', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: 4, padding: '6px 8px' }}>
+                    <div style={{ background: '#120b0d', border: '1px solid rgba(239, 68, 68, 0.45)', borderRadius: 4, padding: '6px 8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.04em' }}>
-                          STAGE 1: [TRIGGER] PRIMARY STRESSOR
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#f87171', letterSpacing: '0.04em' }}>
+                          STAGE 1: [TRIGGER] RENAL POTASSIUM EXCRETION
                         </span>
-                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>
-                          {simUtcTime.substring(0, 5)}:12 UTC
-                        </span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:05 UTC</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
-                        <span>Physical Exertion & Workload</span>
-                        <span style={{ color: '#38bdf8', fontFamily: T.mono }}>PSI {(selStats.workload * 7.5).toFixed(1)} / 10</span>
+                        <span>Serum Potassium (K⁺) Depletion</span>
+                        <span style={{ color: '#f87171', fontFamily: T.mono }}>{selStats.potassium.toFixed(2)} mmol/L (Floor: 3.50)</span>
                       </div>
                       <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>
-                        Metabolic ATP turnover initiates sympathetic demand envelope.
+                        Fluid redistribution and mineralocorticoid activity trigger potassium loss.
                       </div>
                     </div>
 
-                    {/* Causal Flow Indicator */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#38bdf8', fontSize: 9 }}>
-                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Drives autonomic rate acceleration</span>
-                    </div>
-
-                    {/* Stage 2: Cardiac Response */}
-                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>
-                          STAGE 2: [RESPONSE] CARDIAC SURGE
-                        </span>
-                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>
-                          {simUtcTime.substring(0, 5)}:18 UTC
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
-                        <span>Heart Rate Acceleration</span>
-                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>
-                          {selStats.hr} bpm ({selStats.hrDeltaPct >= 0 ? '+' : ''}{selStats.hrDeltaPct.toFixed(1)}%)
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>
-                        Tachycardia envelope (+{(Math.abs(selStats.hrDeltaPct) / 10).toFixed(1)}σ deviation from {selCrew.baseHr} bpm base).
-                      </div>
-                    </div>
-
-                    {/* Causal Flow Indicator */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#fbbf24', fontSize: 9 }}>
-                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Triggers compensatory minute ventilation</span>
-                    </div>
-
-                    {/* Stage 3: Ventilatory Compensation */}
-                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>
-                          STAGE 3: [COMPENSATION] VENTILATORY DRIVE
-                        </span>
-                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>
-                          {simUtcTime.substring(0, 5)}:24 UTC
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
-                        <span>Respiratory Hyperventilation</span>
-                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>
-                          {selStats.resp} br/min ({selStats.respDeltaPct >= 0 ? '+' : ''}{selStats.respDeltaPct.toFixed(1)}%)
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>
-                        Compensatory hyperventilation to accelerate pulmonary CO₂ clearance.
-                      </div>
-                    </div>
-
-                    {/* Causal Flow Indicator */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#f87171', fontSize: 9 }}>
-                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Perfusion & metabolic heat accumulation</span>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Slows delayed rectifier I_Kr repolarization</span>
                     </div>
 
-                    {/* Stage 4: Perfusion Outcome */}
-                    <div style={{ background: '#120b0d', border: `1px solid ${selStats.spo2 < 97 ? 'rgba(239, 68, 68, 0.45)' : 'rgba(245, 158, 11, 0.4)'}`, borderRadius: 4, padding: '6px 8px' }}>
+                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <span style={{ fontSize: 8.5, fontWeight: 800, color: selStats.spo2 < 97 ? '#f87171' : '#fbbf24', letterSpacing: '0.04em' }}>
-                          STAGE 4: [OUTCOME] PERFUSION & THERMAL STATE
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>
+                          STAGE 2: [BIOCHEMICAL] MYOCARDIAL QTc PROLONGATION
                         </span>
-                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>
-                          {simUtcTime.substring(0, 5)}:31 UTC
-                        </span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:12 UTC</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
-                        <span>SpO₂ & Thermal Elevation</span>
-                        <span style={{ color: selStats.spo2 < 97 ? '#f87171' : '#fbbf24', fontFamily: T.mono }}>
-                          {selStats.spo2.toFixed(1)}% · {selStats.temp.toFixed(1)}°C
-                        </span>
+                        <span>Fridericia QTc Interval</span>
+                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>{selStats.qtc.toFixed(0)} ms (Gate: 450 ms)</span>
                       </div>
                       <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>
-                        {selStats.spo2 < 97 ? 'Peripheral arterial desaturation caution threshold crossed.' : 'Perfusion maintained under elevated core thermal strain.'}
+                        Delayed ventricular action potential duration widens cardiac recharge window.
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#fbbf24', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Surges arrhythmogenic vulnerability</span>
+                    </div>
+
+                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>
+                          STAGE 3: [ELECTROPHYSIOLOGY] ARF RISK ELEVATION
+                        </span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:20 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Arrhythmogenic Risk Factor (ARF)</span>
+                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>{selStats.arf.toFixed(2)} (Safe: &lt; 1.00)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>
+                        Calculated arrhythmogenic index flags vulnerability to premature ventricular complexes.
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#f87171', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Autonomic chronotropic compensation</span>
+                    </div>
+
+                    <div style={{ background: '#120b0d', border: '1px solid rgba(239, 68, 68, 0.45)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#f87171', letterSpacing: '0.04em' }}>
+                          STAGE 4: [OUTCOME] TACHYCARDIA & ECTOPY THREAT
+                        </span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:28 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Compensatory Rate Acceleration</span>
+                        <span style={{ color: '#f87171', fontFamily: T.mono }}>{selStats.hr} bpm (+{selStats.hrDeltaPct.toFixed(1)}%)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>
+                        Oral KCl repletion packet and 12-lead ECG review required (NASA-STD-3001-MED-CARD-04).
                       </div>
                     </div>
                   </div>
+                ) : isRad ? (
+                  /* ─── SCENARIO 3: SOLAR RADIATION STORM CAUSAL PIPELINE ─── */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, position: 'relative' }}>
+                    <div style={{ background: '#120b0d', border: '1px solid rgba(239, 68, 68, 0.45)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#f87171', letterSpacing: '0.04em' }}>STAGE 1: [TRIGGER] SOLAR PROTON FLUX SURGE</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:04 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>HERA Silicon Microdosimeters</span>
+                        <span style={{ color: '#f87171', fontFamily: T.mono }}>{selStats.radFlux.toFixed(1)} mGy/d (&gt;5.0 mGy/d limit)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>High-energy solar coronal plasma stream crosses interplanetary threshold.</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#f87171', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Tissue ionizing dose accumulation</span>
+                    </div>
+                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>STAGE 2: [BIODOSIMETRY] PERSONAL CAD DOSE RATE</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:11 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Cumulative Mission Dose</span>
+                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>{(selStats.radDose * 1000).toFixed(0)} mSv</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Absorbed tissue-equivalent dose exceeds permissible unshielded envelope.</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#fbbf24', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Cellular DNA double-strand break risk</span>
+                    </div>
+                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>STAGE 3: [CYTOGENIC] RSI SUSCEPTIBILITY INDEX</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:19 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Radiation Susceptibility Index</span>
+                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>RSI {selStats.rsi.toFixed(2)} (Safe: &lt; 0.20)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Radiosensitivity marker indicates heightened acute cytogenic vulnerability.</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-2px 0', color: '#f87171', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Immediate storm shelter deployment required</span>
+                    </div>
+                    <div style={{ background: '#120b0d', border: '1px solid rgba(239, 68, 68, 0.45)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#f87171', letterSpacing: '0.04em' }}>STAGE 4: [OUTCOME] STORM SHELTER PROTOCOL</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:25 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Water-Wall Radiation Shelter</span>
+                        <span style={{ color: '#f87171', fontFamily: T.mono }}>EVA Terminated · Shelter Active</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Direct crew to central storm shelter (NASA-STD-3001-RAD-SPE-01).</div>
+                    </div>
+                  </div>
+                ) : isThromb ? (
+                  /* ─── SCENARIO 7: VENOUS THROMBOSIS CAUSAL PIPELINE ─── */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, position: 'relative' }}>
+                    <div style={{ background: '#0a0e14', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.04em' }}>STAGE 1: [TRIGGER] CEPHALAD FLUID SHIFT &amp; STASIS</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:08 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Internal Jugular Flow Velocity</span>
+                        <span style={{ color: '#38bdf8', fontFamily: T.mono }}>&lt; 4 cm/s (Retrograde Stasis)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Loss of gravitational gradient causes chronic neck vein blood pooling.</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#38bdf8', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Microgravity hemoconcentration</span>
+                    </div>
+                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>STAGE 2: [HEMODYNAMICS] VISCOSITY ELEVATION</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:15 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Hematocrit &amp; Platelets</span>
+                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>Hct {selStats.hct.toFixed(1)}% · PLT {selStats.plt.toFixed(0)}k</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Fluid volume loss increases red cell concentration and clotting cascade potential.</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#fbbf24', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Virchow triad multi-signal convergence</span>
+                    </div>
+                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>STAGE 3: [ENDOTHELIAL] TRM CLOT RISK SURGE</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:22 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Thrombosis Risk Model (TRM)</span>
+                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>{selStats.trm.toFixed(2)} (High Risk: &gt; 1.50)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Algorithm correlates vascular stasis, viscosity, and endothelial shear stress.</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#fbbf24', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Vascular ultrasound &amp; LBNP countermeasure</span>
+                    </div>
+                    <div style={{ background: '#120b0d', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>STAGE 4: [OUTCOME] JUGULAR THROMBOSIS GATE</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:30 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Point-of-Care Surveillance</span>
+                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>Ultrasound &amp; LBNP Countermeasure</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Deploy LBNP therapy and perform compression Doppler ultrasound (THROMB-01).</div>
+                    </div>
+                  </div>
+                ) : isCo2 ? (
+                  /* ─── SCENARIO 1: CO2 SCRUBBER BREAKTHROUGH CAUSAL PIPELINE ─── */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, position: 'relative' }}>
+                    <div style={{ background: '#120b0d', border: '1px solid rgba(239, 68, 68, 0.45)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#f87171', letterSpacing: '0.04em' }}>STAGE 1: [TRIGGER] ECLSS SCRUBBER SATURATION</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:06 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Ambient Cabin Carbon Dioxide</span>
+                        <span style={{ color: '#f87171', fontFamily: T.mono }}>{co2Val.toFixed(2)} mmHg (Flight Rule: 3.00)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Amine regenerative bed A effluent sensor indicates breakthrough saturation.</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#f87171', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Hypercapnic chemoreceptor stimulation</span>
+                    </div>
+                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>STAGE 2: [PULMONARY] COMPENSATORY VENTILATION</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:14 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Respiration Rate Acceleration</span>
+                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>{selStats.resp} br/min (+{selStats.respDeltaPct.toFixed(1)}%)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Compensatory hyperventilation to accelerate pulmonary CO₂ clearance.</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#fbbf24', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Mild respiratory acidosis chronotropic reflex</span>
+                    </div>
+                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>STAGE 3: [AUTONOMIC] TACHYCARDIC SURGE</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:21 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Elevated Heart Rate</span>
+                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>{selStats.hr} bpm (Acidosis Response)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Sympathoadrenal response to maintain cerebral perfusion against rising pCO₂.</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#f87171', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Bed B transition &amp; crew cognitive fatigue check</span>
+                    </div>
+                    <div style={{ background: '#120b0d', border: '1px solid rgba(239, 68, 68, 0.45)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#f87171', letterSpacing: '0.04em' }}>STAGE 4: [OUTCOME] SCRUBBER TRANSITION REQUIRED</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:28 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Scrubber Bed Rotation</span>
+                        <span style={{ color: '#f87171', fontFamily: T.mono }}>Command Bed B Transition</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Switch to Bed B and verify inter-module fan circulation (ECLSS-CO2-01).</div>
+                    </div>
+                  </div>
+                ) : selStats.isAnomaly ? (
+                  /* ─── GENERAL PHYSICAL EXERTION / CARDIOVASCULAR ANOMALY ─── */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, position: 'relative' }}>
+                    <div style={{ background: '#0a0e14', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.04em' }}>STAGE 1: [TRIGGER] PRIMARY STRESSOR</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:12 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Physical Exertion &amp; Workload</span>
+                        <span style={{ color: '#38bdf8', fontFamily: T.mono }}>PSI {(selStats.workload * 7.5).toFixed(1)} / 10</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Metabolic ATP turnover initiates sympathetic demand envelope.</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#38bdf8', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Drives autonomic rate acceleration</span>
+                    </div>
+                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>STAGE 2: [RESPONSE] CARDIAC SURGE</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:18 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Heart Rate Acceleration</span>
+                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>{selStats.hr} bpm ({selStats.hrDeltaPct >= 0 ? '+' : ''}{selStats.hrDeltaPct.toFixed(1)}%)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Tachycardia envelope (+{(Math.abs(selStats.hrDeltaPct) / 10).toFixed(1)}σ deviation from {selCrew.baseHr} bpm base).</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#fbbf24', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Triggers compensatory minute ventilation</span>
+                    </div>
+                    <div style={{ background: '#0e0f14', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>STAGE 3: [COMPENSATION] VENTILATORY DRIVE</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:24 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Respiratory Hyperventilation</span>
+                        <span style={{ color: '#fbbf24', fontFamily: T.mono }}>{selStats.resp} br/min ({selStats.respDeltaPct >= 0 ? '+' : ''}{selStats.respDeltaPct.toFixed(1)}%)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>Compensatory hyperventilation to accelerate pulmonary CO₂ clearance.</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#f87171', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Perfusion &amp; metabolic heat accumulation</span>
+                    </div>
+                    <div style={{ background: '#120b0d', border: `1px solid ${selStats.spo2 < 97 ? 'rgba(239, 68, 68, 0.45)' : 'rgba(245, 158, 11, 0.4)'}`, borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: selStats.spo2 < 97 ? '#f87171' : '#fbbf24', letterSpacing: '0.04em' }}>STAGE 4: [OUTCOME] PERFUSION &amp; THERMAL STATE</span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:31 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>SpO₂ &amp; Thermal Elevation</span>
+                        <span style={{ color: selStats.spo2 < 97 ? '#f87171' : '#fbbf24', fontFamily: T.mono }}>{selStats.spo2.toFixed(1)}% · {selStats.temp.toFixed(1)}°C</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>{selStats.spo2 < 97 ? 'Peripheral arterial desaturation caution threshold crossed.' : 'Perfusion maintained under elevated core thermal strain.'}</div>
+                    </div>
+                  </div>
                 ) : (
-                  /* NOMINAL CREW STATE (Crystal Clear Baseline Equilibrium) */
+                  /* ─── NOMINAL CREW STATE (Crystal Clear Baseline Equilibrium) ─── */
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: 4, padding: '8px 10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
@@ -2004,7 +2713,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         </span>
                       </div>
                       <div style={{ fontSize: 8.5, color: '#a0aec0', lineHeight: 1.35 }}>
-                        Continuous cross-signal synthesis indicates healthy homeostasis. No active standard deviation excursions detected.
+                        Continuous cross-signal synthesis indicates healthy homeostasis for {selCrew.callsign}. No active standard deviation excursions detected.
                       </div>
                     </div>
 
@@ -2013,43 +2722,37 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
                         <span style={{ fontSize: 9, color: '#c5d5e5' }}>HEART RATE</span>
                         <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.hr} bpm <span style={{ color: '#4ade80' }}>({selStats.hrDeltaPct >= 0 ? '+' : ''}{selStats.hrDeltaPct.toFixed(1)}%)</span></span>
-                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>NOMINAL [±0.4σ]</span>
+                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>NOMINAL [Z: {selStats.z_score_hr}σ]</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
                         <span style={{ fontSize: 9, color: '#c5d5e5' }}>SPO2 ARTERIAL SATURATION</span>
                         <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.spo2.toFixed(1)}% <span style={{ color: '#4ade80' }}>(Optimal)</span></span>
-                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>OPTIMAL</span>
+                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>OPTIMAL [Z: {selStats.z_score_spo2}σ]</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
                         <span style={{ fontSize: 9, color: '#c5d5e5' }}>RESPIRATION RATE</span>
                         <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.resp} br/min <span style={{ color: '#4ade80' }}>(Eupneic)</span></span>
-                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>REST BAND</span>
+                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>REST BAND [Z: {selStats.z_score_resp}σ]</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
                         <span style={{ fontSize: 9, color: '#c5d5e5' }}>CORE TEMPERATURE</span>
                         <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.temp.toFixed(1)} °C</span>
-                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>HOMEOSTATIC</span>
+                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>HOMEOSTATIC [Z: {selStats.z_score_temp}σ]</span>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Possible Linked Factors with Weighted Correlation Bars */}
+                {/* Possible Linked Factors with Weighted Correlation Bars (Dynamically Computed) */}
                 <div style={{ marginTop: 10 }}>
                   <div style={{ ...labelStyle, marginBottom: 5 }}>MULTI-SIGNAL CORRELATION WEIGHTS</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {[
-                      { title: 'High Physical Exertion', sub: 'Active cycle / EVA mass-handling protocol', weight: 88, color: '#fbbf24' },
-                      { title: 'Thermal Regulation Stress', sub: 'Cabin ventilation convective flux (+0.4°C hab)', weight: 74, color: '#fbbf24' },
-                      { title: 'Elevated Ambient CO₂', sub: 'Transient scrubber gradient: 1.82 mmHg', weight: 56, color: '#38bdf8' },
-                      { title: 'Autonomic Circadian Shift', sub: 'Mission Day 14 rest-phase debt', weight: 38, color: '#94a3b8' },
-                    ].map((f, i) => (
+                    {correlationFactors.map((f, i) => (
                       <div key={i} style={{ background: '#080c10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '5px 8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                           <span style={{ fontSize: 9.5, fontWeight: 600, color: '#ffffff' }}>{f.title}</span>
-                          <span style={{ fontSize: 9, fontFamily: T.mono, fontWeight: 700, color: f.color }}>{f.weight}% (r = {(f.weight / 100).toFixed(2)})</span>
+                          <span style={{ fontSize: 9, fontFamily: T.mono, fontWeight: 700, color: f.color }}>{f.weight}% (r = {f.r})</span>
                         </div>
-                        {/* Progress Bar Meter */}
                         <div style={{ width: '100%', height: 3, background: '#17222d', borderRadius: 2, overflow: 'hidden', margin: '3px 0' }}>
                           <div style={{ width: `${f.weight}%`, height: '100%', background: f.color, borderRadius: 2 }} />
                         </div>
@@ -2060,7 +2763,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 </div>
               </div>
 
-              {/* ──── COLUMN 4: WHY IS THIS FLAGGED? & DECISION SUPPORT ──── */}
+              {/* ──── COLUMN 4: WHY IS THIS FLAGGED? & DECISION SUPPORT (DYNAMIC) ──── */}
               <div style={cardStyle}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                   <div style={labelStyle}>WHY IS THIS FLAGGED?</div>
@@ -2070,7 +2773,35 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 {/* Dynamically Evaluated Detection Rationale */}
                 <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '7px 9px', marginTop: 4 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 9, color: '#c5d5e5', lineHeight: 1.35 }}>
-                    {selStats.isAnomaly ? (
+                    {isHypo ? (
+                      <>
+                        <div>• <strong style={{ color: '#ff4d4d' }}>Hypokalemia Threshold:</strong> Serum K⁺ {selStats.potassium.toFixed(2)} mmol/L (Floor limit: 3.50 mmol/L) [CRITICAL DEPLETION]</div>
+                        <div>• <strong style={{ color: '#fbbf24' }}>Cardiac Repolarization:</strong> Fridericia QTc {selStats.qtc.toFixed(0)} ms (Gate: 450 ms) [PROLONGED]</div>
+                        <div>• <strong style={{ color: '#fbbf24' }}>Arrhythmogenic Index:</strong> ARF {selStats.arf.toFixed(2)} exceeds 1.0 safe boundary [ECTOPY RISK]</div>
+                        <div>• <strong style={{ color: '#ffffff' }}>Compensatory Tachycardia:</strong> HR {selStats.hr} bpm (+{selStats.hrDeltaPct.toFixed(1)}% vs baseline {selCrew.baseHr} bpm)</div>
+                      </>
+                    ) : isRad ? (
+                      <>
+                        <div>• <strong style={{ color: '#ff4d4d' }}>Solar Proton Surge:</strong> HERA Flux {selStats.radFlux.toFixed(1)} mGy/d exceeds 5.0 mGy/d threshold [STORM ACTIVE]</div>
+                        <div>• <strong style={{ color: '#fbbf24' }}>Absorbed Mission Dose:</strong> {(selStats.radDose * 1000).toFixed(1)} mSv cumulative exposure</div>
+                        <div>• <strong style={{ color: '#fbbf24' }}>DNA Susceptibility:</strong> RSI {selStats.rsi.toFixed(2)} indicates acute radiosensitivity hazard</div>
+                        <div>• <strong style={{ color: '#ffffff' }}>Flight Action Gate:</strong> Terminate EVA and transfer all 4 crew to water-wall storm shelter</div>
+                      </>
+                    ) : isThromb ? (
+                      <>
+                        <div>• <strong style={{ color: '#fbbf24' }}>Venous Hemodynamic Stasis:</strong> Internal jugular flow &lt; 4 cm/s retrograde stasis waveform</div>
+                        <div>• <strong style={{ color: '#fbbf24' }}>Thrombosis Risk Model:</strong> TRM index {selStats.trm.toFixed(2)} (High-Risk Threshold: &gt; 1.50)</div>
+                        <div>• <strong style={{ color: '#ffffff' }}>Hemoconcentration:</strong> Hematocrit {selStats.hct.toFixed(1)}% · Platelets {selStats.plt.toFixed(0)} ×10³/µL</div>
+                        <div>• <strong style={{ color: '#ffffff' }}>Vascular Protocol:</strong> Compression Doppler ultrasound &amp; LBNP countermeasure armed</div>
+                      </>
+                    ) : isCo2 ? (
+                      <>
+                        <div>• <strong style={{ color: '#ff4d4d' }}>Cabin CO₂ Excursion:</strong> {co2Val.toFixed(2)} mmHg (NASA-STD-3001 Limit: 3.00 mmHg) [SATURATED]</div>
+                        <div>• <strong style={{ color: '#fbbf24' }}>Ventilatory Drive:</strong> Respiration {selStats.resp} br/min (+{selStats.respDeltaPct.toFixed(1)}% above baseline {selCrew.baseResp})</div>
+                        <div>• <strong style={{ color: '#ffffff' }}>Acidosis Chronotropy:</strong> Heart rate {selStats.hr} bpm compensatory response</div>
+                        <div>• <strong style={{ color: '#ffffff' }}>ECLSS Flight Rule:</strong> Automated valve rotation to secondary Scrubber Bed B mandatory</div>
+                      </>
+                    ) : selStats.isAnomaly ? (
                       <>
                         <div>• <strong style={{ color: '#ffffff' }}>HR Excursion:</strong> {selStats.hr} bpm ({selStats.hrDeltaPct >= 0 ? '+' : ''}{selStats.hrDeltaPct.toFixed(1)}% vs baseline {selCrew.baseHr} bpm) [EXCEEDS +20% ENVELOPE]</div>
                         <div>• <strong style={{ color: '#ffffff' }}>Ventilatory Coupling:</strong> {selStats.resp} br/min ({selStats.respDeltaPct >= 0 ? '+' : ''}{selStats.respDeltaPct.toFixed(1)}% deviation above baseline {selCrew.baseResp})</div>
@@ -2080,7 +2811,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     ) : (
                       <>
                         <div>• <strong style={{ color: '#4ade80' }}>All Metrics Nominal:</strong> 0 flight rule limit violations across all channels</div>
-                        <div>• <strong style={{ color: '#ffffff' }}>HR Baseline Stability:</strong> {selStats.hr} bpm conforms to personal OSDR resting envelope</div>
+                        <div>• <strong style={{ color: '#ffffff' }}>HR Baseline Stability:</strong> {selStats.hr} bpm conforms to personal OSDR resting envelope (Z: {selStats.z_score_hr}σ)</div>
                         <div>• <strong style={{ color: '#ffffff' }}>Arterial Oxygenation:</strong> SpO₂ {selStats.spo2.toFixed(1)}% exceeds 98.0% minimum optimal floor</div>
                         <div>• <strong style={{ color: '#ffffff' }}>Autonomic Stability:</strong> HRV RMSSD {selStats.hrv} ms indicates balanced parasympathetic tone</div>
                       </>
@@ -2091,9 +2822,9 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 {/* Circular Confidence Gauge (Dynamically Evaluated) */}
                 <div style={{ marginTop: 8, padding: '6px 0', borderTop: `1px solid ${T.borderSubtle}`, borderBottom: `1px solid ${T.borderSubtle}` }}>
                   <CircularGauge
-                    pct={selStats.isAnomaly ? 93 : 99}
+                    pct={selStats.isAnomaly ? 95 : 99}
                     label="Bayesian Multi-Signal Confidence"
-                    color={selStats.isAnomaly ? '#fbbf24' : '#22c55e'}
+                    color={selStats.isAnomaly ? (isHypo || isRad || co2Val > 3.0 ? '#ff4d4d' : '#fbbf24') : '#22c55e'}
                     size={72}
                   />
                 </div>
@@ -2102,9 +2833,28 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 <div style={{ marginTop: 8 }}>
                   <div style={{ ...labelStyle, marginBottom: 4 }}>DECISION SUPPORT ENGINE</div>
                   <div style={{ fontSize: 9.5, color: '#c5d5e5', lineHeight: 1.4 }}>
-                    <div><strong style={{ color: '#ffffff' }}>Condition:</strong> {selStats.isAnomaly ? 'Moderate Cardiovascular Exertion Anomaly' : 'Nominal Baseline Equilibrium'}</div>
-                    <div><strong style={{ color: '#ffffff' }}>Trajectory:</strong> {selStats.isAnomaly ? 'Increasing ↗ (+2.4 bpm/min)' : 'Stable → (In Homeostasis)'}</div>
-                    <div><strong style={{ color: '#ffffff' }}>Time to Threshold:</strong> {selStats.isAnomaly ? '11 min to Caution Limit' : 'Nominal Corridor (>24 hr)'}</div>
+                    <div>
+                      <strong style={{ color: '#ffffff' }}>Condition: </strong>
+                      {isHypo ? 'Acute Hypokalemia & Tachyarrhythmia Risk' :
+                       isRad ? 'Solar Particle Event Radiation Surge' :
+                       isThromb ? 'Internal Jugular Venous Stasis Threat' :
+                       isCo2 ? 'ECLSS Scrubber Bed Saturation' :
+                       selStats.isAnomaly ? 'Cardiovascular Exertion Excursion' :
+                       'Nominal Baseline Equilibrium'}
+                    </div>
+                    <div>
+                      <strong style={{ color: '#ffffff' }}>Trajectory: </strong>
+                      {selStats.isAnomaly ? 'Worsening ↗ (Active Excursion)' : 'Stable → (In Homeostasis)'}
+                    </div>
+                    <div>
+                      <strong style={{ color: '#ffffff' }}>Time to Threshold: </strong>
+                      {isHypo ? '6 min to Ectopic Gate' :
+                       isRad ? '15 min to Storm Shelter Gate' :
+                       isThromb ? '4h Ultrasound Surveillance Gate' :
+                       isCo2 ? 'Exceeded by +' + (co2Val - 3.0).toFixed(2) + ' mmHg' :
+                       selStats.isAnomaly ? '11 min to Caution Limit' :
+                       'Nominal Corridor (>24 hr)'}
+                    </div>
                   </div>
 
                   <div style={{ marginTop: 8 }}>
@@ -2112,7 +2862,35 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       SUGGESTED CLINICAL CHECKS
                     </div>
                     <div style={{ fontSize: 9, color: '#8fa9c4', lineHeight: 1.35 }}>
-                      {selStats.isAnomaly ? (
+                      {isHypo ? (
+                        <>
+                          1. Direct Medical Officer (Dr. Sian) to administer oral KCl pack (20 mEq)<br />
+                          2. Lock 12-lead ECG telemetry and inspect ST segment / U-wave<br />
+                          3. Increase oral electrolyte hydration fluid intake minimum 500 mL<br />
+                          4. Maintain 10-minute continuous telemetry observation gate
+                        </>
+                      ) : isRad ? (
+                        <>
+                          1. Direct all 4 crew members to transfer into water-wall storm shelter<br />
+                          2. Deploy polyethylene radiation shielding blankets over crew berths<br />
+                          3. Suspend all scheduled EVA and exterior robotic arm operations<br />
+                          4. Monitor serial leukocyte assay and calculate Radiation Sickness Index
+                        </>
+                      ) : isThromb ? (
+                        <>
+                          1. Direct Medical Officer (Dr. Sian) to perform vascular compression ultrasound<br />
+                          2. Administer 500 mL oral rehydration electrolyte solution<br />
+                          3. Prepare subcutaneous low-molecular-weight heparin (Enoxaparin 40 mg)<br />
+                          4. Verify lower body negative pressure (LBNP) device readiness
+                        </>
+                      ) : isCo2 ? (
+                        <>
+                          1. Command automated valve transition to secondary scrubber bed (Bed B)<br />
+                          2. Increase habitat inter-module ventilation fan speed to High (0.8 m/s)<br />
+                          3. Direct crew to report headache or mild cognitive fatigue symptoms<br />
+                          4. Confirm backup LiOH canister seals intact for contingency installation
+                        </>
+                      ) : selStats.isAnomaly ? (
                         <>
                           1. Direct crew member to reduce physical workload by 50%<br />
                           2. Increase suit/cabin airflow cooling ventilation by +15%<br />
@@ -2132,7 +2910,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
                   {/* Flight Procedure Action Button */}
                   <button
-                    onClick={() => setActiveProcedureId('M-204')}
+                    onClick={() => setActiveProcedureId(targetProcedureId)}
                     style={{
                       marginTop: 9,
                       width: '100%',
@@ -2151,7 +2929,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       transition: 'all 0.12s ease',
                     }}
                   >
-                    OPEN PROCEDURE: M-204 (TACHYCARDIA EXERTION) →
+                    OPEN PROCEDURE: {targetProcedureId.replace('NASA-STD-3001-', '')} →
                   </button>
 
                   {onOpenTriage && (
@@ -2184,7 +2962,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
             {/* ──── 5. BOTTOM SECTION: Mission Timeline (Left) + Recent Events Log (Right) ──── */}
             <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 12, alignItems: 'stretch' }}>
-              
+
               {/* Mission Timeline Horizontal Bar */}
               <div style={cardStyle}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -2225,20 +3003,22 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Anomaly Pin Marker at 14:32 */}
-                  <div style={{
-                    position: 'absolute',
-                    left: '21.5%',
-                    top: -12,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                  }}>
-                    <span style={{ fontSize: 8, fontFamily: T.mono, color: T.critical, background: '#140808', border: `1px solid ${T.criticalBorder}`, padding: '1px 4px', borderRadius: 3, whiteSpace: 'nowrap' }}>
-                      [ANOMALY] 14:32 (PLT)
-                    </span>
-                    <span style={{ width: 1.5, height: 32, background: T.critical, marginTop: 1 }} />
-                  </div>
+                  {/* Anomaly Pin Marker Dynamically Linked */}
+                  {selStats.isAnomaly && (
+                    <div style={{
+                      position: 'absolute',
+                      left: '21.5%',
+                      top: -12,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                    }}>
+                      <span style={{ fontSize: 8, fontFamily: T.mono, color: T.critical, background: '#140808', border: `1px solid ${T.criticalBorder}`, padding: '1px 4px', borderRadius: 3, whiteSpace: 'nowrap' }}>
+                        [ANOMALY] {simUtcTime.substring(0, 5)} ({selCrew.callsign})
+                      </span>
+                      <span style={{ width: 1.5, height: 32, background: T.critical, marginTop: 1 }} />
+                    </div>
+                  )}
 
                   {/* Current Time Needle at 14:35 */}
                   <div style={{
@@ -2251,7 +3031,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   }}>
                     <span style={{ width: 1.5, height: 10, background: '#ffffff' }} />
                     <span style={{ fontSize: 8, fontFamily: T.mono, color: '#ffffff', background: '#1e252e', border: '1px solid #3c4c5c', padding: '1px 4px', borderRadius: 2, whiteSpace: 'nowrap', marginTop: 1 }}>
-                      ▲ NOW 14:35
+                      ▲ NOW {simUtcTime.substring(0, 5)}
                     </span>
                   </div>
                 </div>
@@ -2374,22 +3154,53 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           </div>
         )}
 
-        {/* ─── 4c. Correlation Sub-Tab (Cross-Signal Pearson Correlation) ─── */}
-        {crewSubTab === 'Correlation' && (
-          <div style={cardStyle}>
-            <div style={{ ...labelStyle, marginBottom: 6 }}>Cross-Signal Correlation Matrix (Pearson r)</div>
-            <div style={{ fontSize: 10, color: T.textSecondary, marginBottom: 10 }}>
-              Calculated across 720 temporal points (2-hour rolling window). Strong correlation (|r| &gt; 0.70) indicates coupled physiological strain.
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {[
-                { pair: 'HR vs Workload', r: '+0.88', desc: 'Strong positive correlation — physical exertion driven', sig: 'HIGH' },
-                { pair: 'HR vs HRV (RMSSD)', r: '-0.79', desc: 'Sympathetic dominance / autonomic decay confirmed', sig: 'HIGH' },
-                { pair: 'HR vs SpO₂', r: '-0.64', desc: 'Moderate inverse coupling — desaturation on exertion', sig: 'MODERATE' },
-                { pair: 'Resp vs Workload', r: '+0.82', desc: 'Hyperventilation response tracking metabolic demand', sig: 'HIGH' },
-                { pair: 'Core Temp vs HR', r: '+0.71', desc: 'Thermal strain coupling (Moran PSI 5.8)', sig: 'HIGH' },
-                { pair: 'Cabin CO₂ vs Resp', r: '+0.44', desc: 'Mild hypercapnic compensatory drive', sig: 'LOW' },
-              ].map((c, i) => (
+        {/* ─── 4c. Correlation Sub-Tab (Cross-Signal Pearson Correlation Matrix) ─── */}
+        {crewSubTab === 'Correlation' && (() => {
+          const corrPairs = isHypo ? [
+            { pair: 'K⁺ vs QTc Interval', r: '-0.94', desc: 'Critical delay: I_Kr channel prolonged action potential', sig: 'CRITICAL' },
+            { pair: 'QTc vs ARF Index', r: '+0.88', desc: 'Arrhythmogenic substrate flutter coupling', sig: 'HIGH' },
+            { pair: 'HR vs QTc Fridericia', r: '+0.78', desc: 'Compensatory chronotropic rate surge', sig: 'HIGH' },
+            { pair: 'HRV vs Serum K⁺', r: '+0.72', desc: 'Autonomic decay tracking electrolyte depletion', sig: 'HIGH' },
+            { pair: 'Resp vs Workload', r: '+0.65', desc: 'Eupneic ventilatory response', sig: 'MODERATE' },
+            { pair: 'SpO₂ vs Perfusion', r: '+0.82', desc: 'Stable peripheral microvascular perfusion', sig: 'HIGH' },
+          ] : isRad ? [
+            { pair: 'Proton Flux vs CAD Silicon', r: '+0.96', desc: 'HERA and CAD coincident sensor lock', sig: 'CRITICAL' },
+            { pair: 'Absorbed Dose vs RSI', r: '+0.89', desc: 'Accumulated dose scaling radiosensitivity', sig: 'HIGH' },
+            { pair: 'Total WBC vs Radiation', r: '-0.76', desc: 'Radiation-induced leukopenia progression', sig: 'HIGH' },
+            { pair: 'Lymphocytes vs Dose', r: '-0.84', desc: 'Rapid peripheral lymphocyte depletion', sig: 'HIGH' },
+            { pair: 'HR vs Stress Tone', r: '+0.68', desc: 'Sympathetic arousal from storm alert', sig: 'MODERATE' },
+            { pair: 'Core Temp vs Flux', r: '+0.42', desc: 'Thermal loop convective background', sig: 'LOW' },
+          ] : isThromb ? [
+            { pair: 'Jugular Flow vs TRM', r: '+0.92', desc: 'Venous stagnation directly driving clot index', sig: 'HIGH' },
+            { pair: 'Hematocrit vs TRM', r: '+0.85', desc: 'Hemoconcentration elevating blood viscosity', sig: 'HIGH' },
+            { pair: 'Platelets vs Viscosity', r: '+0.78', desc: 'Thrombocytosis enhancing aggregation potential', sig: 'HIGH' },
+            { pair: 'HR vs Fluid Shift', r: '+0.64', desc: 'Cephalic baroreceptor resetting', sig: 'MODERATE' },
+            { pair: 'SpO₂ vs Flow Velocity', r: '-0.48', desc: 'Microcirculatory retrograde resistance', sig: 'MODERATE' },
+            { pair: 'BP vs Venous Return', r: '+0.71', desc: 'Jugular venous engorgement pressure', sig: 'HIGH' },
+          ] : isCo2 ? [
+            { pair: 'Cabin CO₂ vs Resp Rate', r: '+0.90', desc: 'Hypercapnic chemoreceptor ventilatory surge', sig: 'HIGH' },
+            { pair: 'Cabin CO₂ vs Heart Rate', r: '+0.74', desc: 'Sympathoadrenal chronotropic coupling', sig: 'HIGH' },
+            { pair: 'Resp vs Workload', r: '+0.82', desc: 'Minute ventilation tracks metabolic CO₂', sig: 'HIGH' },
+            { pair: 'HR vs HRV (RMSSD)', r: '-0.79', desc: 'Autonomic decay from respiratory acidosis', sig: 'HIGH' },
+            { pair: 'SpO₂ vs Cabin CO₂', r: '-0.58', desc: 'Alveolar gas equation displacement gradient', sig: 'MODERATE' },
+            { pair: 'Core Temp vs ATCS', r: '+0.62', desc: 'Cabin ventilation convective heat balance', sig: 'MODERATE' },
+          ] : [
+            { pair: 'HR vs Workload', r: '+0.88', desc: 'Positive correlation — physical exertion driven', sig: 'HIGH' },
+            { pair: 'HR vs HRV (RMSSD)', r: '-0.79', desc: 'Sympathetic dominance / autonomic decay', sig: 'HIGH' },
+            { pair: 'HR vs SpO₂', r: '-0.64', desc: 'Inverse coupling — desaturation on exertion', sig: 'MODERATE' },
+            { pair: 'Resp vs Workload', r: '+0.82', desc: 'Hyperventilation tracking metabolic demand', sig: 'HIGH' },
+            { pair: 'Core Temp vs HR', r: '+0.71', desc: 'Thermal strain coupling (Moran PSI 5.8)', sig: 'HIGH' },
+            { pair: 'Cabin CO₂ vs Resp', r: '+0.44', desc: 'Mild hypercapnic compensatory drive', sig: 'LOW' },
+          ];
+
+          return (
+            <div style={cardStyle}>
+              <div style={{ ...labelStyle, marginBottom: 6 }}>Cross-Signal Correlation Matrix (Pearson r)</div>
+              <div style={{ fontSize: 10, color: T.textSecondary, marginBottom: 10 }}>
+                Calculated across 720 temporal points (2-hour rolling window). Strong correlation (|r| &gt; 0.70) indicates coupled physiological strain.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {corrPairs.map((c, i) => (
                 <div key={i} style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{c.pair}</span>
@@ -2397,17 +3208,18 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   </div>
                   <div style={{ fontSize: 9, color: T.textSecondary, marginTop: 4 }}>{c.desc}</div>
                 </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
-        {/* ─── 4d. Baseline & Deviation Sub-Tab ─── */}
+        {/* ─── 4d. Baseline & Deviation Sub-Tab (Dynamic Z-Scores) ─── */}
         {crewSubTab === 'Baseline & Deviation' && (
           <div style={cardStyle}>
-            <div style={{ ...labelStyle, marginBottom: 6 }}>Statistical Variance & Baseline Deviation Envelope</div>
+            <div style={{ ...labelStyle, marginBottom: 6 }}>Statistical Variance &amp; Baseline Deviation Envelope</div>
             <div style={{ fontSize: 10, color: T.textSecondary, marginBottom: 10 }}>
-              Comparison against Inspiration4 OSDR (OSD-575/569) cohort baseline distributions.
+              Comparison against Inspiration4 OSDR (OSD-575/569) cohort baseline distributions for {selCrew.name} ({selCrew.callsign}).
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
               <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
@@ -2415,63 +3227,96 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 <div style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.5 }}>
                   • Resting Mean (μ): {selCrew.baseHr} bpm · Standard Deviation (σ): 4.8 bpm<br />
                   • Current Value: {selStats.hr} bpm<br />
-                  • Z-Score: {((selStats.hr - selCrew.baseHr) / 4.8).toFixed(2)}σ ({selStats.hrDeltaPct > 20 ? 'CRITICAL EXCURSION > 3σ' : 'NOMINAL < 1σ'})<br />
-                  • Cumulative Time Above 2σ: 18 minutes
+                  • Z-Score: <strong style={{ color: Math.abs(selStats.z_score_hr) > 2 ? T.warning : T.nominal }}>{selStats.z_score_hr}σ</strong> ({Math.abs(selStats.z_score_hr) > 2 ? 'EXCURSION BEYOND 2σ' : 'NOMINAL WITHIN 1σ'})<br />
+                  • Cumulative Time Above 2σ: {selStats.isAnomaly ? '18 minutes' : '0 minutes'}
                 </div>
               </div>
+
               <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary, marginBottom: 4 }}>SpO₂ Peripheral Envelope</div>
                 <div style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.5 }}>
                   • Resting Mean (μ): {selCrew.baseSpo2.toFixed(1)}% · Standard Deviation (σ): 0.6%<br />
                   • Current Value: {selStats.spo2.toFixed(1)}%<br />
-                  • Z-Score: {((selStats.spo2 - selCrew.baseSpo2) / 0.6).toFixed(2)}σ<br />
-                  • Lower Warning Gate: 95.0% (Current margin: +{(selStats.spo2 - 95.0).toFixed(1)}%)
+                  • Z-Score: <strong style={{ color: selStats.spo2 < 97 ? T.warning : T.nominal }}>{selStats.z_score_spo2}σ</strong><br />
+                  • Lower Flight Rule Floor: 95.0% (Current margin: +{(selStats.spo2 - 95.0).toFixed(1)}%)
+                </div>
+              </div>
+
+              <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary, marginBottom: 4 }}>Respiration Rate Variance</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.5 }}>
+                  • Resting Mean (μ): {selCrew.baseResp} br/min · Standard Deviation (σ): 1.5 br/min<br />
+                  • Current Value: {selStats.resp} br/min<br />
+                  • Z-Score: <strong style={{ color: Math.abs(selStats.z_score_resp) > 2 ? T.warning : T.nominal }}>{selStats.z_score_resp}σ</strong><br />
+                  • Eupneic Resting Corridor: 12 - 18 br/min
+                </div>
+              </div>
+
+              <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary, marginBottom: 4 }}>Core Temperature Stability</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, lineHeight: 1.5 }}>
+                  • Resting Mean (μ): {selCrew.baseTemp.toFixed(1)} °C · Standard Deviation (σ): 0.25 °C<br />
+                  • Current Value: {selStats.temp.toFixed(1)} °C<br />
+                  • Z-Score: <strong style={{ color: Math.abs(selStats.z_score_temp) > 2 ? T.warning : T.nominal }}>{selStats.z_score_temp}σ</strong><br />
+                  • Thermal Flight Rule Ceiling: 38.0 °C (Margin: +{(38.0 - selStats.temp).toFixed(1)} °C)
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ─── 4e. Medical History Sub-Tab ─── */}
+        {/* ─── 4e. Medical History Sub-Tab (Authentic Inspiration4 OSDR Profiles) ─── */}
         {crewSubTab === 'Medical History' && (
           <div style={cardStyle}>
-            <div style={{ ...labelStyle, marginBottom: 6 }}>Astronaut Medical Dossier & Flight Certification</div>
+            <div style={{ ...labelStyle, marginBottom: 6 }}>Astronaut Medical Dossier &amp; NASA OSDR OSD-575/569 Baseline Profile</div>
+            <div style={{ fontSize: 10, color: T.textSecondary, marginBottom: 10 }}>
+              Authentic NASA Open Science Data Repository (OSDR) laboratory biomarkers and clinical flight dossier for {selCrew.name} ({selCrew.callsign}).
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 8 }}>
+              {/* Box 1: Complete Blood Count (CBC) */}
               <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>Clinical Profile</div>
-                <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>
-                  • Age / Flight Exp: 38 yr · 2 Missions (Artemis II, ISS Expedition 71)<br />
-                  • Resting Blood Pressure: {selCrew.baseBp} mmHg<br />
-                  • VO₂ Max: 52.4 mL/kg/min (Superior)<br />
-                  • Allergy / Sensitivities: NKDA
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>Complete Blood Count (CBC OSD-569)</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 4, lineHeight: 1.6 }}>
+                  • Total WBC: <strong style={{ color: '#ffffff' }}>{selStats.osdr.wbc.toFixed(1)} ×10³/µL</strong> (Normal 4.5 - 11.0)<br />
+                  • Hematocrit (Hct): <strong style={{ color: '#ffffff' }}>{selStats.osdr.hct.toFixed(1)}%</strong> (Baseline)<br />
+                  • Platelet Count (PLT): <strong style={{ color: '#ffffff' }}>{selStats.osdr.plt.toFixed(0)} ×10³/µL</strong><br />
+                  • Hemoglobin (Hgb): <strong style={{ color: '#ffffff' }}>{selStats.osdr.hgb.toFixed(1)} g/dL</strong><br />
+                  • Total RBC: <strong style={{ color: '#ffffff' }}>{selStats.osdr.rbc.toFixed(2)} M/µL</strong>
                 </div>
               </div>
+
+              {/* Box 2: Comprehensive Metabolic Panel (CMP) */}
               <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>G-Tolerance & Microgravity</div>
-                <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>
-                  • Centrifuge Tolerance: +8.5 Gz without GLOC<br />
-                  • Space Motion Sickness: Resolved (Day 2)<br />
-                  • Bone Density (DEXA): Baseline verified<br />
-                  • Countermeasure Compliance: 100% (ARED / T2)
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>Metabolic &amp; Electrolytes (OSD-575)</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 4, lineHeight: 1.6 }}>
+                  • Serum Sodium (Na⁺): <strong style={{ color: '#ffffff' }}>{selStats.osdr.na.toFixed(0)} mmol/L</strong><br />
+                  • Serum Potassium (K⁺): <strong style={{ color: '#ffffff' }}>{selStats.osdr.k.toFixed(2)} mmol/L</strong><br />
+                  • Fasting Glucose: <strong style={{ color: '#ffffff' }}>{selStats.osdr.glu.toFixed(0)} mg/dL</strong><br />
+                  • Blood Urea Nitrogen (BUN): <strong style={{ color: '#ffffff' }}>{selStats.osdr.bun.toFixed(1)} mg/dL</strong><br />
+                  • Serum Creatinine (Cr): <strong style={{ color: '#ffffff' }}>{selStats.osdr.cr.toFixed(2)} mg/dL</strong>
                 </div>
               </div>
+
+              {/* Box 3: Cytokines & Flight Certification */}
               <div style={{ background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>Cumulative Mission Exposure</div>
-                <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 4, lineHeight: 1.5 }}>
-                  • Radiation Absorbed Dose: 14.2 mGy (Career margin: 89%)<br />
-                  • Total Cumulative EVA Time: 14h 28m<br />
-                  • Sentry Matrix Surveillance: Active (Channel 2 locked)
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>Cytokines &amp; Flight Certification</div>
+                <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 4, lineHeight: 1.6 }}>
+                  • Interleukin-6 (IL-6): <strong style={{ color: '#ffffff' }}>{selStats.osdr.il6.toFixed(2)} pg/mL</strong><br />
+                  • C-Reactive Protein (CRP): <strong style={{ color: '#ffffff' }}>{selStats.osdr.crp.toFixed(2)} mg/L</strong><br />
+                  • Resting Blood Pressure: <strong style={{ color: '#ffffff' }}>{selCrew.baseBp} mmHg</strong><br />
+                  • Centrifuge G-Tolerance: <strong style={{ color: '#ffffff' }}>+8.5 Gz without GLOC</strong><br />
+                  • Countermeasure Compliance: <strong style={{ color: '#5ebd4c' }}>100% (ARED / CEVIS)</strong>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ─── 4f. Procedures Sub-Tab ─── */}
+        {/* ─── 4f. Procedures Sub-Tab (Interactive Flight Checklists) ─── */}
         {crewSubTab === 'Procedures' && (
           <div style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={labelStyle}>Flight Operational Procedures & Countermeasure Cards</div>
+              <div style={labelStyle}>Flight Operational Procedures &amp; Countermeasure Cards</div>
               <span style={{ fontSize: 9, color: T.textMuted }}>NASA-STD-3001 Flight Operations</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -2526,17 +3371,25 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   };
 
   // ─────────────────────────────────────────────────────────────
-  // SYSTEMS TAB — SPACECRAFT HEALTH-CRITICAL SYSTEMS & DEVICE CATALOG
+  // SYSTEMS TAB — SPACECRAFT HEALTH-CRITICAL SYSTEMS & DEVICE CATALOG (LIVE BOUND)
   // ─────────────────────────────────────────────────────────────
   const renderSystems = () => {
-    const pkt = Object.values(telemetryMap)[0];
-    const co2 = pkt?.cabin_co2 || 1.82;
+    const pkt = telemetryMap[selCrewId] || Object.values(telemetryMap)[0];
+    const anyPkt = Object.values(telemetryMap)[0];
+    const co2 = pkt?.cabin_co2 || anyPkt?.cabin_co2 || 1.82;
     const hrVal = pkt?.heart_rate ? Math.round(pkt.heart_rate) : 78;
     const spo2Val = pkt?.spo2 || 98.0;
     const tempVal = pkt?.core_temp || 36.6;
     const hrvVal = pkt?.hrv_rmssd ? Math.round(pkt.hrv_rmssd) : 65;
-    const qtcVal = pkt?.computed_qtc || 402;
-    const kVal = pkt?.potassium || 4.40;
+    const qtcVal = pkt?.computed_qtc || (pkt?.heart_rate ? Math.round(390 * Math.pow(60 / pkt.heart_rate, 0.33)) : 402);
+    const kVal = pkt?.potassium !== undefined ? pkt.potassium : 4.40;
+    const wbcVal = pkt?.wbc_count !== undefined ? pkt.wbc_count : 5.5;
+    const hctVal = pkt?.hematocrit !== undefined ? pkt.hematocrit : 43.6;
+    const pltVal = pkt?.platelet_count !== undefined ? pkt.platelet_count : 242;
+    const il6Val = pkt?.il_6 !== undefined ? pkt.il_6 : 2.1;
+    const crpVal = pkt?.crp !== undefined ? pkt.crp : 1.06;
+    const radFluxVal = pkt?.radiation_flux !== undefined ? pkt.radiation_flux : 0.04;
+    const radDoseVal = pkt?.radiation_dose_gy !== undefined ? pkt.radiation_dose_gy : 0.05;
     const isCo2Excursion = co2 > 3.0;
     const co2Margin = 3.0 - co2;
 
@@ -2567,7 +3420,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       metrics: SystemMetricItem[];
     }
 
-    // 16 Installed Spacecraft Health Devices with Clear Specific Names, Measures & Operational Modes
+    // 16 Installed Spacecraft Health Devices with Clear Specific Names, Measures & Operational Modes (LIVE BOUND)
     const spacecraftSystems: SpacecraftSystemItem[] = [
       {
         id: 'SYS-ECLSS-01',
@@ -2606,8 +3459,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         lastSync: '0.2s ago',
         metrics: [
           { param: 'Cabin pCO₂', value: co2.toFixed(2), unit: 'mmHg', limit: '< 3.00 mmHg', margin: `${co2Margin > 0 ? '+' : ''}${co2Margin.toFixed(2)}`, trend: co2 > 2.2 ? 'ELEVATED' : 'STABLE', warning: isCo2Excursion },
-          { param: 'Scrubber Cycle', value: 'Bed A Active', unit: '', limit: '≤ 60 min', margin: 'Regen OK', trend: 'NOMINAL' },
-          { param: 'Airflow Velocity', value: '0.45', unit: 'm/s', limit: '0.3 - 0.6 m/s', margin: 'Nominal', trend: 'STABLE' },
+          { param: 'Scrubber Cycle', value: isCo2Excursion ? 'Bed B Armed' : 'Bed A Active', unit: '', limit: '≤ 60 min', margin: isCo2Excursion ? 'Breakthrough' : 'Regen OK', trend: isCo2Excursion ? 'CAUTION' : 'NOMINAL' },
+          { param: 'Airflow Velocity', value: isCo2Excursion ? '0.62' : '0.45', unit: 'm/s', limit: '0.3 - 0.6 m/s', margin: 'Nominal', trend: 'STABLE' },
           { param: 'Desorption Heater', value: '121.4', unit: '°C', limit: '115 - 130 °C', margin: 'Regen OK', trend: 'STABLE' },
         ],
       },
@@ -2690,9 +3543,9 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         lastSync: '0.1s ago',
         metrics: [
           { param: 'Active Worn Units', value: '4 / 4', unit: 'crew', limit: '4 Worn', margin: '100% Synced', trend: 'NOMINAL' },
-          { param: 'Heart Rate Stream', value: String(hrVal), unit: 'bpm', limit: '50 - 100 bpm', margin: 'Nominal', trend: 'STABLE' },
-          { param: 'Respiration Rate', value: '14.2', unit: 'br/min', limit: '12 - 20', margin: 'Nominal', trend: 'STABLE' },
-          { param: 'Skin Temperature', value: '34.2', unit: '°C', limit: '32 - 36 °C', margin: 'Nominal', trend: 'STABLE' },
+          { param: 'Heart Rate Stream', value: String(hrVal), unit: 'bpm', limit: '50 - 100 bpm', margin: hrVal > 100 ? 'Excursion' : 'Nominal', trend: hrVal > 100 ? 'ELEVATED' : 'STABLE', warning: hrVal > 100 },
+          { param: 'Respiration Rate', value: `${(pkt?.heart_rate && pkt.heart_rate > 95 ? 18.2 : 14.2).toFixed(1)}`, unit: 'br/min', limit: '12 - 20', margin: 'Nominal', trend: 'STABLE' },
+          { param: 'Skin Temperature', value: `${(tempVal - 2.4).toFixed(1)}`, unit: '°C', limit: '32 - 36 °C', margin: 'Nominal', trend: 'STABLE' },
         ],
       },
       {
@@ -2711,7 +3564,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         lastSync: '0.1s ago',
         metrics: [
           { param: 'Active Pods', value: '4 / 4', unit: 'online', limit: '4 Online', margin: 'Locked', trend: 'NOMINAL' },
-          { param: 'HRV RMSSD', value: String(hrvVal), unit: 'ms', limit: '< 0.45', margin: 'Calm', trend: 'STABLE' },
+          { param: 'HRV RMSSD', value: String(hrvVal), unit: 'ms', limit: '< 0.45', margin: hrvVal < 40 ? 'Sympathetic' : 'Calm', trend: 'STABLE' },
           { param: 'Galvanic Response', value: '4.2', unit: 'µS', limit: '2 - 12 µS', margin: 'Nominal', trend: 'STABLE' },
           { param: 'Sleep Architecture', value: 'REM/Deep', unit: '', limit: '> 1.5 hr/d', margin: 'Restorative', trend: 'NOMINAL' },
         ],
@@ -2726,15 +3579,15 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         hwRef: 'NASA-BIO-VEC-12',
         measures: 'Lead-II Cardiac Rhythm, ST Segment Deviation, QTc Interval, Arrhythmias',
         mode: 'CONTINUOUS',
-        workingStatus: 'WORKING',
+        workingStatus: kVal < 3.5 || qtcVal > 450 ? 'WARNING' : 'WORKING',
         status: 'STREAMING',
         telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.1s ago',
         metrics: [
-          { param: 'Heart Rhythm', value: 'Sinus', unit: '', limit: 'Normal Sinus', margin: 'Regular', trend: 'NOMINAL' },
-          { param: 'Mean QTc Interval', value: String(qtcVal), unit: 'ms', limit: '< 450 ms', margin: 'Safe', trend: 'STABLE' },
-          { param: 'Arrhythmia Counter', value: '0', unit: 'events', limit: '< 5 / hr', margin: 'Zero Faults', trend: 'STABLE' },
-          { param: 'ST Deviation', value: '0.02', unit: 'mV', limit: '< 0.10 mV', margin: 'Baseline', trend: 'STABLE' },
+          { param: 'Heart Rhythm', value: kVal < 3.5 || qtcVal > 450 ? 'Prolonged QTc' : 'Sinus', unit: '', limit: 'Normal Sinus', margin: kVal < 3.5 ? 'Ectopy Gate' : 'Regular', trend: kVal < 3.5 ? 'CAUTION' : 'NOMINAL', warning: kVal < 3.5 || qtcVal > 450 },
+          { param: 'Mean QTc Interval', value: String(qtcVal), unit: 'ms', limit: '< 450 ms', margin: qtcVal > 450 ? `+${qtcVal - 450}ms` : 'Safe', trend: qtcVal > 450 ? 'WIDENED' : 'STABLE', warning: qtcVal > 450 },
+          { param: 'Arrhythmia Counter', value: kVal < 3.2 || qtcVal > 470 ? '2 PVCs' : '0', unit: 'events', limit: '< 5 / hr', margin: 'Sentry Pass', trend: 'STABLE' },
+          { param: 'ST Deviation', value: kVal < 3.5 ? '0.08' : '0.02', unit: 'mV', limit: '< 0.10 mV', margin: 'Baseline', trend: 'STABLE' },
         ],
       },
       {
@@ -2747,12 +3600,12 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         hwRef: 'MAXIM-PPG-SPACE-V3',
         measures: 'Arterial Oxygen Saturation (SpO₂), Pulse Wave Velocity, Perfusion Index',
         mode: 'CONTINUOUS',
-        workingStatus: 'WORKING',
+        workingStatus: spo2Val < 96.0 ? 'WARNING' : 'WORKING',
         status: 'STREAMING',
         telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.1s ago',
         metrics: [
-          { param: 'Arterial SpO₂', value: spo2Val.toFixed(1), unit: '%', limit: '> 95.0 %', margin: 'Optimal', trend: 'STABLE' },
+          { param: 'Arterial SpO₂', value: spo2Val.toFixed(1), unit: '%', limit: '> 95.0 %', margin: spo2Val < 96 ? 'Low' : 'Optimal', trend: spo2Val < 96 ? 'DEPRESSED' : 'STABLE', warning: spo2Val < 96 },
           { param: 'Perfusion Index', value: '3.4', unit: '%', limit: '> 1.0 %', margin: 'Good Flow', trend: 'STABLE' },
           { param: 'Pulse Wave Velocity', value: '6.8', unit: 'm/s', limit: '< 8.5 m/s', margin: 'Elastic', trend: 'STABLE' },
           { param: 'Microvascular Shift', value: '0.04', unit: 'index', limit: '< 0.20', margin: 'Normal', trend: 'STABLE' },
@@ -2768,14 +3621,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         hwRef: 'DRAEGER-DOUBLE-SENSOR-TM',
         measures: 'Deep Core Body Temperature, Double-Sensor Heat Flux Rate',
         mode: 'CONTINUOUS',
-        workingStatus: 'WORKING',
+        workingStatus: tempVal > 37.4 ? 'WARNING' : 'WORKING',
         status: 'STREAMING',
         telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.1s ago',
         metrics: [
-          { param: 'Mean Core Temp', value: tempVal.toFixed(1), unit: '°C', limit: '36.2 - 37.6', margin: 'Euthermic', trend: 'STABLE' },
+          { param: 'Mean Core Temp', value: tempVal.toFixed(1), unit: '°C', limit: '36.2 - 37.6', margin: tempVal > 37.2 ? 'Warm' : 'Euthermic', trend: tempVal > 37.2 ? 'ELEVATED' : 'STABLE', warning: tempVal > 37.4 },
           { param: 'Forehead Heat Flux', value: '28.4', unit: 'W/m²', limit: '20 - 45', margin: 'Normal', trend: 'STABLE' },
-          { param: 'Space Fever Margin', value: '+0.2', unit: '°C', limit: '< +1.0 °C', margin: 'Clear', trend: 'STABLE' },
+          { param: 'Space Fever Margin', value: `+${(tempVal - 36.6).toFixed(1)}`, unit: '°C', limit: '< +1.0 °C', margin: 'Clear', trend: 'STABLE' },
           { param: 'Circadian Peak', value: '18:30', unit: 'UTC', limit: 'Expected', margin: 'Entrained', trend: 'NOMINAL' },
         ],
       },
@@ -2794,10 +3647,10 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         telemetryMode: 'PERIODIC LAB',
         lastSync: '2.4s ago',
         metrics: [
-          { param: 'Total WBC Count', value: '6.4', unit: '×10³/µL', limit: '4.5 - 11.0', margin: 'Nominal', trend: 'STABLE' },
-          { param: 'Hemoglobin', value: '14.8', unit: 'g/dL', limit: '13.5 - 17.5', margin: 'Nominal', trend: 'STABLE' },
-          { param: 'Platelets (PLT)', value: '242', unit: '×10³/µL', limit: '150 - 450', margin: 'Normal', trend: 'STABLE' },
-          { param: 'Hematocrit (Hct)', value: '43.2', unit: '%', limit: '40 - 52 %', margin: 'Safe', trend: 'STABLE' },
+          { param: 'Total WBC Count', value: wbcVal.toFixed(1), unit: '×10³/µL', limit: '4.5 - 11.0', margin: 'Nominal', trend: 'STABLE' },
+          { param: 'Hemoglobin', value: (hctVal / 3.0).toFixed(1), unit: 'g/dL', limit: '13.5 - 17.5', margin: 'Nominal', trend: 'STABLE' },
+          { param: 'Platelets (PLT)', value: pltVal.toFixed(0), unit: '×10³/µL', limit: '150 - 450', margin: 'Normal', trend: 'STABLE' },
+          { param: 'Hematocrit (Hct)', value: hctVal.toFixed(1), unit: '%', limit: '40 - 52 %', margin: hctVal > 50 ? 'Viscous' : 'Safe', trend: hctVal > 50 ? 'ELEVATED' : 'STABLE' },
         ],
       },
       {
@@ -2810,15 +3663,15 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         hwRef: 'PICCOLO-XPRESS-CHEM',
         measures: 'Serum Potassium (K⁺), Sodium (Na⁺), Creatinine, Liver & Kidney Panels',
         mode: 'ON DEMAND',
-        workingStatus: 'WORKING',
+        workingStatus: kVal < 3.5 ? 'WARNING' : 'WORKING',
         status: 'CALIBRATED',
         telemetryMode: 'PERIODIC LAB',
         lastSync: '2.5s ago',
         metrics: [
-          { param: 'Serum Potassium (K⁺)', value: kVal.toFixed(2), unit: 'mmol/L', limit: '3.5 - 5.0', margin: 'Safe', trend: 'STABLE' },
-          { param: 'Serum Sodium (Na⁺)', value: '140', unit: 'mmol/L', limit: '135 - 145', margin: 'Nominal', trend: 'STABLE' },
-          { param: 'Serum Creatinine', value: '0.92', unit: 'mg/dL', limit: '0.7 - 1.3', margin: 'Renal OK', trend: 'STABLE' },
-          { param: 'Blood Urea Nitrogen', value: '14.2', unit: 'mg/dL', limit: '7 - 20', margin: 'Hydrated', trend: 'STABLE' },
+          { param: 'Serum Potassium (K⁺)', value: kVal.toFixed(2), unit: 'mmol/L', limit: '3.5 - 5.0', margin: kVal < 3.5 ? 'Depleted' : 'Safe', trend: kVal < 3.5 ? 'LOW' : 'STABLE', warning: kVal < 3.5 },
+          { param: 'Serum Sodium (Na⁺)', value: '139', unit: 'mmol/L', limit: '135 - 145', margin: 'Nominal', trend: 'STABLE' },
+          { param: 'Serum Creatinine', value: '0.94', unit: 'mg/dL', limit: '0.7 - 1.3', margin: 'Renal OK', trend: 'STABLE' },
+          { param: 'Blood Urea Nitrogen', value: '15.1', unit: 'mg/dL', limit: '7 - 20', margin: 'Hydrated', trend: 'STABLE' },
         ],
       },
       {
@@ -2831,14 +3684,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         hwRef: 'LUMINEX-MAGPIX-71',
         measures: '71-Plex Immune Cytokines, Inflammatory Markers, Latent Viral Load',
         mode: 'PERIODIC',
-        workingStatus: 'WORKING',
+        workingStatus: il6Val > 15 ? 'WARNING' : 'WORKING',
         status: 'CALIBRATED',
         telemetryMode: 'PERIODIC LAB',
         lastSync: '4.1s ago',
         metrics: [
-          { param: 'Interleukin-6 (IL-6)', value: '2.1', unit: 'pg/mL', limit: '< 5.0', margin: 'Low Inflam', trend: 'STABLE' },
-          { param: 'TNF-Alpha', value: '3.4', unit: 'pg/mL', limit: '< 8.0', margin: 'Nominal', trend: 'STABLE' },
-          { param: 'Interferon-Gamma', value: '1.2', unit: 'pg/mL', limit: '< 4.0', margin: 'Immune OK', trend: 'STABLE' },
+          { param: 'Interleukin-6 (IL-6)', value: il6Val.toFixed(1), unit: 'pg/mL', limit: '< 5.0', margin: il6Val > 10 ? 'Inflamed' : 'Low Inflam', trend: il6Val > 10 ? 'ELEVATED' : 'STABLE', warning: il6Val > 15 },
+          { param: 'C-Reactive Protein', value: crpVal.toFixed(2), unit: 'mg/L', limit: '< 3.0', margin: 'Nominal', trend: 'STABLE' },
+          { param: 'TNF-Alpha', value: '3.8', unit: 'pg/mL', limit: '< 8.0', margin: 'Nominal', trend: 'STABLE' },
           { param: 'Viral Reactivation', value: 'NEGATIVE', unit: '', limit: 'Negative', margin: 'Dormant', trend: 'NOMINAL' },
         ],
       },
@@ -2852,14 +3705,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         hwRef: 'NASA-HERA-SILICON-HEX',
         measures: 'Galactic Cosmic Ray (GCR) Flux, Silicon Microdosimetry, SPE Alarms',
         mode: 'CONTINUOUS',
-        workingStatus: 'WORKING',
+        workingStatus: radFluxVal > 5.0 ? 'WARNING' : 'WORKING',
         status: 'STREAMING',
         telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.1s ago',
         metrics: [
           { param: 'GCR Dose Rate', value: '1.24', unit: 'mGy/d', limit: '< 1.50', margin: 'Nominal GCR', trend: 'STABLE' },
-          { param: 'Solar Proton Flux', value: '0.12', unit: 'p/(cm²·s)', limit: '< 10.0', margin: 'Solar Quiet', trend: 'STABLE' },
-          { param: 'SPE Warning Status', value: 'GREEN', unit: '', limit: 'Threshold 10 MeV', margin: 'No Storm', trend: 'NOMINAL' },
+          { param: 'Solar Proton Flux', value: radFluxVal.toFixed(1), unit: 'mGy/d', limit: '< 5.0', margin: radFluxVal > 5.0 ? 'Storm Alert' : 'Solar Quiet', trend: radFluxVal > 5.0 ? 'SURGING' : 'STABLE', warning: radFluxVal > 5.0 },
+          { param: 'SPE Warning Status', value: radFluxVal > 5.0 ? 'WARNING' : 'GREEN', unit: '', limit: 'Threshold 5.0 mGy/d', margin: radFluxVal > 5.0 ? 'SPE Active' : 'No Storm', trend: radFluxVal > 5.0 ? 'CRITICAL' : 'NOMINAL', warning: radFluxVal > 5.0 },
           { param: 'Storm Shelter Buffer', value: '100', unit: '%', limit: '> 95 %', margin: 'Shielded', trend: 'STABLE' },
         ],
       },
@@ -2878,10 +3731,10 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.1s ago',
         metrics: [
-          { param: 'Mean Active Dose', value: '0.38', unit: 'mSv/d', limit: '< 0.50', margin: 'Nominal', trend: 'STABLE' },
-          { param: 'Cumulative Mission', value: '5.32', unit: 'mSv', limit: '< 150 mSv', margin: '3.5% Max', trend: 'STABLE' },
+          { param: 'Mean Active Dose', value: (radFluxVal * 0.3).toFixed(2), unit: 'mSv/d', limit: '< 0.50', margin: 'Nominal', trend: 'STABLE' },
+          { param: 'Cumulative Mission', value: (radDoseVal * 1000).toFixed(1), unit: 'mSv', limit: '< 150 mSv', margin: 'Career Safe', trend: 'STABLE' },
           { param: 'Silicon Diode Health', value: '100', unit: '%', limit: '> 95 %', margin: '4 Synced', trend: 'STABLE' },
-          { param: 'SPE Audible Buzzer', value: 'ARMED', unit: '', limit: 'Armed', margin: 'Chirp Ready', trend: 'NOMINAL' },
+          { param: 'SPE Audible Buzzer', value: radFluxVal > 5.0 ? 'CHIRPING' : 'ARMED', unit: '', limit: 'Armed', margin: 'Chirp Ready', trend: 'NOMINAL', warning: radFluxVal > 5.0 },
         ],
       },
       {
@@ -2899,13 +3752,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         telemetryMode: 'CONTINUOUS 10 Hz',
         lastSync: '0.2s ago',
         metrics: [
-          { param: 'ARED Loading Force', value: '240', unit: 'kg', limit: 'Up to 272 kg', margin: 'Piston OK', trend: 'STABLE' },
-          { param: 'CEVIS Workload', value: '175', unit: 'W', limit: '0 - 350 W', margin: 'Nominal', trend: 'STABLE' },
+          { param: 'ARED Loading Force', value: pkt?.mission_state === 'WORKOUT' ? '240' : '0', unit: 'kg', limit: 'Up to 272 kg', margin: 'Piston OK', trend: 'STABLE' },
+          { param: 'CEVIS Workload', value: pkt?.mission_state === 'WORKOUT' ? '175' : '0', unit: 'W', limit: '0 - 350 W', margin: 'Nominal', trend: 'STABLE' },
           { param: 'PUMA VO₂ Uptake', value: '38.4', unit: 'mL/kg/min', limit: '> 32.0', margin: 'Aerobic OK', trend: 'STABLE' },
           { param: 'Daily Crew Session', value: '2 / 4', unit: 'done', limit: '4 / 4 / day', margin: '2 In Queue', trend: 'NOMINAL' },
         ],
       },
     ];
+
     // Filter systems by chosen category
     const filteredSystems = sysCategoryFilter === 'ALL'
       ? spacecraftSystems
@@ -2919,13 +3773,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     const countRad = spacecraftSystems.filter(s => s.category === 'RADIATION').length;
     const countCtr = spacecraftSystems.filter(s => s.category === 'COUNTERMEASURE').length;
 
-    // Consumables dataset with strict 4-column alignment
+    // Consumables dataset with dynamic status and strict 4-column alignment
     const consumablesTable = [
       { label: 'O₂ Cryogenic Supply', value: '68.4', unit: 'kg', baseline: '80.0 kg', margin: '83 crew-days reserve' },
       { label: 'Potable H₂O Reserve', value: '284', unit: 'L', baseline: '300 L', margin: '71 crew-days supply' },
-      { label: 'LiOH Backup Canisters', value: '12', unit: 'units', baseline: '12 units', margin: 'Emergency scrubbers sealed' },
+      { label: 'LiOH Backup Canisters', value: '12', unit: 'units', baseline: '12 units', margin: isCo2Excursion ? 'Bed B active · Backup armed' : 'Emergency scrubbers sealed' },
       { label: 'Medical Supply Packs', value: '4 / 4', unit: 'kits', baseline: '4 kits', margin: 'All medical kits sterile' },
-      { label: 'Oral K⁺ Electrolyte Packs', value: '16', unit: 'units', baseline: '16 units', margin: 'Arrhythmia countermeasure' },
+      { label: 'Oral K⁺ Electrolyte Packs', value: kVal < 3.5 ? '15 / 16' : '16 / 16', unit: 'units', baseline: '16 units', margin: kVal < 3.5 ? 'Administered 20 mEq · 15 left' : 'Arrhythmia countermeasure' },
     ];
 
     return (
@@ -3009,7 +3863,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
             </div>
 
-            {/* Counter 4: Flight Safety Rules (50/50 Nominal, drops to 49/50 with 1 Advisory if anomaly occurs) */}
+            {/* Counter 4: Flight Safety Rules */}
             <div
               title="Continuous automated NASA-STD-3001 safety checks (Cabin O2, CO2 limits, radiation limits, pressure, water purity, vital signs)"
               style={{ background: '#0a0d10', border: `1px solid ${isCo2Excursion ? T.warningBorder : T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}
@@ -3050,10 +3904,10 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           </div>
         </div>
 
-        {/* ─── ZONE 2: STRICTLY ALIGNED SPACECRAFT CONSUMABLES CONTAINER (MARS DELAY REMOVED) ─── */}
+        {/* ─── ZONE 2: STRICTLY ALIGNED SPACECRAFT CONSUMABLES CONTAINER ─── */}
         <div style={cardStyle}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <div style={labelStyle}>SPACECRAFT CONSUMABLES & EMERGENCY FLIGHT MARGINS</div>
+            <div style={labelStyle}>SPACECRAFT CONSUMABLES &amp; EMERGENCY FLIGHT MARGINS</div>
             <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>NASA-STD-3001 · 4 CREW AUTONOMOUS BUFFER</span>
           </div>
 
@@ -3332,11 +4186,11 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 </div>
               </div>
             );
-          })}        </div>
+          })}
+        </div>
       </div>
     );
   };
-
 
   // ─────────────────────────────────────────────────────────────
   // COMMS TAB
