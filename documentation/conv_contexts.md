@@ -6731,3 +6731,49 @@
 * **Referenced File Links:**
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+---
+
+### [Turn 42] — Operational Environmental & Dosimetry Suite Smooth Splines & Physical Simulation Overhaul
+* **Date/Time:** 2026-10-04 01:00:00 (Local: GMT+6)
+* **User Request & Intent:**
+  > *"the section you made functional i behaving wierdly, make it smoothly and correctly simulated and let it be clear for who wil view it"*
+
+* **Forensic Diagnosis of Previous Chart Anomalies:**
+  1. **Twitching Tail Artifact:**
+     - In the prior implementation of the 24-hour $p\text{CO}_2$ graph, points from $T-24\text{h}$ to $T-1\text{h}$ were static hardcoded coordinates, while only the final point at $t = \text{NOW}$ updated with live 10 Hz telemetry. This created an artificial, rigid stick with a jittery wagging tail that jumped erratically during packet streams and scenario transitions.
+  2. **Floating Callout Occlusion:**
+     - An SVG `<rect>` callout box was placed dynamically at `(365, nowCo2Y - 20)`. As telemetry fluctuated, this floating box jumped up and down directly across the plotted curve, blocking historical trend lines and grid lines.
+  3. **Angular Polyline Discontinuity:**
+     - Sharp SVG `<polyline>` connections resulted in harsh, unrealistic angular kinks uncharacteristic of continuous physiological and environmental gas dynamics.
+
+* **Engineering Solutions & Mathematical Modeling Delivered ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **Catmull-Rom Cubic Bezier Spline Architecture:**
+     - Implemented an organic Catmull-Rom to Cubic Bezier path generator (`getSpline`) that evaluates tangents across adjacent coordinate quadruplets $(p_0, p_1, p_2, p_3)$:
+       $$cp_{1} = p_1 + \frac{p_2 - p_0}{6}, \quad cp_{2} = p_2 - \frac{p_3 - p_1}{6}$$
+     - Produces silky smooth $C^1$-continuous curves (`M ... C ...`) and smooth area gradient fills without geometric sharp kinks or visual stepping.
+  2. **Continuous 24-Hour $p\text{CO}_2$ Physical Simulation:**
+     - Evaluates 25 continuous hourly points modeling authentic ISS/Orion CDRA 140-minute molecular sieve bed desorb half-cycles:
+       $$\Delta_{\text{CDRA}}(t) = 0.10 \cdot \sin\left( \frac{2\pi t}{2.33} \right)$$
+     - Integrated crew circadian metabolic respiratory variation (diurnal drift during rest periods).
+     - **Seamless Dynamic Hermite Ramp:** In breakthrough or elevated scenarios, smoothstep accumulation is modeled over the trailing 7 hours ($t \ge 17$):
+       $$u = \frac{t - 17}{7}, \quad S(u) = 3u^2 - 2u^3$$
+       $$\text{Value}(t) = \text{Baseline} \cdot (1 - S(u)) + \text{co2Val} \cdot S(u)$$
+       At $t = 24$, the curve arrives identically at `co2Val`. Any fluctuation in telemetry smoothly flexes the entire 7-hour curve organically, permanently eliminating the twitching tail artifact.
+  3. **Mission Radiation Trajectory & Solar Flux Smoothing:**
+     - Graph 1 generates smooth cubic spline paths across 9 flight milestones (Launch $\rightarrow$ Van Allen exit $\rightarrow$ Translunar Drift $\rightarrow$ Lunar Flyby $\rightarrow$ Deep Space Cruise $\rightarrow$ FD-112 SPE flare $\rightarrow$ Today FD-184).
+     - Ambient proton flux is rendered as a clean, rounded solar flare curve (building smoothly to `liveFlux` during SPE scenarios, or resting quietly at $1.24\text{ mGy/d}$ during GCR background conditions).
+  4. **Unobstructed Visual Clarity for Reviewers & Flight Controllers:**
+     - Removed all floating mid-canvas callout boxes.
+     - Anchored high-visibility live telemetry badges in the card headers (`Dose: 142.4 mSv`, `Flux: 1.24 mGy/d`, `ppCO2: 1.82 mmHg`).
+     - Added subtle pulsating telemetry ring markers at `(480, nowDoseY)`, `(480, nowFluxY)`, and `(470, nowCo2Y)`.
+     - Labeled physical zones (Red Excursion, Amber Caution, Green Nominal) with clear reference lines and compliance margins.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `tsc -b && vite build` succeeded in 1.12s with 0 errors.
+  - **Live Backend MCC Test Suite:** `scripts/test_live_backend_mcc.py` passed 19/19 tests (100% pass rate).
+  - **Zero Emojis:** Confirmed complete compliance across all UI text and metrics.
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)

@@ -1859,20 +1859,70 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
               // Scale: Left Y-axis (Dose: 0 to 250 mSv), Right Y-axis (Flux: 0 to 50 mGy/d)
               // Plot range: x from 48 to 480 (w=432), y from 30 to 160 (h=130)
-              const doseToY = (d: number) => (160 - (Math.min(250, Math.max(0, d)) / 250) * 130).toFixed(1);
-              const fluxToY = (f: number) => (160 - (Math.min(50, Math.max(0, f)) / 50) * 130).toFixed(1);
+              const doseToY = (d: number) => 160 - (Math.min(250, Math.max(0, d)) / 250) * 130;
+              const fluxToY = (f: number) => 160 - (Math.min(50, Math.max(0, f)) / 50) * 130;
 
               const nowDoseY = doseToY(liveDoseMsv);
               const nowFluxY = fluxToY(liveFlux);
 
-              // Dose curve points (FD-01 Launch -> FD-04 Van Allen -> FD-45 Flyby -> FD-112 SPE Step -> FD-150 Cruise -> FD-184 Today)
-              const dosePts = `48,160.0 95,${doseToY(18.2)} 180,${doseToY(38.5)} 310,${doseToY(98.4)} 400,${doseToY(122.0)} 480,${nowDoseY}`;
-              const doseAreaPts = `48,160.0 95,${doseToY(18.2)} 180,${doseToY(38.5)} 310,${doseToY(98.4)} 400,${doseToY(122.0)} 480,${nowDoseY} 480,160.0`;
+              // Helper: Smooth Catmull-Rom cubic Bezier spline generator
+              const getSpline = (pts: { x: number; y: number }[], tension = 0.5) => {
+                if (pts.length < 2) return '';
+                let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+                for (let i = 0; i < pts.length - 1; i++) {
+                  const p0 = pts[i === 0 ? 0 : i - 1];
+                  const p1 = pts[i];
+                  const p2 = pts[i + 1];
+                  const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+                  const cp1x = p1.x + (p2.x - p0.x) * (tension / 3);
+                  const cp1y = p1.y + (p2.y - p0.y) * (tension / 3);
+                  const cp2x = p2.x - (p3.x - p1.x) * (tension / 3);
+                  const cp2y = p2.y - (p3.y - p1.y) * (tension / 3);
+                  d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+                }
+                return d;
+              };
 
-              // Flux curve points
-              const fluxPts = isSpeEvent
-                ? `48,159.5 95,${fluxToY(8.4)} 180,${fluxToY(1.24)} 305,${fluxToY(1.24)} 310,${fluxToY(34.0)} 318,${fluxToY(1.24)} 400,${fluxToY(1.24)} 450,${fluxToY(22.0)} 480,${nowFluxY}`
-                : `48,159.5 95,${fluxToY(8.4)} 180,${fluxToY(1.24)} 305,${fluxToY(1.24)} 310,${fluxToY(34.0)} 318,${fluxToY(1.24)} 400,${fluxToY(1.24)} 450,${fluxToY(1.24)} 480,${nowFluxY}`;
+              // Cumulative Dose Multi-Milestone Trajectory (monotonic physical tissue dose)
+              const dosePoints = [
+                { x: 48, y: 160.0 }, // FD-01 Launch
+                { x: 85, y: doseToY(18.2) }, // FD-04 Van Allen exit
+                { x: 135, y: doseToY(28.0) }, // FD-25 Translunar Drift
+                { x: 185, y: doseToY(40.5) }, // FD-45 Lunar Flyby
+                { x: 245, y: doseToY(63.0) }, // FD-80 Deep Space Cruise
+                { x: 310, y: doseToY(98.5) }, // FD-112 SPE Flare step
+                { x: 360, y: doseToY(108.0) }, // FD-135 Recovery
+                { x: 415, y: doseToY(124.5) }, // FD-160 Deep Transit
+                { x: 480, y: nowDoseY }, // FD-184 Today
+              ];
+
+              // Real-Time & Historical Ambient Flux Trajectory
+              const fluxPoints = [
+                { x: 48, y: fluxToY(0.2) },
+                { x: 85, y: fluxToY(8.5) }, // Van Allen
+                { x: 110, y: fluxToY(1.3) },
+                { x: 185, y: fluxToY(1.24) },
+                { x: 245, y: fluxToY(1.24) },
+                { x: 300, y: fluxToY(2.1) },
+                { x: 310, y: fluxToY(34.0) }, // Historical SPE peak
+                { x: 325, y: fluxToY(6.5) },
+                { x: 345, y: fluxToY(1.3) },
+                { x: 415, y: fluxToY(1.24) },
+                ...(isSpeEvent
+                  ? [
+                      { x: 445, y: fluxToY(Math.min(liveFlux * 0.35, 18.0)) },
+                      { x: 465, y: fluxToY(Math.min(liveFlux * 0.75, 36.0)) },
+                      { x: 480, y: nowFluxY },
+                    ]
+                  : [
+                      { x: 450, y: fluxToY(1.24) },
+                      { x: 480, y: nowFluxY },
+                    ]),
+              ];
+
+              const doseSpline = getSpline(dosePoints, 0.4);
+              const doseArea = `${doseSpline} L 480 160 L 48 160 Z`;
+              const fluxSpline = getSpline(fluxPoints, 0.4);
 
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1883,15 +1933,31 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         Cumulative Tissue Dose (mSv) &amp; Real-Time Proton Flux (mGy/d)
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 9, fontFamily: T.mono }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ width: 10, height: 2.5, background: '#e6a83c', borderRadius: 1 }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 9, fontFamily: T.mono }}>
+                      <span style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: 'rgba(230, 168, 60, 0.1)',
+                        border: '1px solid rgba(230, 168, 60, 0.28)',
+                        padding: '2px 8px',
+                        borderRadius: 3,
+                      }}>
+                        <span style={{ width: 8, height: 2.5, background: '#e6a83c', borderRadius: 1 }} />
                         <span style={{ color: '#f8fafc', fontWeight: 700 }}>Dose: {liveDoseMsv.toFixed(1)} mSv</span>
                       </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ width: 10, height: 2.5, background: isSpeEvent ? '#ef4444' : '#38bdf8', borderRadius: 1 }} />
+                      <span style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: isSpeEvent ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 189, 248, 0.1)',
+                        border: `1px solid ${isSpeEvent ? 'rgba(239, 68, 68, 0.35)' : 'rgba(56, 189, 248, 0.25)'}`,
+                        padding: '2px 8px',
+                        borderRadius: 3,
+                      }}>
+                        <span style={{ width: 8, height: 2.5, background: isSpeEvent ? '#ef4444' : '#38bdf8', borderRadius: 1 }} />
                         <span style={{ color: isSpeEvent ? '#ef4444' : '#38bdf8', fontWeight: 700 }}>
-                          Flux: {liveFlux.toFixed(1)} mGy/d
+                          Flux: {liveFlux.toFixed(2)} mGy/d
                         </span>
                       </span>
                     </div>
@@ -1902,8 +1968,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     <svg viewBox="0 0 540 185" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
                       <defs>
                         <linearGradient id="doseGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#e6a83c" stopOpacity="0.28" />
-                          <stop offset="100%" stopColor="#e6a83c" stopOpacity="0.02" />
+                          <stop offset="0%" stopColor="#e6a83c" stopOpacity="0.25" />
+                          <stop offset="100%" stopColor="#e6a83c" stopOpacity="0.01" />
                         </linearGradient>
                       </defs>
 
@@ -1927,45 +1993,46 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       </text>
 
                       {/* Flight Milestone Vertical Lines */}
-                      <line x1="95" y1="20" x2="95" y2="160" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
-                      <text x="95" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">FD-04 TLI</text>
+                      <line x1="85" y1="20" x2="85" y2="160" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
+                      <text x="85" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">FD-04 TLI</text>
 
-                      <line x1="180" y1="20" x2="180" y2="160" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
-                      <text x="180" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">LUNAR FLYBY</text>
+                      <line x1="185" y1="20" x2="185" y2="160" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
+                      <text x="185" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">LUNAR FLYBY</text>
 
                       <line x1="310" y1="20" x2="310" y2="160" stroke="#e6a83c" strokeWidth="0.8" strokeDasharray="2,2" opacity="0.6" />
                       <text x="310" y="172" fill="#e6a83c" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">SPE FLARE</text>
 
-                      <line x1="400" y1="20" x2="400" y2="160" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
-                      <text x="400" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">DEEP TRANSIT</text>
+                      <line x1="415" y1="20" x2="415" y2="160" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
+                      <text x="415" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">DEEP TRANSIT</text>
 
                       <line x1="480" y1="20" x2="480" y2="160" stroke={isSpeEvent ? '#ef4444' : '#4ade80'} strokeWidth="1.2" />
                       <text x="480" y="172" fill={isSpeEvent ? '#ef4444' : '#4ade80'} fontSize="8" fontFamily={T.mono} textAnchor="middle" fontWeight="bold">
                         TODAY (FD-184)
                       </text>
 
-                      {/* Cumulative Dose Area Fill & Polyline (Amber) */}
-                      <polygon fill="url(#doseGrad)" points={doseAreaPts} />
-                      <polyline
+                      {/* Cumulative Dose Smooth Area Fill & Catmull-Rom Spline (Amber) */}
+                      <path d={doseArea} fill="url(#doseGrad)" />
+                      <path
+                        d={doseSpline}
                         fill="none"
                         stroke="#e6a83c"
                         strokeWidth="2.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        points={dosePts}
                       />
-                      <circle cx="480" cy={nowDoseY} r="3.5" fill="#e6a83c" />
+                      <circle cx="480" cy={nowDoseY} r="4" fill="#e6a83c" />
+                      <circle cx="480" cy={nowDoseY} r="7" fill="none" stroke="#e6a83c" strokeWidth="1" opacity="0.5" />
 
-                      {/* Ambient Flux Polyline (Cyan / Red if SPE) */}
-                      <polyline
+                      {/* Ambient Flux Smooth Spline (Cyan / Red if SPE) */}
+                      <path
+                        d={fluxSpline}
                         fill="none"
                         stroke={isSpeEvent ? '#ef4444' : '#38bdf8'}
                         strokeWidth="1.8"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        points={fluxPts}
                       />
-                      <circle cx="480" cy={nowFluxY} r="3" fill={isSpeEvent ? '#ef4444' : '#38bdf8'} />
+                      <circle cx="480" cy={nowFluxY} r="3.5" fill={isSpeEvent ? '#ef4444' : '#38bdf8'} />
 
                       {/* Left Y-Axis Ticks (mSv Dose) */}
                       <text x="42" y="33" fill="#e6a83c" fontSize="7.5" fontFamily={T.mono} textAnchor="end">250</text>
@@ -1980,12 +2047,6 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       <text x="486" y="98" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="start">25</text>
                       <text x="486" y="130" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="start">12</text>
                       <text x="486" y="162" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="start">0 mGy/d</text>
-
-                      {/* Callout Marker on Today Point */}
-                      <rect x="375" y={isSpeEvent ? 32 : 75} width="100" height="18" rx="3" fill="#0f172a" stroke={isSpeEvent ? '#ef4444' : '#e6a83c'} strokeWidth="0.9" />
-                      <text x="380" y={isSpeEvent ? 44 : 87} fill={isSpeEvent ? '#fca5a5' : '#fcd34d'} fontSize="7.5" fontFamily={T.mono} fontWeight="bold">
-                        {isSpeEvent ? `SPE: ${liveFlux.toFixed(1)} mGy/d` : `Dose: ${liveDoseMsv.toFixed(1)} mSv`}
-                      </text>
                     </svg>
                   </div>
 
@@ -2032,33 +2093,83 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
               // Left Y-axis (Cabin ppCO2 in mmHg, range 0 to 6.0 mmHg)
               // Plot range: x from 44 to 470 (w=426), y from 30 to 160 (h=130)
-              const co2ToY = (c: number) => (160 - (Math.min(6.0, Math.max(0, c)) / 6.0) * 130).toFixed(1);
+              const co2ToY = (c: number) => 160 - (Math.min(6.0, Math.max(0, c)) / 6.0) * 130;
               const nowCo2Y = co2ToY(co2Val);
 
-              // 24-hour realistic spline points modeling 140-minute CDRA molecular sieve half-cycles
-              const co2Pts = isBreach
-                ? `44,${co2ToY(1.72)} 120,${co2ToY(1.80)} 200,${co2ToY(1.75)} 280,${co2ToY(2.15)} 350,${co2ToY(2.65)} 410,${co2ToY(3.10)} 470,${nowCo2Y}`
-                : isElevated
-                ? `44,${co2ToY(1.70)} 120,${co2ToY(1.78)} 200,${co2ToY(1.82)} 280,${co2ToY(1.95)} 350,${co2ToY(2.10)} 410,${co2ToY(2.25)} 470,${nowCo2Y}`
-                : `44,${co2ToY(1.70)} 120,${co2ToY(1.82)} 200,${co2ToY(1.74)} 280,${co2ToY(1.80)} 350,${co2ToY(1.75)} 410,${co2ToY(1.82)} 470,${nowCo2Y}`;
+              // Helper: Smooth Catmull-Rom cubic Bezier spline generator
+              const getSpline = (pts: { x: number; y: number }[], tension = 0.5) => {
+                if (pts.length < 2) return '';
+                let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+                for (let i = 0; i < pts.length - 1; i++) {
+                  const p0 = pts[i === 0 ? 0 : i - 1];
+                  const p1 = pts[i];
+                  const p2 = pts[i + 1];
+                  const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+                  const cp1x = p1.x + (p2.x - p0.x) * (tension / 3);
+                  const cp1y = p1.y + (p2.y - p0.y) * (tension / 3);
+                  const cp2x = p2.x - (p3.x - p1.x) * (tension / 3);
+                  const cp2y = p2.y - (p3.y - p1.y) * (tension / 3);
+                  d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+                }
+                return d;
+              };
 
-              const co2AreaPts = `${co2Pts} 470,160.0 44,160.0`;
+              // Generate 25 smooth hourly points modeling authentic 140-minute CDRA molecular sieve cycles
+              const co2Points: { x: number; y: number }[] = [];
+              for (let t = 0; t <= 24; t++) {
+                const x = 44 + (t / 24) * 426;
+                // CDRA 140-minute bed half-cycle wave (period ~ 2.33 hours, amplitude ~ 0.10 mmHg)
+                const cdraWave = Math.sin((t / 2.33) * Math.PI * 2) * 0.10;
+                // Crew circadian metabolic production cycle
+                const diurnal = 0.05 * Math.sin(((t - 6) / 24) * Math.PI * 2);
+                const nominalBaseline = 1.76 + diurnal + cdraWave;
+
+                let pointVal = nominalBaseline;
+                if (isBreach || (currentScenario && currentScenario.includes('CO2'))) {
+                  // Scrubber breakthrough / saturation accumulation over last 7 hours (t >= 17)
+                  if (t >= 17) {
+                    const u = (t - 17) / 7;
+                    const blend = u * u * (3 - 2 * u); // Smooth Hermite transition
+                    const preFailure = 1.76 + diurnal;
+                    pointVal = preFailure * (1 - blend) + co2Val * blend;
+                  }
+                } else if (isElevated) {
+                  // Moderate elevation ramp over last 5 hours
+                  if (t >= 19) {
+                    const u = (t - 19) / 5;
+                    const blend = u * u * (3 - 2 * u);
+                    pointVal = nominalBaseline * (1 - blend) + co2Val * blend;
+                  }
+                } else {
+                  // Nominal gentle convergence to live co2Val over the last 3 hours
+                  if (t >= 21) {
+                    const u = (t - 21) / 3;
+                    const blend = u * u * (3 - 2 * u);
+                    pointVal = nominalBaseline + (co2Val - nominalBaseline) * blend;
+                  }
+                }
+                if (t === 24) pointVal = co2Val;
+                co2Points.push({ x, y: co2ToY(pointVal) });
+              }
+
+              const co2Spline = getSpline(co2Points, 0.45);
+              const co2Area = `${co2Spline} L 470 160 L 44 160 Z`;
 
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                     <div>
-                      <div style={labelStyle}>24-Hour Cabin ppCO₂ Dynamics</div>
+                      <div style={labelStyle}>24-Hour Continuous Cabin ppCO₂ Dynamics</div>
                       <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2 }}>
-                        Carbon Dioxide Partial Pressure vs NASA-STD-3001 Limit
+                        Carbon Dioxide Partial Pressure vs NASA-STD-3001 Flight Rule Limits
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 9, fontFamily: T.mono }}>
                       <span style={{
-                        background: isBreach ? 'rgba(239, 68, 68, 0.15)' : 'rgba(74, 222, 128, 0.1)',
-                        border: `1px solid ${isBreach ? 'rgba(239, 68, 68, 0.35)' : 'rgba(74, 222, 128, 0.25)'}`,
-                        color: isBreach ? '#ef4444' : '#4ade80',
-                        padding: '2px 7px',
+                        background: isBreach ? 'rgba(239, 68, 68, 0.18)' : isElevated ? 'rgba(245, 158, 11, 0.15)' : 'rgba(74, 222, 128, 0.12)',
+                        border: `1px solid ${isBreach ? 'rgba(239, 68, 68, 0.4)' : isElevated ? 'rgba(245, 158, 11, 0.35)' : 'rgba(74, 222, 128, 0.3)'}`,
+                        color: isBreach ? '#ef4444' : isElevated ? '#f59e0b' : '#4ade80',
+                        padding: '2px 8px',
                         borderRadius: 3,
                         fontWeight: 700,
                       }}>
@@ -2073,8 +2184,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     <svg viewBox="0 0 500 185" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
                       <defs>
                         <linearGradient id="co2Grad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={isBreach ? '#ef4444' : '#4ade80'} stopOpacity={isBreach ? '0.35' : '0.22'} />
-                          <stop offset="100%" stopColor={isBreach ? '#ef4444' : '#4ade80'} stopOpacity="0.01" />
+                          <stop offset="0%" stopColor={isBreach ? '#ef4444' : isElevated ? '#f59e0b' : '#4ade80'} stopOpacity={isBreach ? '0.35' : '0.22'} />
+                          <stop offset="100%" stopColor={isBreach ? '#ef4444' : isElevated ? '#f59e0b' : '#4ade80'} stopOpacity="0.01" />
                         </linearGradient>
                       </defs>
 
@@ -2106,17 +2217,18 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         CAUTION BAND (2.00 mmHg)
                       </text>
 
-                      {/* Continuous 24H ppCO2 Dynamic Trace */}
-                      <polygon fill="url(#co2Grad)" points={co2AreaPts} />
-                      <polyline
+                      {/* Continuous Smooth 24H ppCO2 Spline & Area Fill */}
+                      <path d={co2Area} fill="url(#co2Grad)" />
+                      <path
+                        d={co2Spline}
                         fill="none"
                         stroke={isBreach ? '#ef4444' : isElevated ? '#f59e0b' : '#4ade80'}
                         strokeWidth="2.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        points={co2Pts}
                       />
-                      <circle cx="470" cy={nowCo2Y} r="3.5" fill={isBreach ? '#ef4444' : isElevated ? '#f59e0b' : '#4ade80'} />
+                      <circle cx="470" cy={nowCo2Y} r="4" fill={isBreach ? '#ef4444' : isElevated ? '#f59e0b' : '#4ade80'} />
+                      <circle cx="470" cy={nowCo2Y} r="7" fill="none" stroke={isBreach ? '#ef4444' : isElevated ? '#f59e0b' : '#4ade80'} strokeWidth="1" opacity="0.5" />
 
                       {/* Left Y-Axis Ticks (mmHg) */}
                       <text x="38" y="33" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">6.0</text>
@@ -2125,12 +2237,6 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       <text x="38" y="119" fill="#f59e0b" fontSize="7" fontFamily={T.mono} textAnchor="end">2.0</text>
                       <text x="38" y="141" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">1.0</text>
                       <text x="38" y="162" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">0.0</text>
-
-                      {/* Callout Marker on Now Point */}
-                      <rect x="365" y={isBreach ? Number(nowCo2Y) - 20 : Number(nowCo2Y) - 18} width="96" height="16" rx="3" fill="#0f172a" stroke={isBreach ? '#ef4444' : '#4ade80'} strokeWidth="0.9" />
-                      <text x="370" y={isBreach ? Number(nowCo2Y) - 9 : Number(nowCo2Y) - 7} fill={isBreach ? '#fca5a5' : '#86efac'} fontSize="7.5" fontFamily={T.mono} fontWeight="bold">
-                        ppCO₂: {co2Val.toFixed(2)} mmHg
-                      </text>
 
                       {/* Time Axis Markers */}
                       <text x="44" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-24h</text>
@@ -2148,7 +2254,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     <div>
                       <div style={{ fontSize: 9, color: T.textMuted }}>Flight Rule Compliance</div>
                       <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#ef4444' : '#4ade80' }}>
-                        {isBreach ? `EXCEEDED (+${(co2Val - 3.0).toFixed(2)})` : `NOMINAL (3.0 Max)`}
+                        {isBreach ? `EXCEEDED (+${(co2Val - 3.0).toFixed(2)})` : `NOMINAL (3.00 Max)`}
                       </div>
                       <div style={{ fontSize: 8.5, color: isBreach ? '#ef4444' : T.nominal }}>
                         {isBreach ? '1-Hour Safe Exposure Window Active' : `Margin: +${(3.0 - co2Val).toFixed(2)} mmHg`}
