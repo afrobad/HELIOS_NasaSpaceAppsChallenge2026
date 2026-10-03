@@ -501,10 +501,6 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
     const effectiveTarget = isUniversal ? null : (targetCrewId || selectedCrewId || 'AST-01_COMMANDER');
     setActiveTargetCrewId(effectiveTarget);
 
-    if (onScenarioTriggered) {
-      onScenarioTriggered(key);
-    }
-
     try {
       if (key === 'SCENARIO_4_DEEP_SPACE_BLACKOUT') {
         onToggleMarsDelay(true);
@@ -517,14 +513,19 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
         : `/api/scenario/${key}`;
 
       const res = await fetch(queryUrl, { method: 'POST' });
+      let telData: Record<string, any> | undefined;
       if (res.ok) {
         const data = await res.json().catch(() => null);
-        if (data?.telemetry && onScenarioTriggered) {
-          onScenarioTriggered(key, data.telemetry);
-        }
+        telData = data?.telemetry;
+      }
+      if (onScenarioTriggered) {
+        onScenarioTriggered(key, telData);
       }
     } catch {
-      // Offline fallback
+      // Offline fallback: notify scenario trigger
+      if (onScenarioTriggered) {
+        onScenarioTriggered(key);
+      }
     } finally {
       setTimeout(() => setTriggeringKey(null), 300);
     }

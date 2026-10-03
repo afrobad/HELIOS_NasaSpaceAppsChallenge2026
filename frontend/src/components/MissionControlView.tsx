@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import type { TelemetryPacket, AlertPayload } from '../types/telemetry';
+import type { TelemetryPacket, AlertPayload, DistancePreset } from '../types/telemetry';
+import { DISTANCES, C_LIGHT_KMS as C, fmtTime } from '../types/telemetry';
 import { HolographicBodyScanner } from './HolographicBodyScanner';
 import { CrewGrid } from './CrewGrid';
 import { CabinEnvironmentalBar } from './CabinEnvironmentalBar';
@@ -51,6 +52,10 @@ export interface MissionControlViewProps {
   connected: boolean;
   marsDelay?: boolean;
   onToggleMarsDelay?: (enabled: boolean) => void;
+  orbitalPosition?: DistancePreset;
+  onSelectOrbitalPosition?: (pos: DistancePreset) => void;
+  speedMultiplier?: number;
+  onSpeedMultiplierChange?: (speed: number) => void;
   onSelectView: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC') => void;
   currentScenario?: string;
   onOpenTriage?: (astronautId: string) => void;
@@ -207,24 +212,6 @@ const DSN = [
   { name: 'DSS-43 Canberra', loc: 'Australia', freq: 'X-Band 8.45 GHz', snr: 36.9 },
 ] as const;
 
-type DistancePreset = 'LEO' | 'GATEWAY' | 'MARS_MIN' | 'MARS_MAX';
-const DISTANCES: Record<DistancePreset, { km: number; label: string }> = {
-  LEO: { km: 408, label: 'LEO (ISS)' },
-  GATEWAY: { km: 384400, label: 'Lunar Gateway' },
-  MARS_MIN: { km: 54600000, label: 'Mars Opposition' },
-  MARS_MAX: { km: 400200000, label: 'Mars Conjunction' },
-};
-
-const C = 299792; // km/s
-
-function fmtTime(sec: number): string {
-  if (sec < 0.001) return '<1 ms';
-  if (sec < 1) return `${(sec * 1000).toFixed(0)} ms`;
-  if (sec < 60) return `${sec.toFixed(1)} s`;
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}m ${s.toString().padStart(2, '0')}s`;
-}
 
 function pctDelta(current: number, baseline: number): string {
   if (baseline === 0) return '—';
@@ -269,6 +256,10 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   connected,
   marsDelay = false,
   onToggleMarsDelay,
+  orbitalPosition: propOrbitalPosition,
+  onSelectOrbitalPosition,
+  speedMultiplier: propSpeedMultiplier,
+  onSpeedMultiplierChange,
   onSelectView,
   onOpenTriage,
   currentScenario,
@@ -277,17 +268,40 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   const [sysCategoryFilter, setSysCategoryFilter] = useState<'ALL' | 'ECLSS' | 'WEARABLE' | 'LAB' | 'RADIATION' | 'COUNTERMEASURE'>('ALL');
   const [selEventId, setSelEventId] = useState<string | null>(null);
   const [acked, setAcked] = useState<Record<string, boolean>>({});
-  const [distPreset, setDistPreset] = useState<DistancePreset>('MARS_MAX');
+  const [distPreset, setDistPreset] = useState<DistancePreset>(propOrbitalPosition || (marsDelay ? 'MARS_MAX' : 'LEO'));
 
   // ─── TOP ORBITAL TELEMETRY & SIMULATION TIME ACCELERATION STATE ───
-  const [orbitalPosition, setOrbitalPosition] = useState<DistancePreset>('MARS_MAX');
-  const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
+  const [orbitalPosition, setOrbitalPosition] = useState<DistancePreset>(propOrbitalPosition || (marsDelay ? 'MARS_MAX' : 'LEO'));
+  const [speedMultiplier, setSpeedMultiplier] = useState<number>(propSpeedMultiplier || 1);
+  const [earthTime, setEarthTime] = useState<Date>(() => new Date());
   const [simMetSeconds, setSimMetSeconds] = useState<number>(14 * 86400 + 8 * 3600 + 42 * 60 + 15); // T+14d 08:42:15
   const [backendAlerts, setBackendAlerts] = useState<any[]>([]);
+
+  // Two-way synchronization with parent props
+  useEffect(() => {
+    if (propOrbitalPosition && propOrbitalPosition !== orbitalPosition) {
+      setOrbitalPosition(propOrbitalPosition);
+      setDistPreset(propOrbitalPosition);
+    }
+  }, [propOrbitalPosition]);
+
+  useEffect(() => {
+    if (propSpeedMultiplier !== undefined && propSpeedMultiplier !== speedMultiplier) {
+      setSpeedMultiplier(propSpeedMultiplier);
+    }
+  }, [propSpeedMultiplier]);
+
+  const handleSpeedChange = (spd: number) => {
+    setSpeedMultiplier(spd);
+    if (onSpeedMultiplierChange) {
+      onSpeedMultiplierChange(spd);
+    }
+  };
 
   // Simulation Clock Tick accelerated by speedMultiplier (1x, 2x, 5x, 10x)
   useEffect(() => {
     const timer = setInterval(() => {
+      setEarthTime(new Date());
       setSimMetSeconds(prev => prev + speedMultiplier);
     }, 1000);
     return () => clearInterval(timer);
@@ -348,10 +362,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     }
   }, [latestAlert]);
 
-  // Handler for Orbital Position change (updates delay and syncs with backend)
+  // Handler for Orbital Position change (updates delay and syncs with backend and HeaderBar)
   const handleOrbitalPositionSelect = (pos: DistancePreset) => {
     setOrbitalPosition(pos);
     setDistPreset(pos);
+    if (onSelectOrbitalPosition) {
+      onSelectOrbitalPosition(pos);
+    }
     const isDelayed = pos === 'MARS_MIN' || pos === 'MARS_MAX';
     if (onToggleMarsDelay) {
       onToggleMarsDelay(isDelayed);
@@ -5309,6 +5326,25 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 {fmtTime(DISTANCES[orbitalPosition].km / C)}
               </span>
             </div>
+
+            <span style={{ fontSize: 9, color: '#263342' }}>|</span>
+
+            {/* Earth Station UTC vs Spacecraft Vehicle Time */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: T.mono }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }} title="Earth Ground Station (MCC Houston) UTC">
+                <span style={{ fontSize: 8.5, fontWeight: 700, color: '#38bdf8' }}>EARTH:</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#f8fafc' }}>
+                  {earthTime.toISOString().substring(11, 19)} UTC
+                </span>
+              </div>
+              <span style={{ fontSize: 9, color: '#263342' }}>·</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }} title={`Spacecraft Habitat Vehicle Time (${DISTANCES[orbitalPosition]?.label}) — Delay: ${fmtTime(DISTANCES[orbitalPosition]?.delaySec ?? 0)}`}>
+                <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>SPACECRAFT:</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#4ade80' }}>
+                  {new Date(earthTime.getTime() - (DISTANCES[orbitalPosition]?.delaySec ?? 0) * 1000).toISOString().substring(11, 19)} UTC
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Right: Sim Speed & Sync Reset (No nested boxes, no duplicate clocks!) */}
@@ -5323,7 +5359,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   return (
                     <button
                       key={spd}
-                      onClick={() => setSpeedMultiplier(spd)}
+                      onClick={() => handleSpeedChange(spd)}
                       title={`Set simulation playback to ${spd}x`}
                       style={{
                         background: isActive ? '#1e293b' : 'transparent',
@@ -5349,7 +5385,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
             {/* Sync State & Reset to 1x Button */}
             <button
-              onClick={() => setSpeedMultiplier(1)}
+              onClick={() => handleSpeedChange(1)}
               title={speedMultiplier > 1 ? `Click to sync simulation clock (${formatSimMet(simMetSeconds)}) with spacecraft (resets to 1x)` : `Telemetry synchronized with spacecraft (${formatSimMet(simMetSeconds)})`}
               style={{
                 display: 'inline-flex',

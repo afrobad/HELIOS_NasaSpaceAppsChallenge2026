@@ -221,3 +221,30 @@ export interface StructuredClinicalReasoning {
   diagnosticConfidence: number; // e.g. 94.8%
 }
 
+export type DistancePreset = 'LEO' | 'GATEWAY' | 'MARS_MIN' | 'MARS_MAX';
+
+export interface OrbitalPositionInfo {
+  km: number;
+  label: string;
+  delaySec: number;
+  locationName: string;
+}
+
+export const C_LIGHT_KMS = 299792; // km/s
+
+export const DISTANCES: Record<DistancePreset, OrbitalPositionInfo> = {
+  LEO: { km: 408, label: 'LEO · <1 ms', delaySec: 0, locationName: 'Low Earth Orbit (ISS)' },
+  GATEWAY: { km: 384400, label: 'Lunar Gateway · 1.3s', delaySec: 1.282, locationName: 'Lunar Gateway (Artemis)' },
+  MARS_MIN: { km: 54600000, label: 'Mars Opposition · 3.0m', delaySec: 182.126, locationName: 'Mars Opposition (Transit)' },
+  MARS_MAX: { km: 400200000, label: 'Mars Conjunction · 22.3m', delaySec: 1334.925, locationName: 'Mars Conjunction (Deep Space)' },
+};
+
+export function fmtTime(sec: number): string {
+  if (sec < 0.001) return '<1 ms';
+  if (sec < 1) return `${(sec * 1000).toFixed(0)} ms`;
+  if (sec < 60) return `${sec.toFixed(1)} s`;
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}m ${s.toString().padStart(2, '0')}s`;
+}
+

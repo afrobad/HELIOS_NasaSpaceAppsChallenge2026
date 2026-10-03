@@ -6902,3 +6902,52 @@
   - **Live Backend MCC Test Suite:** `scripts/test_live_backend_mcc.py` passed 19/19 tests (100%).
   - **Formatting & Zero Emojis:** Verified 0 emojis present across code, commit, and documentation.
 
+---
+
+### [Turn 46] — Earth vs Spacecraft Dual-Chronometer Redesign & Deep-Space Downlink Propagation Delay Functionality
+* **Date/Time:** 2026-10-04 02:14:00 (Local: GMT+6)
+* **User Request & Intent:**
+  > *"here i dont see clearly what is the earth time AND WHAT IS SPACECRAFT TIME,, MAKE IT CLEARLY BE VISIBLE AND LET IT BE FUNCTIONAL WITH THE POSITION SCENARIOS TIME DELAY, IT IS CURRECLTY SHOWING THE UPDATED IMMIDIETLY INSTEAD OF SHOWING WITH DELAY ACCORDING TO THE POSITION SCENARIOS"*
+  > *(Provided screenshot highlighting top-right chronometer box displaying ambiguous MET vs UTC with no visual distinction of Earth vs Spacecraft origin, and speed/handover controls)*
+
+* **Defect & Mechanism Identification:**
+  1. **Visual Ambiguity in Chronometer:**
+     - The top header avionics chronometer previously rendered an unadorned `[ MET T+0d 14:43:22 | UTC 19:56:28 UTC ]` container with zero explicit labeling explaining which clock represented Earth ground control (Houston) and which represented spacecraft vehicle time (Ares-VI habitat).
+     - No visual propagation delay indicator was present to convey light travel latency between Earth and the spacecraft's orbital position.
+  2. **Immediate Update Bypass (Lack of Signal Propagation Latency):**
+     - When an orbital scenario (Lunar Gateway: 1.3s, Mars Opposition: 3.0m, Mars Conjunction: 22.3m) was selected, triggering a scenario updated Earth MCC telemetry instantaneously within 10ms.
+     - Root causes:
+       - `ScenarioController.handleTrigger` fired `/api/scenario/${key}` on the backend, which immediately broadcast `TELEMETRY_FRAME` packets over WebSocket.
+       - In `App.tsx`, `wsService.subscribeTelemetry` received these WebSocket packets and immediately wrote them into `bufferedPacketsRef.current` and invoked `setCurrentScenario`, bypassing any communication delay.
+       - `HeaderBar` calculated its clock independently with local `setInterval`, completely unaware of `orbitalPosition` or propagation delays.
+
+* **Engineering Implementations Delivered:**
+  1. **Canonical Distance & Propagation Delay Constants ([telemetry.ts](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/types/telemetry.ts)):**
+     - Standardized and exported `DistancePreset`, `DISTANCES`, `OrbitalPositionInfo`, `C_LIGHT_KMS`, and `fmtTime`:
+       - `LEO`: $408\text{ km}$, $\text{delay} = 0.001\text{s}$ (`<1 ms`)
+       - `GATEWAY`: $384,400\text{ km}$, $\text{delay} = 1.282\text{s}$ (`1.3s`)
+       - `MARS_MIN`: $54.6\text{M km}$, $\text{delay} = 182.126\text{s}$ (`3m 02s`)
+       - `MARS_MAX`: $400.2\text{M km}$, $\text{delay} = 1334.925\text{s}$ (`22m 15s`)
+  2. **Dual-Time Chronometer Architecture ([HeaderBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HeaderBar.tsx)):**
+     - Redesigned the avionics chronometer with prominent, unambiguous labeling and color psychology:
+       - **`EARTH (UTC)`**: Cyan pill (`#38bdf8`, background `rgba(56, 189, 248, 0.12)`) with crisp white tabular digits (`HH:mm:ss UTC`), representing real Houston MCC Ground Station clock.
+       - **`SPACECRAFT (SVT)`**: Emerald green pill (`#4ade80`, background `rgba(74, 222, 128, 0.12)`) with green tabular digits representing Habitat Vehicle Time, computed mathematically as $\text{Earth UTC} - \text{delaySec}$.
+       - **`MET`**: Mission Elapsed Time (`T+14d 08:43:22 - delaySec`).
+       - **`DELAY BADGE`**: Clickable pill displaying `-22m 15s`, `-3m 02s`, `-1.3s`, or `REALTIME` (amber for deep space, green for LEO); clicking cycles position presets.
+  3. **MCC Position Ribbon Dual-Timestamp Integration ([MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+     - Added live `earthTime` state to `MissionControlView` and rendered explicit `EARTH:` and `SPACECRAFT:` timestamps directly in the `POSITION:` selector ribbon.
+     - Two-way synchronized `orbitalPosition` and `speedMultiplier` with parent `App.tsx`.
+  4. **Deep-Space Downlink Propagation Buffer & Countdown Ticker ([App.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/App.tsx)):**
+     - Lifted `orbitalPosition`, `speedMultiplier`, and `inTransitSignal` state to root.
+     - Created `inTransitSignalRef`, `inTransitPacketsRef`, and `inTransitAlertRef` to intercept and buffer incoming WebSocket packets and proactive JARVIS voice alerts during deep-space signal transit, holding Earth MCC on prior telemetry until radio waves arrive.
+     - Implemented dynamic 100ms countdown interval accelerated by `speedMultiplier` (1x, 2x, 5x, 10x).
+     - Added sticky aerospace in-transit status ribbon with origin, scenario name, light travel ETA countdown, and `WARP SIGNAL TO EARTH (INSTANT RECEPTION)` button for instant judge/evaluator testing.
+  5. **Unified Scenario Trigger Interface ([ScenarioController.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/ScenarioController.tsx)):**
+     - Streamlined `handleTrigger` to deliver `onScenarioTriggered(key, telData)` cleanly to `App.tsx` handler without premature instant state overwrites.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Production Build:** `tsc -b && vite build` built cleanly in 702ms with 0 errors.
+  - **Live Backend MCC Test Suite:** `scripts/test_live_backend_mcc.py` passed 19/19 tests (100%).
+  - **Formatting & Zero Emojis:** Verified 0 emojis present across code, commit, and documentation.
+
+

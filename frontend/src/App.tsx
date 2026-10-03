@@ -13,7 +13,8 @@ import {
   navigateTo,
   getSlugFromAstronautId,
 } from './services/routerService';
-import type { TelemetryPacket, AlertPayload } from './types/telemetry';
+import type { TelemetryPacket, AlertPayload, DistancePreset } from './types/telemetry';
+import { DISTANCES, fmtTime } from './types/telemetry';
 
 export function App() {
   // Parse initial route: default root '/' opens HUD; '/telemetry/:name' opens Health Telemetry; '/mcc' opens Earth MCC; '/scanner' opens 3D Hologram
@@ -26,6 +27,25 @@ export function App() {
 
   const [connected, setConnected] = useState<boolean>(false);
   const [marsDelay, setMarsDelay] = useState<boolean>(false);
+  const [orbitalPosition, setOrbitalPosition] = useState<DistancePreset>('MARS_MAX');
+  const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
+  const [inTransitSignal, setInTransitSignal] = useState<{
+    scenarioKey: string;
+    telemetry?: Record<string, any>;
+    originPosition: DistancePreset;
+    delaySec: number;
+    remainingSec: number;
+    startTime: number;
+  } | null>(null);
+
+  const inTransitSignalRef = useRef<typeof inTransitSignal>(null);
+  const inTransitPacketsRef = useRef<Record<string, TelemetryPacket>>({});
+  const inTransitAlertRef = useRef<AlertPayload | null>(null);
+
+  useEffect(() => {
+    inTransitSignalRef.current = inTransitSignal;
+  }, [inTransitSignal]);
+
   const [telemetryMap, setTelemetryMap] = useState<Record<string, TelemetryPacket>>({});
   const [latestAlert, setLatestAlert] = useState<AlertPayload | null>(null);
   const [currentScenario, setCurrentScenario] = useState<string>('NOMINAL_CRUISE');
@@ -82,6 +102,12 @@ export function App() {
 
     // 3. Subscribe to 10 Hz Telemetry
     const unsubTelemetry = wsService.subscribeTelemetry((packet: TelemetryPacket) => {
+      // If a scenario downlink signal is in-transit across deep space to Earth MCC:
+      if (inTransitSignalRef.current) {
+        inTransitPacketsRef.current[packet.astronaut_id] = packet;
+        return;
+      }
+
       bufferedPacketsRef.current[packet.astronaut_id] = packet;
 
       if (packet.scenario_phase) {
@@ -98,6 +124,10 @@ export function App() {
 
     // 4. Subscribe to Proactive JARVIS Alerts
     const unsubAlert = wsService.subscribeAlert((alert: AlertPayload) => {
+      if (inTransitSignalRef.current) {
+        inTransitAlertRef.current = alert;
+        return;
+      }
       setLatestAlert(alert);
     });
 
@@ -110,14 +140,81 @@ export function App() {
     };
   }, []);
 
+  const handleOrbitalPositionChange = useCallback((pos: DistancePreset) => {
+    setOrbitalPosition(pos);
+    const isDelayed = pos === 'MARS_MIN' || pos === 'MARS_MAX';
+    setMarsDelay(isDelayed);
+    fetch(`/api/mars-delay?enabled=${isDelayed}`, { method: 'POST' }).catch(() => {});
+  }, []);
+
   const handleToggleMarsDelay = async (enabled: boolean) => {
     setMarsDelay(enabled);
+    setOrbitalPosition(enabled ? 'MARS_MAX' : 'LEO');
     try {
       await fetch(`/api/mars-delay?enabled=${enabled}`, { method: 'POST' });
     } catch {
       // Ignore
     }
   };
+
+  const applyTelemetryUpdate = useCallback((scenarioKey: string, telemetry?: Record<string, any>) => {
+    setCurrentScenario(scenarioKey);
+    if (telemetry && Object.keys(telemetry).length > 0) {
+      bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...telemetry };
+    }
+    if (Object.keys(inTransitPacketsRef.current).length > 0) {
+      bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...inTransitPacketsRef.current };
+      inTransitPacketsRef.current = {};
+    }
+    setTelemetryMap({ ...bufferedPacketsRef.current });
+
+    if (inTransitAlertRef.current) {
+      setLatestAlert(inTransitAlertRef.current);
+      inTransitAlertRef.current = null;
+    }
+    setInTransitSignal(null);
+  }, []);
+
+  const handleScenarioTriggered = useCallback((scenarioKey: string, telemetry?: Record<string, any>) => {
+    const delaySec = DISTANCES[orbitalPosition]?.delaySec ?? 0;
+    if (delaySec <= 0.05) {
+      applyTelemetryUpdate(scenarioKey, telemetry);
+    } else {
+      setInTransitSignal({
+        scenarioKey,
+        telemetry,
+        originPosition: orbitalPosition,
+        delaySec,
+        remainingSec: delaySec,
+        startTime: Date.now(),
+      });
+    }
+  }, [orbitalPosition, applyTelemetryUpdate]);
+
+  // Deep-space light propagation countdown ticker (accelerated by speedMultiplier)
+  useEffect(() => {
+    if (!inTransitSignal) return;
+
+    const timer = setInterval(() => {
+      const elapsedRealSec = (Date.now() - inTransitSignal.startTime) / 1000;
+      const effectiveElapsed = elapsedRealSec * speedMultiplier;
+      const remaining = Math.max(0, inTransitSignal.delaySec - effectiveElapsed);
+
+      if (remaining <= 0) {
+        applyTelemetryUpdate(inTransitSignal.scenarioKey, inTransitSignal.telemetry);
+      } else {
+        setInTransitSignal((prev) => (prev ? { ...prev, remainingSec: remaining } : null));
+      }
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [inTransitSignal, speedMultiplier, applyTelemetryUpdate]);
+
+  const handleWarpSignal = useCallback(() => {
+    if (inTransitSignal) {
+      applyTelemetryUpdate(inTransitSignal.scenarioKey, inTransitSignal.telemetry);
+    }
+  }, [inTransitSignal, applyTelemetryUpdate]);
 
   // Navigation Handlers with instant browser URL synchronization
   const handleOpenTriage = useCallback((astId: string) => {
@@ -169,6 +266,102 @@ export function App() {
       {/* GPU-Composited Photorealistic Earth Orbital Space Background */}
       <SpaceBackground activeView={activeView} />
 
+      {/* Deep-Space Telemetry Downlink In-Transit Status Ribbon */}
+      {inTransitSignal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 48,
+            left: 0,
+            width: '100%',
+            zIndex: 9999,
+            background: 'linear-gradient(90deg, rgba(6, 17, 32, 0.97) 0%, rgba(10, 25, 47, 0.97) 100%)',
+            borderBottom: '1px solid rgba(56, 189, 248, 0.45)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.85), 0 0 15px rgba(56, 189, 248, 0.2)',
+            backdropFilter: 'blur(10px)',
+            padding: '6px 20px',
+            boxSizing: 'border-box',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            fontFamily: "var(--hud-font-mono, 'Tomorrow', monospace)",
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {/* Pulsing deep-space radio indicator */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: '#38bdf8',
+                  boxShadow: '0 0 10px #38bdf8',
+                  display: 'inline-block',
+                }}
+              />
+              <span style={{ fontSize: 10.5, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.06em' }}>
+                DEEP SPACE DOWNLINK IN-TRANSIT
+              </span>
+            </div>
+
+            <span style={{ color: '#334155' }}>|</span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10 }}>
+              <span style={{ color: '#64748b' }}>ORIGIN:</span>
+              <span style={{ color: '#f8fafc', fontWeight: 600 }}>{DISTANCES[inTransitSignal.originPosition].label}</span>
+              <span style={{ color: '#64748b' }}>({(DISTANCES[inTransitSignal.originPosition].km / 1e6).toFixed(1)}M km)</span>
+            </div>
+
+            <span style={{ color: '#334155' }}>|</span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10 }}>
+              <span style={{ color: '#64748b' }}>SCENARIO:</span>
+              <span style={{ color: '#fbbf24', fontWeight: 700 }}>
+                {inTransitSignal.scenarioKey.replace(/^SCENARIO_\d+_/, '').replace(/_/g, ' ')}
+              </span>
+            </div>
+
+            <span style={{ color: '#334155' }}>|</span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10 }}>
+              <span style={{ color: '#64748b' }}>LIGHT TRAVEL REMAINING:</span>
+              <span style={{ color: '#4ade80', fontWeight: 800, fontSize: 11 }}>
+                {fmtTime(inTransitSignal.remainingSec)}
+              </span>
+              {speedMultiplier > 1 && (
+                <span style={{ color: '#38bdf8', fontSize: 9 }}>({speedMultiplier}x speed)</span>
+              )}
+            </div>
+          </div>
+
+          {/* Action button to warp signal to Earth immediately */}
+          <button
+            onClick={handleWarpSignal}
+            title="Accelerate light-speed propagation and instantly deliver the telemetry packet to Earth MCC"
+            style={{
+              background: 'rgba(56, 189, 248, 0.16)',
+              border: '1px solid #38bdf8',
+              borderRadius: 4,
+              padding: '3px 10px',
+              color: '#ffffff',
+              fontSize: 9.5,
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span>WARP SIGNAL TO EARTH (INSTANT RECEPTION)</span>
+          </button>
+        </div>
+      )}
+
       {/* Flight HUD View (Default Home Page) */}
       {activeView === 'HUD' && (
         <>
@@ -188,6 +381,9 @@ export function App() {
                 connected={connected}
                 marsDelay={marsDelay}
                 onToggleMarsDelay={handleToggleMarsDelay}
+                orbitalPosition={orbitalPosition}
+                onSelectOrbitalPosition={handleOrbitalPositionChange}
+                speedMultiplier={speedMultiplier}
                 activeView={activeView}
                 onSelectView={handleSelectView}
                 latestAlert={latestAlert}
@@ -258,6 +454,9 @@ export function App() {
                 connected={connected}
                 marsDelay={marsDelay}
                 onToggleMarsDelay={handleToggleMarsDelay}
+                orbitalPosition={orbitalPosition}
+                onSelectOrbitalPosition={handleOrbitalPositionChange}
+                speedMultiplier={speedMultiplier}
                 activeView={activeView}
                 onSelectView={handleSelectView}
                 latestAlert={latestAlert}
@@ -272,6 +471,10 @@ export function App() {
             connected={connected}
             marsDelay={marsDelay}
             onToggleMarsDelay={handleToggleMarsDelay}
+            orbitalPosition={orbitalPosition}
+            onSelectOrbitalPosition={handleOrbitalPositionChange}
+            speedMultiplier={speedMultiplier}
+            onSpeedMultiplierChange={setSpeedMultiplier}
             onSelectView={handleSelectView}
             currentScenario={currentScenario}
             onOpenTriage={handleOpenTriage}
@@ -298,6 +501,9 @@ export function App() {
                 connected={connected}
                 marsDelay={marsDelay}
                 onToggleMarsDelay={handleToggleMarsDelay}
+                orbitalPosition={orbitalPosition}
+                onSelectOrbitalPosition={handleOrbitalPositionChange}
+                speedMultiplier={speedMultiplier}
                 activeView={activeView}
                 onSelectView={handleSelectView}
                 latestAlert={latestAlert}
@@ -396,13 +602,7 @@ export function App() {
         currentScenario={currentScenario}
         marsDelay={marsDelay}
         onToggleMarsDelay={handleToggleMarsDelay}
-        onScenarioTriggered={(scenarioKey, telemetry) => {
-          setCurrentScenario(scenarioKey);
-          if (telemetry && Object.keys(telemetry).length > 0) {
-            bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...telemetry };
-            setTelemetryMap({ ...bufferedPacketsRef.current });
-          }
-        }}
+        onScenarioTriggered={handleScenarioTriggered}
       />
     </>
 );

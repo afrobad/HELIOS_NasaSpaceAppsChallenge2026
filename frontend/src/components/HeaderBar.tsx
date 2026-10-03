@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { audioService } from '../services/audioService';
-import type { AlertPayload } from '../types/telemetry';
+import type { AlertPayload, DistancePreset } from '../types/telemetry';
+import { DISTANCES, fmtTime } from '../types/telemetry';
 
 interface HeaderBarProps {
   connected: boolean;
   marsDelay?: boolean;
   onToggleMarsDelay?: (enabled: boolean) => void;
+  orbitalPosition?: DistancePreset;
+  onSelectOrbitalPosition?: (pos: DistancePreset) => void;
+  speedMultiplier?: number;
   activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER';
   onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER') => void;
   latestAlert?: AlertPayload | null;
@@ -33,8 +37,11 @@ const extractAdviceBody = (text: string): string => {
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
   connected,
-  marsDelay: _marsDelay,
+  marsDelay,
   onToggleMarsDelay: _onToggleMarsDelay,
+  orbitalPosition,
+  onSelectOrbitalPosition,
+  speedMultiplier = 1,
   activeView = 'HUD',
   onSelectView,
   latestAlert,
@@ -42,8 +49,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   jarvisOnly = false,
 }) => {
   const [audioEngaged, setAudioEngaged] = useState<boolean>(true);
-  const [metSeconds, setMetSeconds] = useState<number>(14 * 3600 + 43 * 60 + 18);
-  const [utcTime, setUtcTime] = useState<string>(() => new Date().toISOString().substring(11, 19) + ' UTC');
+
+  // Active Orbital Position & Light Propagation Delay
+  const currentPos: DistancePreset = orbitalPosition || (marsDelay ? 'MARS_MAX' : 'LEO');
+  const delaySec = DISTANCES[currentPos]?.delaySec ?? (marsDelay ? 1334.925 : 0);
+
+  // Earth Time (Ground MCC Houston UTC) — real-world clock
+  const [earthTime, setEarthTime] = useState<Date>(() => new Date());
+  // Base Spacecraft Mission Elapsed Time (Flight Day 14 at 08h 43m 22s)
+  const [baseMetSeconds, setBaseMetSeconds] = useState<number>(14 * 86400 + 8 * 3600 + 43 * 60 + 22);
 
   // JARVIS in Header State
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
@@ -87,11 +101,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     window.addEventListener('keydown', unlockAudio, { once: true });
 
     const timer = setInterval(() => {
-      setMetSeconds((prev) => prev + 1);
-      setUtcTime(new Date().toISOString().substring(11, 19) + ' UTC');
+      setEarthTime(new Date());
+      setBaseMetSeconds((prev) => prev + speedMultiplier);
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [speedMultiplier]);
 
 
   const getMetParts = (totalSec: number) => {
@@ -648,7 +662,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
         {/* ── RIGHT: CONTROLS & CHRONOMETER CLUSTER (UNIFIED ON SAME ROW) ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          {/* Unified Avionics Mission Chronometer (MET + UTC in single compact unit) */}
+          {/* Unified Avionics Mission Chronometer (EARTH GROUND vs SPACECRAFT HABITAT) */}
           <div
             style={{
               display: 'flex',
@@ -656,77 +670,145 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               gap: '8px',
               height: '28px',
               padding: '0 8px',
-              background: '#090d12',
+              background: '#070a0e',
               borderRadius: '4px',
               border: '1px solid #1e293b',
               whiteSpace: 'nowrap',
+              boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.4)',
             }}
           >
-            {/* MET */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {/* 1. EARTH GROUND STATION TIME (MCC HOUSTON UTC) */}
+            <div
+              title="Earth Ground Station Time (Mission Control Center Houston, Coordinated Universal Time)"
+              style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+            >
               <span
                 style={{
-                  fontSize: '8.5px',
-                  color: '#64748b',
-                  fontWeight: 700,
+                  fontSize: '8px',
+                  color: '#38bdf8',
+                  fontWeight: 800,
                   letterSpacing: '0.06em',
                   fontFamily: "'Tomorrow', sans-serif",
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  padding: '1px 4px',
+                  borderRadius: '2px',
+                  border: '1px solid rgba(56, 189, 248, 0.28)',
                 }}
               >
-                MET
-              </span>
-              <span
-                style={{
-                  fontSize: '9.5px',
-                  color: '#94a3b8',
-                  fontWeight: 500,
-                  fontFamily: "'Tomorrow', sans-serif",
-                }}
-              >
-                {getMetParts(metSeconds).day}
-              </span>
-              <span
-                style={{
-                  fontSize: '11.5px',
-                  fontWeight: 700,
-                  color: '#f1f5f9',
-                  fontFamily: "'Tomorrow', monospace",
-                  fontVariantNumeric: 'tabular-nums',
-                  letterSpacing: '0.02em',
-                }}
-              >
-                {getMetParts(metSeconds).time}
-              </span>
-            </div>
-
-            <div style={{ width: '1px', height: '14px', backgroundColor: '#1e293b' }} />
-
-            {/* UTC */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span
-                style={{
-                  fontSize: '8.5px',
-                  color: '#64748b',
-                  fontWeight: 700,
-                  letterSpacing: '0.06em',
-                  fontFamily: "'Tomorrow', sans-serif",
-                }}
-              >
-                UTC
+                EARTH (UTC)
               </span>
               <span
                 style={{
                   fontSize: '11px',
-                  fontWeight: 600,
-                  color: '#cbd5e1',
+                  fontWeight: 700,
+                  color: '#f8fafc',
                   fontFamily: "'Tomorrow', monospace",
                   fontVariantNumeric: 'tabular-nums',
                   letterSpacing: '0.02em',
                 }}
               >
-                {utcTime}
+                {earthTime.toISOString().substring(11, 19)} UTC
               </span>
             </div>
+
+            {/* Subtle Divider */}
+            <div style={{ width: '1px', height: '14px', backgroundColor: '#1e293b' }} />
+
+            {/* 2. SPACECRAFT VEHICLE TIME (SVT) & MISSION ELAPSED TIME */}
+            {(() => {
+              const spacecraftTime = new Date(earthTime.getTime() - delaySec * 1000);
+              const scTimeStr = spacecraftTime.toISOString().substring(11, 19) + ' UTC';
+              const spacecraftMetSeconds = Math.max(0, baseMetSeconds - Math.round(delaySec));
+              const scMetParts = getMetParts(spacecraftMetSeconds);
+
+              return (
+                <div
+                  title={`Spacecraft Vehicle Time (${DISTANCES[currentPos].locationName}) — One-Way Light Propagation Delay: ${fmtTime(delaySec)}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <span
+                    style={{
+                      fontSize: '8px',
+                      color: '#4ade80',
+                      fontWeight: 800,
+                      letterSpacing: '0.06em',
+                      fontFamily: "'Tomorrow', sans-serif",
+                      background: 'rgba(74, 222, 128, 0.12)',
+                      padding: '1px 4px',
+                      borderRadius: '2px',
+                      border: '1px solid rgba(74, 222, 128, 0.28)',
+                    }}
+                  >
+                    SPACECRAFT (SVT)
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: '#4ade80',
+                      fontFamily: "'Tomorrow', monospace",
+                      fontVariantNumeric: 'tabular-nums',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    {scTimeStr}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '9.5px',
+                      color: '#94a3b8',
+                      fontWeight: 500,
+                      fontFamily: "'Tomorrow', monospace",
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    MET {scMetParts.day} {scMetParts.time}
+                  </span>
+
+                  {/* PROPAGATION DELAY INDICATOR BADGE (Clickable to cycle position scenarios) */}
+                  <button
+                    onClick={() => {
+                      if (onSelectOrbitalPosition) {
+                        const presets: DistancePreset[] = ['LEO', 'GATEWAY', 'MARS_MIN', 'MARS_MAX'];
+                        const nextIdx = (presets.indexOf(currentPos) + 1) % presets.length;
+                        onSelectOrbitalPosition(presets[nextIdx]);
+                      }
+                    }}
+                    title={
+                      onSelectOrbitalPosition
+                        ? `Click to cycle orbital position scenario: currently ${DISTANCES[currentPos].label}. One-way delay: ${fmtTime(delaySec)}`
+                        : `One-way light time propagation delay: ${fmtTime(delaySec)} (${DISTANCES[currentPos].label})`
+                    }
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      fontSize: '8px',
+                      color: delaySec > 0 ? '#fbbf24' : '#4ade80',
+                      fontWeight: 700,
+                      fontFamily: "'Tomorrow', monospace",
+                      background: delaySec > 0 ? 'rgba(245, 158, 11, 0.14)' : 'rgba(74, 222, 128, 0.12)',
+                      padding: '1px 4px',
+                      borderRadius: '2px',
+                      border: `1px solid ${delaySec > 0 ? 'rgba(245, 158, 11, 0.35)' : 'rgba(74, 222, 128, 0.28)'}`,
+                      cursor: onSelectOrbitalPosition ? 'pointer' : 'default',
+                      outline: 'none',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '3.5px',
+                        height: '3.5px',
+                        borderRadius: '50%',
+                        background: delaySec > 0 ? '#fbbf24' : '#4ade80',
+                        display: 'inline-block',
+                      }}
+                    />
+                    {delaySec > 0 ? `-${fmtTime(delaySec)}` : 'REALTIME'}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Voice Audio Toggle: Neutral Professional Icon Button */}
