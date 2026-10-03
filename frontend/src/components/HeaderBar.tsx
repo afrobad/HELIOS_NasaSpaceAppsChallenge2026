@@ -485,9 +485,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           width: '100%',
         }}
       >
-        {/* ── LEFT: HERO BRAND LOGO, VIEW TABS & STATION IDENTIFIER ─────────────── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          {/* Brand Logo with Solid Modern Avionics Look */}
+        {/* ── LEFT: HERO BRAND LOGO & PRIMARY FLIGHT NAVIGATION ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+          {/* Brand Logo & Connection Beacon */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span
               style={{
@@ -502,330 +502,301 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               HELIOS
             </span>
 
-            {/* Minimal Connection Status Beacon */}
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '1px 6px',
-                borderRadius: '3px',
-                backgroundColor: connected ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                border: connected ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
-                fontSize: '9.5px',
-                fontWeight: 600,
-                color: connected ? '#4ade80' : '#ef4444',
-                fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-              }}
-            >
-              <span
-                style={{
-                  width: '4px',
-                  height: '4px',
-                  borderRadius: '50%',
-                  backgroundColor: connected ? '#22c55e' : '#ef4444',
-                }}
-              />
-              {connected ? 'Live' : 'Offline'}
-            </span>
-          </div>
-
-          {/* Minimal Hairline Divider */}
-          <div style={{ width: '1px', height: '16px', backgroundColor: '#1e293b' }} />
-
-          {/* Navigation Items (Dashboard, Health-Telemetry, Earth MCC, 3D Hologram) — NO EMOJIS */}
-          {onSelectView && (
-            <nav
-              aria-label="Main Navigation"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => onSelectView('HUD')}
-                style={{
-                  position: 'relative',
-                  padding: '4px 10px',
-                  fontSize: '11.5px',
-                  fontWeight: activeView === 'HUD' ? 600 : 500,
-                  borderRadius: '4px',
-                  border: activeView === 'HUD' ? '1px solid rgba(255, 255, 255, 0.16)' : '1px solid transparent',
-                  cursor: 'pointer',
-                  background: activeView === 'HUD' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                  color: activeView === 'HUD' ? '#ffffff' : '#8899a6',
-                  fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-                  letterSpacing: '0.02em',
-                  transition: 'all 0.12s ease',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Dashboard
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onSelectView('HEALTH_TELEMETRY')}
-                style={{
-                  position: 'relative',
-                  padding: '4px 10px',
-                  fontSize: '11.5px',
-                  fontWeight: activeView === 'HEALTH_TELEMETRY' ? 600 : 500,
-                  borderRadius: '4px',
-                  border: activeView === 'HEALTH_TELEMETRY' ? '1px solid rgba(255, 255, 255, 0.16)' : '1px solid transparent',
-                  cursor: 'pointer',
-                  background: activeView === 'HEALTH_TELEMETRY' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                  color: activeView === 'HEALTH_TELEMETRY' ? '#ffffff' : '#8899a6',
-                  fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-                  letterSpacing: '0.02em',
-                  transition: 'all 0.12s ease',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Health-Telemetry
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onSelectView('MCC')}
-                style={{
-                  position: 'relative',
-                  padding: '4px 10px',
-                  fontSize: '11.5px',
-                  fontWeight: activeView === 'MCC' ? 600 : 500,
-                  borderRadius: '4px',
-                  border: activeView === 'MCC' ? '1px solid rgba(255, 255, 255, 0.22)' : '1px solid transparent',
-                  cursor: 'pointer',
-                  background: activeView === 'MCC' ? 'rgba(255, 255, 255, 0.10)' : 'transparent',
-                  color: activeView === 'MCC' ? '#ffffff' : '#8899a6',
-                  fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-                  letterSpacing: '0.02em',
-                  transition: 'all 0.12s ease',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Earth MCC
-              </button>
-
-              {/* 3D Hologram Button (CLEAN TEXT, NO EMOJIS) */}
-              <button
-                type="button"
-                onClick={() => onSelectView('SCANNER')}
-                style={{
-                  position: 'relative',
-                  padding: '4px 10px',
-                  fontSize: '11.5px',
-                  fontWeight: activeView === 'SCANNER' ? 600 : 500,
-                  borderRadius: '4px',
-                  border: activeView === 'SCANNER' ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(56, 189, 248, 0.18)',
-                  cursor: 'pointer',
-                  background: activeView === 'SCANNER' ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
-                  color: activeView === 'SCANNER' ? '#38bdf8' : '#7dd3fc',
-                  fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-                  letterSpacing: '0.02em',
-                  transition: 'all 0.12s ease',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                3D Hologram
-              </button>
-            </nav>
-          )}
-
-          {/* MCC Sentry Station Identifier (Compact & Dignified) */}
-          {activeView === 'MCC' && (
+            {/* Clean Telemetry Beacon (No clunky box) */}
             <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
-                padding: '2px 7px',
-                borderRadius: '3px',
-                background: '#090d12',
-                border: '1px solid #1e293b',
-                fontSize: '9px',
+                padding: '2px 4px',
+                fontSize: '9.5px',
+                fontWeight: 700,
+                color: connected ? '#4ade80' : '#ef4444',
                 fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-                letterSpacing: '0.04em',
-                color: '#64748b',
-                whiteSpace: 'nowrap',
+                letterSpacing: '0.06em',
+              }}
+              title={connected ? 'Live Telemetry Link Active' : 'Telemetry Link Offline'}
+            >
+              <span
+                style={{
+                  width: '5px',
+                  height: '5px',
+                  borderRadius: '50%',
+                  backgroundColor: connected ? '#22c55e' : '#ef4444',
+                  boxShadow: connected ? '0 0 8px rgba(34, 197, 94, 0.7)' : '0 0 8px rgba(239, 68, 68, 0.7)',
+                }}
+              />
+              {connected ? 'LIVE' : 'OFFLINE'}
+            </div>
+          </div>
+
+          {/* Minimal Divider Hairline */}
+          <div style={{ width: '1px', height: '16px', backgroundColor: 'rgba(255, 255, 255, 0.12)' }} />
+
+          {/* Unified Primary Navigation Segmented Dock */}
+          {onSelectView && (
+            <nav
+              aria-label="Flight Navigation"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '2px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '6px',
+                padding: '2px',
               }}
             >
-              <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
-              <span style={{ fontWeight: 600, color: '#94a3b8' }}>MCC SENTRY</span>
-              <span style={{ color: '#334155' }}>·</span>
-              <span>ARES-VI</span>
-            </div>
+              {[
+                { id: 'HUD', label: 'Dashboard' },
+                { id: 'HEALTH_TELEMETRY', label: 'Health-Telemetry' },
+                { id: 'MCC', label: 'Earth MCC' },
+                { id: 'SCANNER', label: '3D Hologram' },
+              ].map((tabItem) => {
+                const isActive = activeView === tabItem.id;
+                return (
+                  <button
+                    key={tabItem.id}
+                    type="button"
+                    onClick={() => onSelectView(tabItem.id as any)}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      fontWeight: isActive ? 700 : 500,
+                      borderRadius: '4px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: isActive ? 'rgba(56, 189, 248, 0.14)' : 'transparent',
+                      color: isActive ? '#38bdf8' : '#94a3b8',
+                      boxShadow: isActive ? 'inset 0 0 0 1px rgba(56, 189, 248, 0.32)' : 'none',
+                      fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                      letterSpacing: '0.02em',
+                      transition: 'all 0.14s ease',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) e.currentTarget.style.color = '#ffffff';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) e.currentTarget.style.color = '#94a3b8';
+                    }}
+                  >
+                    {tabItem.label}
+                  </button>
+                );
+              })}
+            </nav>
           )}
         </div>
 
-        {/* ── RIGHT: CONTROLS & CHRONOMETER CLUSTER (UNIFIED ON SAME ROW) ── */}
+        {/* ── RIGHT: MISSION CHRONOMETRY & CONTROLS ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          {/* Unified Avionics Mission Chronometer (EARTH GROUND vs SPACECRAFT HABITAT) */}
+          {/* Single Avionics Telemetry Strip (NO nested boxes!) */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              height: '28px',
-              padding: '0 8px',
-              background: '#070a0e',
-              borderRadius: '4px',
-              border: '1px solid #1e293b',
+              gap: '12px',
+              height: '32px',
+              padding: '0 12px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              borderRadius: '6px',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
               whiteSpace: 'nowrap',
-              boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.4)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.03)',
             }}
           >
             {/* 1. EARTH GROUND STATION TIME (MCC HOUSTON UTC) */}
             <div
-              title="Earth Ground Station Time (Mission Control Center Houston, Coordinated Universal Time)"
-              style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+              title="Earth Ground Station (MCC Houston) · Coordinated Universal Time"
+              style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}
             >
               <span
                 style={{
-                  fontSize: '8px',
-                  color: '#38bdf8',
+                  fontSize: '9px',
                   fontWeight: 800,
+                  color: '#64748b',
                   letterSpacing: '0.06em',
                   fontFamily: "'Tomorrow', sans-serif",
-                  background: 'rgba(56, 189, 248, 0.12)',
-                  padding: '1px 4px',
-                  borderRadius: '2px',
-                  border: '1px solid rgba(56, 189, 248, 0.28)',
                 }}
               >
-                EARTH (UTC)
+                EARTH
               </span>
               <span
                 style={{
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: 700,
-                  color: '#f8fafc',
-                  fontFamily: "'Tomorrow', monospace",
+                  color: '#38bdf8',
+                  fontFamily: 'var(--hud-font-mono, monospace)',
                   fontVariantNumeric: 'tabular-nums',
                   letterSpacing: '0.02em',
                 }}
               >
-                {earthTime.toISOString().substring(11, 19)} UTC
+                {earthTime.toISOString().substring(11, 19)}
               </span>
+              <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>UTC</span>
             </div>
 
-            {/* Subtle Divider */}
-            <div style={{ width: '1px', height: '14px', backgroundColor: '#1e293b' }} />
+            {/* Hairline Divider */}
+            <span style={{ color: 'rgba(255, 255, 255, 0.12)', fontSize: '11px', userSelect: 'none' }}>│</span>
 
             {/* 2. SPACECRAFT VEHICLE TIME (SVT) & MISSION ELAPSED TIME */}
             {(() => {
               const spacecraftTime = new Date(earthTime.getTime() - delaySec * 1000);
-              const scTimeStr = spacecraftTime.toISOString().substring(11, 19) + ' UTC';
+              const scTimeStr = spacecraftTime.toISOString().substring(11, 19);
               const spacecraftMetSeconds = Math.max(0, baseMetSeconds - Math.round(delaySec));
               const scMetParts = getMetParts(spacecraftMetSeconds);
 
               return (
                 <div
-                  title={`Spacecraft Vehicle Time (${DISTANCES[currentPos].locationName}) — One-Way Light Propagation Delay: ${fmtTime(delaySec)}`}
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                  title={`Spacecraft Vehicle Time (${DISTANCES[currentPos].locationName}) · Local Habitat Time`}
+                  style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}
                 >
-                  <span
-                    style={{
-                      fontSize: '8px',
-                      color: '#4ade80',
-                      fontWeight: 800,
-                      letterSpacing: '0.06em',
-                      fontFamily: "'Tomorrow', sans-serif",
-                      background: 'rgba(74, 222, 128, 0.12)',
-                      padding: '1px 4px',
-                      borderRadius: '2px',
-                      border: '1px solid rgba(74, 222, 128, 0.28)',
-                    }}
-                  >
-                    SPACECRAFT (SVT)
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: '#4ade80',
-                      fontFamily: "'Tomorrow', monospace",
-                      fontVariantNumeric: 'tabular-nums',
-                      letterSpacing: '0.02em',
-                    }}
-                  >
-                    {scTimeStr}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '9.5px',
-                      color: '#94a3b8',
-                      fontWeight: 500,
-                      fontFamily: "'Tomorrow', monospace",
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
-                    MET {scMetParts.day} {scMetParts.time}
-                  </span>
-
-                  {/* PROPAGATION DELAY INDICATOR BADGE (Clickable to cycle position scenarios) */}
-                  <button
-                    onClick={() => {
-                      if (onSelectOrbitalPosition) {
-                        const presets: DistancePreset[] = ['LEO', 'GATEWAY', 'MARS_MIN', 'MARS_MAX'];
-                        const nextIdx = (presets.indexOf(currentPos) + 1) % presets.length;
-                        onSelectOrbitalPosition(presets[nextIdx]);
-                      }
-                    }}
-                    title={
-                      onSelectOrbitalPosition
-                        ? `Click to cycle orbital position scenario: currently ${DISTANCES[currentPos].label}. One-way delay: ${fmtTime(delaySec)}`
-                        : `One-way light time propagation delay: ${fmtTime(delaySec)} (${DISTANCES[currentPos].label})`
-                    }
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                      fontSize: '8px',
-                      color: delaySec > 0 ? '#fbbf24' : '#4ade80',
-                      fontWeight: 700,
-                      fontFamily: "'Tomorrow', monospace",
-                      background: delaySec > 0 ? 'rgba(245, 158, 11, 0.14)' : 'rgba(74, 222, 128, 0.12)',
-                      padding: '1px 4px',
-                      borderRadius: '2px',
-                      border: `1px solid ${delaySec > 0 ? 'rgba(245, 158, 11, 0.35)' : 'rgba(74, 222, 128, 0.28)'}`,
-                      cursor: onSelectOrbitalPosition ? 'pointer' : 'default',
-                      outline: 'none',
-                    }}
-                  >
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
                     <span
                       style={{
-                        width: '3.5px',
-                        height: '3.5px',
-                        borderRadius: '50%',
-                        background: delaySec > 0 ? '#fbbf24' : '#4ade80',
-                        display: 'inline-block',
+                        fontSize: '9px',
+                        fontWeight: 800,
+                        color: '#64748b',
+                        letterSpacing: '0.06em',
+                        fontFamily: "'Tomorrow', sans-serif",
                       }}
-                    />
-                    {delaySec > 0 ? `-${fmtTime(delaySec)}` : 'REALTIME'}
-                  </button>
+                    >
+                      SPACECRAFT
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        color: '#4ade80',
+                        fontFamily: 'var(--hud-font-mono, monospace)',
+                        fontVariantNumeric: 'tabular-nums',
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      {scTimeStr}
+                    </span>
+                    <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>SVT</span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                    <span
+                      style={{
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        color: '#64748b',
+                        letterSpacing: '0.04em',
+                        fontFamily: "'Tomorrow', sans-serif",
+                      }}
+                    >
+                      MET
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        color: '#cbd5e1',
+                        fontFamily: 'var(--hud-font-mono, monospace)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {scMetParts.day} {scMetParts.time}
+                    </span>
+                  </div>
                 </div>
               );
             })()}
+
+            {/* Hairline Divider */}
+            <span style={{ color: 'rgba(255, 255, 255, 0.12)', fontSize: '11px', userSelect: 'none' }}>│</span>
+
+            {/* 3. PROPAGATION DELAY & SCENARIO SELECTOR */}
+            <button
+              type="button"
+              onClick={() => {
+                if (onSelectOrbitalPosition) {
+                  const presets: DistancePreset[] = ['LEO', 'GATEWAY', 'MARS_MIN', 'MARS_MAX'];
+                  const nextIdx = (presets.indexOf(currentPos) + 1) % presets.length;
+                  onSelectOrbitalPosition(presets[nextIdx]);
+                }
+              }}
+              title={
+                onSelectOrbitalPosition
+                  ? `One-Way Light Propagation Delay: ${fmtTime(delaySec)} (${DISTANCES[currentPos].label}). Click to cycle orbital position scenario (LEO, Gateway, Mars Min, Mars Max).`
+                  : `One-Way Light Propagation Delay: ${fmtTime(delaySec)} (${DISTANCES[currentPos].label})`
+              }
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'transparent',
+                border: 'none',
+                cursor: onSelectOrbitalPosition ? 'pointer' : 'default',
+                padding: '2px 4px',
+                borderRadius: '4px',
+                outline: 'none',
+                transition: 'background 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (onSelectOrbitalPosition) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '9px',
+                  fontWeight: 800,
+                  color: '#64748b',
+                  letterSpacing: '0.06em',
+                  fontFamily: "'Tomorrow', sans-serif",
+                }}
+              >
+                DELAY
+              </span>
+              <span
+                style={{
+                  fontSize: '11.5px',
+                  fontWeight: 700,
+                  color: delaySec > 0 ? '#fbbf24' : '#4ade80',
+                  fontFamily: 'var(--hud-font-mono, monospace)',
+                  fontVariantNumeric: 'tabular-nums',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span
+                  style={{
+                    width: '5px',
+                    height: '5px',
+                    borderRadius: '50%',
+                    backgroundColor: delaySec > 0 ? '#fbbf24' : '#4ade80',
+                    boxShadow: delaySec > 0 ? '0 0 6px rgba(251, 191, 36, 0.7)' : '0 0 6px rgba(74, 222, 128, 0.7)',
+                  }}
+                />
+                {delaySec > 0 ? `${fmtTime(delaySec)} (${DISTANCES[currentPos].label})` : '0s (LEO)'}
+              </span>
+            </button>
           </div>
 
-          {/* Voice Audio Toggle: Neutral Professional Icon Button */}
+          {/* Voice Audio Toggle Button */}
           <button
             onClick={handleToggleAudio}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '28px',
-              height: '28px',
-              borderRadius: '4px',
-              border: audioEngaged ? '1px solid #334155' : '1px solid #1e293b',
-              background: audioEngaged ? '#0f172a' : '#080c10',
-              color: audioEngaged ? '#94a3b8' : '#475569',
+              width: '32px',
+              height: '32px',
+              borderRadius: '6px',
+              border: audioEngaged ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+              background: audioEngaged ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+              color: audioEngaged ? '#38bdf8' : '#64748b',
               cursor: 'pointer',
-              transition: 'all 0.12s ease',
+              transition: 'all 0.15s ease',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.35)',
             }}
             title={audioEngaged ? 'Voice Audio: Active (Click to mute)' : 'Voice Audio: Muted (Click to unmute)'}
           >
