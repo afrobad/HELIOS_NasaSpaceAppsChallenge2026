@@ -150,11 +150,10 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
   const isAbnormal = summary.isAbnormal;
 
   const borderColor = isCritical
-    ? '#facc15'
-
+    ? 'rgba(239, 68, 68, 0.45)'
     : isWarning
-    ? 'rgba(250, 204, 21, 0.65)'
-    : 'var(--hud-border)';
+    ? 'rgba(245, 158, 11, 0.40)'
+    : '#283548';
 
   const statusColor = isCritical
     ? '#ef4444'
@@ -168,17 +167,21 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
         display: 'flex',
         alignItems: 'stretch',
         gap: '0',
-        background: 'var(--hud-bg-card)',
+        background: isCritical
+          ? 'linear-gradient(180deg, #1c1518 0%, #110d10 100%)'
+          : isWarning
+          ? 'linear-gradient(180deg, #1c1913 0%, #12100a 100%)'
+          : 'linear-gradient(180deg, #181d22 0%, #0f1316 100%)',
         border: `1px solid ${borderColor}`,
-        borderRadius: 'var(--hud-radius-card)',
+        borderRadius: 6,
         overflow: 'hidden',
         boxSizing: 'border-box',
         minHeight: '176px',
         boxShadow: isCritical
-          ? '0 0 0 1px rgba(250, 204, 21, 0.35), 0 2px 16px rgba(250, 204, 21, 0.15)'
+          ? '0 0 0 1px rgba(239, 68, 68, 0.35), 0 4px 16px rgba(239, 68, 68, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
           : isWarning
-          ? '0 0 0 1px rgba(250, 204, 21, 0.20)'
-          : 'none',
+          ? '0 0 0 1px rgba(245, 158, 11, 0.25), 0 4px 16px rgba(245, 158, 11, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+          : '0 2px 10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
         transition: 'box-shadow 400ms ease, border-color 400ms ease, background 400ms ease',
       }}
     >
@@ -188,14 +191,18 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                 width: '124px',
                 flexShrink: 0,
                 padding: '10px 8px',
-                borderRight: '1px solid var(--hud-border-subtle)',
+                borderRight: '1px solid #1f2732',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '6px',
                 textAlign: 'center',
-                background: 'rgba(0, 0, 0, 0.25)',
+                background: isCritical
+                  ? 'linear-gradient(180deg, rgba(239, 68, 68, 0.12) 0%, rgba(0, 0, 0, 0.4) 100%)'
+                  : isWarning
+                  ? 'linear-gradient(180deg, rgba(245, 158, 11, 0.10) 0%, rgba(0, 0, 0, 0.4) 100%)'
+                  : 'linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.25) 100%)',
                 boxSizing: 'border-box',
               }}
             >

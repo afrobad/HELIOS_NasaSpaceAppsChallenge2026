@@ -6814,3 +6814,49 @@
   - **TypeScript & Vite Build:** `tsc -b && vite build` completed in 1.12s with 0 errors.
   - **Live Backend MCC Test Suite:** `scripts/test_live_backend_mcc.py` passed 19/19 tests (100%).
   - **Git Remotes:** Committed and pushed in sync to both `origin/main` and `upstream/main`.
+
+---
+
+### [Turn 44] — Overview Page Signature Gradient Harmonization, Box Title Restoration, Inner Well Recess Darkening & Telemetry Decluttering
+* **Date/Time:** 2026-10-04 01:22:00 (Local: GMT+6)
+* **User Request & Intent:**
+  > 1. *"in the overview page, impliment the same container gradient color and color differences as the other cards like crew and systems"*
+  > 2. *"here the container have so many badges on top right, the main title of the box is missing ,, the inner containers should have more darker bg color for proper visuals and clarity,, the crew healtha nd eclss containers should have a compact title and proper single data instead of long texts, and the left border outline in the inner containers should be removed"*
+
+* **Visual & Architecture Diagnosis:**
+  1. **Container Gradient & Color Inconsistency:**
+     - Overview page cards previously used flat surfaces or disparate slate tints, lacking the 3-layer visual depth found in the Systems and Crew tabs (`linear-gradient(180deg, #181d22 0%, #0f1316 100%)` container gradient with status-aware `#1f1518` critical / `#1c1913` warning outer glows and contrast recessed metric wells).
+     - Graph footers had raw text without structured recessed containers.
+  2. **Top Excursion Anchor Missing Box Title & Badge Clutter:**
+     - Section 1 lacked an overarching section header (`labelStyle`), jumping directly into a wrapped pile of badges (`[• CRITICAL]`, `[CREW CDR]`, `[CARDIOVASCULAR]`, `[WORSENING]`, `ACTIVE: < 2m`, `INVESTIGATE EXCURSION`).
+     - Long titles forced action buttons onto secondary wrapped lines.
+  3. **Biomarker Tiles Left Border Outline & Slate Washout:**
+     - Diagnostic biomarker tiles used a `3px solid` left border line and a bluish slate gradient (`linear-gradient(180deg, #13181f 0%, #0a0d11 100%)`), creating visual noise and lower contrast against numbers.
+  4. **Synoptic Pills Text Wrapping & Bloat:**
+     - ECLSS pill attempted to show `101.3 kPa · CO₂ 1.75 mmHg`, causing `mmHg` to wrap onto a clumsy second line.
+     - Crew pill showed `1 ATTENTION / 3 NOM` instead of concise, focused status telemetry.
+
+* **Engineering Implementations Delivered:**
+  1. **Harmonized Aerospace Container Gradients ([MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx), [CabinEnvironmentalBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/CabinEnvironmentalBar.tsx), [CrewGrid.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/CrewGrid.tsx)):**
+     - Updated `cardStyle` to signature gradient `linear-gradient(180deg, #181d22 0%, #0f1316 100%)`, border `#283548`, and top specular sheen `inset 0 1px 0 rgba(255, 255, 255, 0.05)`.
+     - Graph 1 (Radiation Trajectory) and Graph 2 (24-Hour ppCO₂) now dynamically shift outer container gradients to red-tinted `#1f1518` during SPE/CO2 breaches and amber `#1c1913` during elevated states.
+     - Enclosed all 6 operational metrics under both graphs into dark recessed wells (`#090d12`, `1px solid #1c2633`, `borderRadius: 4`, `padding: '7px 10px'`) with conditional alarm illumination.
+     - Cleaned up Section 2 wrapper to eliminate double-border around `CabinEnvironmentalBar`.
+  2. **Restored Box Main Title & Decluttered Top Bar ([MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+     - Added prominent section header: `<div style={labelStyle}>MISSION OPERATIONAL INCIDENT // FLIGHT EXCURSION</div>` (and in nominal mode: `MISSION OPERATIONAL STATUS // AUTONOMOUS SENTRY`).
+     - Pruned redundant duplicate tags (`CARDIOVASCULAR`, `WORSENING`), cleanly positioning `[• CRITICAL]`, `[CREW CDR · HALEY]`, `ACTIVE: < 2m`, and `[INVESTIGATE EXCURSION → MED-CARD-04]` on an un-wrapped top row separated by a subtle divider (`1px solid rgba(255, 255, 255, 0.07)`).
+     - Positioned high-contrast incident headline on its own dedicated row below the control bar.
+  3. **Darker Recessed Inner Biomarker Wells & Removed Left Outlines ([MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+     - Shifted diagnostic biomarker tiles to pitch-dark `#07090c` with inset contrast shadow `inset 0 1px 2px rgba(0, 0, 0, 0.5)`.
+     - Completely removed the 3px left border outline, standardizing on a sleek uniform `1px solid #1c2633` border so metrics and status colors pop with clean readability.
+  4. **Compact Titles & Single Data for Synoptic Telemetry ([MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+     - `CREW`: Compact title `CREW`, focused single data `1 ATTENTION` (or `NOMINAL`).
+     - `ECLSS`: Compact title `ECLSS`, single clean readout `CO₂ 1.75 mmHg` (no wrapping, fits on one line).
+     - `POWER`: Compact title `POWER`, single data `EPS 28.4 V`.
+     - `COMMS`: Compact title `COMMS`, single data `10 Hz LOCK`.
+     - Applied dark `#07090c` background and uniform `1px solid #1c2633` borders across all 4 synoptic pills.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `tsc -b && vite build` built cleanly in 555ms with 0 errors.
+  - **Live Backend MCC Test Suite:** `scripts/test_live_backend_mcc.py` passed 19/19 tests (100%).
+  - **Visual & Formatting Rules:** Verified zero emojis present, dual-remote parity maintained.

@@ -10,13 +10,13 @@ import { NASA_OSDR_PROFILES } from './HealthTelemetryView';
 // ─────────────────────────────────────────────────────────────
 const T = {
   bg: '#070a07', // Darker, rich aerospace olive-black
-  surface: 'linear-gradient(180deg, #1b2025 0%, #121518 100%)', // Professional aerospace gray gradient
+  surface: 'linear-gradient(180deg, #181d22 0%, #0f1316 100%)', // Signature aerospace container gradient
   surfaceHover: 'linear-gradient(180deg, #20262c 0%, #161a1e 100%)',
   surfaceFlat: '#14181c',
   surfaceElevated: '#1e242a',
   surfaceRecessed: '#0b0e11', // Dark inset & badge background
-  border: '#2c3642', // Subtle refined slate-gray border
-  borderSubtle: '#202833',
+  border: '#283548', // Refined slate-gray border
+  borderSubtle: '#1f2732',
   borderHighlight: '#445366',
   textPrimary: '#ffffff', // Brilliant pure white for vital numbers & headings
   textSecondary: '#b8cbde', // Crisp, high-contrast readable slate for labels & copy (was #8d99a6)
@@ -882,7 +882,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     borderRadius: 6,
     padding: '14px 16px',
     boxSizing: 'border-box',
-    boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+    boxShadow: '0 2px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
   };
 
   const labelStyle: React.CSSProperties = {
@@ -1182,9 +1182,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         <div style={{
           ...cardStyle,
           padding: '12px 16px',
-          background: 'linear-gradient(180deg, #181d22 0%, #0d1013 100%)',
+          background: hasAnomaly
+            ? 'linear-gradient(180deg, #1f1518 0%, #100d0f 100%)'
+            : 'linear-gradient(180deg, #181d22 0%, #0f1316 100%)',
           border: hasAnomaly ? '1px solid rgba(239, 68, 68, 0.45)' : `1px solid ${T.border}`,
-          boxShadow: hasAnomaly ? '0 4px 20px rgba(239, 68, 68, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05)' : cardStyle.boxShadow,
+          boxShadow: hasAnomaly
+            ? '0 4px 20px rgba(239, 68, 68, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+            : '0 2px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
         }}>
           {hasAnomaly && primaryAlert ? (() => {
             const targetAstId = primaryAlert.astronautId || 'AST-02_PILOT';
@@ -1453,113 +1457,53 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             const procName = primaryAlert.procedure ? primaryAlert.procedure.replace('NASA-STD-3001-', '') : 'MED-CARD-04';
 
             return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {/* ── TOP HEADER ROW: SEVERITY + ENTITY + BIG TITLE + ACTION BUTTON ── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* ── 1. BOX MAIN TITLE & TOP CONTROL BAR ── */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  gap: 16,
-                  flexWrap: 'wrap',
+                  gap: 12,
+                  paddingBottom: 8,
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
                 }}>
-                  {/* Left: Badges + High-Impact Incident Headline */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    {/* Severity Pill */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ ...labelStyle, marginBottom: 0 }}>MISSION OPERATIONAL INCIDENT // FLIGHT EXCURSION</div>
                     <span style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 6,
+                      gap: 5,
                       background: primaryAlert.priority === 'CRITICAL' ? '#dc2626' : '#d97706',
                       color: '#ffffff',
-                      fontSize: 10,
+                      fontSize: 9.5,
                       fontWeight: 800,
-                      padding: '3px 9px',
+                      padding: '2px 8px',
                       borderRadius: 4,
-                      letterSpacing: '0.08em',
+                      letterSpacing: '0.06em',
                       fontFamily: T.mono,
-                      boxShadow: '0 0 12px rgba(220, 38, 38, 0.45)',
+                      boxShadow: primaryAlert.priority === 'CRITICAL' ? '0 0 10px rgba(220, 38, 38, 0.5)' : 'none',
                     }}>
-                      <span style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: '50%',
-                        background: '#ffffff',
-                      }} />
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ffffff' }} />
                       {primaryAlert.priority}
                     </span>
-
-                    {/* Target Scope Pill */}
                     <span style={{
-                      background: 'rgba(56, 189, 248, 0.1)',
+                      background: 'rgba(56, 189, 248, 0.12)',
                       color: '#38bdf8',
-                      border: '1px solid rgba(56, 189, 248, 0.3)',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: '3px 9px',
-                      borderRadius: 4,
-                      fontFamily: T.mono,
-                      letterSpacing: '0.04em',
-                    }}>
-                      {primaryAlert.entity.toUpperCase()}
-                    </span>
-
-                    {/* Subsystem Tag */}
-                    <span style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      color: '#94a3b8',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      fontSize: 10,
-                      fontWeight: 600,
-                      padding: '3px 8px',
-                      borderRadius: 4,
-                      fontFamily: T.mono,
-                    }}>
-                      {primaryAlert.subsystem.toUpperCase()}
-                    </span>
-
-                    {/* Big Incident Headline (Cleaned, High Contrast) */}
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                      <span style={{
-                        fontSize: 15,
-                        fontWeight: 800,
-                        color: '#f8fafc',
-                        letterSpacing: '0.02em',
-                        fontFamily: T.sans,
-                      }}>
-                        {mainTitle}
-                      </span>
-                      {subTitle && (
-                        <span style={{
-                          fontSize: 12,
-                          fontWeight: 500,
-                          color: '#94a3b8',
-                          fontFamily: T.sans,
-                        }}>
-                          — {subTitle}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Trajectory Pill */}
-                    <span style={{
-                      background: 'rgba(239, 68, 68, 0.12)',
-                      color: '#fca5a5',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
                       fontSize: 9.5,
                       fontWeight: 700,
                       padding: '2px 8px',
                       borderRadius: 4,
                       fontFamily: T.mono,
-                      letterSpacing: '0.03em',
                     }}>
-                      {primaryAlert.trajectory}
+                      {primaryAlert.entity.toUpperCase()}
                     </span>
                   </div>
 
                   {/* Right: Operational Age & Action Button */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                    <div style={{ fontSize: 10, fontFamily: T.mono, color: '#64748b' }}>
-                      ACTIVE: <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{primaryAlert.age}</span>
+                    <div style={{ fontSize: 9.5, fontFamily: T.mono, color: '#94a3b8' }}>
+                      ACTIVE: <span style={{ color: '#f8fafc', fontWeight: 700 }}>{primaryAlert.age}</span>
                     </div>
 
                     <button
@@ -1567,17 +1511,17 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 8,
+                        gap: 6,
                         background: '#2563eb',
                         border: '1px solid #60a5fa',
                         borderRadius: 4,
-                        padding: '6px 14px',
+                        padding: '4px 12px',
                         color: '#ffffff',
-                        fontSize: 11,
-                        fontWeight: 800,
+                        fontSize: 10.5,
+                        fontWeight: 700,
                         cursor: 'pointer',
                         fontFamily: T.sans,
-                        letterSpacing: '0.04em',
+                        letterSpacing: '0.03em',
                         whiteSpace: 'nowrap',
                         boxShadow: '0 2px 8px rgba(37, 99, 235, 0.35)',
                         transition: 'all 0.15s ease',
@@ -1590,7 +1534,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         background: 'rgba(255, 255, 255, 0.2)',
                         padding: '1px 5px',
                         borderRadius: 3,
-                        fontSize: 9.5,
+                        fontSize: 9,
                         fontFamily: T.mono,
                       }}>
                         {procName}
@@ -1599,7 +1543,30 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   </div>
                 </div>
 
-                {/* ── 4 PROMINENT DIAGNOSTIC BIOMARKER TILES (BIGGER NECESSARY INFO) ── */}
+                {/* ── 2. CLEAN INCIDENT HEADLINE ── */}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '2px 0 4px 0' }}>
+                  <span style={{
+                    fontSize: 15,
+                    fontWeight: 800,
+                    color: '#ffffff',
+                    letterSpacing: '0.01em',
+                    fontFamily: T.sans,
+                  }}>
+                    {mainTitle}
+                  </span>
+                  {subTitle && (
+                    <span style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: '#94a3b8',
+                      fontFamily: T.sans,
+                    }}>
+                      — {subTitle}
+                    </span>
+                  )}
+                </div>
+
+                {/* ── 3. 4 PROMINENT DIAGNOSTIC BIOMARKER TILES (DARK RECESS, NO LEFT OUTLINE) ── */}
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(4, 1fr)',
@@ -1609,14 +1576,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     <div
                       key={idx}
                       style={{
-                        background: 'rgba(15, 23, 42, 0.75)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        borderLeft: `3px solid ${tile.color}`,
-                        borderRadius: 6,
-                        padding: '9px 12px',
+                        background: '#07090c',
+                        border: '1px solid #1c2633',
+                        borderRadius: 5,
+                        padding: '10px 12px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 3,
+                        boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.5)',
                       }}
                     >
                       {/* Tile Category Label */}
@@ -1679,48 +1646,54 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
             );
           })() : (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '6px 0',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Dot color={T.nominal} size={8} />
-                <span style={{
-                  fontSize: 12.5,
-                  fontWeight: 800,
-                  color: T.nominal,
-                  letterSpacing: '0.05em',
-                  fontFamily: T.sans,
-                }}>
-                  MISSION HEALTH: NOMINAL
-                </span>
-                <span style={{ color: '#475569' }}>|</span>
-                <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: T.sans }}>
-                  All 4 Crew Members Within Personal Baseline Corridors · Habitat Optimal
+            <div>
+              <div style={{ ...labelStyle, marginBottom: 8 }}>MISSION OPERATIONAL STATUS // AUTONOMOUS SENTRY</div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                background: '#07090c',
+                border: '1px solid #1c2633',
+                borderRadius: 5,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Dot color={T.nominal} size={8} />
+                  <span style={{
+                    fontSize: 12.5,
+                    fontWeight: 800,
+                    color: T.nominal,
+                    letterSpacing: '0.05em',
+                    fontFamily: T.sans,
+                  }}>
+                    MISSION HEALTH: NOMINAL
+                  </span>
+                  <span style={{ color: '#475569' }}>|</span>
+                  <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: T.sans }}>
+                    All 4 Crew Members Within Personal Baseline Corridors · Habitat Optimal
+                  </span>
+                </div>
+                <span style={{ fontSize: 10, fontFamily: T.mono, color: '#64748b' }}>
+                  AUTONOMOUS SENTRY PASS 84 · MARGINS &gt; 70 DAYS
                 </span>
               </div>
-              <span style={{ fontSize: 10, fontFamily: T.mono, color: '#64748b' }}>
-                AUTONOMOUS SENTRY PASS 84 · MARGINS &gt; 70 DAYS
-              </span>
             </div>
           )}
 
-          {/* ── 4-BLOCK SUBSYSTEM & COMMUNICATIONS SYNOPTIC STRIP ── */}
+          {/* ── 4-BLOCK SUBSYSTEM & COMMUNICATIONS SYNOPTIC STRIP (COMPACT TITLES, SINGLE DATA, DARK BG) ── */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
             gap: 10,
-            marginTop: hasAnomaly ? 12 : 8,
+            marginTop: hasAnomaly ? 10 : 8,
             paddingTop: hasAnomaly ? 10 : 6,
             borderTop: '1px solid rgba(255, 255, 255, 0.06)',
           }}>
             {/* 1. Crew Status Pill */}
             <div style={{
-              background: 'rgba(255, 255, 255, 0.025)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              borderRadius: 6,
+              background: '#07090c',
+              border: hasAnomaly ? '1px solid rgba(245, 158, 11, 0.40)' : '1px solid #1c2633',
+              borderRadius: 5,
               padding: '7px 12px',
               display: 'flex',
               alignItems: 'center',
@@ -1729,7 +1702,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Dot color={hasAnomaly ? T.warning : T.nominal} size={6} />
                 <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 700, color: '#94a3b8' }}>
-                  CREW HEALTH
+                  CREW
                 </span>
               </div>
               <span style={{
@@ -1738,24 +1711,24 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 fontWeight: 700,
                 color: hasAnomaly ? T.warning : T.nominal,
               }}>
-                {hasAnomaly ? '1 ATTENTION / 3 NOM' : '4/4 NOMINAL'}
+                {hasAnomaly ? '1 ATTENTION' : 'NOMINAL'}
               </span>
             </div>
 
             {/* 2. ECLSS Habitat Pill */}
             <div style={{
-              background: 'rgba(255, 255, 255, 0.025)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              borderRadius: 6,
+              background: '#07090c',
+              border: co2Val > 3.0 ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid #1c2633',
+              borderRadius: 5,
               padding: '7px 12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Dot color={co2Val > 3.0 ? T.warning : T.nominal} size={6} />
+                <Dot color={co2Val > 3.0 ? '#ef4444' : T.nominal} size={6} />
                 <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 700, color: '#94a3b8' }}>
-                  ECLSS HABITAT
+                  ECLSS
                 </span>
               </div>
               <span style={{
@@ -1764,15 +1737,15 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 fontWeight: 700,
                 color: co2Val > 3.0 ? '#ef4444' : '#f8fafc',
               }}>
-                101.3 kPa · CO₂ {co2Val.toFixed(2)} mmHg
+                CO₂ {co2Val.toFixed(2)} mmHg
               </span>
             </div>
 
             {/* 3. Power & Thermal Pill */}
             <div style={{
-              background: 'rgba(255, 255, 255, 0.025)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              borderRadius: 6,
+              background: '#07090c',
+              border: '1px solid #1c2633',
+              borderRadius: 5,
               padding: '7px 12px',
               display: 'flex',
               alignItems: 'center',
@@ -1781,7 +1754,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Dot color={T.nominal} size={6} />
                 <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 700, color: '#94a3b8' }}>
-                  POWER &amp; THERMAL
+                  POWER
                 </span>
               </div>
               <span style={{
@@ -1790,15 +1763,15 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 fontWeight: 700,
                 color: '#f8fafc',
               }}>
-                EPS 28.4V · 21.4°C
+                EPS 28.4 V
               </span>
             </div>
 
             {/* 4. Deep Space Network Pill */}
             <div style={{
-              background: 'rgba(255, 255, 255, 0.025)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              borderRadius: 6,
+              background: '#07090c',
+              border: activeDSN.snr > 30 ? '1px solid #1c2633' : '1px solid rgba(245, 158, 11, 0.40)',
+              borderRadius: 5,
               padding: '7px 12px',
               display: 'flex',
               alignItems: 'center',
@@ -1807,7 +1780,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Dot color={activeDSN.snr > 30 ? T.nominal : T.warning} size={6} />
                 <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 700, color: '#94a3b8' }}>
-                  DSN {activeDSN.name.split(' ')[0]}
+                  COMMS
                 </span>
               </div>
               <span style={{
@@ -1816,14 +1789,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 fontWeight: 700,
                 color: '#f8fafc',
               }}>
-                {prop.owFmt} OWLT · 10 Hz Lock
+                10 Hz LOCK
               </span>
             </div>
           </div>
         </div>
 
         {/* ─── 2. CABIN ECLSS ENVIRONMENTAL TELEMETRY RIBBON ─── */}
-        <div style={{ borderRadius: 6, overflow: 'hidden', border: `1px solid ${T.borderSubtle}` }}>
+        <div style={{ width: '100%' }}>
           <CabinEnvironmentalBar
             telemetryMap={telemetryMap}
             currentScenario={currentScenario}
@@ -1846,85 +1819,96 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         {/* ─── 4. OPERATIONAL ENVIRONMENTAL & DOSIMETRY MONITORING SUITE ─── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 14 }}>
           {/* Graph 1: Mission Longitudinal Trajectory (Space Radiation Environment & Cumulative Dose) */}
-          <div style={cardStyle}>
-            {(() => {
-              const liveFlux = anyPkt?.radiation_flux !== undefined
-                ? anyPkt.radiation_flux
-                : (currentScenario && (currentScenario.includes('RADIATION') || currentScenario.includes('SOLAR')) ? 42.5 : 1.24);
-              const liveDoseGy = anyPkt?.radiation_dose_gy !== undefined
-                ? anyPkt.radiation_dose_gy
-                : (currentScenario && (currentScenario.includes('RADIATION') || currentScenario.includes('SOLAR')) ? 0.184 : 0.1424);
-              const liveDoseMsv = liveDoseGy * 1000;
-              const isSpeEvent = liveFlux > 5.0 || (currentScenario && (currentScenario.includes('RADIATION') || currentScenario.includes('SOLAR')));
+          {(() => {
+            const liveFlux = anyPkt?.radiation_flux !== undefined
+              ? anyPkt.radiation_flux
+              : (currentScenario && (currentScenario.includes('RADIATION') || currentScenario.includes('SOLAR')) ? 42.5 : 1.24);
+            const liveDoseGy = anyPkt?.radiation_dose_gy !== undefined
+              ? anyPkt.radiation_dose_gy
+              : (currentScenario && (currentScenario.includes('RADIATION') || currentScenario.includes('SOLAR')) ? 0.184 : 0.1424);
+            const liveDoseMsv = liveDoseGy * 1000;
+            const isSpeEvent = liveFlux > 5.0 || (currentScenario && (currentScenario.includes('RADIATION') || currentScenario.includes('SOLAR')));
 
-              // Scale: Left Y-axis (Dose: 0 to 250 mSv), Right Y-axis (Flux: 0 to 50 mGy/d)
-              // Plot range: x from 48 to 480 (w=432), y from 30 to 160 (h=130)
-              const doseToY = (d: number) => 160 - (Math.min(250, Math.max(0, d)) / 250) * 130;
-              const fluxToY = (f: number) => 160 - (Math.min(50, Math.max(0, f)) / 50) * 130;
+            // Scale: Left Y-axis (Dose: 0 to 250 mSv), Right Y-axis (Flux: 0 to 50 mGy/d)
+            // Plot range: x from 48 to 480 (w=432), y from 30 to 160 (h=130)
+            const doseToY = (d: number) => 160 - (Math.min(250, Math.max(0, d)) / 250) * 130;
+            const fluxToY = (f: number) => 160 - (Math.min(50, Math.max(0, f)) / 50) * 130;
 
-              const nowDoseY = doseToY(liveDoseMsv);
-              const nowFluxY = fluxToY(liveFlux);
+            const nowDoseY = doseToY(liveDoseMsv);
+            const nowFluxY = fluxToY(liveFlux);
 
-              // Helper: Smooth Catmull-Rom cubic Bezier spline generator
-              const getSpline = (pts: { x: number; y: number }[], tension = 0.5) => {
-                if (pts.length < 2) return '';
-                let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-                for (let i = 0; i < pts.length - 1; i++) {
-                  const p0 = pts[i === 0 ? 0 : i - 1];
-                  const p1 = pts[i];
-                  const p2 = pts[i + 1];
-                  const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
-                  const cp1x = p1.x + (p2.x - p0.x) * (tension / 3);
-                  const cp1y = p1.y + (p2.y - p0.y) * (tension / 3);
-                  const cp2x = p2.x - (p3.x - p1.x) * (tension / 3);
-                  const cp2y = p2.y - (p3.y - p1.y) * (tension / 3);
-                  d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-                }
-                return d;
-              };
+            // Helper: Smooth Catmull-Rom cubic Bezier spline generator
+            const getSpline = (pts: { x: number; y: number }[], tension = 0.5) => {
+              if (pts.length < 2) return '';
+              let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+              for (let i = 0; i < pts.length - 1; i++) {
+                const p0 = pts[i === 0 ? 0 : i - 1];
+                const p1 = pts[i];
+                const p2 = pts[i + 1];
+                const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+                const cp1x = p1.x + (p2.x - p0.x) * (tension / 3);
+                const cp1y = p1.y + (p2.y - p0.y) * (tension / 3);
+                const cp2x = p2.x - (p3.x - p1.x) * (tension / 3);
+                const cp2y = p2.y - (p3.y - p1.y) * (tension / 3);
+                d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+              }
+              return d;
+            };
 
-              // Cumulative Dose Multi-Milestone Trajectory (monotonic physical tissue dose)
-              const dosePoints = [
-                { x: 48, y: 160.0 }, // FD-01 Launch
-                { x: 85, y: doseToY(18.2) }, // FD-04 Van Allen exit
-                { x: 135, y: doseToY(28.0) }, // FD-25 Translunar Drift
-                { x: 185, y: doseToY(40.5) }, // FD-45 Lunar Flyby
-                { x: 245, y: doseToY(63.0) }, // FD-80 Deep Space Cruise
-                { x: 310, y: doseToY(98.5) }, // FD-112 SPE Flare step
-                { x: 360, y: doseToY(108.0) }, // FD-135 Recovery
-                { x: 415, y: doseToY(124.5) }, // FD-160 Deep Transit
-                { x: 480, y: nowDoseY }, // FD-184 Today
-              ];
+            // Cumulative Dose Multi-Milestone Trajectory (monotonic physical tissue dose)
+            const dosePoints = [
+              { x: 48, y: 160.0 }, // FD-01 Launch
+              { x: 85, y: doseToY(18.2) }, // FD-04 Van Allen exit
+              { x: 135, y: doseToY(28.0) }, // FD-25 Translunar Drift
+              { x: 185, y: doseToY(40.5) }, // FD-45 Lunar Flyby
+              { x: 245, y: doseToY(63.0) }, // FD-80 Deep Space Cruise
+              { x: 310, y: doseToY(98.5) }, // FD-112 SPE Flare step
+              { x: 360, y: doseToY(108.0) }, // FD-135 Recovery
+              { x: 415, y: doseToY(124.5) }, // FD-160 Deep Transit
+              { x: 480, y: nowDoseY }, // FD-184 Today
+            ];
 
-              // Real-Time & Historical Ambient Flux Trajectory
-              const fluxPoints = [
-                { x: 48, y: fluxToY(0.2) },
-                { x: 85, y: fluxToY(8.5) }, // Van Allen
-                { x: 110, y: fluxToY(1.3) },
-                { x: 185, y: fluxToY(1.24) },
-                { x: 245, y: fluxToY(1.24) },
-                { x: 300, y: fluxToY(2.1) },
-                { x: 310, y: fluxToY(34.0) }, // Historical SPE peak
-                { x: 325, y: fluxToY(6.5) },
-                { x: 345, y: fluxToY(1.3) },
-                { x: 415, y: fluxToY(1.24) },
-                ...(isSpeEvent
-                  ? [
-                      { x: 445, y: fluxToY(Math.min(liveFlux * 0.35, 18.0)) },
-                      { x: 465, y: fluxToY(Math.min(liveFlux * 0.75, 36.0)) },
-                      { x: 480, y: nowFluxY },
-                    ]
-                  : [
-                      { x: 450, y: fluxToY(1.24) },
-                      { x: 480, y: nowFluxY },
-                    ]),
-              ];
+            // Real-Time & Historical Ambient Flux Trajectory
+            const fluxPoints = [
+              { x: 48, y: fluxToY(0.2) },
+              { x: 85, y: fluxToY(8.5) }, // Van Allen
+              { x: 110, y: fluxToY(1.3) },
+              { x: 185, y: fluxToY(1.24) },
+              { x: 245, y: fluxToY(1.24) },
+              { x: 300, y: fluxToY(2.1) },
+              { x: 310, y: fluxToY(34.0) }, // Historical SPE peak
+              { x: 325, y: fluxToY(6.5) },
+              { x: 345, y: fluxToY(1.3) },
+              { x: 415, y: fluxToY(1.24) },
+              ...(isSpeEvent
+                ? [
+                    { x: 445, y: fluxToY(Math.min(liveFlux * 0.35, 18.0)) },
+                    { x: 465, y: fluxToY(Math.min(liveFlux * 0.75, 36.0)) },
+                    { x: 480, y: nowFluxY },
+                  ]
+                : [
+                    { x: 450, y: fluxToY(1.24) },
+                    { x: 480, y: nowFluxY },
+                  ]),
+            ];
 
-              const doseSpline = getSpline(dosePoints, 0.4);
-              const doseArea = `${doseSpline} L 480 160 L 48 160 Z`;
-              const fluxSpline = getSpline(fluxPoints, 0.4);
+            const doseSpline = getSpline(dosePoints, 0.4);
+            const doseArea = `${doseSpline} L 480 160 L 48 160 Z`;
+            const fluxSpline = getSpline(fluxPoints, 0.4);
 
-              return (
+            return (
+              <div style={{
+                ...cardStyle,
+                background: isSpeEvent
+                  ? 'linear-gradient(180deg, #1f1518 0%, #100d0f 100%)'
+                  : 'linear-gradient(180deg, #181d22 0%, #0f1316 100%)',
+                border: isSpeEvent
+                  ? '1px solid rgba(239, 68, 68, 0.45)'
+                  : `1px solid ${T.border}`,
+                boxShadow: isSpeEvent
+                  ? '0 4px 20px rgba(239, 68, 68, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+                  : cardStyle.boxShadow,
+              }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                     <div>
@@ -2050,112 +2034,144 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     </svg>
                   </div>
 
-                  {/* Operational Metrics Footer */}
+                  {/* Operational Metrics Footer in Recessed Contrast Wells */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 4, paddingTop: 6, borderTop: `1px solid ${T.borderSubtle}` }}>
-                    <div>
+                    <div style={{
+                      background: '#090d12',
+                      border: `1px solid ${T.borderSubtle}`,
+                      borderRadius: 4,
+                      padding: '7px 10px',
+                    }}>
                       <div style={{ fontSize: 9, color: T.textMuted }}>Cumulative Tissue Dose</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: '#e6a83c' }}>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: '#e6a83c', marginTop: 2 }}>
                         {liveDoseMsv.toFixed(1)} mSv
                       </div>
-                      <div style={{ fontSize: 8.5, color: T.nominal }}>
+                      <div style={{ fontSize: 8.5, color: T.nominal, marginTop: 2 }}>
                         Career Margin: +{(600 - liveDoseMsv).toFixed(1)} mSv (Safe)
                       </div>
                     </div>
-                    <div>
+                    <div style={{
+                      background: isSpeEvent ? 'rgba(239, 68, 68, 0.08)' : '#090d12',
+                      border: `1px solid ${isSpeEvent ? 'rgba(239, 68, 68, 0.40)' : T.borderSubtle}`,
+                      borderRadius: 4,
+                      padding: '7px 10px',
+                    }}>
                       <div style={{ fontSize: 9, color: T.textMuted }}>Ambient Proton Flux</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isSpeEvent ? '#ef4444' : '#38bdf8' }}>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isSpeEvent ? '#ef4444' : '#38bdf8', marginTop: 2 }}>
                         {liveFlux.toFixed(2)} mGy/d
                       </div>
-                      <div style={{ fontSize: 8.5, color: isSpeEvent ? '#ef4444' : T.textMuted }}>
+                      <div style={{ fontSize: 8.5, color: isSpeEvent ? '#ef4444' : T.textMuted, marginTop: 2 }}>
                         {isSpeEvent ? 'CRITICAL: High Solar Particle Event' : 'GCR Quiet Baseline Corridor'}
                       </div>
                     </div>
-                    <div>
+                    <div style={{
+                      background: isSpeEvent ? 'rgba(239, 68, 68, 0.08)' : '#090d12',
+                      border: `1px solid ${isSpeEvent ? 'rgba(239, 68, 68, 0.40)' : T.borderSubtle}`,
+                      borderRadius: 4,
+                      padding: '7px 10px',
+                    }}>
                       <div style={{ fontSize: 9, color: T.textMuted }}>Vehicle Shielding Status</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isSpeEvent ? '#ef4444' : '#4ade80' }}>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isSpeEvent ? '#ef4444' : '#4ade80', marginTop: 2 }}>
                         {isSpeEvent ? 'STORM SHELTER' : 'PASSIVE HULL'}
                       </div>
-                      <div style={{ fontSize: 8.5, color: T.textMuted }}>
+                      <div style={{ fontSize: 8.5, color: T.textMuted, marginTop: 2 }}>
                         {isSpeEvent ? 'Water Wall Retraction Active' : 'Polyethylene Core Nominal'}
                       </div>
                     </div>
                   </div>
                 </div>
-              );
-            })()}
-          </div>
+              </div>
+            );
+          })()}
 
           {/* Graph 2: Continuous 24-Hour ECLSS Cabin Habitat ppCO2 Flight Rule Dynamics */}
-          <div style={cardStyle}>
-            {(() => {
-              const isBreach = co2Val > 3.0;
-              const isElevated = co2Val > 2.0;
+          {(() => {
+            const isBreach = co2Val > 3.0;
+            const isElevated = co2Val > 2.0;
 
-              // Left Y-axis (Cabin ppCO2 in mmHg, range 0 to 6.0 mmHg)
-              // Plot range: x from 44 to 470 (w=426), y from 30 to 160 (h=130)
-              const co2ToY = (c: number) => 160 - (Math.min(6.0, Math.max(0, c)) / 6.0) * 130;
-              const nowCo2Y = co2ToY(co2Val);
+            // Left Y-axis (Cabin ppCO2 in mmHg, range 0 to 6.0 mmHg)
+            // Plot range: x from 44 to 470 (w=426), y from 30 to 160 (h=130)
+            const co2ToY = (c: number) => 160 - (Math.min(6.0, Math.max(0, c)) / 6.0) * 130;
+            const nowCo2Y = co2ToY(co2Val);
 
-              // Helper: Smooth Catmull-Rom cubic Bezier spline generator
-              const getSpline = (pts: { x: number; y: number }[], tension = 0.5) => {
-                if (pts.length < 2) return '';
-                let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-                for (let i = 0; i < pts.length - 1; i++) {
-                  const p0 = pts[i === 0 ? 0 : i - 1];
-                  const p1 = pts[i];
-                  const p2 = pts[i + 1];
-                  const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
-                  const cp1x = p1.x + (p2.x - p0.x) * (tension / 3);
-                  const cp1y = p1.y + (p2.y - p0.y) * (tension / 3);
-                  const cp2x = p2.x - (p3.x - p1.x) * (tension / 3);
-                  const cp2y = p2.y - (p3.y - p1.y) * (tension / 3);
-                  d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-                }
-                return d;
-              };
-
-              // Generate 25 smooth hourly points modeling authentic 140-minute CDRA molecular sieve cycles
-              const co2Points: { x: number; y: number }[] = [];
-              for (let t = 0; t <= 24; t++) {
-                const x = 44 + (t / 24) * 426;
-                // CDRA 140-minute bed half-cycle wave (period ~ 2.33 hours, amplitude ~ 0.10 mmHg)
-                const cdraWave = Math.sin((t / 2.33) * Math.PI * 2) * 0.10;
-                // Crew circadian metabolic production cycle
-                const diurnal = 0.05 * Math.sin(((t - 6) / 24) * Math.PI * 2);
-                const nominalBaseline = 1.76 + diurnal + cdraWave;
-
-                let pointVal = nominalBaseline;
-                if (isBreach || (currentScenario && currentScenario.includes('CO2'))) {
-                  // Scrubber breakthrough / saturation accumulation over last 7 hours (t >= 17)
-                  if (t >= 17) {
-                    const u = (t - 17) / 7;
-                    const blend = u * u * (3 - 2 * u); // Smooth Hermite transition
-                    const preFailure = 1.76 + diurnal;
-                    pointVal = preFailure * (1 - blend) + co2Val * blend;
-                  }
-                } else if (isElevated) {
-                  // Moderate elevation ramp over last 5 hours
-                  if (t >= 19) {
-                    const u = (t - 19) / 5;
-                    const blend = u * u * (3 - 2 * u);
-                    pointVal = nominalBaseline * (1 - blend) + co2Val * blend;
-                  }
-                } else {
-                  // Nominal gentle convergence to live co2Val over the last 3 hours
-                  if (t >= 21) {
-                    const u = (t - 21) / 3;
-                    const blend = u * u * (3 - 2 * u);
-                    pointVal = nominalBaseline + (co2Val - nominalBaseline) * blend;
-                  }
-                }
-                if (t === 24) pointVal = co2Val;
-                co2Points.push({ x, y: co2ToY(pointVal) });
+            // Helper: Smooth Catmull-Rom cubic Bezier spline generator
+            const getSpline = (pts: { x: number; y: number }[], tension = 0.5) => {
+              if (pts.length < 2) return '';
+              let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+              for (let i = 0; i < pts.length - 1; i++) {
+                const p0 = pts[i === 0 ? 0 : i - 1];
+                const p1 = pts[i];
+                const p2 = pts[i + 1];
+                const p3 = pts[i + 2 < pts.length ? i + 2 : i + 1];
+                const cp1x = p1.x + (p2.x - p0.x) * (tension / 3);
+                const cp1y = p1.y + (p2.y - p0.y) * (tension / 3);
+                const cp2x = p2.x - (p3.x - p1.x) * (tension / 3);
+                const cp2y = p2.y - (p3.y - p1.y) * (tension / 3);
+                d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
               }
+              return d;
+            };
 
-              const co2Spline = getSpline(co2Points, 0.45);
-              const co2Area = `${co2Spline} L 470 160 L 44 160 Z`;
+            // Generate 25 smooth hourly points modeling authentic 140-minute CDRA molecular sieve cycles
+            const co2Points: { x: number; y: number }[] = [];
+            for (let t = 0; t <= 24; t++) {
+              const x = 44 + (t / 24) * 426;
+              // CDRA 140-minute bed half-cycle wave (period ~ 2.33 hours, amplitude ~ 0.10 mmHg)
+              const cdraWave = Math.sin((t / 2.33) * Math.PI * 2) * 0.10;
+              // Crew circadian metabolic production cycle
+              const diurnal = 0.05 * Math.sin(((t - 6) / 24) * Math.PI * 2);
+              const nominalBaseline = 1.76 + diurnal + cdraWave;
 
-              return (
+              let pointVal = nominalBaseline;
+              if (isBreach || (currentScenario && currentScenario.includes('CO2'))) {
+                // Scrubber breakthrough / saturation accumulation over last 7 hours (t >= 17)
+                if (t >= 17) {
+                  const u = (t - 17) / 7;
+                  const blend = u * u * (3 - 2 * u); // Smooth Hermite transition
+                  const preFailure = 1.76 + diurnal;
+                  pointVal = preFailure * (1 - blend) + co2Val * blend;
+                }
+              } else if (isElevated) {
+                // Moderate elevation ramp over last 5 hours
+                if (t >= 19) {
+                  const u = (t - 19) / 5;
+                  const blend = u * u * (3 - 2 * u);
+                  pointVal = nominalBaseline * (1 - blend) + co2Val * blend;
+                }
+              } else {
+                // Nominal gentle convergence to live co2Val over the last 3 hours
+                if (t >= 21) {
+                  const u = (t - 21) / 3;
+                  const blend = u * u * (3 - 2 * u);
+                  pointVal = nominalBaseline + (co2Val - nominalBaseline) * blend;
+                }
+              }
+              if (t === 24) pointVal = co2Val;
+              co2Points.push({ x, y: co2ToY(pointVal) });
+            }
+
+            const co2Spline = getSpline(co2Points, 0.45);
+            const co2Area = `${co2Spline} L 470 160 L 44 160 Z`;
+
+            return (
+              <div style={{
+                ...cardStyle,
+                background: isBreach
+                  ? 'linear-gradient(180deg, #1f1518 0%, #100d0f 100%)'
+                  : isElevated
+                  ? 'linear-gradient(180deg, #1c1913 0%, #12100a 100%)'
+                  : 'linear-gradient(180deg, #181d22 0%, #0f1316 100%)',
+                border: isBreach
+                  ? '1px solid rgba(239, 68, 68, 0.45)'
+                  : isElevated
+                  ? '1px solid rgba(245, 158, 11, 0.40)'
+                  : `1px solid ${T.border}`,
+                boxShadow: isBreach
+                  ? '0 4px 20px rgba(239, 68, 68, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+                  : isElevated
+                  ? '0 4px 20px rgba(245, 158, 11, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+                  : cardStyle.boxShadow,
+              }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                     <div>
@@ -2249,40 +2265,55 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     </svg>
                   </div>
 
-                  {/* Environmental Flight Rule Status Footer */}
+                  {/* Environmental Flight Rule Status Footer in Recessed Contrast Wells */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 4, paddingTop: 6, borderTop: `1px solid ${T.borderSubtle}` }}>
-                    <div>
+                    <div style={{
+                      background: isBreach ? 'rgba(239, 68, 68, 0.08)' : '#090d12',
+                      border: `1px solid ${isBreach ? 'rgba(239, 68, 68, 0.40)' : T.borderSubtle}`,
+                      borderRadius: 4,
+                      padding: '7px 10px',
+                    }}>
                       <div style={{ fontSize: 9, color: T.textMuted }}>Flight Rule Compliance</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#ef4444' : '#4ade80' }}>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#ef4444' : '#4ade80', marginTop: 2 }}>
                         {isBreach ? `EXCEEDED (+${(co2Val - 3.0).toFixed(2)})` : `NOMINAL (3.00 Max)`}
                       </div>
-                      <div style={{ fontSize: 8.5, color: isBreach ? '#ef4444' : T.nominal }}>
+                      <div style={{ fontSize: 8.5, color: isBreach ? '#ef4444' : T.nominal, marginTop: 2 }}>
                         {isBreach ? '1-Hour Safe Exposure Window Active' : `Margin: +${(3.0 - co2Val).toFixed(2)} mmHg`}
                       </div>
                     </div>
-                    <div>
+                    <div style={{
+                      background: isBreach ? 'rgba(239, 68, 68, 0.08)' : '#090d12',
+                      border: `1px solid ${isBreach ? 'rgba(239, 68, 68, 0.40)' : T.borderSubtle}`,
+                      borderRadius: 4,
+                      padding: '7px 10px',
+                    }}>
                       <div style={{ fontSize: 9, color: T.textMuted }}>CDRA Scrubber Assembly</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#ef4444' : '#f8fafc' }}>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#ef4444' : '#f8fafc', marginTop: 2 }}>
                         {isBreach ? 'BED A SATURATED' : 'BED A/B CYCLING'}
                       </div>
-                      <div style={{ fontSize: 8.5, color: isBreach ? '#ef4444' : T.textMuted }}>
+                      <div style={{ fontSize: 8.5, color: isBreach ? '#ef4444' : T.textMuted, marginTop: 2 }}>
                         {isBreach ? 'Action: Cycle Bed B Bypass' : '140-Min Desorb Half-Cycle'}
                       </div>
                     </div>
-                    <div>
+                    <div style={{
+                      background: isBreach ? 'rgba(245, 158, 11, 0.08)' : '#090d12',
+                      border: `1px solid ${isBreach ? 'rgba(245, 158, 11, 0.40)' : T.borderSubtle}`,
+                      borderRadius: 4,
+                      padding: '7px 10px',
+                    }}>
                       <div style={{ fontSize: 9, color: T.textMuted }}>Contingency LiOH Reserves</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#f59e0b' : '#4ade80' }}>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#f59e0b' : '#4ade80', marginTop: 2 }}>
                         {isBreach ? 'ARM CANISTERS' : '6 CANISTERS SEALED'}
                       </div>
-                      <div style={{ fontSize: 8.5, color: T.textMuted }}>
+                      <div style={{ fontSize: 8.5, color: T.textMuted, marginTop: 2 }}>
                         {isBreach ? 'Manual Installation Directive' : '100% Reserve Capacity'}
                       </div>
                     </div>
                   </div>
                 </div>
-              );
-            })()}
-          </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     );

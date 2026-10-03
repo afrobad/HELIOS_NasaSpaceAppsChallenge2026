@@ -118,10 +118,24 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
     <div
       style={{
         width: '100%',
-        backgroundColor: '#090a0d',
-        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+        background: hazardStatus.severity === 'CRITICAL'
+          ? 'linear-gradient(180deg, #1f1518 0%, #120e10 100%)'
+          : hazardStatus.severity === 'WARNING'
+          ? 'linear-gradient(180deg, #1c1913 0%, #12100a 100%)'
+          : 'linear-gradient(180deg, #181d22 0%, #0f1316 100%)',
+        border: hazardStatus.severity === 'CRITICAL'
+          ? '1px solid rgba(239, 68, 68, 0.45)'
+          : hazardStatus.severity === 'WARNING'
+          ? '1px solid rgba(245, 158, 11, 0.40)'
+          : '1px solid #283548',
+        borderRadius: 6,
+        boxShadow: hazardStatus.severity === 'CRITICAL'
+          ? '0 4px 20px rgba(239, 68, 68, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+          : hazardStatus.severity === 'WARNING'
+          ? '0 4px 20px rgba(245, 158, 11, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+          : '0 2px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
     >
       <div
