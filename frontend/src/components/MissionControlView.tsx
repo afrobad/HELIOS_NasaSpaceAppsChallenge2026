@@ -1179,219 +1179,643 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* ─── 1. TOP OPERATIONAL INCIDENT & MISSION SYNOPTIC ANCHOR ─── */}
-        <div style={{ ...cardStyle, padding: '10px 14px', background: 'linear-gradient(180deg, #181d22 0%, #0f1216 100%)' }}>
-          {/* Active Incident Dominant Banner — Elegantly Structured, High Visibility & NO Em Dash */}
-          {hasAnomaly && primaryAlert ? (
-            <div style={{
-              background: 'rgba(239, 68, 68, 0.05)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
-              borderRadius: 4,
-              padding: '8px 12px',
-              marginBottom: 10,
-            }}>
-              {/* Top Row: Severity + Target Entity + Incident Title + Trajectory + Investigate Action */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                flexWrap: 'nowrap',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {/* Severity Badge */}
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    background: '#ef4444',
-                    color: '#ffffff',
-                    fontSize: 9,
-                    fontWeight: 800,
-                    padding: '2px 7px',
-                    borderRadius: 3,
-                    letterSpacing: '0.06em',
-                    fontFamily: T.mono,
-                  }}>
-                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#ffffff' }} />
-                    {primaryAlert.priority}
-                  </span>
+        <div style={{
+          ...cardStyle,
+          padding: '12px 16px',
+          background: 'linear-gradient(180deg, #181d22 0%, #0d1013 100%)',
+          border: hasAnomaly ? '1px solid rgba(239, 68, 68, 0.45)' : `1px solid ${T.border}`,
+          boxShadow: hasAnomaly ? '0 4px 20px rgba(239, 68, 68, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05)' : cardStyle.boxShadow,
+        }}>
+          {hasAnomaly && primaryAlert ? (() => {
+            const targetAstId = primaryAlert.astronautId || 'AST-02_PILOT';
+            const targetCrew = CREW.find(c => c.id === targetAstId) || CREW[1];
+            const targetPkt = telemetryMap[targetAstId] || anyPkt;
+            const scenKey = currentScenario || targetPkt?.scenario_phase || 'NOMINAL_CRUISE';
+            const isHypo = scenKey.includes('HYPOKALEMIA') || (targetPkt?.potassium !== undefined && targetPkt.potassium < 3.5) || primaryAlert.id.includes('HYPO') || primaryAlert.summary.toLowerCase().includes('hypokalem');
+            const isRad = scenKey.includes('RADIATION') || scenKey.includes('SOLAR') || (targetPkt?.radiation_flux !== undefined && targetPkt.radiation_flux > 5.0) || primaryAlert.id.includes('RAD');
+            const isThromb = scenKey.includes('THROMBOSIS') || (targetPkt?.computed_trm !== undefined && targetPkt.computed_trm > 1.6) || primaryAlert.id.includes('THROMB');
+            const isCo2Breach = scenKey.includes('CO2') || co2Val > 3.0 || primaryAlert.id.includes('CO2') || primaryAlert.summary.toLowerCase().includes('co2');
+            const isAmmonia = scenKey.includes('AMMONIA') || primaryAlert.id.includes('AMMONIA');
 
-                  {/* Target Scope Pill */}
-                  <span style={{
-                    background: '#090d12',
-                    color: '#94a3b8',
-                    border: '1px solid #1e293b',
-                    fontSize: 9,
-                    fontWeight: 700,
-                    padding: '2px 7px',
-                    borderRadius: 3,
-                    fontFamily: T.mono,
-                    letterSpacing: '0.03em',
-                  }}>
-                    {primaryAlert.entity.toUpperCase()}
-                  </span>
+            // Clean title: Strip raw parentheses formulas like "(492.0ms, K+=2.95 mmol/L, ARF=1.75)."
+            const cleanSummary = primaryAlert.summary.replace(/\s*\([^)]*\)\.?$/, '').trim();
+            let mainTitle = cleanSummary;
+            let subTitle = '';
+            if (cleanSummary.includes(':')) {
+              const parts = cleanSummary.split(':');
+              mainTitle = parts[0].trim();
+              subTitle = parts.slice(1).join(':').trim();
+            } else if (cleanSummary.includes('·')) {
+              const parts = cleanSummary.split('·');
+              mainTitle = parts[0].trim();
+              subTitle = parts.slice(1).join('·').trim();
+            }
 
-                  {/* Clean Incident Title (NO EM DASH!) */}
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: '#f8fafc', letterSpacing: '0.01em' }}>
-                    {primaryAlert.summary}
-                  </span>
+            // Derive key metrics for the 4 prominent cards
+            const targetHr = targetPkt ? Math.round(targetPkt.heart_rate) : 108;
+            const targetHrD = ((targetHr - targetCrew.baseHr) / targetCrew.baseHr) * 100;
+            const targetK = targetPkt?.potassium !== undefined ? targetPkt.potassium : 2.95;
+            const targetQtc = targetPkt?.computed_qtc || 492;
+            const targetArf = targetPkt?.computed_arf || 1.75;
+            const targetFlux = targetPkt?.radiation_flux || 42.5;
+            const targetDose = targetPkt?.radiation_dose_gy || 0.082;
+            const targetTrm = targetPkt?.computed_trm || 2.15;
+            const targetHct = targetPkt?.hematocrit || 48.5;
+            const targetPlt = targetPkt?.platelet_count || 365;
+            const targetSpo2 = targetPkt?.spo2 || 94.2;
+            const targetResp = targetPkt
+              ? (targetPkt.heart_rate > targetCrew.baseHr + 20 ? Math.round(targetCrew.baseResp * 1.35) : Math.round(targetCrew.baseResp * (targetPkt.heart_rate / targetCrew.baseHr)))
+              : 24;
 
-                  {/* Trajectory / Rate Chip */}
-                  <span style={{
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    color: '#fca5a5',
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                    fontSize: 8.5,
-                    fontWeight: 700,
-                    padding: '1px 6px',
-                    borderRadius: 3,
-                    fontFamily: T.mono,
-                  }}>
-                    {primaryAlert.trajectory} (+2.4 bpm/min)
-                  </span>
+            interface DiagnosticTile {
+              label: string;
+              value: string;
+              unit: string;
+              status: string;
+              reference: string;
+              color: string;
+            }
+
+            let tiles: DiagnosticTile[] = [];
+
+            if (isHypo) {
+              tiles = [
+                {
+                  label: 'SERUM POTASSIUM (K⁺)',
+                  value: targetK.toFixed(2),
+                  unit: 'mmol/L',
+                  status: 'CRITICAL DEFICIT',
+                  reference: 'Floor Limit: 3.50',
+                  color: '#ef4444',
+                },
+                {
+                  label: 'FRIDERICIA QTc INTERVAL',
+                  value: Math.round(targetQtc).toString(),
+                  unit: 'ms',
+                  status: `PROLONGED (+${Math.max(0, Math.round(targetQtc - 450))} ms)`,
+                  reference: 'Flight Limit: < 450 ms',
+                  color: '#ef4444',
+                },
+                {
+                  label: 'ARRHYTHMIA RISK (ARF)',
+                  value: targetArf.toFixed(2),
+                  unit: 'INDEX',
+                  status: 'HIGH ECTOPIC RISK',
+                  reference: 'Safe Ceiling: < 1.00',
+                  color: '#f59e0b',
+                },
+                {
+                  label: 'HEART RATE (ECG II)',
+                  value: targetHr.toString(),
+                  unit: 'bpm',
+                  status: `${targetHrD >= 0 ? '+' : ''}${targetHrD.toFixed(1)}% vs Base`,
+                  reference: `Baseline: ${targetCrew.baseHr} bpm`,
+                  color: Math.abs(targetHrD) > 15 ? '#f59e0b' : '#38bdf8',
+                },
+              ];
+            } else if (isCo2Breach) {
+              tiles = [
+                {
+                  label: 'CABIN CO₂ PARTIAL PRESSURE',
+                  value: co2Val.toFixed(2),
+                  unit: 'mmHg',
+                  status: `LIMIT BREACH (+${Math.max(0, Math.round(((co2Val - 3.0) / 3.0) * 100))}%)`,
+                  reference: 'Flight Rule: < 3.00 mmHg',
+                  color: '#ef4444',
+                },
+                {
+                  label: 'CDRA SCRUBBER ASSEMBLY',
+                  value: 'BED A',
+                  unit: 'SATURATED',
+                  status: 'BREAKTHROUGH DETECTED',
+                  reference: 'Action: Cycle Bed B / Arm LiOH',
+                  color: '#ef4444',
+                },
+                {
+                  label: 'CREW COMPENSATORY HR',
+                  value: targetHr.toString(),
+                  unit: 'bpm',
+                  status: `${targetHrD >= 0 ? '+' : ''}${targetHrD.toFixed(1)}% ELEVATION`,
+                  reference: `Baseline: ${targetCrew.baseHr} bpm`,
+                  color: '#f59e0b',
+                },
+                {
+                  label: 'RESPIRATION FREQUENCY',
+                  value: targetResp.toString(),
+                  unit: 'br/min',
+                  status: 'HYPERVENTILATION',
+                  reference: 'Baseline: 15 br/min',
+                  color: '#f59e0b',
+                },
+              ];
+            } else if (isRad) {
+              tiles = [
+                {
+                  label: 'HERA SILICON PROTON FLUX',
+                  value: targetFlux.toFixed(1),
+                  unit: 'mGy/d',
+                  status: 'CRITICAL SPE SPIKE',
+                  reference: 'GCR Baseline: 1.24 mGy/d',
+                  color: '#ef4444',
+                },
+                {
+                  label: 'CUMULATIVE TISSUE DOSE',
+                  value: (targetDose * 1000).toFixed(0),
+                  unit: 'mSv',
+                  status: 'ACCUMULATING RAPIDLY',
+                  reference: 'Career Limit: 600 mSv',
+                  color: '#f59e0b',
+                },
+                {
+                  label: 'RADIATION SUSCEPTIBILITY',
+                  value: (targetPkt?.computed_rsi || 0.68).toFixed(2),
+                  unit: 'RSI',
+                  status: 'HIGH VULNERABILITY',
+                  reference: 'Safe Margin: < 0.20',
+                  color: '#ef4444',
+                },
+                {
+                  label: 'STORM SHELTER DIRECTIVE',
+                  value: 'DEPLOY',
+                  unit: 'WATER WALL',
+                  status: 'IMMEDIATE RETREAT',
+                  reference: 'Procedure: RAD-SPE-01',
+                  color: '#ef4444',
+                },
+              ];
+            } else if (isThromb) {
+              tiles = [
+                {
+                  label: 'THROMBOSIS RISK (TRM)',
+                  value: targetTrm.toFixed(2),
+                  unit: 'INDEX',
+                  status: 'HIGH CLOTTING RISK',
+                  reference: 'Clinical Threshold: < 1.50',
+                  color: '#ef4444',
+                },
+                {
+                  label: 'IJV DOPPLER VELOCITY',
+                  value: '< 4.0',
+                  unit: 'cm/s',
+                  status: 'VENOUS STASIS WAVEFORM',
+                  reference: 'Nominal Flow: > 15 cm/s',
+                  color: '#ef4444',
+                },
+                {
+                  label: 'HEMATOCRIT CONCENTRATION',
+                  value: targetHct.toFixed(1),
+                  unit: '%',
+                  status: 'HEMOCONCENTRATION',
+                  reference: `Baseline: ${targetCrew.id === 'AST-02_PILOT' ? '36.4%' : '43.6%'}`,
+                  color: '#f59e0b',
+                },
+                {
+                  label: 'PLATELET COUNT (PLT)',
+                  value: Math.round(targetPlt).toString(),
+                  unit: 'k/µL',
+                  status: 'HYPERCOAGULABILITY',
+                  reference: 'Nominal: 150 – 400 k/µL',
+                  color: '#f59e0b',
+                },
+              ];
+            } else if (isAmmonia) {
+              tiles = [
+                {
+                  label: 'ATCS EXTERNAL LOOP-A',
+                  value: '-42.0',
+                  unit: 'kPa',
+                  status: 'PRESSURE DECAY',
+                  reference: 'Loop Integrity Breach',
+                  color: '#ef4444',
+                },
+                {
+                  label: 'CABIN NH₃ VAPOR TRACE',
+                  value: '18.4',
+                  unit: 'ppm',
+                  status: 'TOXIC CONCENTRATION',
+                  reference: 'Permissible Ceiling: < 10 ppm',
+                  color: '#ef4444',
+                },
+                {
+                  label: 'CREW OXYGENATION (SpO₂)',
+                  value: targetSpo2.toFixed(1),
+                  unit: '%',
+                  status: 'AIRWAY CONSTRICTION',
+                  reference: 'Baseline: 98.5%',
+                  color: '#ef4444',
+                },
+                {
+                  label: 'POSITIVE PRESSURE MASKS',
+                  value: 'DON PBAS',
+                  unit: 'ALL CREW',
+                  status: 'IMMEDIATE ACTION',
+                  reference: 'Procedure: ECLSS-AMMONIA-01',
+                  color: '#ef4444',
+                },
+              ];
+            } else {
+              tiles = [
+                {
+                  label: 'HEART RATE (ECG II)',
+                  value: targetHr.toString(),
+                  unit: 'bpm',
+                  status: `${targetHrD >= 0 ? '+' : ''}${targetHrD.toFixed(1)}% EXCURSION`,
+                  reference: `Resting Baseline: ${targetCrew.baseHr} bpm`,
+                  color: targetHrD > 25 ? '#ef4444' : '#f59e0b',
+                },
+                {
+                  label: 'PULSE OXIMETRY (SpO₂)',
+                  value: (targetPkt?.spo2 || targetCrew.baseSpo2).toFixed(1),
+                  unit: '%',
+                  status: (targetPkt?.spo2 || targetCrew.baseSpo2) < 95 ? 'MILD DESATURATION' : 'NOMINAL PERFUSION',
+                  reference: `Baseline: ${targetCrew.baseSpo2}%`,
+                  color: (targetPkt?.spo2 || targetCrew.baseSpo2) < 95 ? '#f59e0b' : '#38bdf8',
+                },
+                {
+                  label: 'HRV RMSSD (AUTONOMIC)',
+                  value: Math.round(targetPkt?.hrv_rmssd || targetCrew.baseHrv).toString(),
+                  unit: 'ms',
+                  status: 'SYMPATHETIC STRAIN',
+                  reference: `Baseline: ${targetCrew.baseHrv} ms`,
+                  color: '#f59e0b',
+                },
+                {
+                  label: 'CORE BODY TEMPERATURE',
+                  value: (targetPkt?.core_temp || targetCrew.baseTemp).toFixed(1),
+                  unit: '°C',
+                  status: 'METABOLIC EXCURSION',
+                  reference: `Baseline: ${targetCrew.baseTemp} °C`,
+                  color: '#38bdf8',
+                },
+              ];
+            }
+
+            const procName = primaryAlert.procedure ? primaryAlert.procedure.replace('NASA-STD-3001-', '') : 'MED-CARD-04';
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* ── TOP HEADER ROW: SEVERITY + ENTITY + BIG TITLE + ACTION BUTTON ── */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  flexWrap: 'wrap',
+                }}>
+                  {/* Left: Badges + High-Impact Incident Headline */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    {/* Severity Pill */}
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: primaryAlert.priority === 'CRITICAL' ? '#dc2626' : '#d97706',
+                      color: '#ffffff',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: '3px 9px',
+                      borderRadius: 4,
+                      letterSpacing: '0.08em',
+                      fontFamily: T.mono,
+                      boxShadow: '0 0 12px rgba(220, 38, 38, 0.45)',
+                    }}>
+                      <span style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        background: '#ffffff',
+                      }} />
+                      {primaryAlert.priority}
+                    </span>
+
+                    {/* Target Scope Pill */}
+                    <span style={{
+                      background: 'rgba(56, 189, 248, 0.1)',
+                      color: '#38bdf8',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '3px 9px',
+                      borderRadius: 4,
+                      fontFamily: T.mono,
+                      letterSpacing: '0.04em',
+                    }}>
+                      {primaryAlert.entity.toUpperCase()}
+                    </span>
+
+                    {/* Subsystem Tag */}
+                    <span style={{
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      color: '#94a3b8',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '3px 8px',
+                      borderRadius: 4,
+                      fontFamily: T.mono,
+                    }}>
+                      {primaryAlert.subsystem.toUpperCase()}
+                    </span>
+
+                    {/* Big Incident Headline (Cleaned, High Contrast) */}
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                      <span style={{
+                        fontSize: 15,
+                        fontWeight: 800,
+                        color: '#f8fafc',
+                        letterSpacing: '0.02em',
+                        fontFamily: T.sans,
+                      }}>
+                        {mainTitle}
+                      </span>
+                      {subTitle && (
+                        <span style={{
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: '#94a3b8',
+                          fontFamily: T.sans,
+                        }}>
+                          — {subTitle}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Trajectory Pill */}
+                    <span style={{
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      color: '#fca5a5',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      fontFamily: T.mono,
+                      letterSpacing: '0.03em',
+                    }}>
+                      {primaryAlert.trajectory}
+                    </span>
+                  </div>
+
+                  {/* Right: Operational Age & Action Button */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <div style={{ fontSize: 10, fontFamily: T.mono, color: '#64748b' }}>
+                      ACTIVE: <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{primaryAlert.age}</span>
+                    </div>
+
+                    <button
+                      onClick={() => { setSelEventId(primaryAlert.id); setTab('INVESTIGATE'); }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        background: '#2563eb',
+                        border: '1px solid #60a5fa',
+                        borderRadius: 4,
+                        padding: '6px 14px',
+                        color: '#ffffff',
+                        fontSize: 11,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        fontFamily: T.sans,
+                        letterSpacing: '0.04em',
+                        whiteSpace: 'nowrap',
+                        boxShadow: '0 2px 8px rgba(37, 99, 235, 0.35)',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#1d4ed8')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '#2563eb')}
+                    >
+                      <span>INVESTIGATE EXCURSION →</span>
+                      <span style={{
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        padding: '1px 5px',
+                        borderRadius: 3,
+                        fontSize: 9.5,
+                        fontFamily: T.mono,
+                      }}>
+                        {procName}
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Right: Investigate Excursion Action Button */}
-                <button
-                  onClick={() => { setSelEventId(primaryAlert.id); setTab('INVESTIGATE'); }}
-                  style={{
-                    background: '#1e293b',
-                    border: '1px solid #334155',
-                    borderRadius: 3,
-                    padding: '4px 10px',
-                    color: '#f8fafc',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    fontFamily: T.sans,
-                    letterSpacing: '0.04em',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                    transition: 'all 0.12s ease',
-                  }}
-                >
-                  INVESTIGATE EXCURSION →
-                </button>
+                {/* ── 4 PROMINENT DIAGNOSTIC BIOMARKER TILES (BIGGER NECESSARY INFO) ── */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: 10,
+                }}>
+                  {tiles.map((tile, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        background: 'rgba(15, 23, 42, 0.75)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderLeft: `3px solid ${tile.color}`,
+                        borderRadius: 6,
+                        padding: '9px 12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 3,
+                      }}
+                    >
+                      {/* Tile Category Label */}
+                      <span style={{
+                        fontSize: 9.5,
+                        fontFamily: T.mono,
+                        fontWeight: 700,
+                        color: '#94a3b8',
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
+                      }}>
+                        {tile.label}
+                      </span>
+
+                      {/* Prominent Large Value & Unit */}
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{
+                          fontSize: 22,
+                          fontFamily: T.mono,
+                          fontWeight: 800,
+                          color: tile.color,
+                          letterSpacing: '-0.02em',
+                          lineHeight: 1.1,
+                        }}>
+                          {tile.value}
+                        </span>
+                        {tile.unit && (
+                          <span style={{
+                            fontSize: 11,
+                            fontFamily: T.mono,
+                            fontWeight: 600,
+                            color: '#94a3b8',
+                          }}>
+                            {tile.unit}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Status & Normal Reference Range */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginTop: 2,
+                        paddingTop: 4,
+                        borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                        fontSize: 9.5,
+                        fontFamily: T.mono,
+                      }}>
+                        <span style={{ color: tile.color, fontWeight: 700 }}>
+                          {tile.status}
+                        </span>
+                        <span style={{ color: '#64748b' }}>
+                          {tile.reference}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-
-              {/* Bottom Row: Clean Structured Evidence Metadata (No run-on text) */}
-              {(() => {
-                const targetAstId = primaryAlert.astronautId || 'AST-02_PILOT';
-                const targetCrew = CREW.find(c => c.id === targetAstId) || CREW[1];
-                const targetPkt = telemetryMap[targetAstId] || anyPkt;
-                const scenKey = currentScenario || targetPkt?.scenario_phase || 'NOMINAL_CRUISE';
-                const isHypo = scenKey.includes('HYPOKALEMIA') || (targetPkt?.potassium !== undefined && targetPkt.potassium < 3.5);
-                const isRad = scenKey.includes('RADIATION') || scenKey.includes('SOLAR') || (targetPkt?.radiation_flux !== undefined && targetPkt.radiation_flux > 5.0);
-                const isThromb = scenKey.includes('THROMBOSIS') || (targetPkt?.computed_trm !== undefined && targetPkt.computed_trm > 1.6);
-                const isCo2Breach = scenKey.includes('CO2') || co2Val > 3.0;
-
-                const targetHr = targetPkt ? Math.round(targetPkt.heart_rate) : 108;
-                const targetHrD = ((targetHr - targetCrew.baseHr) / targetCrew.baseHr) * 100;
-                const targetK = targetPkt?.potassium !== undefined ? targetPkt.potassium : 3.20;
-                const targetQtc = targetPkt?.computed_qtc || 482;
-                const targetFlux = targetPkt?.radiation_flux || 42.5;
-                const targetDose = targetPkt?.radiation_dose_gy || 0.082;
-                const targetTrm = targetPkt?.computed_trm || 2.15;
-
-                let primarySignalStr = `HR ${targetHr} bpm (${targetHrD >= 0 ? '+' : ''}${targetHrD.toFixed(1)}% vs base)`;
-                if (isHypo) {
-                  primarySignalStr = `Serum K⁺ ${targetK.toFixed(2)} mmol/L · QTc ${targetQtc.toFixed(0)} ms`;
-                } else if (isRad) {
-                  primarySignalStr = `Proton Flux ${targetFlux.toFixed(1)} mGy/d · Dose ${(targetDose * 1000).toFixed(0)} mSv`;
-                } else if (isThromb) {
-                  primarySignalStr = `TRM Index ${targetTrm.toFixed(2)} · Hct ${(targetPkt?.hematocrit || 48.5).toFixed(1)}%`;
-                } else if (isCo2Breach) {
-                  primarySignalStr = `Cabin CO₂ ${co2Val.toFixed(2)} mmHg (Scrubber Saturation)`;
-                }
-
-                return (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 14,
-                    marginTop: 6,
-                    paddingTop: 5,
-                    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-                    fontSize: 9.5,
-                    fontFamily: T.mono,
-                    color: '#94a3b8',
-                  }}>
-                    <div>
-                      <span style={{ color: '#64748b' }}>DURATION: </span>
-                      <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{primaryAlert.age}</span>
-                    </div>
-                    <span style={{ color: '#283548' }}>·</span>
-                    <div>
-                      <span style={{ color: '#64748b' }}>PRIMARY SIGNAL: </span>
-                      <span style={{ color: '#fbbf24', fontWeight: 700 }}>{primarySignalStr}</span>
-                    </div>
-                    <span style={{ color: '#283548' }}>·</span>
-                    <div>
-                      <span style={{ color: '#64748b' }}>ATMOSPHERE: </span>
-                      <span style={{ color: co2Val > 3.0 ? '#f87171' : '#4ade80', fontWeight: 600 }}>
-                        {co2Val > 3.0 ? `CO₂ ${co2Val.toFixed(2)} mmHg (Scrubber Breakthrough)` : `CO₂ ${co2Val.toFixed(2)} mmHg (Nominal Envelope)`}
-                      </span>
-                    </div>
-                    <span style={{ color: '#283548' }}>·</span>
-                    <div>
-                      <span style={{ color: '#64748b' }}>EVALUATION: </span>
-                      <span style={{ color: '#4ade80', fontWeight: 600 }}>
-                        10m Gate Active · {primaryAlert.procedure ? primaryAlert.procedure.replace('NASA-STD-3001-', '') : 'NASA-STD-3001'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          ) : (
+            );
+          })() : (
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              paddingBottom: 8,
-              borderBottom: `1px solid ${T.borderSubtle}`,
-              marginBottom: 8,
+              padding: '6px 0',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Dot color={T.nominal} size={7} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: T.nominal, letterSpacing: '0.06em' }}>
-                  MISSION HEALTH: NOMINAL · ALL 4 CREW MEMBERS WITHIN STABLE ENVELOPES · HABITAT OPTIMAL
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Dot color={T.nominal} size={8} />
+                <span style={{
+                  fontSize: 12.5,
+                  fontWeight: 800,
+                  color: T.nominal,
+                  letterSpacing: '0.05em',
+                  fontFamily: T.sans,
+                }}>
+                  MISSION HEALTH: NOMINAL
+                </span>
+                <span style={{ color: '#475569' }}>|</span>
+                <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: T.sans }}>
+                  All 4 Crew Members Within Personal Baseline Corridors · Habitat Optimal
                 </span>
               </div>
-              <span style={{ fontSize: 10, fontFamily: T.mono, color: T.textMuted }}>AUTONOMOUS SENTRY PASS 84 · MARGINS &gt; 70 DAYS</span>
+              <span style={{ fontSize: 10, fontFamily: T.mono, color: '#64748b' }}>
+                AUTONOMOUS SENTRY PASS 84 · MARGINS &gt; 70 DAYS
+              </span>
             </div>
           )}
 
-          {/* Subsystem & Communications Synoptic Bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Dot color={hasAnomaly ? T.warning : T.nominal} size={6} />
-              <span style={{ fontSize: 10, color: T.textSecondary }}>CREW HEALTH:</span>
-              <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 600, color: hasAnomaly ? T.warning : T.nominal }}>
+          {/* ── 4-BLOCK SUBSYSTEM & COMMUNICATIONS SYNOPTIC STRIP ── */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 10,
+            marginTop: hasAnomaly ? 12 : 8,
+            paddingTop: hasAnomaly ? 10 : 6,
+            borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+          }}>
+            {/* 1. Crew Status Pill */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.025)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              borderRadius: 6,
+              padding: '7px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Dot color={hasAnomaly ? T.warning : T.nominal} size={6} />
+                <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 700, color: '#94a3b8' }}>
+                  CREW HEALTH
+                </span>
+              </div>
+              <span style={{
+                fontSize: 11,
+                fontFamily: T.mono,
+                fontWeight: 700,
+                color: hasAnomaly ? T.warning : T.nominal,
+              }}>
                 {hasAnomaly ? '1 ATTENTION / 3 NOM' : '4/4 NOMINAL'}
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Dot color={co2Val > 3.0 ? T.warning : T.nominal} size={6} />
-              <span style={{ fontSize: 10, color: T.textSecondary }}>ECLSS HABITAT:</span>
-              <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 600, color: co2Val > 3.0 ? T.warning : T.nominal }}>
+            {/* 2. ECLSS Habitat Pill */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.025)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              borderRadius: 6,
+              padding: '7px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Dot color={co2Val > 3.0 ? T.warning : T.nominal} size={6} />
+                <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 700, color: '#94a3b8' }}>
+                  ECLSS HABITAT
+                </span>
+              </div>
+              <span style={{
+                fontSize: 11,
+                fontFamily: T.mono,
+                fontWeight: 700,
+                color: co2Val > 3.0 ? '#ef4444' : '#f8fafc',
+              }}>
                 101.3 kPa · CO₂ {co2Val.toFixed(2)} mmHg
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Dot color={T.nominal} size={6} />
-              <span style={{ fontSize: 10, color: T.textSecondary }}>POWER &amp; THERMAL:</span>
-              <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 600, color: T.nominal }}>
+            {/* 3. Power & Thermal Pill */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.025)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              borderRadius: 6,
+              padding: '7px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Dot color={T.nominal} size={6} />
+                <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 700, color: '#94a3b8' }}>
+                  POWER &amp; THERMAL
+                </span>
+              </div>
+              <span style={{
+                fontSize: 11,
+                fontFamily: T.mono,
+                fontWeight: 700,
+                color: '#f8fafc',
+              }}>
                 EPS 28.4V · 21.4°C
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-              <Dot color={activeDSN.snr > 30 ? T.nominal : T.warning} size={6} />
-              <span style={{ fontSize: 10, color: T.textSecondary }}>DSN {activeDSN.name.split(' ')[0]}:</span>
-              <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary }}>
+            {/* 4. Deep Space Network Pill */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.025)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              borderRadius: 6,
+              padding: '7px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Dot color={activeDSN.snr > 30 ? T.nominal : T.warning} size={6} />
+                <span style={{ fontSize: 10, fontFamily: T.mono, fontWeight: 700, color: '#94a3b8' }}>
+                  DSN {activeDSN.name.split(' ')[0]}
+                </span>
+              </div>
+              <span style={{
+                fontSize: 11,
+                fontFamily: T.mono,
+                fontWeight: 700,
+                color: '#f8fafc',
+              }}>
                 {prop.owFmt} OWLT · 10 Hz Lock
               </span>
             </div>

@@ -6617,3 +6617,66 @@
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [frontend/src/components/HealthTelemetryView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HealthTelemetryView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+## Turn 40: Mission Control Incident Header & Synoptic Section Redesign (High Readability, Prominent Biomarker Tiles, Zero Confusing Text)
+* **Date/Time:** 2026-10-04 00:45:00 (Local Time) / 18:45:00 UTC
+* **Role:** Lead Flight Telemetry Systems Architect & Senior MCC UX Designer
+* **User Feedback & Request:**
+  > User provided a screenshot of the top active alert banner and subsystem status strip:
+  > *"optimize this section, increase readability ,, and bigger nesessary informations, and remove unnesessary an confusing texts,, you can change layout if you want,"*
+  > Zero emojis anywhere (strictly forbidden). Clean professional styling.
+
+* **UX & Information Architecture Overhaul ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **Clean High-Impact Incident Header (Tier 1):**
+     - Stripped messy raw parenthetical formulas (e.g. `(492.0ms, K+=2.95 mmol/L, ARF=1.75).`) from the incident title string.
+     - Separated title into bold, high-contrast headline (`Ventricular Arrhythmia Risk`, 15px font, `#f8fafc`) and explanatory clinical sub-headline (`Severe hypokalemic QTc prolongation`, 12px, `#94a3b8`).
+     - Distinct badges: Pulsing severity pill (`• CRITICAL` / `▲ WARNING`), targeted crew entity (`HALEY (CDR)`), subsystem tag (`CARDIOLOGY / ELECTROLYTES`), and trajectory chip (`WORSENING`).
+     - Right-aligned active elapsed duration (`ACTIVE: < 2m`) and prominent action button `[INVESTIGATE EXCURSION →  MED-CARD-04]` with hover transitions.
+  2. **Four Large Diagnostic Biomarker Tiles (Tier 2 - "Bigger Necessary Information"):**
+     - Replaced the cramped run-on second line of text with 4 prominent, dedicated telemetry metric tiles:
+       * **Hypokalemia / Arrhythmia:**
+         - `SERUM POTASSIUM (K⁺)`: **`2.95`** `mmol/L` (CRITICAL DEFICIT · Floor Limit: 3.50)
+         - `FRIDERICIA QTc INTERVAL`: **`492`** `ms` (PROLONGED +42 ms · Flight Limit: < 450 ms)
+         - `ARRHYTHMIA RISK (ARF)`: **`1.75`** `INDEX` (HIGH ECTOPIC RISK · Safe Ceiling: < 1.00)
+         - `HEART RATE (ECG II)`: **`63`** `bpm` (-19.2% vs Base · Resting Baseline: 78 bpm)
+       * **CO₂ Scrubber Saturation:**
+         - `CABIN CO₂ PARTIAL PRESSURE`: **`3.82`** `mmHg` (LIMIT BREACH +27% · Flight Rule: < 3.00 mmHg)
+         - `CDRA SCRUBBER ASSEMBLY`: **`BED A`** `SATURATED` (BREAKTHROUGH DETECTED · Action: Cycle Bed B / Arm LiOH)
+         - `CREW COMPENSATORY HR`: **`108`** `bpm` (+31.7% ELEVATION · Baseline: 82 bpm)
+         - `RESPIRATION FREQUENCY`: **`24`** `br/min` (HYPERVENTILATION · Baseline: 15 br/min)
+       * **Solar Radiation Storm (SPE):**
+         - `HERA SILICON PROTON FLUX`: **`42.5`** `mGy/d` (CRITICAL SPE SPIKE · GCR Baseline: 1.24 mGy/d)
+         - `CUMULATIVE TISSUE DOSE`: **`82`** `mSv` (ACCUMULATING RAPIDLY · Career Limit: 600 mSv)
+         - `RADIATION SUSCEPTIBILITY`: **`0.68`** `RSI` (HIGH VULNERABILITY · Safe Margin: < 0.20)
+         - `STORM SHELTER DIRECTIVE`: **`DEPLOY`** `WATER WALL` (IMMEDIATE RETREAT · Procedure: RAD-SPE-01)
+       * **Internal Jugular Venous Thrombosis:**
+         - `THROMBOSIS RISK (TRM)`: **`2.15`** `INDEX` (HIGH CLOTTING RISK · Clinical Threshold: < 1.50)
+         - `IJV DOPPLER VELOCITY`: **`< 4.0`** `cm/s` (VENOUS STASIS WAVEFORM · Nominal Flow: > 15 cm/s)
+         - `HEMATOCRIT CONCENTRATION`: **`48.5`** `%` (HEMOCONCENTRATION · Baseline: 36.4% / 43.6%)
+         - `PLATELET COUNT (PLT)`: **`365`** `k/µL` (HYPERCOAGULABILITY · Nominal: 150 – 400 k/µL)
+       * **Ammonia Coolant Breach:**
+         - `ATCS EXTERNAL LOOP-A`: **`-42.0`** `kPa` (PRESSURE DECAY · Loop Integrity Breach)
+         - `CABIN NH₃ VAPOR TRACE`: **`18.4`** `ppm` (TOXIC CONCENTRATION · Permissible Ceiling: < 10 ppm)
+         - `CREW OXYGENATION (SpO₂)`: **`94.2`** `%` (AIRWAY CONSTRICTION · Baseline: 98.5%)
+         - `POSITIVE PRESSURE MASKS`: **`DON PBAS`** `ALL CREW` (IMMEDIATE ACTION · Procedure: ECLSS-AMMONIA-01)
+       * **General Cardiovascular / Exertion:**
+         - `HEART RATE (ECG II)`: **`108`** `bpm` (EXCURSION · Resting Baseline)
+         - `PULSE OXIMETRY (SpO₂)`: **`97.2`** `%` (NOMINAL PERFUSION · Baseline: 98%)
+         - `HRV RMSSD (AUTONOMIC)`: **`38`** `ms` (SYMPATHETIC STRAIN · Baseline: 65 ms)
+         - `CORE BODY TEMPERATURE`: **`37.4`** `°C` (METABOLIC EXCURSION · Baseline: 36.8°C)
+     - Metric cards feature **22px bold monospaced values**, unit callouts, status deltas, baseline references, and accent color borders.
+  3. **Elimination of Confusing & Redundant Information:**
+     - Removed `ATMOSPHERE: CO₂ 1.74 mmHg (Nominal Envelope)` from inside cardiac alert boxes.
+     - Removed confusing `EVALUATION: 10m Gate Active` internal algorithmic text.
+     - Removed cluttered parenthesis expressions from titles.
+  4. **Subsystem & Communications Synoptic Strip (Tier 3):**
+     - Redesigned the bottom row into 4 distinct, rounded status blocks (`CREW HEALTH`, `ECLSS HABITAT`, `POWER & THERMAL`, `DSN LINK`).
+     - Clear typographic hierarchy: Muted label in 10px bold mono and high-contrast, bold live values in 11px mono.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Production Build:** `npm run build` compiled client bundle in 5.29s with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed all 19 integration tests (19 passed, 0 failed).
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
