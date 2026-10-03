@@ -1817,7 +1817,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         </div>
 
         {/* ─── 4. OPERATIONAL ENVIRONMENTAL & DOSIMETRY MONITORING SUITE ─── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: 14 }}>
           {/* Graph 1: Mission Longitudinal Trajectory (Space Radiation Environment & Cumulative Dose) */}
           {(() => {
             const liveFlux = anyPkt?.radiation_flux !== undefined
@@ -1910,34 +1910,38 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   : cardStyle.boxShadow,
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={labelStyle}>Mission Dosimetry Trajectory // FD-01 → Today (FD-184)</div>
-                      <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ ...labelStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        Mission Dosimetry Trajectory // FD-01 → Today (FD-184)
+                      </div>
+                      <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         Cumulative Tissue Dose (mSv) &amp; Real-Time Proton Flux (mGy/d)
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 9, fontFamily: T.mono }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 9, fontFamily: T.mono, flexShrink: 0, whiteSpace: 'nowrap' }}>
                       <span style={{
-                        display: 'flex',
+                        display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
                         background: 'rgba(230, 168, 60, 0.1)',
                         border: '1px solid rgba(230, 168, 60, 0.28)',
                         padding: '2px 8px',
                         borderRadius: 3,
+                        whiteSpace: 'nowrap',
                       }}>
                         <span style={{ width: 8, height: 2.5, background: '#e6a83c', borderRadius: 1 }} />
                         <span style={{ color: '#f8fafc', fontWeight: 700 }}>Dose: {liveDoseMsv.toFixed(1)} mSv</span>
                       </span>
                       <span style={{
-                        display: 'flex',
+                        display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
                         background: isSpeEvent ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 189, 248, 0.1)',
                         border: `1px solid ${isSpeEvent ? 'rgba(239, 68, 68, 0.35)' : 'rgba(56, 189, 248, 0.25)'}`,
                         padding: '2px 8px',
                         borderRadius: 3,
+                        whiteSpace: 'nowrap',
                       }}>
                         <span style={{ width: 8, height: 2.5, background: isSpeEvent ? '#ef4444' : '#38bdf8', borderRadius: 1 }} />
                         <span style={{ color: isSpeEvent ? '#ef4444' : '#38bdf8', fontWeight: 700 }}>
@@ -2041,13 +2045,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       border: `1px solid ${T.borderSubtle}`,
                       borderRadius: 4,
                       padding: '7px 10px',
+                      minWidth: 0,
                     }}>
-                      <div style={{ fontSize: 9, color: T.textMuted }}>Cumulative Tissue Dose</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: '#e6a83c', marginTop: 2 }}>
+                      <div style={{ fontSize: 9, color: T.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Cumulative Tissue Dose</div>
+                      <div style={{ fontSize: 12.5, fontFamily: T.mono, fontWeight: 700, color: '#e6a83c', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {liveDoseMsv.toFixed(1)} mSv
                       </div>
-                      <div style={{ fontSize: 8.5, color: T.nominal, marginTop: 2 }}>
-                        Career Margin: +{(600 - liveDoseMsv).toFixed(1)} mSv (Safe)
+                      <div style={{ fontSize: 8.5, color: T.nominal, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        Career Margin: +{(600 - liveDoseMsv).toFixed(1)} mSv
                       </div>
                     </div>
                     <div style={{
@@ -2055,13 +2060,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       border: `1px solid ${isSpeEvent ? 'rgba(239, 68, 68, 0.40)' : T.borderSubtle}`,
                       borderRadius: 4,
                       padding: '7px 10px',
+                      minWidth: 0,
                     }}>
-                      <div style={{ fontSize: 9, color: T.textMuted }}>Ambient Proton Flux</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isSpeEvent ? '#ef4444' : '#38bdf8', marginTop: 2 }}>
+                      <div style={{ fontSize: 9, color: T.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Ambient Proton Flux</div>
+                      <div style={{ fontSize: 12.5, fontFamily: T.mono, fontWeight: 700, color: isSpeEvent ? '#ef4444' : '#38bdf8', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {liveFlux.toFixed(2)} mGy/d
                       </div>
-                      <div style={{ fontSize: 8.5, color: isSpeEvent ? '#ef4444' : T.textMuted, marginTop: 2 }}>
-                        {isSpeEvent ? 'CRITICAL: High Solar Particle Event' : 'GCR Quiet Baseline Corridor'}
+                      <div style={{ fontSize: 8.5, color: isSpeEvent ? '#ef4444' : T.textMuted, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {isSpeEvent ? 'CRITICAL: High Solar Event' : 'GCR Quiet Baseline'}
                       </div>
                     </div>
                     <div style={{
@@ -2069,13 +2075,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       border: `1px solid ${isSpeEvent ? 'rgba(239, 68, 68, 0.40)' : T.borderSubtle}`,
                       borderRadius: 4,
                       padding: '7px 10px',
+                      minWidth: 0,
                     }}>
-                      <div style={{ fontSize: 9, color: T.textMuted }}>Vehicle Shielding Status</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isSpeEvent ? '#ef4444' : '#4ade80', marginTop: 2 }}>
+                      <div style={{ fontSize: 9, color: T.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Vehicle Shielding Status</div>
+                      <div style={{ fontSize: 12.5, fontFamily: T.mono, fontWeight: 700, color: isSpeEvent ? '#ef4444' : '#4ade80', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {isSpeEvent ? 'STORM SHELTER' : 'PASSIVE HULL'}
                       </div>
-                      <div style={{ fontSize: 8.5, color: T.textMuted, marginTop: 2 }}>
-                        {isSpeEvent ? 'Water Wall Retraction Active' : 'Polyethylene Core Nominal'}
+                      <div style={{ fontSize: 8.5, color: T.textMuted, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {isSpeEvent ? 'Water Wall Deployed' : 'Polyethylene Hull Core'}
                       </div>
                     </div>
                   </div>
@@ -2173,14 +2180,16 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   : cardStyle.boxShadow,
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={labelStyle}>24-Hour Continuous Cabin ppCO₂ Dynamics</div>
-                      <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2 }}>
-                        Carbon Dioxide Partial Pressure vs NASA-STD-3001 Flight Rule Limits
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ ...labelStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        24-Hour Continuous Cabin ppCO₂ Dynamics
+                      </div>
+                      <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        NASA-STD-3001 Flight Rule Limits (&lt; 3.00 mmHg)
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 9, fontFamily: T.mono }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 9, fontFamily: T.mono, flexShrink: 0, whiteSpace: 'nowrap' }}>
                       <span style={{
                         background: isBreach ? 'rgba(239, 68, 68, 0.18)' : isElevated ? 'rgba(245, 158, 11, 0.15)' : 'rgba(74, 222, 128, 0.12)',
                         border: `1px solid ${isBreach ? 'rgba(239, 68, 68, 0.4)' : isElevated ? 'rgba(245, 158, 11, 0.35)' : 'rgba(74, 222, 128, 0.3)'}`,
@@ -2188,10 +2197,11 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         padding: '2px 8px',
                         borderRadius: 3,
                         fontWeight: 700,
+                        whiteSpace: 'nowrap',
                       }}>
                         ppCO₂: {co2Val.toFixed(2)} mmHg
                       </span>
-                      <span style={{ color: '#849db5' }}>101.3 kPa · 21.3 kPa O₂</span>
+                      <span style={{ color: '#849db5', whiteSpace: 'nowrap' }}>101.3 kPa · 21.3 kPa O₂</span>
                     </div>
                   </div>
 
@@ -2229,7 +2239,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
                       {/* Operational Caution Floor: 2.00 mmHg (Amber Dotted) */}
                       <line x1="44" y1="116.7" x2="470" y2="116.7" stroke="#f59e0b" strokeWidth="0.8" strokeDasharray="2,2" opacity="0.7" />
-                      <text x="320" y="113" fill="#f59e0b" fontSize="6.8" fontFamily={T.mono}>
+                      <text x="465" y="113" fill="#f59e0b" fontSize="6.8" fontFamily={T.mono} textAnchor="end">
                         CAUTION BAND (2.00 mmHg)
                       </text>
 
@@ -2272,13 +2282,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       border: `1px solid ${isBreach ? 'rgba(239, 68, 68, 0.40)' : T.borderSubtle}`,
                       borderRadius: 4,
                       padding: '7px 10px',
+                      minWidth: 0,
                     }}>
-                      <div style={{ fontSize: 9, color: T.textMuted }}>Flight Rule Compliance</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#ef4444' : '#4ade80', marginTop: 2 }}>
-                        {isBreach ? `EXCEEDED (+${(co2Val - 3.0).toFixed(2)})` : `NOMINAL (3.00 Max)`}
+                      <div style={{ fontSize: 9, color: T.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Flight Rule Compliance</div>
+                      <div style={{ fontSize: 12.5, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#ef4444' : '#4ade80', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {isBreach ? 'EXCEEDED' : 'NOMINAL'}
                       </div>
-                      <div style={{ fontSize: 8.5, color: isBreach ? '#ef4444' : T.nominal, marginTop: 2 }}>
-                        {isBreach ? '1-Hour Safe Exposure Window Active' : `Margin: +${(3.0 - co2Val).toFixed(2)} mmHg`}
+                      <div style={{ fontSize: 8.5, color: isBreach ? '#ef4444' : T.nominal, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {isBreach ? `+${(co2Val - 3.0).toFixed(2)} mmHg (1-Hr Limit)` : `Margin: +${(3.0 - co2Val).toFixed(2)} mmHg`}
                       </div>
                     </div>
                     <div style={{
@@ -2286,13 +2297,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       border: `1px solid ${isBreach ? 'rgba(239, 68, 68, 0.40)' : T.borderSubtle}`,
                       borderRadius: 4,
                       padding: '7px 10px',
+                      minWidth: 0,
                     }}>
-                      <div style={{ fontSize: 9, color: T.textMuted }}>CDRA Scrubber Assembly</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#ef4444' : '#f8fafc', marginTop: 2 }}>
+                      <div style={{ fontSize: 9, color: T.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>CDRA Scrubber Assembly</div>
+                      <div style={{ fontSize: 12.5, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#ef4444' : '#f8fafc', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {isBreach ? 'BED A SATURATED' : 'BED A/B CYCLING'}
                       </div>
-                      <div style={{ fontSize: 8.5, color: isBreach ? '#ef4444' : T.textMuted, marginTop: 2 }}>
-                        {isBreach ? 'Action: Cycle Bed B Bypass' : '140-Min Desorb Half-Cycle'}
+                      <div style={{ fontSize: 8.5, color: isBreach ? '#ef4444' : T.textMuted, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {isBreach ? 'Cycle Bed B Bypass' : '140-Min Desorb Cycle'}
                       </div>
                     </div>
                     <div style={{
@@ -2300,13 +2312,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       border: `1px solid ${isBreach ? 'rgba(245, 158, 11, 0.40)' : T.borderSubtle}`,
                       borderRadius: 4,
                       padding: '7px 10px',
+                      minWidth: 0,
                     }}>
-                      <div style={{ fontSize: 9, color: T.textMuted }}>Contingency LiOH Reserves</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#f59e0b' : '#4ade80', marginTop: 2 }}>
-                        {isBreach ? 'ARM CANISTERS' : '6 CANISTERS SEALED'}
+                      <div style={{ fontSize: 9, color: T.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Contingency LiOH Reserves</div>
+                      <div style={{ fontSize: 12.5, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#f59e0b' : '#4ade80', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {isBreach ? 'ARM CANISTERS' : '6 CANISTERS'}
                       </div>
-                      <div style={{ fontSize: 8.5, color: T.textMuted, marginTop: 2 }}>
-                        {isBreach ? 'Manual Installation Directive' : '100% Reserve Capacity'}
+                      <div style={{ fontSize: 8.5, color: T.textMuted, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {isBreach ? 'Manual Install Directive' : '100% Reserve · Sealed'}
                       </div>
                     </div>
                   </div>

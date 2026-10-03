@@ -6860,3 +6860,45 @@
   - **TypeScript & Vite Build:** `tsc -b && vite build` built cleanly in 555ms with 0 errors.
   - **Live Backend MCC Test Suite:** `scripts/test_live_backend_mcc.py` passed 19/19 tests (100%).
   - **Visual & Formatting Rules:** Verified zero emojis present, dual-remote parity maintained.
+
+---
+
+### [Turn 45] — Section 4 (Environmental & Dosimetry Suite) Label Optimization: Multi-Line Wrapping & Crowding Elimination
+* **Date/Time:** 2026-10-04 01:36:00 (Local: GMT+6)
+* **User Request & Intent:**
+  > *"optimize this sections lebels, no double lined and crowded lebels should be allowed"*
+  > *(Provided screenshot of 24-Hour Continuous Cabin ppCO₂ Dynamics card showing text wrapping across header subtitle, top-right telemetry badges, and bottom metrics cards)*
+
+* **Visual & Layout Defect Identification:**
+  1. **Header Subtitle Multi-Line Break:**
+     - Subtitle `Carbon Dioxide Partial Pressure vs NASA-STD-3001 Flight Rule Limits` (67 chars) wrapped awkwardly across two lines (`Rule Limits` dropped to line 2).
+  2. **Top-Right Telemetry Badges Crowding & Wrapping:**
+     - The `ppCO₂: 1.72 mmHg` badge lacked `whiteSpace: 'nowrap'`, causing `mmHg` to break onto a vertical second line within a narrow green container.
+     - Adjacent barometric readout `101.3 kPa · 21.3 kPa O₂` wrapped into two lines (`kPa O₂` on line 2).
+  3. **Bottom Metrics Cards Value Wrapping & Text Drop:**
+     - Card 1 (`Flight Rule Compliance`): Displayed `NOMINAL (3.00 Max)`, dropping `Max)` onto a second line.
+     - Card 3 (`Contingency LiOH Reserves`): Displayed `6 CANISTERS SEALED`, dropping `SEALED` onto a second line.
+  4. **Section 4 Column Imbalance:**
+     - Section 4 grid columns were partitioned at `1.25fr 1fr`, constricting the ppCO₂ card to ~520px and leaving each 3-column footer tile with only ~160px width.
+
+* **Engineering Implementations Delivered:**
+  1. **Balanced Grid Proportions ([MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+     - Updated Section 4 `gridTemplateColumns` from `1.25fr 1fr` to `1.15fr 1fr`.
+     - Allocates balanced width across both graphs, giving Graph 2 ~45px additional breathing space for its 3 metric wells.
+  2. **Clean Single-Line Graph 2 Header & Badges ([MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+     - Compacted subtitle to `NASA-STD-3001 Flight Rule Limits (< 3.00 mmHg)` with `whiteSpace: 'nowrap'`, `overflow: 'hidden'`, and `textOverflow: 'ellipsis'`.
+     - Added `flexShrink: 0`, `whiteSpace: 'nowrap'` to top-right badges container; guaranteed `ppCO₂: {co2Val.toFixed(2)} mmHg` and `101.3 kPa · 21.3 kPa O₂` render on crisp single lines.
+     - Repositioned SVG caution band marker to right-aligned `textAnchor="end"` (`x="465"`, `y="113"`) to eliminate center crowding.
+  3. **Streamlined Single-Line Footer Metrics ([MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+     - Card 1: Value streamlined to `NOMINAL` (or `EXCEEDED`) at `fontSize: 12.5` with `whiteSpace: 'nowrap'`; subtext `Margin: +${(3.0 - co2Val).toFixed(2)} mmHg`.
+     - Card 2: Value `BED A/B CYCLING` with `whiteSpace: 'nowrap'`; subtext compacted to `140-Min Desorb Cycle`.
+     - Card 3: Value streamlined to `6 CANISTERS` with `whiteSpace: 'nowrap'`; subtext `100% Reserve · Sealed`.
+     - Added `minWidth: 0` and truncation styling across all 3 wells to mathematically prevent text drops under all monitor sizes.
+  4. **Proactive Sister Card (Dosimetry Trajectory) Audit & Hardening ([MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+     - Standardized `whiteSpace: 'nowrap'`, `overflow: 'hidden'`, and `textOverflow: 'ellipsis'` on header title, subtitle, badges, and all 3 footer metrics (`Cumulative Tissue Dose`, `Ambient Proton Flux`, `Vehicle Shielding Status`).
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Production Build:** `tsc -b && vite build` built cleanly in 739ms with 0 errors.
+  - **Live Backend MCC Test Suite:** `scripts/test_live_backend_mcc.py` passed 19/19 tests (100%).
+  - **Formatting & Zero Emojis:** Verified 0 emojis present across code, commit, and documentation.
+
