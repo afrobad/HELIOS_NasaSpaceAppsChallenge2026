@@ -361,13 +361,16 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       >
         {/* PINNED LEFT: Severity Icon + JARVIS Label + Audio Bars */}
         <div
+          className="hud-tooltip-trigger"
           style={{
+            position: 'relative',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
             padding: '0 14px 0 0',
             borderRight: 'rgba(255, 255, 255, 0.08) 1px solid',
             flexShrink: 0,
+            cursor: 'default',
           }}
         >
           <img
@@ -404,6 +407,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 }}
               />
             ))}
+          </div>
+          <div className="hud-tooltip hud-tooltip-up">
+            AI medical assistant
           </div>
         </div>
 
@@ -489,21 +495,30 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           {/* Brand Logo & Connection Beacon */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span
-              style={{
-                fontSize: '18px',
-                fontWeight: 900,
-                letterSpacing: '0.12em',
-                color: '#ffffff',
-                fontFamily: "var(--hud-font-brand, 'Orbitron', system-ui, sans-serif)",
-                lineHeight: 1,
-              }}
+            <div
+              className="hud-tooltip-trigger"
+              style={{ display: 'inline-flex', alignItems: 'center', cursor: 'default' }}
             >
-              HELIOS
-            </span>
+              <span
+                style={{
+                  fontSize: '18px',
+                  fontWeight: 900,
+                  letterSpacing: '0.12em',
+                  color: '#ffffff',
+                  fontFamily: "var(--hud-font-brand, 'Orbitron', system-ui, sans-serif)",
+                  lineHeight: 1,
+                }}
+              >
+                HELIOS
+              </span>
+              <div className="hud-tooltip hud-tooltip-down">
+                Crew health monitoring system
+              </div>
+            </div>
 
             {/* Clean Telemetry Beacon (No clunky box) */}
             <div
+              className="hud-tooltip-trigger"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -514,8 +529,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 color: connected ? '#4ade80' : '#ef4444',
                 fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
                 letterSpacing: '0.06em',
+                cursor: 'default',
               }}
-              title={connected ? 'Live Telemetry Link Active' : 'Telemetry Link Offline'}
             >
               <span
                 style={{
@@ -527,6 +542,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 }}
               />
               {connected ? 'LIVE' : 'OFFLINE'}
+              <div className="hud-tooltip hud-tooltip-down">
+                {connected ? 'Live data connected' : 'Data feed disconnected'}
+              </div>
             </div>
           </div>
 
@@ -548,17 +566,19 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               }}
             >
               {[
-                { id: 'HUD', label: 'Dashboard' },
-                { id: 'HEALTH_TELEMETRY', label: 'Health-Telemetry' },
-                { id: 'MCC', label: 'Earth MCC' },
+                { id: 'HUD', label: 'Dashboard', tip: 'Astronaut vitals and ECG' },
+                { id: 'HEALTH_TELEMETRY', label: 'Health-Telemetry', tip: 'Detailed biomarker reports' },
+                { id: 'MCC', label: 'Earth MCC', tip: 'Mission control operations' },
               ].map((tabItem) => {
                 const isActive = activeView === tabItem.id;
                 return (
                   <button
                     key={tabItem.id}
                     type="button"
+                    className="hud-tooltip-trigger"
                     onClick={() => onSelectView(tabItem.id as any)}
                     style={{
+                      position: 'relative',
                       padding: '4px 10px',
                       fontSize: '11px',
                       fontWeight: isActive ? 700 : 500,
@@ -581,6 +601,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                     }}
                   >
                     {tabItem.label}
+                    <div className="hud-tooltip hud-tooltip-down" style={{ fontWeight: 500 }}>
+                      {tabItem.tip}
+                    </div>
                   </button>
                 );
               })}
@@ -607,8 +630,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           >
             {/* 1. EARTH GROUND STATION TIME (MCC HOUSTON UTC) */}
             <div
-              title="Earth Ground Station (MCC Houston) · Coordinated Universal Time"
-              style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}
+              className="hud-tooltip-trigger"
+              style={{ display: 'flex', alignItems: 'baseline', gap: '5px', cursor: 'default' }}
             >
               <span
                 style={{
@@ -634,6 +657,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 {earthTime.toISOString().substring(11, 19)}
               </span>
               <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>UTC</span>
+              <div className="hud-tooltip hud-tooltip-down">
+                Current time on Earth
+              </div>
             </div>
 
             {/* Hairline Divider */}
@@ -647,11 +673,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               const scMetParts = getMetParts(spacecraftMetSeconds);
 
               return (
-                <div
-                  title={`Spacecraft Vehicle Time (${DISTANCES[currentPos].locationName}) · Local Habitat Time`}
-                  style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+                  <div
+                    className="hud-tooltip-trigger"
+                    style={{ display: 'flex', alignItems: 'baseline', gap: '5px', cursor: 'default' }}
+                  >
                     <span
                       style={{
                         fontSize: '9px',
@@ -676,9 +702,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                       {scTimeStr}
                     </span>
                     <span style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>SVT</span>
+                    <div className="hud-tooltip hud-tooltip-down">
+                      Current time on spacecraft
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                  <div
+                    className="hud-tooltip-trigger"
+                    style={{ display: 'flex', alignItems: 'baseline', gap: '4px', cursor: 'default' }}
+                  >
                     <span
                       style={{
                         fontSize: '9px',
@@ -701,6 +733,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                     >
                       {scMetParts.day} {scMetParts.time}
                     </span>
+                    <div className="hud-tooltip hud-tooltip-down-right">
+                      Time elapsed since launch
+                    </div>
                   </div>
                 </div>
               );
@@ -710,7 +745,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           {/* Voice Audio Toggle Button */}
           <button
             onClick={handleToggleAudio}
+            className="hud-tooltip-trigger"
             style={{
+              position: 'relative',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -724,7 +761,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               transition: 'all 0.15s ease',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.35)',
             }}
-            title={audioEngaged ? 'Voice Audio: Active (Click to mute)' : 'Voice Audio: Muted (Click to unmute)'}
           >
             {audioEngaged ? (
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -739,6 +775,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 <line x1="17" y1="9" x2="23" y2="15" />
               </svg>
             )}
+            <div className="hud-tooltip hud-tooltip-down-right" style={{ fontWeight: 500 }}>
+              {audioEngaged ? 'Turn voice alerts off' : 'Turn voice alerts on'}
+            </div>
           </button>
         </div>
       </header>

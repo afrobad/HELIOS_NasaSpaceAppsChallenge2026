@@ -58,14 +58,14 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <!-- Branding & Mission Identity -->
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-3" title="Mission control health monitor">
                 <div class="w-9 h-9 rounded-lg bg-sky-600 flex items-center justify-center font-black text-xl tracking-wider text-white border border-sky-400/30">
                     &#9737;
                 </div>
                 <div>
                     <div class="flex items-center space-x-2">
                         <h1 class="text-lg font-bold tracking-tight text-white">NASA MCC-EXPLORE</h1>
-                        <span class="text-xs px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800 font-mono font-semibold">MARS TRANSIT HAB-1</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800 font-mono font-semibold" title="Spacecraft habitat module">MARS TRANSIT HAB-1</span>
                     </div>
                     <p class="text-xs text-slate-400">Integrated Crew Health & Telemetry System (NASA-STD-3001 Compliance)</p>
                 </div>
@@ -73,13 +73,13 @@
 
             <!-- Mission Context & Latency Controls -->
             <div class="flex items-center space-x-6 text-xs font-mono">
-                <div class="hidden sm:block border-r border-slate-800 pr-4">
+                <div class="hidden sm:block border-r border-slate-800 pr-4" title="Time elapsed since launch">
                     <span class="text-slate-500 block uppercase text-[10px]">Mission Elapsed Time</span>
                     <span class="text-sky-400 font-bold text-sm">MET 142d 08h 34m 12s</span>
                 </div>
                 
                 <!-- Communication Delay Selector (LEO vs Moon vs Mars) -->
-                <div class="bg-slate-800/80 p-1.5 rounded-lg border border-slate-700 flex items-center space-x-2">
+                <div class="bg-slate-800/80 p-1.5 rounded-lg border border-slate-700 flex items-center space-x-2" title="Select distance to simulate signal delay">
                     <span class="text-slate-400 font-sans text-[11px] pl-1">Comm Latency Mode:</span>
                     <select id="commModeSelect" onchange="updateCommDelayMode()" class="bg-slate-900 text-white text-xs rounded px-2 py-1 border border-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer">
                         <option value="mars">Mars Nominal (12m 40s One-Way)</option>
@@ -89,7 +89,7 @@
                 </div>
 
                 <!-- Mode Indicator Badge -->
-                <div id="delayBadge" class="px-2.5 py-1 rounded-md bg-amber-950/80 text-amber-300 border border-amber-800/60 flex items-center space-x-1.5">
+                <div id="delayBadge" class="px-2.5 py-1 rounded-md bg-amber-950/80 text-amber-300 border border-amber-800/60 flex items-center space-x-1.5" title="Current communication delay mode">
                     <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                     <span class="font-sans font-semibold text-[11px]">Asynchronous Supervisory Mode Active</span>
                 </div>
@@ -103,23 +103,23 @@
 
     <!-- NAVIGATION TABS -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200/80 p-1.5 mb-6 flex flex-wrap gap-1 text-sm font-medium">
-        <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn px-4 py-2.5 rounded-lg text-sky-700 bg-sky-50 font-semibold transition-all flex items-center space-x-2">
+        <button onclick="switchTab('overview')" id="tab-overview" title="View overall crew readiness" class="tab-btn px-4 py-2.5 rounded-lg text-sky-700 bg-sky-50 font-semibold transition-all flex items-center space-x-2">
             <span>&#128187;</span>
             <span>1. Fleet Readiness & Overview</span>
         </button>
-        <button onclick="switchTab('crew')" id="tab-crew" class="tab-btn px-4 py-2.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all flex items-center space-x-2">
+        <button onclick="switchTab('crew')" id="tab-crew" title="View astronaut vital signs" class="tab-btn px-4 py-2.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all flex items-center space-x-2">
             <span>&#128104;&#8205;&#128608;</span>
             <span>2. Individual Crew & Baseline Engine</span>
         </button>
-        <button onclick="switchTab('predictive')" id="tab-predictive" class="tab-btn px-4 py-2.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all flex items-center space-x-2">
+        <button onclick="switchTab('predictive')" id="tab-predictive" title="View health risk forecasts" class="tab-btn px-4 py-2.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all flex items-center space-x-2">
             <span>&#9889;</span>
             <span>3. Predictive & Multi-Signal AI</span>
         </button>
-        <button onclick="switchTab('logistics')" id="tab-logistics" class="tab-btn px-4 py-2.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all flex items-center space-x-2">
+        <button onclick="switchTab('logistics')" id="tab-logistics" title="View medical equipment and supplies" class="tab-btn px-4 py-2.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all flex items-center space-x-2">
             <span>&#9878;</span>
             <span>4. Medical Resources & IMPACT Risk</span>
         </button>
-        <button onclick="switchTab('replay')" id="tab-replay" class="tab-btn px-4 py-2.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all flex items-center space-x-2">
+        <button onclick="switchTab('replay')" id="tab-replay" title="Review mission health events" class="tab-btn px-4 py-2.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all flex items-center space-x-2">
             <span>&#128065;</span>
             <span>5. Mission Replay & Countermeasures</span>
         </button>

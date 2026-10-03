@@ -7060,3 +7060,55 @@
   - **TypeScript & Vite Build:** `tsc -b && vite build` built cleanly in 603ms with 0 errors.
   - **Live Backend MCC Test Suite:** `scripts/test_live_backend_mcc.py` passed 19/19 tests (100%).
   - **Zero Emojis:** Verified 0 emojis present across code, commit, and documentation.
+
+---
+
+### Turn 50: Hover Details Functionality with Simple and Short English
+
+* **User Intent & Problem Statement:**
+  - The user requested: *"IMPLIMENT HOVER DETAILS FUNCTIONALITY, WITH SIMLE AND SHORT ENGLISH ,,"*
+  - Context & Requirements:
+    1. Provide immediate, informative hover details for every component in the top header bar and environmental telemetry system.
+    2. Use simple, short, clear English without dense technical jargon or acronyms (avoid verbose strings like "Environmental Control & Life Support System · Autonomous Orion atmospheric circulation & scrubbing" or "Universal Coordinated Time").
+    3. Eliminate sluggish, browser-dependent native `title="..."` attributes (which suffer from a 1.5–2.0 second OS display delay and crude system styling) in favor of the repository's established aerospace HUD tooltip system (`hud-tooltip-trigger` and `hud-tooltip`).
+    4. Ensure absolutely zero layout shifts by employing hardware-accelerated, pointer-events-none, glassmorphic absolute overlays.
+
+* **Engineering Implementations Delivered:**
+  1. **Top Header Bar Hover Details ([HeaderBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HeaderBar.tsx)):**
+     - Wrapped each item in `.hud-tooltip-trigger` with zero layout disruption.
+     - **HELIOS Logo:** `<div className="hud-tooltip hud-tooltip-down">Crew health monitoring system</div>`
+     - **LIVE / OFFLINE Status Beacon:** `<div className="hud-tooltip hud-tooltip-down">{connected ? 'Live data connected' : 'Data feed disconnected'}</div>`
+     - **Navigation Tabs:**
+       - **Dashboard:** `<div className="hud-tooltip hud-tooltip-down">Astronaut vitals and ECG</div>`
+       - **Health-Telemetry:** `<div className="hud-tooltip hud-tooltip-down">Detailed biomarker reports</div>`
+       - **Earth MCC:** `<div className="hud-tooltip hud-tooltip-down">Mission control operations</div>`
+     - **Avionics Chronometry Strip:**
+       - **EARTH:** `<div className="hud-tooltip hud-tooltip-down">Current time on Earth</div>`
+       - **SPACECRAFT:** `<div className="hud-tooltip hud-tooltip-down">Current time on spacecraft</div>`
+       - **MET:** `<div className="hud-tooltip hud-tooltip-down-right">Time elapsed since launch</div>`
+     - **Voice Audio Toggle Button:** `<div className="hud-tooltip hud-tooltip-down-right">{audioEngaged ? 'Turn voice alerts off' : 'Turn voice alerts on'}</div>`
+     - **JARVIS Transmission Bar Pill:** `<div className="hud-tooltip hud-tooltip-up">AI medical assistant</div>`
+
+  2. **Simplified Environmental Bar Tooltips ([CabinEnvironmentalBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/CabinEnvironmentalBar.tsx)):**
+     - Replaced verbose technical descriptions with concise, plain English:
+       - **CABIN ECLSS:** `"Cabin life support system"` (was: *"Environmental Control & Life Support System · Autonomous Orion atmospheric circulation & scrubbing"*).
+       - **Hazard Alert Badge:** `"Cabin alert: [Status]"` (was: *"Cabin Environmental Hazard Alert · [Severity] status ([Label])"*).
+       - **PRESSURE:** `"Cabin air pressure"` (was: *"Total Cabin Barometric Pressure · Orion CM-02 cabin ambient atmosphere (Nominal: 101.3 kPa)"*).
+       - **O2:** `"Cabin oxygen level"` (was: *"Oxygen Partial Fraction · Cabin breathable O₂ concentration (Nominal: 20.9%)"*).
+       - **CO2:** `"Cabin carbon dioxide level"` (was: *"Carbon Dioxide Partial Pressure · LiOH scrubber scrub efficacy (Normal: <3.0 mmHg)"*).
+       - **RADIATION:** `"Cabin radiation level"` (was: *"Ambient Space Radiation Flux · Real-time cosmic & solar ionizing radiation (Normal: <0.15 mSv/h)"*).
+       - **TEMP:** `"Cabin air temperature"` (was: *"Cabin Internal Ambient Temperature · Active thermal control loop (Nominal: 21.4°C)"*).
+       - **AIRFLOW:** `"Cabin air circulation speed"` (was: *"Atmospheric Ventilation Velocity · Duct circulation rate preventing CO₂ pockets (Nominal: 0.45 m/s)"*).
+
+  3. **Demo Prototype Dashboard Alignment ([nasa_mission_control_health_dashboard.html](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/Demo/nasa_mission_control_health_dashboard.html)):**
+     - Added clean, simple English hover tooltips to all header elements and navigation tabs in the standalone demo:
+       - Branding: `"Mission control health monitor"`, Habitat module: `"Spacecraft habitat module"`.
+       - MET: `"Time elapsed since launch"`, Latency: `"Select distance to simulate signal delay"`, Delay Badge: `"Current communication delay mode"`.
+       - Tabs: `"View overall crew readiness"`, `"View astronaut vital signs"`, `"View health risk forecasts"`, `"View medical equipment and supplies"`, `"Review mission health events"`.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Production Build:** `tsc -b && vite build` built cleanly with 0 errors.
+  - **Live Backend MCC Test Suite:** `scripts/test_live_backend_mcc.py` passed 19/19 tests (100%).
+  - **Layout & Visual Verification:** Absolute positioning ensures no displacement of adjacent elements on hover.
+  - **Zero Emojis:** Confirmed strict adherence to zero emojis across all code, commits, and documentation.
+

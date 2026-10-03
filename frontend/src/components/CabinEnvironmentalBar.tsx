@@ -182,7 +182,7 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
             ORION CM-02
           </span>
           <div className="hud-tooltip hud-tooltip-down">
-            Environmental Control & Life Support System · Autonomous Orion atmospheric circulation & scrubbing
+            Cabin life support system
           </div>
         </div>
 
@@ -223,7 +223,7 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
               {hazardStatus.label}
             </span>
             <div className="hud-tooltip hud-tooltip-down">
-              Cabin Environmental Hazard Alert · {hazardStatus.severity} status ({hazardStatus.label})
+              Cabin alert: {hazardStatus.label}
             </div>
           </div>
         )}
@@ -268,7 +268,7 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
             </span>
             <span style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>kPa</span>
             <div className="hud-tooltip hud-tooltip-down">
-              Total Cabin Barometric Pressure · Orion CM-02 cabin ambient atmosphere (Nominal: 101.3 kPa)
+              Cabin air pressure
             </div>
           </div>
 
@@ -302,7 +302,7 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
             </span>
             <span style={{ fontSize: '8px', color: o2Val < 19.5 ? '#ef4444' : '#22c55e', fontWeight: 600 }}>%</span>
             <div className="hud-tooltip hud-tooltip-down">
-              Oxygen Partial Fraction · Cabin breathable O₂ concentration (Nominal: 20.9%)
+              Cabin oxygen level
             </div>
           </div>
 
@@ -336,7 +336,7 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
             </span>
             <span style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>mmHg</span>
             <div className="hud-tooltip hud-tooltip-down">
-              Carbon Dioxide Partial Pressure · LiOH scrubber scrub efficacy (Normal: &lt;3.0 mmHg)
+              Cabin carbon dioxide level
             </div>
           </div>
 
@@ -370,7 +370,7 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
             </span>
             <span style={{ fontSize: '8px', color: '#64748b', fontWeight: 600 }}>mSv/h</span>
             <div className="hud-tooltip hud-tooltip-down">
-              Ambient Space Radiation Flux · Real-time cosmic & solar ionizing radiation (Normal: &lt;0.15 mSv/h)
+              Cabin radiation level
             </div>
           </div>
 
@@ -404,7 +404,7 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
             </span>
             <span style={{ fontSize: '8px', color: '#22c55e', fontWeight: 600 }}>°C</span>
             <div className="hud-tooltip hud-tooltip-down">
-              Cabin Internal Ambient Temperature · Active thermal control loop (Nominal: 21.4°C)
+              Cabin air temperature
             </div>
           </div>
 
@@ -437,8 +437,8 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
               {airflowVal.toFixed(2)}
             </span>
             <span style={{ fontSize: '8px', color: '#22c55e', fontWeight: 600 }}>m/s</span>
-            <div className="hud-tooltip hud-tooltip-down">
-              Atmospheric Ventilation Velocity · Duct circulation rate preventing CO₂ pockets (Nominal: 0.45 m/s)
+            <div className="hud-tooltip hud-tooltip-down-right">
+              Cabin air circulation speed
             </div>
           </div>
         </div>
