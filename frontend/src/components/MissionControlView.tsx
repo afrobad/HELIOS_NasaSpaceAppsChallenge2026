@@ -1843,227 +1843,339 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           />
         </div>
 
-        {/* ─── 4. EXTRA OPERATIONAL GRAPHS: LONGITUDINAL TRAJECTORY & 24H ECLSS HABITAT ─── */}
+        {/* ─── 4. OPERATIONAL ENVIRONMENTAL & DOSIMETRY MONITORING SUITE ─── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 14 }}>
-          {/* Graph 1: Mission Longitudinal Trajectory (Flight Day 01 -> Today FD-184) */}
+          {/* Graph 1: Mission Longitudinal Trajectory (Space Radiation Environment & Cumulative Dose) */}
           <div style={cardStyle}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div>
-                <div style={labelStyle}>Mission Longitudinal Trajectory // Flight Day 01 → Today (FD-184)</div>
-                <div style={{ fontSize: 10, color: T.textSecondary }}>
-                  Resting Cardiovascular Baseline Drift &amp; Cumulative Space Radiation Exposure
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 9, fontFamily: T.mono }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 8, height: 2, background: '#5ebd4c', display: 'inline-block' }} />
-                  <span style={{ color: '#b8cbde' }}>Resting HR (bpm)</span>
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 8, height: 2, background: '#e6a83c', display: 'inline-block' }} />
-                  <span style={{ color: '#b8cbde' }}>Cumul. Rad (mSv)</span>
-                </span>
-              </div>
-            </div>
+            {(() => {
+              const liveFlux = anyPkt?.radiation_flux !== undefined
+                ? anyPkt.radiation_flux
+                : (currentScenario && (currentScenario.includes('RADIATION') || currentScenario.includes('SOLAR')) ? 42.5 : 1.24);
+              const liveDoseGy = anyPkt?.radiation_dose_gy !== undefined
+                ? anyPkt.radiation_dose_gy
+                : (currentScenario && (currentScenario.includes('RADIATION') || currentScenario.includes('SOLAR')) ? 0.184 : 0.1424);
+              const liveDoseMsv = liveDoseGy * 1000;
+              const isSpeEvent = liveFlux > 5.0 || (currentScenario && (currentScenario.includes('RADIATION') || currentScenario.includes('SOLAR')));
 
-            {/* SVG Longitudinal Graph Container */}
-            <div style={{ position: 'relative', width: '100%', height: 185, background: '#090c0f', borderRadius: 4, border: `1px solid ${T.borderSubtle}`, overflow: 'hidden' }}>
-              <svg viewBox="0 0 540 185" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
-                <defs>
-                  <linearGradient id="radAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#e6a83c" stopOpacity="0.22" />
-                    <stop offset="100%" stopColor="#e6a83c" stopOpacity="0.0" />
-                  </linearGradient>
-                  <linearGradient id="hrAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#5ebd4c" stopOpacity="0.18" />
-                    <stop offset="100%" stopColor="#5ebd4c" stopOpacity="0.0" />
-                  </linearGradient>
-                </defs>
+              // Scale: Left Y-axis (Dose: 0 to 250 mSv), Right Y-axis (Flux: 0 to 50 mGy/d)
+              // Plot range: x from 48 to 480 (w=432), y from 30 to 160 (h=130)
+              const doseToY = (d: number) => (160 - (Math.min(250, Math.max(0, d)) / 250) * 130).toFixed(1);
+              const fluxToY = (f: number) => (160 - (Math.min(50, Math.max(0, f)) / 50) * 130).toFixed(1);
 
-                {/* Horizontal reference grid lines */}
-                <line x1="40" y1="35" x2="520" y2="35" stroke="#1f2732" strokeWidth="0.8" />
-                <line x1="40" y1="75" x2="520" y2="75" stroke="#1f2732" strokeWidth="0.8" />
-                <line x1="40" y1="115" x2="520" y2="115" stroke="#1f2732" strokeWidth="0.8" />
-                <line x1="40" y1="155" x2="520" y2="155" stroke="#25303e" strokeWidth="1" />
+              const nowDoseY = doseToY(liveDoseMsv);
+              const nowFluxY = fluxToY(liveFlux);
 
-                {/* NASA Career Permissible Limit Line (Red Dashed) */}
-                <line x1="40" y1="35" x2="520" y2="35" stroke="#ff4d4d" strokeWidth="1" strokeDasharray="4,4" />
-                <text x="44" y="30" fill="#ff7070" fontSize="8" fontFamily={T.mono} fontWeight="bold">
-                  NASA CAREER PERMISSIBLE LIMIT (600 mSv)
-                </text>
+              // Dose curve points (FD-01 Launch -> FD-04 Van Allen -> FD-45 Flyby -> FD-112 SPE Step -> FD-150 Cruise -> FD-184 Today)
+              const dosePts = `48,160.0 95,${doseToY(18.2)} 180,${doseToY(38.5)} 310,${doseToY(98.4)} 400,${doseToY(122.0)} 480,${nowDoseY}`;
+              const doseAreaPts = `48,160.0 95,${doseToY(18.2)} 180,${doseToY(38.5)} 310,${doseToY(98.4)} 400,${doseToY(122.0)} 480,${nowDoseY} 480,160.0`;
 
-                {/* Mission Milestones Vertical Guidelines */}
-                <line x1="85" y1="20" x2="85" y2="155" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
-                <text x="85" y="166" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">FD-04 TLI</text>
+              // Flux curve points
+              const fluxPts = isSpeEvent
+                ? `48,159.5 95,${fluxToY(8.4)} 180,${fluxToY(1.24)} 305,${fluxToY(1.24)} 310,${fluxToY(34.0)} 318,${fluxToY(1.24)} 400,${fluxToY(1.24)} 450,${fluxToY(22.0)} 480,${nowFluxY}`
+                : `48,159.5 95,${fluxToY(8.4)} 180,${fluxToY(1.24)} 305,${fluxToY(1.24)} 310,${fluxToY(34.0)} 318,${fluxToY(1.24)} 400,${fluxToY(1.24)} 450,${fluxToY(1.24)} 480,${nowFluxY}`;
 
-                <line x1="140" y1="20" x2="140" y2="155" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
-                <text x="140" y="166" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">LUNAR FLYBY</text>
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={labelStyle}>Mission Dosimetry Trajectory // FD-01 → Today (FD-184)</div>
+                      <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2 }}>
+                        Cumulative Tissue Dose (mSv) &amp; Real-Time Proton Flux (mGy/d)
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 9, fontFamily: T.mono }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ width: 10, height: 2.5, background: '#e6a83c', borderRadius: 1 }} />
+                        <span style={{ color: '#f8fafc', fontWeight: 700 }}>Dose: {liveDoseMsv.toFixed(1)} mSv</span>
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ width: 10, height: 2.5, background: isSpeEvent ? '#ef4444' : '#38bdf8', borderRadius: 1 }} />
+                        <span style={{ color: isSpeEvent ? '#ef4444' : '#38bdf8', fontWeight: 700 }}>
+                          Flux: {liveFlux.toFixed(1)} mGy/d
+                        </span>
+                      </span>
+                    </div>
+                  </div>
 
-                <line x1="225" y1="20" x2="225" y2="155" stroke="#e6a83c" strokeWidth="0.8" strokeDasharray="2,2" opacity="0.6" />
-                <text x="225" y="166" fill="#e6a83c" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">SPE FLARE</text>
+                  {/* Dual-Axis SVG Container */}
+                  <div style={{ position: 'relative', width: '100%', height: 185, background: '#090c0f', borderRadius: 4, border: `1px solid ${T.borderSubtle}`, overflow: 'hidden' }}>
+                    <svg viewBox="0 0 540 185" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
+                      <defs>
+                        <linearGradient id="doseGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#e6a83c" stopOpacity="0.28" />
+                          <stop offset="100%" stopColor="#e6a83c" stopOpacity="0.02" />
+                        </linearGradient>
+                      </defs>
 
-                <line x1="360" y1="20" x2="360" y2="155" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
-                <text x="360" y="166" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">DEEP TRANSIT</text>
+                      {/* Horizontal Grid Lines */}
+                      <line x1="48" y1="30" x2="480" y2="30" stroke="#1f2732" strokeWidth="0.8" />
+                      <line x1="48" y1="62.5" x2="480" y2="62.5" stroke="#1f2732" strokeWidth="0.8" />
+                      <line x1="48" y1="95" x2="480" y2="95" stroke="#1f2732" strokeWidth="0.8" />
+                      <line x1="48" y1="127.5" x2="480" y2="127.5" stroke="#1f2732" strokeWidth="0.8" />
+                      <line x1="48" y1="160" x2="480" y2="160" stroke="#25303e" strokeWidth="1" />
 
-                <line x1="515" y1="20" x2="515" y2="155" stroke="#5ebd4c" strokeWidth="1.2" />
-                <text x="515" y="166" fill="#5ebd4c" fontSize="8" fontFamily={T.mono} textAnchor="middle" fontWeight="bold">TODAY (FD-184)</text>
+                      {/* NASA 30-Day Caution Gate (250 mSv) */}
+                      <line x1="48" y1="30" x2="480" y2="30" stroke="#ef4444" strokeWidth="1" strokeDasharray="4,4" />
+                      <text x="52" y="24" fill="#f87171" fontSize="7.5" fontFamily={T.mono} fontWeight="bold">
+                        NASA 30-DAY PERMISSIBLE GATE (250 mSv)
+                      </text>
 
-                {/* 1. Cumulative Radiation Shaded Area & Curve (0 mSv -> 142.4 mSv) */}
-                <polygon
-                  fill="url(#radAreaGrad)"
-                  points="40,155 85,152 140,147 225,138 230,129 360,118 450,112 515,108 515,155"
-                />
-                <polyline
-                  fill="none"
-                  stroke="#e6a83c"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  points="40,155 85,152 140,147 225,138 230,129 360,118 450,112 515,108"
-                />
-                <circle cx="515" cy="108" r="3" fill="#e6a83c" />
+                      {/* SPE Event Flux Threshold Gate (5.0 mGy/d) */}
+                      <line x1="48" y1="147" x2="480" y2="147" stroke="#f59e0b" strokeWidth="0.8" strokeDasharray="3,3" opacity="0.8" />
+                      <text x="210" y="144" fill="#f59e0b" fontSize="7" fontFamily={T.mono}>
+                        SPE PROTON ALARM GATE (5.0 mGy/d)
+                      </text>
 
-                {/* 2. Resting HR Adaptation Curve (65 bpm -> 78 bpm fluid shift -> 64 -> 68.2 bpm) */}
-                <polygon
-                  fill="url(#hrAreaGrad)"
-                  points="40,155 60,105 85,92 110,120 140,128 225,124 360,120 450,116 515,114 515,155"
-                />
-                <polyline
-                  fill="none"
-                  stroke="#5ebd4c"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  points="40,125 60,105 85,92 110,120 140,128 225,124 360,120 450,116 515,114"
-                />
-                <circle cx="515" cy="114" r="3" fill="#5ebd4c" />
+                      {/* Flight Milestone Vertical Lines */}
+                      <line x1="95" y1="20" x2="95" y2="160" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
+                      <text x="95" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">FD-04 TLI</text>
 
-                {/* Axis Left Labels (HR bpm) */}
-                <text x="34" y="38" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">85 bpm</text>
-                <text x="34" y="78" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">75 bpm</text>
-                <text x="34" y="118" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">65 bpm</text>
-                <text x="34" y="157" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">55 bpm</text>
+                      <line x1="180" y1="20" x2="180" y2="160" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
+                      <text x="180" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">LUNAR FLYBY</text>
 
-                {/* Callout markers on today point */}
-                <rect x="420" y="85" width="92" height="18" rx="3" fill="#141920" stroke="#e6a83c" strokeWidth="0.8" />
-                <text x="424" y="97" fill="#e6a83c" fontSize="8" fontFamily={T.mono} fontWeight="bold">Dose: 142.4 mSv</text>
+                      <line x1="310" y1="20" x2="310" y2="160" stroke="#e6a83c" strokeWidth="0.8" strokeDasharray="2,2" opacity="0.6" />
+                      <text x="310" y="172" fill="#e6a83c" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">SPE FLARE</text>
 
-                <rect x="420" y="122" width="92" height="18" rx="3" fill="#141920" stroke="#5ebd4c" strokeWidth="0.8" />
-                <text x="424" y="134" fill="#5ebd4c" fontSize="8" fontFamily={T.mono} fontWeight="bold">Rest HR: 68 bpm</text>
-              </svg>
-            </div>
+                      <line x1="400" y1="20" x2="400" y2="160" stroke="#2a3545" strokeWidth="0.8" strokeDasharray="2,2" />
+                      <text x="400" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono} textAnchor="middle">DEEP TRANSIT</text>
 
-            {/* Trajectory Insights Footer */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 8, paddingTop: 6, borderTop: `1px solid ${T.borderSubtle}` }}>
-              <div>
-                <div style={{ fontSize: 9, color: T.textMuted }}>Cumulative Exposure</div>
-                <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 700, color: '#e6a83c' }}>142.4 mSv</div>
-                <div style={{ fontSize: 8.5, color: T.nominal }}>Margin: +457.6 mSv (Safe)</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 9, color: T.textMuted }}>Cardiovascular Drift</div>
-                <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 700, color: '#5ebd4c' }}>+4.2 bpm (+6.4%)</div>
-                <div style={{ fontSize: 8.5, color: T.textMuted }}>Cephalic fluid shift stabilized</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 9, color: T.textMuted }}>Mission Elapsed Timeline</div>
-                <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 700, color: T.textPrimary }}>FD-184 / 310d</div>
-                <div style={{ fontSize: 8.5, color: T.textMuted }}>Phase: Mars Transfer Orbit</div>
-              </div>
-            </div>
-          </div>
+                      <line x1="480" y1="20" x2="480" y2="160" stroke={isSpeEvent ? '#ef4444' : '#4ade80'} strokeWidth="1.2" />
+                      <text x="480" y="172" fill={isSpeEvent ? '#ef4444' : '#4ade80'} fontSize="8" fontFamily={T.mono} textAnchor="middle" fontWeight="bold">
+                        TODAY (FD-184)
+                      </text>
 
-          {/* Graph 2: Continuous 24-Hour ECLSS Cabin Habitat Multi-Channel Graph */}
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div>
-                <div style={labelStyle}>Continuous 24-Hour ECLSS Cabin Habitat Multi-Channel Graph</div>
-                <div style={{ fontSize: 10, color: T.textSecondary }}>
-                  Atmospheric Pressure, Carbon Dioxide (ppCO₂), Oxygen &amp; Thermal Balance
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 8.5, fontFamily: T.mono }}>
-                <span style={{ color: '#5ebd4c' }}>Press: 101.3 kPa</span>
-                <span style={{ color: '#e6a83c' }}>CO₂: {co2Val.toFixed(2)} mmHg</span>
-                <span style={{ color: '#7ea4cb' }}>O₂: 21.3 kPa</span>
-              </div>
-            </div>
-
-            {/* SVG 24-Hour ECLSS Graph */}
-            <div style={{ position: 'relative', width: '100%', height: 185, background: '#090c0f', borderRadius: 4, border: `1px solid ${T.borderSubtle}`, overflow: 'hidden' }}>
-              <svg viewBox="0 0 500 185" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
-                {/* Horizontal reference lines */}
-                <line x1="30" y1="35" x2="480" y2="35" stroke="#1f2732" strokeWidth="0.8" />
-                <line x1="30" y1="75" x2="480" y2="75" stroke="#1f2732" strokeWidth="0.8" />
-                <line x1="30" y1="115" x2="480" y2="115" stroke="#1f2732" strokeWidth="0.8" />
-                <line x1="30" y1="155" x2="480" y2="155" stroke="#25303e" strokeWidth="1" />
-
-                {/* NASA Flight Rule Limit: ppCO2 3.0 mmHg (Red Dashed) */}
-                <line x1="30" y1="52" x2="480" y2="52" stroke="#ff4d4d" strokeWidth="1" strokeDasharray="3,3" />
-                <text x="34" y="47" fill="#ff7070" fontSize="7.5" fontFamily={T.mono} fontWeight="bold">
-                  NASA-STD-3001 1-HOUR CO₂ FLIGHT RULE LIMIT (3.00 mmHg)
-                </text>
-
-                {/* 1. Cabin Total Pressure (101.3 kPa - Steady Green Line) */}
-                <line x1="30" y1="35" x2="480" y2="35" stroke="#5ebd4c" strokeWidth="1.8" />
-                <circle cx="480" cy="35" r="2.5" fill="#5ebd4c" />
-
-                {/* 2. Partial Pressure O2 (21.3 kPa - Cyan Line) */}
-                <polyline
-                  fill="none"
-                  stroke="#7ea4cb"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  points="30,80 120,79 220,80 320,79 410,80 480,80"
-                />
-
-                {/* 3. Partial Pressure CO2 (Dynamic curve scaling to real co2Val & scenario) */}
-                {(() => {
-                  const clamped = Math.max(1.0, Math.min(6.0, co2Val));
-                  const nowY = (155 - ((clamped - 1.0) / 5.0) * 115).toFixed(1);
-                  const isElevated = co2Val > 2.4 || (currentScenario && currentScenario.includes('CO2'));
-                  const dynamicPoints = isElevated
-                    ? `30,120 100,118 180,114 260,102 320,82 390,66 450,${(Number(nowY) + 4).toFixed(1)} 480,${nowY}`
-                    : `30,120 100,118 180,119 260,118 320,119 390,118 450,119 480,${nowY}`;
-                  return (
-                    <>
+                      {/* Cumulative Dose Area Fill & Polyline (Amber) */}
+                      <polygon fill="url(#doseGrad)" points={doseAreaPts} />
                       <polyline
                         fill="none"
-                        stroke={co2Val > 3.0 ? '#ff4d4d' : '#e6a83c'}
+                        stroke="#e6a83c"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        points={dosePts}
+                      />
+                      <circle cx="480" cy={nowDoseY} r="3.5" fill="#e6a83c" />
+
+                      {/* Ambient Flux Polyline (Cyan / Red if SPE) */}
+                      <polyline
+                        fill="none"
+                        stroke={isSpeEvent ? '#ef4444' : '#38bdf8'}
                         strokeWidth="1.8"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        points={dynamicPoints}
+                        points={fluxPts}
                       />
-                      <circle cx="480" cy={nowY} r="2.8" fill={co2Val > 3.0 ? '#ff4d4d' : '#e6a83c'} />
-                    </>
-                  );
-                })()}
+                      <circle cx="480" cy={nowFluxY} r="3" fill={isSpeEvent ? '#ef4444' : '#38bdf8'} />
 
-                {/* Time Axis Markers */}
-                <text x="30" y="168" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-24h</text>
-                <text x="140" y="168" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-18h</text>
-                <text x="250" y="168" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-12h</text>
-                <text x="360" y="168" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-6h</text>
-                <text x="475" y="168" fill="#5ebd4c" fontSize="7.5" fontFamily={T.mono} textAnchor="end" fontWeight="bold">NOW</text>
-              </svg>
-            </div>
+                      {/* Left Y-Axis Ticks (mSv Dose) */}
+                      <text x="42" y="33" fill="#e6a83c" fontSize="7.5" fontFamily={T.mono} textAnchor="end">250</text>
+                      <text x="42" y="66" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">188</text>
+                      <text x="42" y="98" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">125</text>
+                      <text x="42" y="130" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">63</text>
+                      <text x="42" y="162" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">0 mSv</text>
 
-            {/* Environmental Verdict Footer */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingTop: 6, borderTop: `1px solid ${T.borderSubtle}` }}>
-              <div style={{ fontSize: 9.5, color: co2Val > 3.0 ? T.critical : T.nominal, display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span>
-                  {co2Val > 3.0
-                    ? 'ECLSS CAUTION: Cabin CO₂ exceeds 1-hour flight rule limit (3.00 mmHg). Backup scrubber Bed B activation required.'
-                    : 'ECLSS PASS: Cabin atmosphere nominal. No hypoxic or toxic decompress transients.'}
-                </span>
-              </div>
-              <span style={{ fontSize: 9, fontFamily: T.mono, color: co2Val > 3.0 ? T.critical : T.textMuted }}>
-                {co2Val > 3.0
-                  ? `EXCEEDED BY +${(co2Val - 3.0).toFixed(2)} mmHg`
-                  : `Margin to CO₂ Limit: +${(3.0 - co2Val).toFixed(2)} mmHg`}
-              </span>
-            </div>
+                      {/* Right Y-Axis Ticks (mGy/d Flux) */}
+                      <text x="486" y="33" fill="#38bdf8" fontSize="7.5" fontFamily={T.mono} textAnchor="start">50</text>
+                      <text x="486" y="66" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="start">38</text>
+                      <text x="486" y="98" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="start">25</text>
+                      <text x="486" y="130" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="start">12</text>
+                      <text x="486" y="162" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="start">0 mGy/d</text>
+
+                      {/* Callout Marker on Today Point */}
+                      <rect x="375" y={isSpeEvent ? 32 : 75} width="100" height="18" rx="3" fill="#0f172a" stroke={isSpeEvent ? '#ef4444' : '#e6a83c'} strokeWidth="0.9" />
+                      <text x="380" y={isSpeEvent ? 44 : 87} fill={isSpeEvent ? '#fca5a5' : '#fcd34d'} fontSize="7.5" fontFamily={T.mono} fontWeight="bold">
+                        {isSpeEvent ? `SPE: ${liveFlux.toFixed(1)} mGy/d` : `Dose: ${liveDoseMsv.toFixed(1)} mSv`}
+                      </text>
+                    </svg>
+                  </div>
+
+                  {/* Operational Metrics Footer */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 4, paddingTop: 6, borderTop: `1px solid ${T.borderSubtle}` }}>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>Cumulative Tissue Dose</div>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: '#e6a83c' }}>
+                        {liveDoseMsv.toFixed(1)} mSv
+                      </div>
+                      <div style={{ fontSize: 8.5, color: T.nominal }}>
+                        Career Margin: +{(600 - liveDoseMsv).toFixed(1)} mSv (Safe)
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>Ambient Proton Flux</div>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isSpeEvent ? '#ef4444' : '#38bdf8' }}>
+                        {liveFlux.toFixed(2)} mGy/d
+                      </div>
+                      <div style={{ fontSize: 8.5, color: isSpeEvent ? '#ef4444' : T.textMuted }}>
+                        {isSpeEvent ? 'CRITICAL: High Solar Particle Event' : 'GCR Quiet Baseline Corridor'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>Vehicle Shielding Status</div>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isSpeEvent ? '#ef4444' : '#4ade80' }}>
+                        {isSpeEvent ? 'STORM SHELTER' : 'PASSIVE HULL'}
+                      </div>
+                      <div style={{ fontSize: 8.5, color: T.textMuted }}>
+                        {isSpeEvent ? 'Water Wall Retraction Active' : 'Polyethylene Core Nominal'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Graph 2: Continuous 24-Hour ECLSS Cabin Habitat ppCO2 Flight Rule Dynamics */}
+          <div style={cardStyle}>
+            {(() => {
+              const isBreach = co2Val > 3.0;
+              const isElevated = co2Val > 2.0;
+
+              // Left Y-axis (Cabin ppCO2 in mmHg, range 0 to 6.0 mmHg)
+              // Plot range: x from 44 to 470 (w=426), y from 30 to 160 (h=130)
+              const co2ToY = (c: number) => (160 - (Math.min(6.0, Math.max(0, c)) / 6.0) * 130).toFixed(1);
+              const nowCo2Y = co2ToY(co2Val);
+
+              // 24-hour realistic spline points modeling 140-minute CDRA molecular sieve half-cycles
+              const co2Pts = isBreach
+                ? `44,${co2ToY(1.72)} 120,${co2ToY(1.80)} 200,${co2ToY(1.75)} 280,${co2ToY(2.15)} 350,${co2ToY(2.65)} 410,${co2ToY(3.10)} 470,${nowCo2Y}`
+                : isElevated
+                ? `44,${co2ToY(1.70)} 120,${co2ToY(1.78)} 200,${co2ToY(1.82)} 280,${co2ToY(1.95)} 350,${co2ToY(2.10)} 410,${co2ToY(2.25)} 470,${nowCo2Y}`
+                : `44,${co2ToY(1.70)} 120,${co2ToY(1.82)} 200,${co2ToY(1.74)} 280,${co2ToY(1.80)} 350,${co2ToY(1.75)} 410,${co2ToY(1.82)} 470,${nowCo2Y}`;
+
+              const co2AreaPts = `${co2Pts} 470,160.0 44,160.0`;
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={labelStyle}>24-Hour Cabin ppCO₂ Dynamics</div>
+                      <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2 }}>
+                        Carbon Dioxide Partial Pressure vs NASA-STD-3001 Limit
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 9, fontFamily: T.mono }}>
+                      <span style={{
+                        background: isBreach ? 'rgba(239, 68, 68, 0.15)' : 'rgba(74, 222, 128, 0.1)',
+                        border: `1px solid ${isBreach ? 'rgba(239, 68, 68, 0.35)' : 'rgba(74, 222, 128, 0.25)'}`,
+                        color: isBreach ? '#ef4444' : '#4ade80',
+                        padding: '2px 7px',
+                        borderRadius: 3,
+                        fontWeight: 700,
+                      }}>
+                        ppCO₂: {co2Val.toFixed(2)} mmHg
+                      </span>
+                      <span style={{ color: '#849db5' }}>101.3 kPa · 21.3 kPa O₂</span>
+                    </div>
+                  </div>
+
+                  {/* SVG Container with True Labeled Scales & Physical Zones */}
+                  <div style={{ position: 'relative', width: '100%', height: 185, background: '#090c0f', borderRadius: 4, border: `1px solid ${T.borderSubtle}`, overflow: 'hidden' }}>
+                    <svg viewBox="0 0 500 185" preserveAspectRatio="none" style={{ width: '100%', height: '100%', display: 'block' }}>
+                      <defs>
+                        <linearGradient id="co2Grad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={isBreach ? '#ef4444' : '#4ade80'} stopOpacity={isBreach ? '0.35' : '0.22'} />
+                          <stop offset="100%" stopColor={isBreach ? '#ef4444' : '#4ade80'} stopOpacity="0.01" />
+                        </linearGradient>
+                      </defs>
+
+                      {/* Physical Environmental Zone Backgrounds */}
+                      {/* Red Excursion Zone (> 3.0 mmHg: y 30 to 95) */}
+                      <rect x="44" y="30" width="426" height="65" fill="rgba(239, 68, 68, 0.05)" />
+                      {/* Amber Caution Corridor (2.0 to 3.0 mmHg: y 95 to 116.7) */}
+                      <rect x="44" y="95" width="426" height="21.7" fill="rgba(245, 158, 11, 0.04)" />
+                      {/* Green Nominal Envelope (0 to 2.0 mmHg: y 116.7 to 160) */}
+                      <rect x="44" y="116.7" width="426" height="43.3" fill="rgba(74, 222, 128, 0.02)" />
+
+                      {/* Horizontal Grid Lines */}
+                      <line x1="44" y1="30" x2="470" y2="30" stroke="#1f2732" strokeWidth="0.8" />
+                      <line x1="44" y1="51.7" x2="470" y2="51.7" stroke="#1f2732" strokeWidth="0.8" />
+                      <line x1="44" y1="95" x2="470" y2="95" stroke="#1f2732" strokeWidth="0.8" />
+                      <line x1="44" y1="116.7" x2="470" y2="116.7" stroke="#1f2732" strokeWidth="0.8" />
+                      <line x1="44" y1="138.3" x2="470" y2="138.3" stroke="#1f2732" strokeWidth="0.8" />
+                      <line x1="44" y1="160" x2="470" y2="160" stroke="#25303e" strokeWidth="1" />
+
+                      {/* NASA Flight Rule Limit: 3.00 mmHg (Red Dashed) */}
+                      <line x1="44" y1="95" x2="470" y2="95" stroke="#ef4444" strokeWidth="1.2" strokeDasharray="4,3" />
+                      <text x="48" y="90" fill="#f87171" fontSize="7.5" fontFamily={T.mono} fontWeight="bold">
+                        NASA-STD-3001 1-HR FLIGHT RULE LIMIT (3.00 mmHg)
+                      </text>
+
+                      {/* Operational Caution Floor: 2.00 mmHg (Amber Dotted) */}
+                      <line x1="44" y1="116.7" x2="470" y2="116.7" stroke="#f59e0b" strokeWidth="0.8" strokeDasharray="2,2" opacity="0.7" />
+                      <text x="320" y="113" fill="#f59e0b" fontSize="6.8" fontFamily={T.mono}>
+                        CAUTION BAND (2.00 mmHg)
+                      </text>
+
+                      {/* Continuous 24H ppCO2 Dynamic Trace */}
+                      <polygon fill="url(#co2Grad)" points={co2AreaPts} />
+                      <polyline
+                        fill="none"
+                        stroke={isBreach ? '#ef4444' : isElevated ? '#f59e0b' : '#4ade80'}
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        points={co2Pts}
+                      />
+                      <circle cx="470" cy={nowCo2Y} r="3.5" fill={isBreach ? '#ef4444' : isElevated ? '#f59e0b' : '#4ade80'} />
+
+                      {/* Left Y-Axis Ticks (mmHg) */}
+                      <text x="38" y="33" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">6.0</text>
+                      <text x="38" y="55" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">5.0</text>
+                      <text x="38" y="98" fill="#ef4444" fontSize="7.5" fontFamily={T.mono} textAnchor="end" fontWeight="bold">3.0</text>
+                      <text x="38" y="119" fill="#f59e0b" fontSize="7" fontFamily={T.mono} textAnchor="end">2.0</text>
+                      <text x="38" y="141" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">1.0</text>
+                      <text x="38" y="162" fill="#849db5" fontSize="7" fontFamily={T.mono} textAnchor="end">0.0</text>
+
+                      {/* Callout Marker on Now Point */}
+                      <rect x="365" y={isBreach ? Number(nowCo2Y) - 20 : Number(nowCo2Y) - 18} width="96" height="16" rx="3" fill="#0f172a" stroke={isBreach ? '#ef4444' : '#4ade80'} strokeWidth="0.9" />
+                      <text x="370" y={isBreach ? Number(nowCo2Y) - 9 : Number(nowCo2Y) - 7} fill={isBreach ? '#fca5a5' : '#86efac'} fontSize="7.5" fontFamily={T.mono} fontWeight="bold">
+                        ppCO₂: {co2Val.toFixed(2)} mmHg
+                      </text>
+
+                      {/* Time Axis Markers */}
+                      <text x="44" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-24h</text>
+                      <text x="120" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-18h</text>
+                      <text x="200" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-12h</text>
+                      <text x="280" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-6h</text>
+                      <text x="350" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-3h</text>
+                      <text x="410" y="172" fill="#849db5" fontSize="7.5" fontFamily={T.mono}>T-1h</text>
+                      <text x="470" y="172" fill={isBreach ? '#ef4444' : '#4ade80'} fontSize="7.5" fontFamily={T.mono} textAnchor="middle" fontWeight="bold">NOW</text>
+                    </svg>
+                  </div>
+
+                  {/* Environmental Flight Rule Status Footer */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 4, paddingTop: 6, borderTop: `1px solid ${T.borderSubtle}` }}>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>Flight Rule Compliance</div>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#ef4444' : '#4ade80' }}>
+                        {isBreach ? `EXCEEDED (+${(co2Val - 3.0).toFixed(2)})` : `NOMINAL (3.0 Max)`}
+                      </div>
+                      <div style={{ fontSize: 8.5, color: isBreach ? '#ef4444' : T.nominal }}>
+                        {isBreach ? '1-Hour Safe Exposure Window Active' : `Margin: +${(3.0 - co2Val).toFixed(2)} mmHg`}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>CDRA Scrubber Assembly</div>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#ef4444' : '#f8fafc' }}>
+                        {isBreach ? 'BED A SATURATED' : 'BED A/B CYCLING'}
+                      </div>
+                      <div style={{ fontSize: 8.5, color: isBreach ? '#ef4444' : T.textMuted }}>
+                        {isBreach ? 'Action: Cycle Bed B Bypass' : '140-Min Desorb Half-Cycle'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 9, color: T.textMuted }}>Contingency LiOH Reserves</div>
+                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: isBreach ? '#f59e0b' : '#4ade80' }}>
+                        {isBreach ? 'ARM CANISTERS' : '6 CANISTERS SEALED'}
+                      </div>
+                      <div style={{ fontSize: 8.5, color: T.textMuted }}>
+                        {isBreach ? 'Manual Installation Directive' : '100% Reserve Capacity'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

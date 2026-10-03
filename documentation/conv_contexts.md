@@ -6680,3 +6680,54 @@
 * **Referenced File Links:**
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+## Turn 41: Elimination of Blunders & Bluffs in MCC Overview Operational Graphs (True Dual-Axis Dosimetry & Calibrated 24H ppCO2 Flight Rule Sentry)
+* **Date/Time:** 2026-10-04 00:50:00 (Local Time) / 18:50:00 UTC
+* **Role:** Lead Flight Telemetry Systems Architect & Senior MCC UX Designer
+* **User Feedback & Request:**
+  > User provided a screenshot of the two bottom graphs (Mission Longitudinal Trajectory & 24-Hour ECLSS Cabin Habitat):
+  > *"make this section functional and clear, remove blunders bluffs and unnesessary components"*
+  > Zero emojis anywhere (strictly forbidden). Clean professional aerospace styling.
+
+* **Forensic Audit & Identified Blunders Removed ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **Absurd 600 mSv Limit Line Blunder:**
+     - In Graph 1, a red dashed line labeled `NASA CAREER PERMISSIBLE LIMIT (600 mSv)` was drawn across $y=35$ right next to `85 bpm` on a 55–85 bpm Heart Rate axis. Conflating cumulative radiation dose with heart rate on a single axis was a massive blunder and physically meaningless.
+  2. **Three Incompatible Scales on One Graph (Unscaled Bluff):**
+     - In Graph 2, Total Cabin Pressure (`101.3 kPa`), Oxygen Partial Pressure (`21.3 kPa`), and Carbon Dioxide (`1.88 mmHg` = 0.25 kPa) were drawn on an unscaled single canvas with no Y-axis labels. The $3.00	ext{ mmHg}$ limit line was drawn physically HIGHER on the graph than $21.3	ext{ kPa}$, which is mathematically absurd.
+  3. **Fake Plunging Lines & Static SVG Coordinates:**
+     - The CO₂ line artificially plunged down into the corner ($y=155$) at `NOW`.
+     - Static hardcoded coordinate strings (`points="40,155 85,152..."`) never changed when live telemetry arrived or when scenarios were injected.
+  4. **Text Truncation:**
+     - The milestone label `TODAY (FD-184)` was clipped as `TODAY (FD-18` due to inadequate right SVG padding.
+
+* **Aerospace Engineering Architecture & Implementations ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+  1. **Graph 1: Authentic Dual-Axis Space Radiation Dosimetry Console:**
+     - **Left Y-Axis (Dose):** Calibrated from $0$ to $250	ext{ mSv}$ (NASA 30-Day Permissible Gate) with authentic ticks at $0$, $63$, $125$, $188$, and $250	ext{ mSv}$.
+     - **Right Y-Axis (Flux):** Calibrated from $0$ to $50	ext{ mGy/d}$ for real-time HERA silicon microdosimeter proton flux.
+     - **Reference Flight Rule Gates:**
+       * True horizontal red dashed line at $250	ext{ mSv}$: `NASA 30-DAY PERMISSIBLE GATE (250 mSv)`.
+       * True horizontal amber dotted line at $5.0	ext{ mGy/d}$: `SPE PROTON ALARM GATE (5.0 mGy/d)`.
+     - **Live Telemetry & Scenario Responsiveness:**
+       * Dynamically binds to `anyPkt.radiation_dose_gy` and `anyPkt.radiation_flux`.
+       * When `SCENARIO_3_SOLAR_RADIATION_STORM` is injected, the proton flux line and today callout dynamically spike up to $42.5	ext{ mGy/d}$, and vehicle status switches to `STORM SHELTER DIRECTIVE`.
+     - **Unclipped Milestone Timeline:** Cleanly anchored ticks: `FD-01 TLI`, `LUNAR FLYBY`, `SPE FLARE`, `DEEP TRANSIT`, `TODAY (FD-184)`.
+  2. **Graph 2: Calibrated 24-Hour Cabin ppCO₂ Flight Rule Sentry:**
+     - **Focused Environmental Parameter:** Dedicated exclusively to Carbon Dioxide Partial Pressure ($p	ext{CO}_2$) in mmHg—the primary flight rule driver of human cognitive impairment and hypercapnia.
+     - **Labeled Y-Axis:** Authentic ticks at $0.0$, $1.0$, $2.0$ (Caution), $3.0$ (Flight Rule Limit), $5.0$ (Severe), and $6.0	ext{ mmHg}$ (Emergency Ceiling).
+     - **Physical Environmental Zones:**
+       * Green Nominal Corridor ($0.0 - 2.0	ext{ mmHg}$)
+       * Amber Caution Band ($2.0 - 3.0	ext{ mmHg}$)
+       * Red Flight Rule Excursion Zone ($> 3.0	ext{ mmHg}$)
+     - **Continuous 24-Hour Spline (No Fake Plunges):**
+       * Models authentic 140-minute CDRA 4-bed molecular sieve half-cycles (adsorb/desorb swings).
+       * In nominal conditions, oscillates stably between $1.65$ and $1.85	ext{ mmHg}$, ending at exact live `co2Val`.
+       * When `SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH` is active or $p	ext{CO}_2 > 3.0$, displays progressive Bed A saturation climbing smoothly to the live breach value with red alert styling.
+     - **Actionable Footer Metrics:** Flight rule margin (`Margin: +1.18 mmHg` or `EXCEEDED BY ...`), CDRA bed state (`BED A SATURATED`), and contingency LiOH reserve capacity.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Production Build:** `npm run build` compiled client bundle in 1.05s with 0 errors.
+  - **Live Backend MCC Test:** `scripts/test_live_backend_mcc.py` passed all 19 integration tests (19 passed, 0 failed).
+
+* **Referenced File Links:**
+  * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
+  * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
