@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { audioService } from '../services/audioService';
 import type { AlertPayload, DistancePreset } from '../types/telemetry';
-import { DISTANCES, fmtTime } from '../types/telemetry';
+import { DISTANCES } from '../types/telemetry';
 
 interface HeaderBarProps {
   connected: boolean;
@@ -40,7 +40,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   marsDelay,
   onToggleMarsDelay: _onToggleMarsDelay,
   orbitalPosition,
-  onSelectOrbitalPosition,
+  onSelectOrbitalPosition: _onSelectOrbitalPosition,
   speedMultiplier = 1,
   activeView = 'HUD',
   onSelectView,
@@ -551,7 +551,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 { id: 'HUD', label: 'Dashboard' },
                 { id: 'HEALTH_TELEMETRY', label: 'Health-Telemetry' },
                 { id: 'MCC', label: 'Earth MCC' },
-                { id: 'SCANNER', label: '3D Hologram' },
               ].map((tabItem) => {
                 const isActive = activeView === tabItem.id;
                 return (
@@ -706,79 +705,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 </div>
               );
             })()}
-
-            {/* Hairline Divider */}
-            <span style={{ color: 'rgba(255, 255, 255, 0.12)', fontSize: '11px', userSelect: 'none' }}>│</span>
-
-            {/* 3. PROPAGATION DELAY & SCENARIO SELECTOR */}
-            <button
-              type="button"
-              onClick={() => {
-                if (onSelectOrbitalPosition) {
-                  const presets: DistancePreset[] = ['LEO', 'GATEWAY', 'MARS_MIN', 'MARS_MAX'];
-                  const nextIdx = (presets.indexOf(currentPos) + 1) % presets.length;
-                  onSelectOrbitalPosition(presets[nextIdx]);
-                }
-              }}
-              title={
-                onSelectOrbitalPosition
-                  ? `One-Way Light Propagation Delay: ${fmtTime(delaySec)} (${DISTANCES[currentPos].label}). Click to cycle orbital position scenario (LEO, Gateway, Mars Min, Mars Max).`
-                  : `One-Way Light Propagation Delay: ${fmtTime(delaySec)} (${DISTANCES[currentPos].label})`
-              }
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'transparent',
-                border: 'none',
-                cursor: onSelectOrbitalPosition ? 'pointer' : 'default',
-                padding: '2px 4px',
-                borderRadius: '4px',
-                outline: 'none',
-                transition: 'background 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (onSelectOrbitalPosition) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              <span
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  color: '#64748b',
-                  letterSpacing: '0.06em',
-                  fontFamily: "'Tomorrow', sans-serif",
-                }}
-              >
-                DELAY
-              </span>
-              <span
-                style={{
-                  fontSize: '11.5px',
-                  fontWeight: 700,
-                  color: delaySec > 0 ? '#fbbf24' : '#4ade80',
-                  fontFamily: 'var(--hud-font-mono, monospace)',
-                  fontVariantNumeric: 'tabular-nums',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <span
-                  style={{
-                    width: '5px',
-                    height: '5px',
-                    borderRadius: '50%',
-                    backgroundColor: delaySec > 0 ? '#fbbf24' : '#4ade80',
-                    boxShadow: delaySec > 0 ? '0 0 6px rgba(251, 191, 36, 0.7)' : '0 0 6px rgba(74, 222, 128, 0.7)',
-                  }}
-                />
-                {delaySec > 0 ? `${fmtTime(delaySec)} (${DISTANCES[currentPos].label})` : '0s (LEO)'}
-              </span>
-            </button>
           </div>
 
           {/* Voice Audio Toggle Button */}
