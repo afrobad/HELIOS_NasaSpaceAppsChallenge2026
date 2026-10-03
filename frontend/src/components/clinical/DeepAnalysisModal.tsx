@@ -177,7 +177,9 @@ export const DeepAnalysisModal: React.FC<DeepAnalysisModalProps> = ({
             <div style={{ background: '#181818', padding: '10px 12px', borderRadius: '8px', border: '1px solid #282828' }}>
               <div style={{ fontSize: '9px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>PERSONAL BASELINE</div>
               <div style={{ fontSize: '18px', fontWeight: 800, color: '#22c55e', marginTop: '2px', fontFamily: 'var(--hud-font-mono, monospace)' }}>
-                {baselineValue ?? 'Nominal'} {unit}
+                {typeof baselineValue === 'number' && (unit === '%' || unit === '°C' || unit === 'g/dL' || unit === 'mmol/L')
+                  ? baselineValue.toFixed(1)
+                  : (baselineValue ?? 'Nominal')} {unit}
               </div>
             </div>
 

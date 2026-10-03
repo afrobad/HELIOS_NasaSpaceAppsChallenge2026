@@ -32,7 +32,11 @@ export const InlineTrendDrawer: React.FC<InlineTrendDrawerProps> = ({
   const padBottom = 16;
   const usableH = height - padTop - padBottom;
 
-  const baselineNum = typeof baselineValue === 'number' ? baselineValue : null;
+  const baselineNum = typeof baselineValue === 'number'
+    ? baselineValue
+    : typeof baselineValue === 'string' && !isNaN(parseFloat(baselineValue))
+    ? parseFloat(baselineValue)
+    : null;
 
   // Calculate baseline Y position if within min-max range
   let baselineY: number | null = null;
@@ -87,7 +91,9 @@ export const InlineTrendDrawer: React.FC<InlineTrendDrawerProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
             <span style={{ color: '#64748b', fontWeight: 600 }}>BASE:</span>
             <span style={{ color: '#22c55e', fontWeight: 700 }}>
-              {baselineValue} {unit}
+              {typeof baselineValue === 'number' && (unit === '%' || unit === '°C' || unit === 'g/dL' || unit === 'mmol/L')
+                ? baselineValue.toFixed(1)
+                : baselineValue} {unit}
             </span>
           </div>
         )}

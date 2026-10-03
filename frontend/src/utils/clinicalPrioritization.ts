@@ -41,13 +41,13 @@ export interface CrewClinicalSummary {
   prioritizedBiomarkers: BiomarkerEvaluation[]; // Top 3 to 4 deviating biomarkers
   nominalVitals: {
     hr: { val: number; unit: string; delta: string; isNominal: boolean };
-    spo2: { val: number; unit: string; delta: string; isNominal: boolean };
-    temp: { val: number; unit: string; delta: string; isNominal: boolean };
+    spo2: { val: string | number; unit: string; delta: string; isNominal: boolean };
+    temp: { val: string | number; unit: string; delta: string; isNominal: boolean };
     bp: { val: string; unit: string; isNominal: boolean };
     hrv: { val: number; unit: string; delta: string; isNominal: boolean };
-    k?: { val: number; unit: string; delta: string; isNominal: boolean };
+    k?: { val: string | number; unit: string; delta: string; isNominal: boolean };
     qtc?: { val: number; unit: string; delta: string; isNominal: boolean };
-    hct?: { val: number; unit: string; delta: string; isNominal: boolean };
+    hct?: { val: string | number; unit: string; delta: string; isNominal: boolean };
   };
   physReserveIndex: number; // 0 - 100%
   reserveBreakdown: {
@@ -727,13 +727,13 @@ export function evaluateCrewClinicalSummary(
       isNominal: isWorkout ? hr <= 170 : hr >= 50 && hr <= 98,
     },
     spo2: {
-      val: Number(spo2.toFixed(1)),
+      val: spo2.toFixed(1),
       unit: '%',
       delta: dSpo2.deltaStr,
       isNominal: spo2 >= 95.0,
     },
     temp: {
-      val: Number(temp.toFixed(1)),
+      val: temp.toFixed(1),
       unit: '°C',
       delta: dTemp.deltaStr,
       isNominal: temp >= 36.2 && temp <= 37.4,
@@ -750,7 +750,7 @@ export function evaluateCrewClinicalSummary(
       isNominal: hrv >= 35,
     },
     k: {
-      val: Number(k.toFixed(2)),
+      val: k.toFixed(2),
       unit: 'mmol/L',
       delta: dK.deltaStr,
       isNominal: k >= 3.5 && k <= 5.1,
@@ -762,7 +762,7 @@ export function evaluateCrewClinicalSummary(
       isNominal: qtc <= 450,
     },
     hct: {
-      val: Number(hct.toFixed(1)),
+      val: hct.toFixed(1),
       unit: '%',
       delta: dHct.deltaStr,
       isNominal: hct >= 38.0 && hct <= 50.0,

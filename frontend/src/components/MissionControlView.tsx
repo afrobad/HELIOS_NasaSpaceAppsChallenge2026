@@ -713,9 +713,9 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           acknowledged: !!acked[`CRIT-${astId}`],
           observed: [
             `Heart rate: ${pkt.heart_rate.toFixed(0)} bpm (baseline: ${crew.baseHr} bpm)`,
-            `SpO₂: ${pkt.spo2.toFixed(1)}% (baseline: ${crew.baseSpo2}%)`,
+            `SpO₂: ${pkt.spo2.toFixed(1)}% (baseline: ${crew.baseSpo2.toFixed(1)}%)`,
             `HRV RMSSD: ${pkt.hrv_rmssd.toFixed(0)} ms (baseline: ${crew.baseHrv} ms)`,
-            `Core temp: ${pkt.core_temp.toFixed(1)} °C (baseline: ${crew.baseTemp} °C)`,
+            `Core temp: ${pkt.core_temp.toFixed(1)} °C (baseline: ${crew.baseTemp.toFixed(1)} °C)`,
           ],
           derived: [
             `HR deviation from personal baseline: ${pctDelta(pkt.heart_rate, crew.baseHr)}`,
@@ -743,7 +743,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           confidence: 'HIGH evidence strength · 4 correlated signals',
           provenance: 'Telemetry stream · sentry_matrix.py · computational_biomarkers.py',
           evidence: `HR: ${pkt.heart_rate.toFixed(0)} bpm (${pctDelta(pkt.heart_rate, crew.baseHr)}) · SpO₂: ${pkt.spo2.toFixed(1)}% · QTc: ${(pkt.computed_qtc || 0).toFixed(0)} ms`,
-          baselineRef: `Personal resting baseline: HR ${crew.baseHr} bpm · SpO₂ ${crew.baseSpo2}% · Source: nasa_astronaut_baselines.json (derived from OSDR OSD-575/569)`,
+          baselineRef: `Personal resting baseline: HR ${crew.baseHr} bpm · SpO₂ ${crew.baseSpo2.toFixed(1)}% · Source: nasa_astronaut_baselines.json (derived from OSDR OSD-575/569)`,
           timelineSequence: [
             { time: '13:04:10', delta: 'T-04m 10s', signal: 'Heart Rate', finding: 'Gradual rise above baseline (72 bpm → 88 bpm)', severity: 'NOMINAL' },
             { time: '13:06:25', delta: 'T-01m 55s', signal: 'HRV RMSSD', finding: 'Autonomic decay detected (65 ms → 38 ms, sympathetic shift)', severity: 'WARNING' },
@@ -771,7 +771,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           acknowledged: !!acked[`WARN-${astId}`],
           observed: [
             `Heart rate: ${pkt.heart_rate.toFixed(0)} bpm (baseline: ${crew.baseHr} bpm)`,
-            `SpO₂: ${pkt.spo2.toFixed(1)}% (baseline: ${crew.baseSpo2}%)`,
+            `SpO₂: ${pkt.spo2.toFixed(1)}% (baseline: ${crew.baseSpo2.toFixed(1)}%)`,
           ],
           derived: [
             `HR deviation: ${pctDelta(pkt.heart_rate, crew.baseHr)}`,
@@ -784,7 +784,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           confidence: 'MODERATE evidence strength · baseline sentry evaluator',
           provenance: 'sentry_matrix.py · nasa_astronaut_baselines.json',
           evidence: `HR: ${pkt.heart_rate.toFixed(0)} bpm · SpO₂: ${pkt.spo2.toFixed(1)}%`,
-          baselineRef: `Personal baseline: HR ${crew.baseHr} bpm · SpO₂ ${crew.baseSpo2}%`,
+          baselineRef: `Personal baseline: HR ${crew.baseHr} bpm · SpO₂ ${crew.baseSpo2.toFixed(1)}%`,
           timelineSequence: [
             { time: '13:02:00', delta: 'T-06m 20s', signal: 'Activity', finding: 'Crew initiated scheduled microgravity workout', severity: 'NOMINAL' },
             { time: '13:05:15', delta: 'T-03m 05s', signal: 'Heart Rate', finding: 'Tachycardia onset (+24% above resting baseline)', severity: 'WARNING' },
@@ -1449,7 +1449,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   value: (targetPkt?.spo2 || targetCrew.baseSpo2).toFixed(1),
                   unit: '%',
                   status: (targetPkt?.spo2 || targetCrew.baseSpo2) < 95 ? 'MILD DESATURATION' : 'NOMINAL PERFUSION',
-                  reference: `Baseline: ${targetCrew.baseSpo2}%`,
+                  reference: `Baseline: ${targetCrew.baseSpo2.toFixed(1)}%`,
                   color: (targetPkt?.spo2 || targetCrew.baseSpo2) < 95 ? '#f59e0b' : '#38bdf8',
                 },
                 {
@@ -1465,7 +1465,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   value: (targetPkt?.core_temp || targetCrew.baseTemp).toFixed(1),
                   unit: '°C',
                   status: 'METABOLIC EXCURSION',
-                  reference: `Baseline: ${targetCrew.baseTemp} °C`,
+                  reference: `Baseline: ${targetCrew.baseTemp.toFixed(1)} °C`,
                   color: '#38bdf8',
                 },
               ];
@@ -2697,7 +2697,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             {/* Export button */}
             <button
               onClick={() => {
-                const dataStr = `CREW HEALTH TELEMETRY REPORT\nMET: T+14d 08:42:19\nTime Window: ${timeRange}\nCrew: ${selCrew.crewNo} ${selCrew.role} (${selCrew.name})\nHR: ${selStats.hr} bpm (${selStats.hrDeltaPct >= 0 ? '+' : ''}${selStats.hrDeltaPct.toFixed(1)}% vs base ${selCrew.baseHr})\nSpO2: ${selStats.spo2.toFixed(1)}% (vs base ${selCrew.baseSpo2}%)\nResp: ${selStats.resp} br/min\nTemp: ${selStats.temp.toFixed(1)} °C\nStatus: ${selStats.statusLabel}`;
+                const dataStr = `CREW HEALTH TELEMETRY REPORT\nMET: T+14d 08:42:19\nTime Window: ${timeRange}\nCrew: ${selCrew.crewNo} ${selCrew.role} (${selCrew.name})\nHR: ${selStats.hr} bpm (${selStats.hrDeltaPct >= 0 ? '+' : ''}${selStats.hrDeltaPct.toFixed(1)}% vs base ${selCrew.baseHr})\nSpO2: ${selStats.spo2.toFixed(1)}% (vs base ${selCrew.baseSpo2.toFixed(1)}%)\nResp: ${selStats.resp} br/min\nTemp: ${selStats.temp.toFixed(1)} °C\nStatus: ${selStats.statusLabel}`;
                 navigator.clipboard.writeText(dataStr);
                 alert('Crew health telemetry snapshot copied to clipboard.');
               }}
@@ -2777,10 +2777,10 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   <div>
                     <div style={{ fontSize: 8, color: diffMode ? '#00e5ff' : T.textMuted }}>{diffMode ? 'Δ SpO₂' : 'SpO₂'}</div>
                     <div style={{ fontSize: 11, fontFamily: T.mono, fontWeight: 700, color: diffMode ? '#00e5ff' : (stats.spo2 < 97 ? T.warning : T.textPrimary) }}>
-                      {diffMode ? `${(stats.spo2 - c.baseSpo2) >= 0 ? '+' : ''}${(stats.spo2 - c.baseSpo2).toFixed(1)}%` : `${stats.spo2.toFixed(0)}%`}
+                      {diffMode ? `${(stats.spo2 - c.baseSpo2) >= 0 ? '+' : ''}${(stats.spo2 - c.baseSpo2).toFixed(1)}%` : `${stats.spo2.toFixed(1)}%`}
                     </div>
                     <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.spo2 < 97 ? T.warning : T.textMuted }}>
-                      {diffMode ? `b:${c.baseSpo2}%` : (stats.spo2DeltaPct >= 0 ? `+${stats.spo2DeltaPct.toFixed(1)}%` : `${stats.spo2DeltaPct.toFixed(1)}%`)}
+                      {diffMode ? `b:${c.baseSpo2.toFixed(1)}%` : (stats.spo2DeltaPct >= 0 ? `+${stats.spo2DeltaPct.toFixed(1)}%` : `${stats.spo2DeltaPct.toFixed(1)}%`)}
                     </div>
                   </div>
 
@@ -2800,7 +2800,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       {diffMode ? `${stats.tempDeltaAbs >= 0 ? '+' : ''}${stats.tempDeltaAbs.toFixed(1)}°` : stats.temp.toFixed(1)}
                     </div>
                     <div style={{ fontSize: 8, fontFamily: T.mono, color: stats.tempDeltaAbs > 0.5 ? T.warning : T.textMuted }}>
-                      {diffMode ? `b:${c.baseTemp}°` : (stats.tempDeltaAbs >= 0 ? `+${stats.tempDeltaAbs.toFixed(1)}` : `${stats.tempDeltaAbs.toFixed(1)}`)}
+                      {diffMode ? `b:${c.baseTemp.toFixed(1)}°` : (stats.tempDeltaAbs >= 0 ? `+${stats.tempDeltaAbs.toFixed(1)}` : `${stats.tempDeltaAbs.toFixed(1)}`)}
                     </div>
                   </div>
                 </div>

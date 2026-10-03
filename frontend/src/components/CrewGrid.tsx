@@ -628,10 +628,10 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                       >
                         <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>SpO₂</div>
                         <div style={{ fontSize: '14px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)', lineHeight: 1.1 }}>
-                          {summary.nominalVitals.spo2.val}<span style={{ fontSize: '8.5px', color: '#64748b' }}>%</span>
+                          {Number(summary.nominalVitals.spo2.val).toFixed(1)}<span style={{ fontSize: '8.5px', color: '#64748b' }}>%</span>
                         </div>
                         <div className="hud-tooltip hud-tooltip-down">
-                          Oxygen Saturation · Peripheral arterial blood oxygen fraction (Normal: ≥95%)
+                          Oxygen Saturation · Peripheral arterial blood oxygen fraction (Baseline: {Number(profile.restSpo2).toFixed(1)}%)
                         </div>
                       </div>
 
@@ -648,10 +648,10 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                       >
                         <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 600 }}>TEMP</div>
                         <div style={{ fontSize: '14px', fontWeight: 700, color: '#e2e8f0', fontFamily: 'var(--hud-font-mono, monospace)', lineHeight: 1.1 }}>
-                          {summary.nominalVitals.temp.val}<span style={{ fontSize: '8.5px', color: '#64748b' }}>°C</span>
+                          {Number(summary.nominalVitals.temp.val).toFixed(1)}<span style={{ fontSize: '8.5px', color: '#64748b' }}>°C</span>
                         </div>
                         <div className="hud-tooltip hud-tooltip-down-right">
-                          Core Temperature · Internal thermal homeostasis (Baseline: {profile.restTemp}°C)
+                          Core Temperature · Internal thermal homeostasis (Baseline: {Number(profile.restTemp).toFixed(1)}°C)
                         </div>
                       </div>
 
@@ -793,10 +793,10 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                       style={{
                         fontSize: '9.5px',
                         fontWeight: 700,
-                        color: summary.nominalVitals.spo2.val < 95 ? 'var(--hud-critical)' : '#ffffff',
+                        color: Number(summary.nominalVitals.spo2.val) < 95 ? 'var(--hud-critical)' : '#ffffff',
                       }}
                     >
-                      {summary.nominalVitals.spo2.val}% SpO₂
+                      {Number(summary.nominalVitals.spo2.val).toFixed(1)}% SpO₂
                     </span>
                     <div className="hud-tooltip hud-tooltip-down-right">
                       Peripheral Oxygenation · Optical photoplethysmogram arterial saturation

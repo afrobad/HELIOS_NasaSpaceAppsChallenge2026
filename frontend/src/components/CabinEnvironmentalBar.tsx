@@ -288,7 +288,7 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
                 fontFamily: "'Tomorrow', sans-serif",
               }}
             >
-              O₂
+              O<sub style={{ fontSize: '6.5px', verticalAlign: 'baseline', position: 'relative', bottom: '-2px' }}>2</sub>
             </span>
             <span
               className="font-mono-tabular"
@@ -322,7 +322,7 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
                 fontFamily: "'Tomorrow', sans-serif",
               }}
             >
-              CO₂
+              CO<sub style={{ fontSize: '6.5px', verticalAlign: 'baseline', position: 'relative', bottom: '-2px' }}>2</sub>
             </span>
             <span
               className="font-mono-tabular"

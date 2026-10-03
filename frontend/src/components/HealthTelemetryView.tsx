@@ -952,15 +952,29 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
   const respRate = Math.round(13 + (hr > 100 ? 5 : hr > 80 ? 2 : 0) + (spo2 < 95 ? 4 : 0));
 
   // Authentic OSDR lab values with astronaut-specific fallbacks
-  const sodiumVal = labProfile?.cmp?.sodium?.value ? `${labProfile.cmp.sodium.value} mmol/L` : `${defaultProfile.na.toFixed(1)} mmol/L`;
-  const glucoseVal = labProfile?.cmp?.glucose?.value ? `${labProfile.cmp.glucose.value} mg/dL` : `${defaultProfile.glu.toFixed(0)} mg/dL`;
-  const albuminVal = labProfile?.cmp?.albumin?.value ? `${labProfile.cmp.albumin.value} g/dL` : `${defaultProfile.alb.toFixed(1)} g/dL`;
-  const bunVal = labProfile?.cmp?.bun?.value ? `${labProfile.cmp.bun.value} mg/dL` : `${defaultProfile.bun.toFixed(0)} mg/dL`;
-  const creatinineVal = labProfile?.cmp?.creatinine?.value ? `${labProfile.cmp.creatinine.value} mg/dL` : `${defaultProfile.cr.toFixed(2)} mg/dL`;
-  const hgbVal = labProfile?.cbc?.hemoglobin?.value ? `${labProfile.cbc.hemoglobin.value} g/dL` : `${defaultProfile.hgb.toFixed(1)} g/dL`;
-  const rbcVal = labProfile?.cbc?.red_blood_cells?.value ? `${labProfile.cbc.red_blood_cells.value} M/μL` : `${defaultProfile.rbc.toFixed(2)} M/μL`;
-  const tnfVal = labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.tnf_alpha?.concentration_pg_ml
-    ? `${labProfile.immune.clusters.pyrogens_and_inflammatory.tnf_alpha.concentration_pg_ml} pg/mL`
+  const sodiumVal = labProfile?.cmp?.sodium?.value !== undefined && labProfile?.cmp?.sodium?.value !== null
+    ? `${Number(labProfile.cmp.sodium.value).toFixed(1)} mmol/L`
+    : `${defaultProfile.na.toFixed(1)} mmol/L`;
+  const glucoseVal = labProfile?.cmp?.glucose?.value !== undefined && labProfile?.cmp?.glucose?.value !== null
+    ? `${Number(labProfile.cmp.glucose.value).toFixed(0)} mg/dL`
+    : `${defaultProfile.glu.toFixed(0)} mg/dL`;
+  const albuminVal = labProfile?.cmp?.albumin?.value !== undefined && labProfile?.cmp?.albumin?.value !== null
+    ? `${Number(labProfile.cmp.albumin.value).toFixed(1)} g/dL`
+    : `${defaultProfile.alb.toFixed(1)} g/dL`;
+  const bunVal = labProfile?.cmp?.bun?.value !== undefined && labProfile?.cmp?.bun?.value !== null
+    ? `${Number(labProfile.cmp.bun.value).toFixed(0)} mg/dL`
+    : `${defaultProfile.bun.toFixed(0)} mg/dL`;
+  const creatinineVal = labProfile?.cmp?.creatinine?.value !== undefined && labProfile?.cmp?.creatinine?.value !== null
+    ? `${Number(labProfile.cmp.creatinine.value).toFixed(2)} mg/dL`
+    : `${defaultProfile.cr.toFixed(2)} mg/dL`;
+  const hgbVal = labProfile?.cbc?.hemoglobin?.value !== undefined && labProfile?.cbc?.hemoglobin?.value !== null
+    ? `${Number(labProfile.cbc.hemoglobin.value).toFixed(1)} g/dL`
+    : `${defaultProfile.hgb.toFixed(1)} g/dL`;
+  const rbcVal = labProfile?.cbc?.red_blood_cells?.value !== undefined && labProfile?.cbc?.red_blood_cells?.value !== null
+    ? `${Number(labProfile.cbc.red_blood_cells.value).toFixed(2)} M/μL`
+    : `${defaultProfile.rbc.toFixed(2)} M/μL`;
+  const tnfVal = labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.tnf_alpha?.concentration_pg_ml !== undefined && labProfile?.immune?.clusters?.pyrogens_and_inflammatory?.tnf_alpha?.concentration_pg_ml !== null
+    ? `${Number(labProfile.immune.clusters.pyrogens_and_inflammatory.tnf_alpha.concentration_pg_ml).toFixed(1)} pg/mL`
     : `${defaultProfile.tnf.toFixed(1)} pg/mL`;
   const rawFib = labProfile?.cardiovascular?.fibrinogen?.value;
   const fibValNum = (rawFib !== undefined && rawFib !== null && rawFib > 0)
@@ -1296,8 +1310,8 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
     if (!clinicalSummary.isAbnormal) {
       return [
         { label: 'HR', value: `${nv.hr.val} bpm`, status: 'Normal', isAlert: false, isCaution: false },
-        { label: 'SpO₂', value: `${nv.spo2.val} %`, status: 'Normal', isAlert: false, isCaution: false },
-        { label: 'TEMP', value: `${nv.temp.val} °C`, status: 'Normal', isAlert: false, isCaution: false },
+        { label: 'SpO₂', value: `${Number(nv.spo2.val).toFixed(1)} %`, status: 'Normal', isAlert: false, isCaution: false },
+        { label: 'TEMP', value: `${Number(nv.temp.val).toFixed(1)} °C`, status: 'Normal', isAlert: false, isCaution: false },
         { label: 'BP', value: `${nv.bp.val} mmHg`, status: 'Normal', isAlert: false, isCaution: false },
         { label: 'HRV', value: `${nv.hrv.val} ms`, status: 'Normal', isAlert: false, isCaution: false },
       ];
@@ -1331,7 +1345,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
     if (!tiles.some((t) => t.label.includes('SpO₂') || t.label.includes('O2'))) {
       tiles.push({
         label: 'SpO₂',
-        value: `${nv.spo2.val} %`,
+        value: `${Number(nv.spo2.val).toFixed(1)} %`,
         status: nv.spo2.delta || 'Normal',
         isAlert: spo2 < 93,
         isCaution: spo2 < 96,
@@ -1349,7 +1363,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
     if (tiles.length < 5 && !tiles.some((t) => t.label === 'TEMP')) {
       tiles.push({
         label: 'TEMP',
-        value: `${nv.temp.val} °C`,
+        value: `${Number(nv.temp.val).toFixed(1)} °C`,
         status: nv.temp.delta || 'Normal',
         isAlert: temp >= 38.3,
         isCaution: temp >= 37.5,
@@ -2550,7 +2564,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                     label: 'SpO₂ (Oxygen saturation)',
                     metricId: 'spo2',
                     unit: '%',
-                    baselineValue: defaultProfile.restSpo2,
+                    baselineValue: defaultProfile.restSpo2.toFixed(1),
                     value: computeBiomarkerDelta(spo2, defaultProfile.restSpo2, '%').deltaStr
                       ? `${spo2.toFixed(1)} % (${computeBiomarkerDelta(spo2, defaultProfile.restSpo2, '%').deltaStr})`
                       : `${spo2.toFixed(1)} %`,
@@ -2576,7 +2590,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                     label: 'Core body temperature',
                     metricId: 'temp',
                     unit: '°C',
-                    baselineValue: defaultProfile.restTemp,
+                    baselineValue: defaultProfile.restTemp.toFixed(1),
                     value: computeBiomarkerDelta(temp, defaultProfile.restTemp, '°C').deltaStr
                       ? `${temp.toFixed(1)} °C (${computeBiomarkerDelta(temp, defaultProfile.restTemp, '°C').deltaStr})`
                       : `${temp.toFixed(1)} °C`,
@@ -2584,7 +2598,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                     trend: temp >= 37.5 ? 'up' : 'stable',
                     history: metricHistories['temp'],
                   },
-                  { label: 'Peripheral skin temp', metricId: 'skin_temp', unit: '°C', baselineValue: +(defaultProfile.restTemp - 2.8).toFixed(1), value: `${(temp - 2.8).toFixed(1)} °C`, dotColor: '#22c55e', trend: 'stable', history: metricHistories['skin_temp'] },
+                  { label: 'Peripheral skin temp', metricId: 'skin_temp', unit: '°C', baselineValue: (defaultProfile.restTemp - 2.8).toFixed(1), value: `${(temp - 2.8).toFixed(1)} °C`, dotColor: '#22c55e', trend: 'stable', history: metricHistories['skin_temp'] },
                   { label: 'Thermal drift rate', metricId: 'drift_rate', unit: '°C/h', baselineValue: 0.0, value: temp >= 37.5 ? '+0.4 °C/h' : '0.0 °C/h', dotColor: temp >= 37.5 ? '#f59e0b' : '#22c55e', history: metricHistories['drift_rate'] },
                   { label: 'Heat balance', value: temp >= 37.5 ? 'Heat retention' : 'Normal', dotColor: temp >= 37.5 ? '#f59e0b' : '#22c55e', noGraph: true },
                 ]}
