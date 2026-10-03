@@ -2444,7 +2444,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     const sparkWork = generateTrendSeries(0.24, selStats.workload, 5, 0.02);
 
     // Dynamic Pearson correlation factors based on scenario
-    const correlationFactors = useMemo(() => {
+    const correlationFactors = (() => {
       if (isHypo) {
         return [
           { title: 'Serum K⁺ vs QTc Interval', sub: 'I_Kr channel delayed repolarization', weight: 94, r: '-0.94', color: '#ff4d4d' },
@@ -2516,10 +2516,10 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         { title: 'Baroreflex Homeostasis', sub: 'Stable mean arterial pressure regulation', weight: 31, r: '+0.31', color: '#4ade80' },
         { title: 'Circadian Metabolic Rhythm', sub: 'Entrained core temperature oscillation', weight: 28, r: '+0.28', color: '#4ade80' },
       ];
-    }, [isHypo, isRad, isThromb, isCo2, isAmmonia, isDecomp, isImmune, isExertion]);
+    })();
 
     // Active procedure target based on scenario
-    const targetProcedureId = useMemo(() => {
+    const targetProcedureId = (() => {
       if (isHypo) return 'NASA-STD-3001-MED-CARD-04';
       if (isRad) return 'NASA-STD-3001-RAD-SPE-01';
       if (isThromb) return 'NASA-STD-3001-THROMB-01';
@@ -2527,7 +2527,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       if (isAmmonia) return 'NASA-STD-3001-ECLSS-AMMONIA-01';
       if (isExertion) return 'M-204';
       return 'NASA-STD-3001-MED-CARD-02';
-    }, [isHypo, isRad, isThromb, isCo2, isAmmonia, isExertion]);
+    })();
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

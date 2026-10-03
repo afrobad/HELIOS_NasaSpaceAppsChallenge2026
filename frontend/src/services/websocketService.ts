@@ -31,7 +31,8 @@ class WebSocketService {
       this.url = customUrl;
     } else if (typeof window !== 'undefined') {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.port === '5173' ? `${window.location.hostname}:8000` : window.location.host;
+      const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const host = (isLocalDev && window.location.port !== '8000') ? `${window.location.hostname}:8000` : window.location.host;
       this.url = `${protocol}//${host}/ws/telemetry`;
     }
 

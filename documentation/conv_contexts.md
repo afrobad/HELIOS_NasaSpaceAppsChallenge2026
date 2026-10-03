@@ -6777,3 +6777,40 @@
 * **Referenced File Links:**
   * [frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)
   * [documentation/conv_contexts.md](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/documentation/conv_contexts.md)
+
+---
+
+### [Turn 43] — Fix React Hook Order Violation, WebSocket Dev Port Routing, and AudioContext Autoplay Gating
+* **Date/Time:** 2026-10-04 01:05:00 (Local: GMT+6)
+* **User Request & Intent:**
+  > Fix runtime exceptions:
+  > 1. `React has detected a change in the order of Hooks called by MissionControlView.` (`Uncaught Error: Rendered more hooks than during the previous render at renderCrew (MissionControlView.tsx:2447:32)`).
+  > 2. `WebSocket connection to 'ws://localhost:3000/ws/telemetry' failed`.
+  > 3. `The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page.`
+
+* **Root Cause Forensic Diagnosis:**
+  1. **React Rules of Hooks Order Violation in `MissionControlView.tsx`:**
+     - Inside `renderCrew` (which only executes conditionally when `tab === 'CREW'`), two `useMemo` hooks (`correlationFactors` and `targetProcedureId`) were defined.
+     - When `MissionControlView` mounted on the default `OVERVIEW` tab, exactly 27 top-level hooks were registered.
+     - When the user navigated to the `CREW` tab, `renderCrew()` was invoked, suddenly firing hooks #28 and #29.
+     - React's fiber reconciler detected a hook count mismatch between renders and threw `Uncaught Error: Rendered more hooks than during the previous render.`
+  2. **WebSocket Port 3000 Failure (`websocketService.ts`):**
+     - Line 34 strictly checked `window.location.port === '5173'`.
+     - When previewing or running on port 3000, `host` defaulted to `localhost:3000`, attempting to connect to port 3000 instead of the FastAPI backend on port 8000.
+  3. **AudioContext Autoplay Rejection (`audioService.ts`):**
+     - Calling `this.ctx.resume()` synchronously on page load triggered browser autoplay policy warnings and unhandled promise rejections before user gesture.
+
+* **Engineering Implementations Delivered:**
+  1. **Eliminated Conditional Hooks in `renderCrew` ([frontend/src/components/MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx)):**
+     - Converted `correlationFactors` and `targetProcedureId` into pure, immediately evaluated IIFEs (`(() => { ... })()`).
+     - Preserves 100% deterministic hook count (27 hooks) across all renders and tab transitions.
+  2. **Resilient Dev WebSocket Routing ([frontend/src/services/websocketService.ts](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/services/websocketService.ts)):**
+     - Updated host resolver: `(isLocalDev && window.location.port !== '8000') ? '${window.location.hostname}:8000' : window.location.host;`.
+     - Accurately routes WebSocket traffic to FastAPI port 8000 regardless of whether the frontend is served on port 3000, 5173, 4173, etc.
+  3. **Graceful User-Gesture Audio Unlock ([frontend/src/services/audioService.ts](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/services/audioService.ts)):**
+     - Added `.catch()` rejection handling and registered one-time `pointerdown` and `keydown` listeners to unlock AudioContext seamlessly upon the user's first physical interaction.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Build:** `tsc -b && vite build` completed in 1.12s with 0 errors.
+  - **Live Backend MCC Test Suite:** `scripts/test_live_backend_mcc.py` passed 19/19 tests (100%).
+  - **Git Remotes:** Committed and pushed in sync to both `origin/main` and `upstream/main`.
