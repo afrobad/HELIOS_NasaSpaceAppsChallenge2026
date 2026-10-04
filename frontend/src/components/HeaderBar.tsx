@@ -569,6 +569,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 { id: 'HUD', label: 'Dashboard', tip: 'Astronaut vitals and ECG' },
                 { id: 'HEALTH_TELEMETRY', label: 'Health-Telemetry', tip: 'Detailed biomarker reports' },
                 { id: 'MCC', label: 'Earth MCC', tip: 'Mission control operations' },
+                { id: 'SUIT_HUD', label: 'Suit HUD', tip: 'First-person Mars EVA Helmet HUD' },
               ].map((tabItem) => {
                 const isActive = activeView === tabItem.id;
                 return (

@@ -238,6 +238,8 @@ export function App() {
         setActiveView('SCANNER');
         setActiveTriageAstronautId(null);
         navigateTo('/scanner');
+      } else if ((view as string) === 'SUIT_HUD') {
+        window.location.assign('/suit-hud');
       } else {
         const targetId = activeTriageAstronautId || 'AST-01_COMMANDER';
         const slug = getSlugFromAstronautId(targetId);

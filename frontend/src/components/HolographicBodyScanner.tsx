@@ -577,8 +577,9 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         scanGroup.visible = true;
 
         if (mode === 'SWEEP') {
-          // Smooth continuous vertical oscillation across the full 2.95m body
-          targetScanY = Math.sin(elapsed * 1.25) * 1.40;
+          // Continuous vertical sweep strictly between cranial (+1.35m) and feet (-1.25m)
+          const cycle = (Math.sin(elapsed * 1.25) + 1) * 0.5;
+          targetScanY = -1.25 + cycle * (1.35 - (-1.25));
           currentScanY += (targetScanY - currentScanY) * 0.15;
         } else if (mode === 'LOCK_ORGAN') {
           // Lock to the selected hotspot elevation

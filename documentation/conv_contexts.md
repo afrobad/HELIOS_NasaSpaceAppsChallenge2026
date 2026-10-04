@@ -7112,3 +7112,58 @@
   - **Layout & Visual Verification:** Absolute positioning ensures no displacement of adjacent elements on hover.
   - **Zero Emojis:** Confirmed strict adherence to zero emojis across all code, commits, and documentation.
 
+---
+
+### Turn 51: First-Person Mars EVA Suit Helmet HUD & High-Resolution 3D Holographic Body Scanner
+
+* **User Intent & Problem Statement:**
+  - The user requested:
+    1. Recreate a photorealistic first-person astronaut helmet HUD on Mars from the provided reference visual ("same to same visual") as an interactive React component.
+    2. Eliminate text glow/bloom across all HUD typography to achieve razor-sharp vector clarity.
+    3. Mount a fully 3D interactive holographic astronaut body scanner in the bottom-left visor corner gap.
+    4. Transition from generic mesh to an authentic NASA EVA astronaut model matching the user's uploaded reference (lean, slender, high-resolution stippled point cloud and wireframe).
+    5. Resolve scanner over-travel ("THE SCANNER IS GOING BELOW TOO FAR, INSTEAD OF STOPPING AT FEETS") so the tomographic laser sweep strictly stops and reverses right at the boots/feet.
+    6. Center the 3D body element inside its viewport to eliminate awkward vertical floating offsets.
+    7. Fix visual blurriness caused by SVG `foreignObject` canvas stretching, achieving native high-DPI supersampled clarity.
+
+* **Engineering Implementations Delivered:**
+  1. **First-Person Mars EVA Helmet HUD Architecture ([SuitHudView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/suit-hud/SuitHudView.tsx)):**
+     - Developed a multi-layer composite system mapped on a 1024×571 SVG coordinate grid:
+       - **Layer 0 (Martian Landscape):** Photorealistic Mars landscape plate featuring habitat dome clusters and Martian terrain ([mars_surface.jpg](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/public/suit-hud/mars_surface.jpg)).
+       - **Layer 1 (Helmet Interior):** Visor rim, acoustic padding, chin console with orange status LEDs, and glass reflection streaks ([HelmetLayers.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/suit-hud/HelmetLayers.tsx)).
+       - **Layer 2 (Vector Telemetry):** Dynamic waveform, JARVIS status bar, Biometrics strip (72 BPM, 99% SpO2), Life Support meters (86% O2, 4.3 PSI, 21.4°C), compass ribbon, and dual-curved peripheral visor rim gauges ([HudWidgets.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/suit-hud/HudWidgets.tsx), [useSuitTelemetry.ts](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/suit-hud/useSuitTelemetry.ts)).
+       - **Layer 3 (3D Hologram Mount):** Bottom-left visor framing brackets mount the WebGL 3D Holographic Scanner (`HolographicBodyWidget`).
+       - **Layer 4 (Interactive Controls):** Parallax movement reacting to mouse pointer, quick fullscreen toggle, and Return to MCC navigation button.
+     - **Font Integration:** Added Google Font `Rajdhani` (weights 500, 600, 700) to [index.html](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/index.html).
+     - **Zero Text Glow Enforcement:** Enforced `filter: none !important; text-shadow: none !important; text-rendering: geometricPrecision;` on all text nodes in [SuitHudView.css](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/suit-hud/SuitHudView.css).
+     - **Routing Integration:** Added `/suit-hud` route handling in [main.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/main.tsx) and [App.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/App.tsx), plus a dedicated "Suit HUD" tab in [HeaderBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HeaderBar.tsx).
+
+  2. **NASA EVA 3D Astronaut Model & High-Precision Hologram Pipeline ([HolographicSuitScanner3D.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/suit-hud/HolographicSuitScanner3D.tsx)):**
+     - Integrated official NASA EVA astronaut 3D model ([Astronaut.glb](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/public/models/Astronaut.glb), 2.87MB) loaded via Three.js `GLTFLoader`.
+     - Multi-pass holographic material pipeline:
+       - **Dark Translucent Depth Occluder:** `MeshBasicMaterial` (`color: 0x020d17`, `opacity: 0.78`, `depthWrite: true`, `FrontSide`) to prevent back-face wireframe clutter and preserve clean silhouette definition.
+       - **Micro-Particle Stippled Point Cloud:** `PointsMaterial` (`color: 0xe6fbff`, `size: 0.0075`, `opacity: 0.72`, `NormalBlending`) generating high-definition astronaut surface contour points.
+       - **Feature Edge CAD Lines:** `EdgesGeometry` (crease angle > 22°) with `LineBasicMaterial` (`color: 0x7ff3ff`, `opacity: 0.58`) highlighting suit seams, life support pack, and helmet visor rim.
+       - **Fresnel X-Ray Edge Rim:** Custom GLSL shader material (`0x7dd3fc` rim, `0x082f49` core) producing an aerospace holographic rim glow.
+       - **Pulsing Cardiac Node:** Real-time synchronized 72 BPM heartbeat beacon at astronaut chest coordinates.
+       - **360° Interactive Turntable:** Smooth inertial rotation with click-and-drag pointer physics.
+
+  3. **Precision Centering & Bounded Tomographic Scanner Sweep:**
+     - **Runtime Bounding-Box Centering:** Calculated `THREE.Box3().setFromObject(astronautGroup)` on model load, applying exact inverse center offset `(-center.x, -center.y, -center.z)` and uniform height normalization (1.38 units, 0.88 slender X/Z scaling) so the body is centered in the camera frustum without vertical drift.
+     - **Strict Foot-Boundary Scanner Oscillation:** Derived `scanMinY` and `scanMaxY` directly from measured model coordinates (`finalBox.min.y + bodyH * 0.015` to `finalBox.max.y - bodyH * 0.02`). The laser beam and contour slice reverse cleanly at the boot soles, eliminating any downward over-travel into empty air.
+     - **Anatomical Beam Width Hugging (`getAstronautContour`):** Laser line and elliptical slice dynamically scale based on body elevation (widening to 0.27 half-width at shoulders, narrowing to 0.20 at boots) to prevent oversized bars from extending into empty space.
+     - **Dynamic Anatomical Region Tagging:** Elevation tracker smoothly updates HUD labels (`CRANIAL`, `THORACIC`, `ABDOMINAL`, `FEMORAL`, `PEDAL // BOOTS`) based on normalized vertical slice position.
+     - **Removed Floor Pedestal Ring:** Eliminated unnecessary bottom ground ring to keep the hologram clean and floating authentically.
+     - **Parallel Fix in [HolographicBodyScanner.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HolographicBodyScanner.tsx):** Constrained sweep oscillation strictly between -1.25m (plantar base) and +1.35m (cranial) to ensure consistency across the entire app.
+
+  4. **High-Resolution Adaptive Super-Sampling (Anti-Blur):**
+     - Resolved browser-stretched bitmap blur caused by rendering 136×180 canvas inside scaled SVG:
+     - Implemented `syncPixelRatio()` which dynamically measures container's on-screen bounding client rectangle against design width and applies `(window.devicePixelRatio || 1) * onScreenScale * 1.25` (clamped between 1 and 5).
+     - Hooked into window `resize` events and periodic frame checks to ensure full retina/4K resolution during fullscreen toggles and window zooms.
+
+* **Verification & Audit:**
+  - **TypeScript & Vite Production Build:** `tsc -b && vite build` built in 1.77s with 0 errors.
+  - **Type Safety Audit:** `npx tsc -p tsconfig.app.json --noEmit` verified 0 errors across the application.
+  - **Zero Emojis:** Confirmed strict adherence to zero emojis across all code, commits, and documentation.
+
+
