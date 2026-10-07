@@ -7166,4 +7166,64 @@
   - **Type Safety Audit:** `npx tsc -p tsconfig.app.json --noEmit` verified 0 errors across the application.
   - **Zero Emojis:** Confirmed strict adherence to zero emojis across all code, commits, and documentation.
 
+---
+
+### Turn 52: Architectural Separation of Earth MCC & Spacecraft Telemetry Streams with Dedicated Earth Telemetry Page
+
+* **User Intent & Problem Statement:**
+  - The user requested:
+    1. *"for the earth mcc page , it should be totally separate from the main dashboard and telemetry page, and the telemetry button inside the mcc dashboard should redirect another new telemetry page dedicated to earth"*
+    2. *"cause the deay functionality would only work in mcc dashboard, normal dashboard and telemetry page should remain instant"*
+    3. *"currently the delay functionality is appearing in normal dashboard, hiding the cabin eclss headbar"*
+    4. *"analyze deeply and find a proper fix, dont assume"*
+
+* **Root Cause Analysis:**
+  1. **ECLSS Headbar Obstruction on Normal Dashboard:**
+     - In [frontend/src/App.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/App.tsx), the deep-space in-transit signal ribbon (`inTransitSignal`) was rendered globally with `position: 'fixed'`, `top: 48px`, `left: 0`, `zIndex: 9999` unconditionally across all views.
+     - On the Flight HUD (`activeView === 'HUD'`), `HeaderBar` sits sticky at `top: 0` (~48px height), and `CabinEnvironmentalBar` (CABIN ECLSS headbar) is positioned directly beneath it.
+     - As a result, whenever a signal delay was active, the `inTransitSignal` banner was rendered over the normal dashboard, completely covering and hiding `CabinEnvironmentalBar`.
+  2. **Coupled Telemetry Streams:**
+     - The WebSocket telemetry subscriber in `App.tsx` conditionally halted state updates to `bufferedPacketsRef` whenever `inTransitSignal` was active. This frozen state affected the entire application, incorrectly pausing live spacecraft updates on the Flight HUD and onboard clinical telemetry view.
+  3. **Lack of Dedicated Ground Station Clinical Route:**
+     - Navigating from within Earth MCC redirected users to the spacecraft onboard `/telemetry/:slug` view, blurring the operational domain distinction between Earth Ground Control and Onboard Spacecraft.
+
+* **Engineering Implementations Delivered:**
+  1. **Dual Independent Telemetry State Engine ([App.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/App.tsx)):**
+     - **Onboard Spacecraft Stream (Local, 10 Hz, 100% Instant):**
+       - `telemetryMap`, `currentScenario`, `latestAlert`, and `bufferedPacketsRef` update continuously at 10 Hz without any delay, buffering pauses, or in-transit blocking.
+       - Feeds the Flight HUD (`HUD`), Onboard Clinical Telemetry (`HEALTH_TELEMETRY`), and 3D Anatomical Scanner (`SCANNER`).
+       - Onboard dashboard clock operates with `marsDelay={false}` (zero latency).
+     - **Earth MCC Ground Station Stream (Deep-Space Propagation Latency):**
+       - `mccTelemetryMap`, `mccScenario`, `mccAlert`, and `bufferedMccPacketsRef` handle deep-space radio downlink propagation.
+       - When orbital distance is Mars (`delaySec > 0.05s`), scenario events trigger an in-transit state (`inTransitSignal`) with countdown ticker and acceleration multiplier.
+       - Feeds Mission Control View (`MCC`) and the newly dedicated Earth Biomedical Telemetry Console (`MCC_TELEMETRY`).
+  2. **Isolated In-Transit Downlink Ribbon:**
+     - Removed the global `position: 'fixed'` overlay completely.
+     - Restricted `renderInTransitBanner()` to mount strictly inside `activeView === 'MCC'` and `activeView === 'MCC_TELEMETRY'` directly below the ground station navbar.
+     - The Flight HUD (`HUD`) and onboard telemetry pages now never render the delay banner, leaving `CabinEnvironmentalBar` 100% visible and unobstructed.
+  3. **Dedicated Earth MCC Telemetry Route (`/mcc/telemetry/:slug`) ([routerService.ts](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/services/routerService.ts)):**
+     - Added `'MCC_TELEMETRY'` to `AppRouteState['view']`.
+     - Configured `parseCurrentRoute()` to parse `/mcc/telemetry` and `/mcc/telemetry/:slug` before generic `/mcc` matching.
+  4. **Ground Station Clinical Telemetry View ([App.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/App.tsx)):**
+     - Renders when `activeView === 'MCC_TELEMETRY'`:
+       - Top `HeaderBar` bound to Earth MCC domain (`isEarthDomain`, `latestAlert={mccAlert}`).
+       - High-contrast Earth Ground Station Breadcrumb Bar with:
+         - `← RETURN TO MCC MAIN CONSOLE` button.
+         - Downlink connection info: `DSN KA-BAND ([Distance])`.
+         - Light propagation latency readout: `+[Delay] ONE-WAY`.
+       - In-transit signal ribbon with live countdown and `WARP SIGNAL TO EARTH (INSTANT RECEPTION)` action.
+       - `HealthTelemetryView` fed by delayed Earth data (`mccTelemetryMap`, `mccAlert`, `marsDelay={marsDelay}`).
+  5. **Component Integration & Prop Safety:**
+     - Updated [HeaderBar.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HeaderBar.tsx) to recognize `'MCC_TELEMETRY'` and maintain the `Earth MCC` tab highlight.
+     - Updated [MissionControlView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/MissionControlView.tsx):
+       - Added `onOpenMccTelemetry` prop.
+       - Wired Overview incident triage (`handleTriage`), Crew drawer (`OPEN CLINICAL TELEMETRY CONSOLE →`), and Systems tab (`VIEW IN EARTH TELEMETRY →`) to call `onOpenMccTelemetry(astId)`.
+     - Updated [SpaceBackground.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/SpaceBackground.tsx) and [HealthTelemetryView.tsx](file:///c:/Users/ZISHAN/OneDrive/Desktop/H.E.L.I.O.S/frontend/src/components/HealthTelemetryView.tsx) to support `'MCC_TELEMETRY'`.
+
+* **Verification & Audit:**
+  - **TypeScript Compilation:** `npx tsc -p tsconfig.app.json --noEmit` passed with 0 errors.
+  - **Production Bundle Build:** `npm run build` completed successfully with 0 errors.
+  - **Zero Emojis:** Confirmed strict adherence to zero emojis across all code, commits, and documentation.
+
+
 

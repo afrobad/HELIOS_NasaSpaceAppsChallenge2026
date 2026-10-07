@@ -10,7 +10,7 @@
  */
 
 export interface AppRouteState {
-  view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER';
+  view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY';
   astronautId: string;
 }
 
@@ -110,6 +110,18 @@ export function parseCurrentRoute(): AppRouteState {
     return {
       view: 'SCANNER',
       astronautId: 'AST-02_PILOT',
+    };
+  }
+
+  const mccTelemetryIdx = path.indexOf('/mcc/telemetry');
+  if (mccTelemetryIdx !== -1) {
+    const sub = path.slice(mccTelemetryIdx); // e.g. "/mcc/telemetry/haley" or "/mcc/telemetry"
+    const segments = sub.split('/').filter(Boolean); // ['mcc', 'telemetry', 'haley']
+    const rawParam = segments[2] || 'haley';
+    const astronautId = resolveAstronautIdFromSlug(rawParam);
+    return {
+      view: 'MCC_TELEMETRY',
+      astronautId,
     };
   }
 

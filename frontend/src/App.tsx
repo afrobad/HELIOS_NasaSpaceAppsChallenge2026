@@ -17,11 +17,14 @@ import type { TelemetryPacket, AlertPayload, DistancePreset } from './types/tele
 import { DISTANCES, fmtTime } from './types/telemetry';
 
 export function App() {
-  // Parse initial route: default root '/' opens HUD; '/telemetry/:name' opens Health Telemetry; '/mcc' opens Earth MCC; '/scanner' opens 3D Hologram
+  // Parse initial route: '/' -> HUD; '/telemetry/:name' -> Health Telemetry; '/mcc' -> Earth MCC; '/mcc/telemetry/:name' -> Earth MCC Telemetry; '/scanner' -> 3D Hologram
   const initialRoute = parseCurrentRoute();
-  const [activeView, setActiveView] = useState<'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER'>(initialRoute.view);
+  const [activeView, setActiveView] = useState<'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY'>(initialRoute.view);
   const [activeTriageAstronautId, setActiveTriageAstronautId] = useState<string | null>(
     initialRoute.view === 'HEALTH_TELEMETRY' ? initialRoute.astronautId : null
+  );
+  const [activeMccAstronautId, setActiveMccAstronautId] = useState<string | null>(
+    initialRoute.view === 'MCC_TELEMETRY' ? initialRoute.astronautId : null
   );
   const [scannerAstronautId, setScannerAstronautId] = useState<string>('AST-02_PILOT');
 
@@ -29,6 +32,20 @@ export function App() {
   const [marsDelay, setMarsDelay] = useState<boolean>(false);
   const [orbitalPosition, setOrbitalPosition] = useState<DistancePreset>('MARS_MAX');
   const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
+
+  // ─── 1. SPACECRAFT ONBOARD TELEMETRY STATE (INSTANT, LOCAL 10 HZ, ZERO DELAY) ───
+  const [telemetryMap, setTelemetryMap] = useState<Record<string, TelemetryPacket>>({});
+  const [latestAlert, setLatestAlert] = useState<AlertPayload | null>(null);
+  const [currentScenario, setCurrentScenario] = useState<string>('NOMINAL_CRUISE');
+  const bufferedPacketsRef = useRef<Record<string, TelemetryPacket>>({});
+
+  // ─── 2. EARTH MISSION CONTROL TELEMETRY STATE (SUBJECT TO LIGHT PROPAGATION DELAY) ───
+  const [mccTelemetryMap, setMccTelemetryMap] = useState<Record<string, TelemetryPacket>>({});
+  const [mccAlert, setMccAlert] = useState<AlertPayload | null>(null);
+  const [mccScenario, setMccScenario] = useState<string>('NOMINAL_CRUISE');
+  const bufferedMccPacketsRef = useRef<Record<string, TelemetryPacket>>({});
+
+  // Deep-Space In-Transit Signal Tracking for Earth Ground Station
   const [inTransitSignal, setInTransitSignal] = useState<{
     scenarioKey: string;
     telemetry?: Record<string, any>;
@@ -46,13 +63,6 @@ export function App() {
     inTransitSignalRef.current = inTransitSignal;
   }, [inTransitSignal]);
 
-  const [telemetryMap, setTelemetryMap] = useState<Record<string, TelemetryPacket>>({});
-  const [latestAlert, setLatestAlert] = useState<AlertPayload | null>(null);
-  const [currentScenario, setCurrentScenario] = useState<string>('NOMINAL_CRUISE');
-
-  // Buffer recent packets to update React state smoothly at 10 Hz
-  const bufferedPacketsRef = useRef<Record<string, TelemetryPacket>>({});
-
   // Synchronize browser history / URL with application view
   useEffect(() => {
     const handlePopState = () => {
@@ -60,11 +70,17 @@ export function App() {
       setActiveView(route.view);
       if (route.view === 'HEALTH_TELEMETRY') {
         setActiveTriageAstronautId(route.astronautId);
+        setActiveMccAstronautId(null);
+      } else if (route.view === 'MCC_TELEMETRY') {
+        setActiveMccAstronautId(route.astronautId);
+        setActiveTriageAstronautId(null);
       } else if (route.view === 'SCANNER') {
         setScannerAstronautId(route.astronautId || 'AST-02_PILOT');
         setActiveTriageAstronautId(null);
+        setActiveMccAstronautId(null);
       } else {
         setActiveTriageAstronautId(null);
+        setActiveMccAstronautId(null);
       }
     };
 
@@ -81,10 +97,13 @@ export function App() {
       .then((data) => {
         if (data.telemetry) {
           bufferedPacketsRef.current = data.telemetry;
+          bufferedMccPacketsRef.current = data.telemetry;
           setTelemetryMap(data.telemetry);
+          setMccTelemetryMap(data.telemetry);
           const firstPacket = Object.values(data.telemetry)[0] as TelemetryPacket | undefined;
           if (firstPacket && firstPacket.scenario_phase) {
             setCurrentScenario(firstPacket.scenario_phase);
+            setMccScenario(firstPacket.scenario_phase);
           }
         }
       })
@@ -102,33 +121,44 @@ export function App() {
 
     // 3. Subscribe to 10 Hz Telemetry
     const unsubTelemetry = wsService.subscribeTelemetry((packet: TelemetryPacket) => {
-      // If a scenario downlink signal is in-transit across deep space to Earth MCC:
-      if (inTransitSignalRef.current) {
-        inTransitPacketsRef.current[packet.astronaut_id] = packet;
-        return;
-      }
-
+      // Spacecraft onboard sensors are ALWAYS instant:
       bufferedPacketsRef.current[packet.astronaut_id] = packet;
-
       if (packet.scenario_phase) {
         setCurrentScenario((prev) => (prev === packet.scenario_phase ? prev : packet.scenario_phase));
       }
+
+      // Earth MCC receives packets subject to in-transit light delay:
+      if (inTransitSignalRef.current) {
+        inTransitPacketsRef.current[packet.astronaut_id] = packet;
+      } else {
+        bufferedMccPacketsRef.current[packet.astronaut_id] = packet;
+        if (packet.scenario_phase) {
+          setMccScenario((prev) => (prev === packet.scenario_phase ? prev : packet.scenario_phase));
+        }
+      }
     });
 
-    // 10 Hz live telemetry state ticker (100ms) to ensure cards fluctuate continuously with real sensor data
+    // 10 Hz state ticker (100ms) to update React components smoothly with real sensor data
     const telemetryInterval = setInterval(() => {
       if (Object.keys(bufferedPacketsRef.current).length > 0) {
         setTelemetryMap({ ...bufferedPacketsRef.current });
+      }
+      if (Object.keys(bufferedMccPacketsRef.current).length > 0) {
+        setMccTelemetryMap({ ...bufferedMccPacketsRef.current });
       }
     }, 100);
 
     // 4. Subscribe to Proactive JARVIS Alerts
     const unsubAlert = wsService.subscribeAlert((alert: AlertPayload) => {
+      // Spacecraft onboard alert is always instant:
+      setLatestAlert(alert);
+
+      // Earth MCC alert is subject to downlink propagation delay:
       if (inTransitSignalRef.current) {
         inTransitAlertRef.current = alert;
-        return;
+      } else {
+        setMccAlert(alert);
       }
-      setLatestAlert(alert);
     });
 
     return () => {
@@ -157,28 +187,38 @@ export function App() {
     }
   };
 
-  const applyTelemetryUpdate = useCallback((scenarioKey: string, telemetry?: Record<string, any>) => {
-    setCurrentScenario(scenarioKey);
+  // Deliver delayed signal to Earth MCC Ground Station
+  const applyMccTelemetryUpdate = useCallback((scenarioKey: string, telemetry?: Record<string, any>) => {
+    setMccScenario(scenarioKey);
     if (telemetry && Object.keys(telemetry).length > 0) {
-      bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...telemetry };
+      bufferedMccPacketsRef.current = { ...bufferedMccPacketsRef.current, ...telemetry };
     }
     if (Object.keys(inTransitPacketsRef.current).length > 0) {
-      bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...inTransitPacketsRef.current };
+      bufferedMccPacketsRef.current = { ...bufferedMccPacketsRef.current, ...inTransitPacketsRef.current };
       inTransitPacketsRef.current = {};
     }
-    setTelemetryMap({ ...bufferedPacketsRef.current });
+    setMccTelemetryMap({ ...bufferedMccPacketsRef.current });
 
     if (inTransitAlertRef.current) {
-      setLatestAlert(inTransitAlertRef.current);
+      setMccAlert(inTransitAlertRef.current);
       inTransitAlertRef.current = null;
     }
     setInTransitSignal(null);
   }, []);
 
+  // Scenario Triggered: Spacecraft onboard responds INSTANTLY; Earth MCC enters in-transit delay
   const handleScenarioTriggered = useCallback((scenarioKey: string, telemetry?: Record<string, any>) => {
+    // 1. Spacecraft Onboard: 100% instant update with zero latency
+    setCurrentScenario(scenarioKey);
+    if (telemetry && Object.keys(telemetry).length > 0) {
+      bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...telemetry };
+      setTelemetryMap({ ...bufferedPacketsRef.current });
+    }
+
+    // 2. Earth MCC: Subject to deep-space radio propagation delay
     const delaySec = DISTANCES[orbitalPosition]?.delaySec ?? 0;
     if (delaySec <= 0.05) {
-      applyTelemetryUpdate(scenarioKey, telemetry);
+      applyMccTelemetryUpdate(scenarioKey, telemetry);
     } else {
       setInTransitSignal({
         scenarioKey,
@@ -189,7 +229,7 @@ export function App() {
         startTime: Date.now(),
       });
     }
-  }, [orbitalPosition, applyTelemetryUpdate]);
+  }, [orbitalPosition, applyMccTelemetryUpdate]);
 
   // Deep-space light propagation countdown ticker (accelerated by speedMultiplier)
   useEffect(() => {
@@ -201,20 +241,20 @@ export function App() {
       const remaining = Math.max(0, inTransitSignal.delaySec - effectiveElapsed);
 
       if (remaining <= 0) {
-        applyTelemetryUpdate(inTransitSignal.scenarioKey, inTransitSignal.telemetry);
+        applyMccTelemetryUpdate(inTransitSignal.scenarioKey, inTransitSignal.telemetry);
       } else {
         setInTransitSignal((prev) => (prev ? { ...prev, remainingSec: remaining } : null));
       }
     }, 100);
 
     return () => clearInterval(timer);
-  }, [inTransitSignal, speedMultiplier, applyTelemetryUpdate]);
+  }, [inTransitSignal, speedMultiplier, applyMccTelemetryUpdate]);
 
   const handleWarpSignal = useCallback(() => {
     if (inTransitSignal) {
-      applyTelemetryUpdate(inTransitSignal.scenarioKey, inTransitSignal.telemetry);
+      applyMccTelemetryUpdate(inTransitSignal.scenarioKey, inTransitSignal.telemetry);
     }
-  }, [inTransitSignal, applyTelemetryUpdate]);
+  }, [inTransitSignal, applyMccTelemetryUpdate]);
 
   // Navigation Handlers with instant browser URL synchronization
   const handleOpenTriage = useCallback((astId: string) => {
@@ -223,33 +263,6 @@ export function App() {
     setActiveView('HEALTH_TELEMETRY');
     navigateTo(`/telemetry/${slug}`);
   }, []);
-
-  const handleSelectView = useCallback(
-    (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER') => {
-      if (view === 'HUD') {
-        setActiveView('HUD');
-        setActiveTriageAstronautId(null);
-        navigateTo('/');
-      } else if (view === 'MCC') {
-        setActiveView('MCC');
-        setActiveTriageAstronautId(null);
-        navigateTo('/mcc');
-      } else if (view === 'SCANNER') {
-        setActiveView('SCANNER');
-        setActiveTriageAstronautId(null);
-        navigateTo('/scanner');
-      } else if ((view as string) === 'SUIT_HUD') {
-        window.location.assign('/suit-hud');
-      } else {
-        const targetId = activeTriageAstronautId || 'AST-01_COMMANDER';
-        const slug = getSlugFromAstronautId(targetId);
-        setActiveView('HEALTH_TELEMETRY');
-        setActiveTriageAstronautId(targetId);
-        navigateTo(`/telemetry/${slug}`);
-      }
-    },
-    [activeTriageAstronautId]
-  );
 
   const handleCloseTelemetry = useCallback(() => {
     setActiveView('HUD');
@@ -263,108 +276,163 @@ export function App() {
     navigateTo(`/telemetry/${slug}`);
   }, []);
 
+  // Earth MCC Dedicated Telemetry Console Navigation
+  const handleOpenMccTelemetry = useCallback((astId: string) => {
+    const slug = getSlugFromAstronautId(astId);
+    setActiveMccAstronautId(astId);
+    setActiveView('MCC_TELEMETRY');
+    navigateTo(`/mcc/telemetry/${slug}`);
+  }, []);
+
+  const handleCloseMccTelemetry = useCallback(() => {
+    setActiveView('MCC');
+    setActiveMccAstronautId(null);
+    navigateTo('/mcc');
+  }, []);
+
+  const handleMccAstronautChange = useCallback((astId: string) => {
+    const slug = getSlugFromAstronautId(astId);
+    setActiveMccAstronautId(astId);
+    navigateTo(`/mcc/telemetry/${slug}`);
+  }, []);
+
+  const handleSelectView = useCallback(
+    (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY') => {
+      if (view === 'HUD') {
+        setActiveView('HUD');
+        setActiveTriageAstronautId(null);
+        setActiveMccAstronautId(null);
+        navigateTo('/');
+      } else if (view === 'MCC') {
+        setActiveView('MCC');
+        setActiveTriageAstronautId(null);
+        setActiveMccAstronautId(null);
+        navigateTo('/mcc');
+      } else if (view === 'MCC_TELEMETRY') {
+        const targetId = activeMccAstronautId || 'AST-01_COMMANDER';
+        const slug = getSlugFromAstronautId(targetId);
+        setActiveView('MCC_TELEMETRY');
+        setActiveMccAstronautId(targetId);
+        navigateTo(`/mcc/telemetry/${slug}`);
+      } else if (view === 'SCANNER') {
+        setActiveView('SCANNER');
+        setActiveTriageAstronautId(null);
+        setActiveMccAstronautId(null);
+        navigateTo('/scanner');
+      } else if ((view as string) === 'SUIT_HUD') {
+        window.location.assign('/suit-hud');
+      } else {
+        const targetId = activeTriageAstronautId || 'AST-01_COMMANDER';
+        const slug = getSlugFromAstronautId(targetId);
+        setActiveView('HEALTH_TELEMETRY');
+        setActiveTriageAstronautId(targetId);
+        navigateTo(`/telemetry/${slug}`);
+      }
+    },
+    [activeTriageAstronautId, activeMccAstronautId]
+  );
+
+  // Deep-Space Telemetry Downlink In-Transit Status Ribbon (Strictly rendered within Earth MCC domain)
+  const renderInTransitBanner = () => {
+    if (!inTransitSignal) return null;
+    return (
+      <div
+        style={{
+          background: 'linear-gradient(90deg, rgba(6, 17, 32, 0.98) 0%, rgba(10, 25, 47, 0.98) 100%)',
+          borderBottom: '1px solid rgba(56, 189, 248, 0.45)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.85), 0 0 15px rgba(56, 189, 248, 0.2)',
+          backdropFilter: 'blur(10px)',
+          padding: '6px 20px',
+          boxSizing: 'border-box',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          fontFamily: "var(--hud-font-mono, 'Tomorrow', monospace)",
+          width: '100%',
+          position: 'relative',
+          zIndex: 150,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: '#38bdf8',
+                boxShadow: '0 0 10px #38bdf8',
+                display: 'inline-block',
+              }}
+            />
+            <span style={{ fontSize: 10.5, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.06em' }}>
+              DEEP SPACE DOWNLINK IN-TRANSIT
+            </span>
+          </div>
+
+          <span style={{ color: '#334155' }}>|</span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10 }}>
+            <span style={{ color: '#64748b' }}>ORIGIN:</span>
+            <span style={{ color: '#f8fafc', fontWeight: 600 }}>{DISTANCES[inTransitSignal.originPosition].label}</span>
+            <span style={{ color: '#64748b' }}>({(DISTANCES[inTransitSignal.originPosition].km / 1e6).toFixed(1)}M km)</span>
+          </div>
+
+          <span style={{ color: '#334155' }}>|</span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10 }}>
+            <span style={{ color: '#64748b' }}>SCENARIO:</span>
+            <span style={{ color: '#fbbf24', fontWeight: 700 }}>
+              {inTransitSignal.scenarioKey.replace(/^SCENARIO_\d+_/, '').replace(/_/g, ' ')}
+            </span>
+          </div>
+
+          <span style={{ color: '#334155' }}>|</span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10 }}>
+            <span style={{ color: '#64748b' }}>LIGHT TRAVEL REMAINING:</span>
+            <span style={{ color: '#4ade80', fontWeight: 800, fontSize: 11 }}>
+              {fmtTime(inTransitSignal.remainingSec)}
+            </span>
+            {speedMultiplier > 1 && (
+              <span style={{ color: '#38bdf8', fontSize: 9 }}>({speedMultiplier}x speed)</span>
+            )}
+          </div>
+        </div>
+
+        <button
+          onClick={handleWarpSignal}
+          title="Accelerate light-speed propagation and instantly deliver the telemetry packet to Earth MCC"
+          style={{
+            background: 'rgba(56, 189, 248, 0.16)',
+            border: '1px solid #38bdf8',
+            borderRadius: 4,
+            padding: '3px 10px',
+            color: '#ffffff',
+            fontSize: 9.5,
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            whiteSpace: 'nowrap',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span>WARP SIGNAL TO EARTH (INSTANT RECEPTION)</span>
+        </button>
+      </div>
+    );
+  };
+
   return (
     <>
       {/* GPU-Composited Photorealistic Earth Orbital Space Background */}
       <SpaceBackground activeView={activeView} />
 
-      {/* Deep-Space Telemetry Downlink In-Transit Status Ribbon */}
-      {inTransitSignal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 48,
-            left: 0,
-            width: '100%',
-            zIndex: 9999,
-            background: 'linear-gradient(90deg, rgba(6, 17, 32, 0.97) 0%, rgba(10, 25, 47, 0.97) 100%)',
-            borderBottom: '1px solid rgba(56, 189, 248, 0.45)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.85), 0 0 15px rgba(56, 189, 248, 0.2)',
-            backdropFilter: 'blur(10px)',
-            padding: '6px 20px',
-            boxSizing: 'border-box',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            fontFamily: "var(--hud-font-mono, 'Tomorrow', monospace)",
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            {/* Pulsing deep-space radio indicator */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: '#38bdf8',
-                  boxShadow: '0 0 10px #38bdf8',
-                  display: 'inline-block',
-                }}
-              />
-              <span style={{ fontSize: 10.5, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.06em' }}>
-                DEEP SPACE DOWNLINK IN-TRANSIT
-              </span>
-            </div>
-
-            <span style={{ color: '#334155' }}>|</span>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10 }}>
-              <span style={{ color: '#64748b' }}>ORIGIN:</span>
-              <span style={{ color: '#f8fafc', fontWeight: 600 }}>{DISTANCES[inTransitSignal.originPosition].label}</span>
-              <span style={{ color: '#64748b' }}>({(DISTANCES[inTransitSignal.originPosition].km / 1e6).toFixed(1)}M km)</span>
-            </div>
-
-            <span style={{ color: '#334155' }}>|</span>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10 }}>
-              <span style={{ color: '#64748b' }}>SCENARIO:</span>
-              <span style={{ color: '#fbbf24', fontWeight: 700 }}>
-                {inTransitSignal.scenarioKey.replace(/^SCENARIO_\d+_/, '').replace(/_/g, ' ')}
-              </span>
-            </div>
-
-            <span style={{ color: '#334155' }}>|</span>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10 }}>
-              <span style={{ color: '#64748b' }}>LIGHT TRAVEL REMAINING:</span>
-              <span style={{ color: '#4ade80', fontWeight: 800, fontSize: 11 }}>
-                {fmtTime(inTransitSignal.remainingSec)}
-              </span>
-              {speedMultiplier > 1 && (
-                <span style={{ color: '#38bdf8', fontSize: 9 }}>({speedMultiplier}x speed)</span>
-              )}
-            </div>
-          </div>
-
-          {/* Action button to warp signal to Earth immediately */}
-          <button
-            onClick={handleWarpSignal}
-            title="Accelerate light-speed propagation and instantly deliver the telemetry packet to Earth MCC"
-            style={{
-              background: 'rgba(56, 189, 248, 0.16)',
-              border: '1px solid #38bdf8',
-              borderRadius: 4,
-              padding: '3px 10px',
-              color: '#ffffff',
-              fontSize: 9.5,
-              fontWeight: 800,
-              letterSpacing: '0.04em',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <span>WARP SIGNAL TO EARTH (INSTANT RECEPTION)</span>
-          </button>
-        </div>
-      )}
-
-      {/* Flight HUD View (Default Home Page) */}
+      {/* ─── 1. FLIGHT HUD VIEW (DEFAULT HOME PAGE — 100% INSTANT SPACECRAFT DATA) ─── */}
       {activeView === 'HUD' && (
         <>
           {/* Top Sticky Navbar & Full-Width ECLSS Cabin Environmental Ribbon */}
@@ -381,10 +449,8 @@ export function App() {
             <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '0 20px' }}>
               <HeaderBar
                 connected={connected}
-                marsDelay={marsDelay}
-                onToggleMarsDelay={handleToggleMarsDelay}
+                marsDelay={false}
                 orbitalPosition={orbitalPosition}
-                onSelectOrbitalPosition={handleOrbitalPositionChange}
                 speedMultiplier={speedMultiplier}
                 activeView={activeView}
                 onSelectView={handleSelectView}
@@ -392,7 +458,7 @@ export function App() {
                 selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
               />
             </div>
-            {/* Full-Viewport Width Sticky ECLSS Environmental Ribbon directly beneath the navbar */}
+            {/* Full-Viewport Width Sticky ECLSS Environmental Ribbon directly beneath navbar */}
             <CabinEnvironmentalBar
               telemetryMap={telemetryMap}
               currentScenario={currentScenario}
@@ -409,10 +475,10 @@ export function App() {
         </>
       )}
 
-      {/* Comprehensive Health Telemetry & 10-Category Clinical Analysis Console */}
+      {/* ─── 2. ONBOARD SPACECRAFT HEALTH TELEMETRY & CLINICAL ANALYSIS (INSTANT) ─── */}
       {activeView === 'HEALTH_TELEMETRY' && (
         <>
-          {/* JARVIS fixed bottom bar on telemetry page — jarvisOnly skips the top nav */}
+          {/* JARVIS fixed bottom bar on telemetry page */}
           <HeaderBar
             jarvisOnly
             connected={connected}
@@ -424,7 +490,7 @@ export function App() {
           <HealthTelemetryView
             initialAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
             telemetryMap={telemetryMap}
-            marsDelay={marsDelay}
+            marsDelay={false}
             connected={connected}
             latestAlert={latestAlert}
             onToggleMarsDelay={handleToggleMarsDelay}
@@ -436,10 +502,10 @@ export function App() {
         </>
       )}
 
-      {/* Earth Mission Control Center (MCC Ground Sentry Console) */}
+      {/* ─── 3. EARTH MISSION CONTROL CENTER (MCC GROUND CONSOLE — DELAYED TELEMETRY) ─── */}
       {activeView === 'MCC' && (
         <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backgroundColor: '#070a07' }}>
-          {/* Top Sticky Header for instant view navigation */}
+          {/* Top Sticky Header */}
           <div
             style={{
               position: 'sticky',
@@ -461,15 +527,17 @@ export function App() {
                 speedMultiplier={speedMultiplier}
                 activeView={activeView}
                 onSelectView={handleSelectView}
-                latestAlert={latestAlert}
+                latestAlert={mccAlert}
                 selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
               />
             </div>
+            {/* Deep-Space Downlink In-Transit Status Ribbon (shown only on Earth MCC views) */}
+            {renderInTransitBanner()}
           </div>
 
           <MissionControlView
-            telemetryMap={telemetryMap}
-            latestAlert={latestAlert}
+            telemetryMap={mccTelemetryMap}
+            latestAlert={mccAlert}
             connected={connected}
             marsDelay={marsDelay}
             onToggleMarsDelay={handleToggleMarsDelay}
@@ -478,13 +546,147 @@ export function App() {
             speedMultiplier={speedMultiplier}
             onSpeedMultiplierChange={setSpeedMultiplier}
             onSelectView={handleSelectView}
-            currentScenario={currentScenario}
-            onOpenTriage={handleOpenTriage}
+            currentScenario={mccScenario}
+            onOpenTriage={handleOpenMccTelemetry}
+            onOpenMccTelemetry={handleOpenMccTelemetry}
           />
         </div>
       )}
 
-      {/* ─── DEDICATED 3D HOLOGRAPHIC ANATOMICAL BODY SCANNER VIEW ─── */}
+      {/* ─── 4. DEDICATED EARTH MCC BIOMEDICAL TELEMETRY CONSOLE (/mcc/telemetry/:name) ─── */}
+      {activeView === 'MCC_TELEMETRY' && (
+        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backgroundColor: '#070a07' }}>
+          {/* Top Sticky Header for Earth Ground Station */}
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 200,
+              overflow: 'visible',
+              background: '#070a07',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+              width: '100%',
+            }}
+          >
+            <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '0 20px' }}>
+              <HeaderBar
+                connected={connected}
+                marsDelay={marsDelay}
+                onToggleMarsDelay={handleToggleMarsDelay}
+                orbitalPosition={orbitalPosition}
+                onSelectOrbitalPosition={handleOrbitalPositionChange}
+                speedMultiplier={speedMultiplier}
+                activeView={activeView}
+                onSelectView={handleSelectView}
+                latestAlert={mccAlert}
+                selectedAstronautId={activeMccAstronautId || 'AST-01_COMMANDER'}
+              />
+            </div>
+
+            {/* Earth Ground Station Operational Breadcrumb Bar */}
+            <div
+              style={{
+                background: 'linear-gradient(90deg, #0b1117 0%, #080d12 100%)',
+                borderBottom: '1px solid rgba(56, 189, 248, 0.25)',
+                padding: '7px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontFamily: "var(--hud-font-mono, 'Tomorrow', monospace)",
+                fontSize: '11px',
+                color: '#94a3b8',
+                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.5)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  onClick={handleCloseMccTelemetry}
+                  style={{
+                    background: 'rgba(56, 189, 248, 0.12)',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                    borderRadius: 4,
+                    padding: '3px 10px',
+                    color: '#38bdf8',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                    letterSpacing: '0.04em',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
+                  }}
+                >
+                  <span>← RETURN TO MCC MAIN CONSOLE</span>
+                </button>
+
+                <span style={{ color: '#334155' }}>|</span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      background: '#38bdf8',
+                      boxShadow: '0 0 8px #38bdf8',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span style={{ color: '#f8fafc', fontWeight: 800, letterSpacing: '0.06em' }}>
+                    EARTH MCC // CLINICAL TELEMETRY CONSOLE
+                  </span>
+                  <span style={{ color: '#64748b' }}>(JSC FLIGHT SURGEON WORKSTATION)</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '10.5px' }}>
+                  <span style={{ color: '#64748b' }}>DOWNLINK:</span>
+                  <span style={{ color: '#4ade80', fontWeight: 700 }}>
+                    DSN KA-BAND ({DISTANCES[orbitalPosition]?.label})
+                  </span>
+                </div>
+
+                <span style={{ color: '#334155' }}>|</span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '10.5px' }}>
+                  <span style={{ color: '#64748b' }}>PROPAGATION LATENCY:</span>
+                  <span style={{ color: '#fbbf24', fontWeight: 800 }}>
+                    +{fmtTime(DISTANCES[orbitalPosition]?.delaySec ?? 0)} ONE-WAY
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Deep-Space Downlink In-Transit Status Ribbon */}
+            {renderInTransitBanner()}
+          </div>
+
+          {/* Earth MCC Health Telemetry Component fed by delayed Earth state */}
+          <HealthTelemetryView
+            initialAstronautId={activeMccAstronautId || 'AST-01_COMMANDER'}
+            telemetryMap={mccTelemetryMap}
+            marsDelay={marsDelay}
+            connected={connected}
+            latestAlert={mccAlert}
+            onToggleMarsDelay={handleToggleMarsDelay}
+            activeView={activeView}
+            onSelectView={handleSelectView}
+            onClose={handleCloseMccTelemetry}
+            onAstronautChange={handleMccAstronautChange}
+          />
+        </div>
+      )}
+
+      {/* ─── 5. DEDICATED 3D HOLOGRAPHIC ANATOMICAL BODY SCANNER VIEW ─── */}
       {activeView === 'SCANNER' && (
         <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backgroundColor: '#04080e' }}>
           {/* Top Sticky Header */}
@@ -607,7 +809,7 @@ export function App() {
         onScenarioTriggered={handleScenarioTriggered}
       />
     </>
-);
+  );
 }
 
 export default App;

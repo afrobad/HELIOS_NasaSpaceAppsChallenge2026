@@ -1,7 +1,7 @@
 import React, { memo, useRef, useEffect } from 'react';
 
 export interface SpaceBackgroundProps {
-  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER';
+  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY';
 }
 
 /**
@@ -19,7 +19,7 @@ export interface SpaceBackgroundProps {
  */
 export const SpaceBackground: React.FC<SpaceBackgroundProps> = memo(({ activeView = 'HUD' }) => {
   const isTelemetry = activeView === 'HEALTH_TELEMETRY';
-  const isMCC = activeView === 'MCC';
+  const isMCC = activeView === 'MCC' || activeView === 'MCC_TELEMETRY';
   const earthVideoRef = useRef<HTMLVideoElement>(null);
   const telemetryVideoRef = useRef<HTMLVideoElement>(null);
 

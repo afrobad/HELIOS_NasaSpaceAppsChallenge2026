@@ -17,8 +17,8 @@ interface HealthTelemetryViewProps {
   marsDelay: boolean;
   connected?: boolean;
   onToggleMarsDelay?: (enabled: boolean) => void;
-  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER';
-  onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER') => void;
+  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY';
+  onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY') => void;
   latestAlert?: AlertPayload | null;
   onAstronautChange?: (astronautId: string) => void;
 }

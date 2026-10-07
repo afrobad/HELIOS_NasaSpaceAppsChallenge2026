@@ -56,9 +56,10 @@ export interface MissionControlViewProps {
   onSelectOrbitalPosition?: (pos: DistancePreset) => void;
   speedMultiplier?: number;
   onSpeedMultiplierChange?: (speed: number) => void;
-  onSelectView: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC') => void;
+  onSelectView: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY') => void;
   currentScenario?: string;
   onOpenTriage?: (astronautId: string) => void;
+  onOpenMccTelemetry?: (astronautId: string) => void;
 }
 
 type MCCTab = 'OVERVIEW' | 'CREW' | 'SYSTEMS' | 'COMMS' | 'INVESTIGATE';
@@ -262,6 +263,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   onSpeedMultiplierChange,
   onSelectView,
   onOpenTriage,
+  onOpenMccTelemetry,
   currentScenario,
 }) => {
   const [tab, setTab] = useState<MCCTab>('OVERVIEW');
@@ -1185,7 +1187,9 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     const primaryAlert = hasAnomaly ? activeAlerts[0] : null;
 
     const handleTriage = (astId: string) => {
-      if (onOpenTriage) {
+      if (onOpenMccTelemetry) {
+        onOpenMccTelemetry(astId);
+      } else if (onOpenTriage) {
         onOpenTriage(astId);
       } else {
         setSelCrewId(astId);
@@ -3635,9 +3639,15 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     OPEN PROCEDURE: {targetProcedureId.replace('NASA-STD-3001-', '')} →
                   </button>
 
-                  {onOpenTriage && (
+                  {(onOpenMccTelemetry || onOpenTriage) && (
                     <button
-                      onClick={() => onOpenTriage(selCrew.id)}
+                      onClick={() => {
+                        if (onOpenMccTelemetry) {
+                          onOpenMccTelemetry(selCrew.id);
+                        } else if (onOpenTriage) {
+                          onOpenTriage(selCrew.id);
+                        }
+                      }}
                       style={{
                         marginTop: 5,
                         width: '100%',
@@ -3656,7 +3666,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         transition: 'all 0.12s ease',
                       }}
                     >
-                      OPEN CLINICAL TELEMETRY CONSOLE →
+                      OPEN EARTH TELEMETRY CONSOLE →
                     </button>
                   )}
                 </div>
@@ -4859,33 +4869,37 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   <div style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>
                     {sys.compartment} · {sys.hwRef}
                   </div>
-                  {onSelectView && (
-                    <button
-                      onClick={() => onSelectView('HEALTH_TELEMETRY')}
-                      style={{
-                        background: '#0a0e13',
-                        border: `1px solid ${T.border}`,
-                        borderRadius: 3,
-                        padding: '4px 9px',
-                        color: '#9ec7ef',
-                        fontSize: 9,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        letterSpacing: '0.03em',
-                        transition: 'all 0.12s ease',
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = '#38bdf8';
-                        e.currentTarget.style.color = '#ffffff';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = T.border;
-                        e.currentTarget.style.color = '#9ec7ef';
-                      }}
-                    >
-                      VIEW IN TELEMETRY →
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      if (onOpenMccTelemetry) {
+                        onOpenMccTelemetry(selCrewId || 'AST-01_COMMANDER');
+                      } else {
+                        onSelectView('MCC_TELEMETRY');
+                      }
+                    }}
+                    style={{
+                      background: '#0a0e13',
+                      border: `1px solid ${T.border}`,
+                      borderRadius: 3,
+                      padding: '4px 9px',
+                      color: '#9ec7ef',
+                      fontSize: 9,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      letterSpacing: '0.03em',
+                      transition: 'all 0.12s ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = '#38bdf8';
+                      e.currentTarget.style.color = '#ffffff';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = T.border;
+                      e.currentTarget.style.color = '#9ec7ef';
+                    }}
+                  >
+                    VIEW IN EARTH TELEMETRY →
+                  </button>
                 </div>
               </div>
             );

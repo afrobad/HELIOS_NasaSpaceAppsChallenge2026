@@ -10,8 +10,8 @@ interface HeaderBarProps {
   orbitalPosition?: DistancePreset;
   onSelectOrbitalPosition?: (pos: DistancePreset) => void;
   speedMultiplier?: number;
-  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER';
-  onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER') => void;
+  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY';
+  onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY') => void;
   latestAlert?: AlertPayload | null;
   selectedAstronautId?: string;
   /** When true, renders ONLY the fixed bottom JARVIS bar — no top navbar */
@@ -50,9 +50,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 }) => {
   const [audioEngaged, setAudioEngaged] = useState<boolean>(true);
 
-  // Active Orbital Position & Light Propagation Delay
+  // Active Orbital Position & Light Propagation Delay (applies to Earth MCC views)
+  const isEarthDomain = activeView === 'MCC' || activeView === 'MCC_TELEMETRY';
   const currentPos: DistancePreset = orbitalPosition || (marsDelay ? 'MARS_MAX' : 'LEO');
-  const delaySec = DISTANCES[currentPos]?.delaySec ?? (marsDelay ? 1334.925 : 0);
+  const delaySec = isEarthDomain ? (DISTANCES[currentPos]?.delaySec ?? (marsDelay ? 1334.925 : 0)) : 0;
 
   // Earth Time (Ground MCC Houston UTC) — real-world clock
   const [earthTime, setEarthTime] = useState<Date>(() => new Date());
@@ -571,7 +572,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 { id: 'MCC', label: 'Earth MCC', tip: 'Mission control operations' },
                 { id: 'SUIT_HUD', label: 'Suit HUD', tip: 'First-person Mars EVA Helmet HUD' },
               ].map((tabItem) => {
-                const isActive = activeView === tabItem.id;
+                const isActive = activeView === tabItem.id || (tabItem.id === 'MCC' && activeView === 'MCC_TELEMETRY');
                 return (
                   <button
                     key={tabItem.id}
