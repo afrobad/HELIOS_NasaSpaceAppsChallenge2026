@@ -54,7 +54,7 @@ async def lifespan(app: FastAPI):
     # Auto-initiate local Ollama AI model in background
     if ollama_client:
         asyncio.create_task(ollama_client.initiate_model())
-    print("[+] NASA Astronaut Health Sentry & JARVIS AI Engine Online (10 Hz Stream Active)")
+    print("[+] NASA Astronaut Health Sentry & AI Surgeon Engine Online (10 Hz Stream Active)")
 
     yield
 
@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="NASA Astronaut Health Intelligence System (JARVIS-Sentry)",
+    title="NASA Astronaut Health Intelligence System (AI-Surgeon-Sentry)",
     description="Autonomous, offline-first deep-space clinical decision-support and telemetry sentry.",
     version="1.0.0",
     lifespan=lifespan

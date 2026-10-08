@@ -12,7 +12,15 @@ build/
 .venv/
 venv/
 env/
-.env
+# ── Media & Render Outputs ───────────────────────────
+Video_Outputs/
+*.mp4
+*.docx
+*.mp3
+*.wav
+*.ogg
+*.pkl
+*.zip
 
 # ── Node / Frontend ──────────────────────────────────
 node_modules/

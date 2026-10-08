@@ -6,12 +6,14 @@ interface ScenarioControllerProps {
   currentScenario: string;
   marsDelay: boolean;
   onToggleMarsDelay: (enabled: boolean) => void;
-  onScenarioTriggered?: (scenarioKey: string, telemetry?: Record<string, any>) => void;
+  onScenarioTriggered?: (scenarioKey: string, telemetry?: Record<string, any>, targetCrewId?: string | null) => void;
+  selectedCrewId?: string;
+  onSelectCrewId?: (crewId: string) => void;
 }
 
 export type MissionCohort = 'ALL' | 'ARTEMIS_I' | 'ARTEMIS_II';
 
-interface ScenarioMeta {
+export interface ScenarioMeta {
   key: string;
   label: string;
   badge: string;
@@ -303,7 +305,8 @@ const INDIVIDUAL_SCENARIOS: ScenarioMeta[] = [
   },
 ];
 
-const ALL_SCENARIOS = [...UNIVERSAL_SCENARIOS, ...INDIVIDUAL_SCENARIOS];
+export const ALL_SCENARIOS = [...UNIVERSAL_SCENARIOS, ...INDIVIDUAL_SCENARIOS];
+export { UNIVERSAL_SCENARIOS, INDIVIDUAL_SCENARIOS };
 
 type ScopeTab = 'UNIVERSAL' | 'INDIVIDUAL';
 type ClinicalCategory = 'ALL' | 'CARDIO' | 'IMMUNE' | 'METABOLIC';
@@ -313,11 +316,19 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
   marsDelay,
   onToggleMarsDelay,
   onScenarioTriggered,
+  selectedCrewId: propSelectedCrewId,
+  onSelectCrewId,
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [scopeTab, setScopeTab] = useState<ScopeTab>('UNIVERSAL');
-  const [selectedCrewId, setSelectedCrewId] = useState<string>('AST-01_COMMANDER');
+  const [selectedCrewId, setSelectedCrewId] = useState<string>(propSelectedCrewId || 'AST-01_COMMANDER');
   const [activeTargetCrewId, setActiveTargetCrewId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (propSelectedCrewId && propSelectedCrewId !== selectedCrewId) {
+      setSelectedCrewId(propSelectedCrewId);
+    }
+  }, [propSelectedCrewId]);
   const [clinicalCategory, setClinicalCategory] = useState<ClinicalCategory>('ALL');
   const [triggeringKey, setTriggeringKey] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<TooltipData | null>(null);
@@ -325,7 +336,7 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
 
   const scrollBodyRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to JARVIS transmission state to slide button up/down
+  // Subscribe to AI SURGEON transmission state to slide button up/down
   useEffect(() => {
     const unsub = audioService.onStateChange((state) => {
       setIsTransmitting(state.isTransmitting);
@@ -508,6 +519,12 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
         onToggleMarsDelay(false);
       }
 
+      // Synchronously notify parent immediately before dispatching backend POST
+      // This arms the deep-space downlink delay buffer BEFORE WebSocket packets arrive from FastAPI
+      if (onScenarioTriggered) {
+        onScenarioTriggered(key, undefined, effectiveTarget);
+      }
+
       const queryUrl = effectiveTarget
         ? `/api/scenario/${key}?astronaut_id=${effectiveTarget}`
         : `/api/scenario/${key}`;
@@ -518,13 +535,13 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
         const data = await res.json().catch(() => null);
         telData = data?.telemetry;
       }
-      if (onScenarioTriggered) {
-        onScenarioTriggered(key, telData);
+      if (onScenarioTriggered && telData) {
+        onScenarioTriggered(key, telData, effectiveTarget);
       }
     } catch {
       // Offline fallback: notify scenario trigger
       if (onScenarioTriggered) {
-        onScenarioTriggered(key);
+        onScenarioTriggered(key, undefined, effectiveTarget);
       }
     } finally {
       setTimeout(() => setTriggeringKey(null), 300);
@@ -993,7 +1010,10 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
                       return (
                         <button
                           key={crew.id}
-                          onClick={() => setSelectedCrewId(crew.id)}
+                          onClick={() => {
+                            setSelectedCrewId(crew.id);
+                            onSelectCrewId?.(crew.id);
+                          }}
                           style={{
                             display: 'flex',
                             alignItems: 'center',

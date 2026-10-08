@@ -19,7 +19,7 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
     );
   }, [telemetryMap]);
 
-  const sc = activePacket?.scenario_phase || currentScenario || 'NOMINAL_CRUISE';
+  const sc = currentScenario || activePacket?.scenario_phase || 'NOMINAL_CRUISE';
 
   // 1. Cabin Pressure (kPa)
   const pressureVal = useMemo(() => {

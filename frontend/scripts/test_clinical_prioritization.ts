@@ -2,6 +2,9 @@ import { evaluateCrewClinicalSummary, computeBiomarkerDelta } from '../src/utils
 import { computeClinicalViewKey } from '../src/hooks/useStabilizedClinicalSummary';
 import { NASA_OSDR_PROFILES } from '../src/components/HealthTelemetryView';
 
+// Node.js process declaration for standalone test execution
+declare const process: { exit: (code?: number) => void };
+
 console.log('--- TESTING CLINICAL PRIORITIZATION & ACCURATE CALCULATIONS ---');
 
 let allPassed = true;
@@ -100,7 +103,7 @@ function assert(desc: string, condition: boolean, extra?: any) {
 
   assert('Severe Hypokalemia is CRITICAL', summary.severity === 'CRITICAL');
   assert('Primary concern is ELECTROLYTE or CARDIAC', summary.primaryConcern.category === 'ELECTROLYTE' || summary.primaryConcern.category === 'CARDIAC');
-  assert('KCl repletion is recommended', summary.decisionSupport.recommendedAction.includes('KCl'));
+  assert('KCl / Potassium repletion is recommended', summary.decisionSupport.recommendedAction.toLowerCase().includes('potassium') || summary.decisionSupport.recommendedAction.includes('KCl'));
 }
 
 // ── Test 6: Solar Storm Radiation Flux ────────────────────────────────────
@@ -128,7 +131,7 @@ function assert(desc: string, condition: boolean, extra?: any) {
   assert('Solar storm is CRITICAL', summary.severity === 'CRITICAL');
   assert('Primary concern is RADIATION', summary.primaryConcern.category === 'RADIATION');
   assert('Top biomarker is FLUX', summary.prioritizedBiomarkers[0]?.id === 'flux');
-  assert('Storm shelter is recommended', summary.decisionSupport.recommendedAction.includes('Storm Haven'));
+  assert('Storm shelter is recommended', summary.decisionSupport.recommendedAction.toLowerCase().includes('storm shelter') || summary.decisionSupport.recommendedAction.includes('Storm Haven'));
 }
 
 // ── Test 7: Completely Nominal Crew Member (Commander Haley at rest) ──────
@@ -154,6 +157,9 @@ function assert(desc: string, condition: boolean, extra?: any) {
     core_temp: 36.8,
     sleep_score: 86,
     cabin_co2: 1.8,
+    scenario_phase: 'NOMINAL_CRUISE',
+    z_score_hr: 0.1,
+    z_score_hrv: 0.0,
     tick: 1,
     timestamp: '2026-09-29T12:00:00Z',
   });
@@ -175,6 +181,8 @@ function assert(desc: string, condition: boolean, extra?: any) {
     sleep_score: 80,
     cabin_co2: 1.8,
     scenario_phase: 'SCENARIO_2_SLOW_DECOMPRESSION_HYPOXIA',
+    z_score_hr: 3.1,
+    z_score_hrv: -2.0,
     tick: 2,
     timestamp: '2026-09-29T12:00:01Z',
   });

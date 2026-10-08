@@ -831,6 +831,7 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
                 <EcgRowCanvas
                   astronautId={crew.id}
                   altAstronautId={crew.altId}
+                  telemetry={telemetry}
                 />
               </div>
             </div>

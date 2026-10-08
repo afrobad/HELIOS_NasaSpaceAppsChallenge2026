@@ -7,6 +7,8 @@ interface EcgRowCanvasProps {
   altAstronautId?: string;
   /** Optional fixed CSS height. If omitted, flex-fills available space */
   height?: number | string;
+  /** Explicit telemetry packet (e.g. Earth MCC delayed telemetry) */
+  telemetry?: TelemetryPacket;
 }
 
 // ─── Physiological waveform math (same precision as full TelemetryCanvas) ───
@@ -63,12 +65,17 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
   astronautId,
   altAstronautId,
   height,
+  telemetry,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dprRef = useRef<number>(window.devicePixelRatio || 1);
 
-  const telRef = useRef({ heart_rate: 62.0, spo2: 98.2, hrv_rmssd: 65.0 });
+  const telRef = useRef({
+    heart_rate: telemetry?.heart_rate ?? 62.0,
+    spo2: telemetry?.spo2 ?? 98.2,
+    hrv_rmssd: telemetry?.hrv_rmssd ?? 65.0,
+  });
   const waveRef = useRef({
     sweepIndex: 0,
     phase: 0.0,
@@ -77,7 +84,23 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
   });
 
   // Live numeric stats for overlay labels (updated at 10 Hz via interval, not RAF)
-  const [stats, setStats] = useState({ hr: 62, spo2: 98.2, rhythm: 'NSR' });
+  const [stats, setStats] = useState({
+    hr: Math.round(telemetry?.heart_rate ?? 62),
+    spo2: telemetry?.spo2 ?? 98.2,
+    rhythm: 'NSR',
+  });
+
+  // When explicit telemetry is passed from parent (e.g. Earth MCC delayed telemetry),
+  // synchronize telRef immediately so waveform frequency and digital overlay match exactly
+  useEffect(() => {
+    if (telemetry && telemetry.heart_rate) {
+      telRef.current = {
+        heart_rate: telemetry.heart_rate,
+        spo2: telemetry.spo2 ?? 98.2,
+        hrv_rmssd: telemetry.hrv_rmssd ?? 65.0,
+      };
+    }
+  }, [telemetry]);
 
   // On astronaut switch, reset sweep index smoothly without zeroing out existing waves
   useEffect(() => {
@@ -87,8 +110,10 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
     w.lastTime = performance.now();
   }, [astronautId]);
 
-  // Subscribe to WebSocket for this specific astronaut
+  // Subscribe to WebSocket for this specific astronaut ONLY when telemetry prop is not provided
   useEffect(() => {
+    if (telemetry) return; // Controlled component by parent
+
     const unsub = wsService.subscribeTelemetry((pkt: TelemetryPacket) => {
       const match =
         pkt.astronaut_id === astronautId ||
@@ -102,7 +127,7 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
       }
     });
     return () => unsub();
-  }, [astronautId, altAstronautId]);
+  }, [astronautId, altAstronautId, telemetry]);
 
   // 10 Hz stats refresh for digital overlay
   useEffect(() => {

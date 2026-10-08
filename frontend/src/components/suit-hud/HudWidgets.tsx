@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, memo, type CSSProperties, type ReactNode } from 'react';
 import { gaugeArc, gaugePoint, mulberry32, type Side } from './geometry';
 import type { SuitTelemetry } from './useSuitTelemetry';
 import { HolographicSuitScanner3D } from './HolographicSuitScanner3D';
@@ -44,7 +44,7 @@ function Reveal({ delay, children }: { delay: number; children: ReactNode }) {
 }
 
 /** SVG defs used by the HUD layer. */
-export function HudDefs() {
+export const HudDefs = memo(function HudDefs() {
   return (
     <defs>
       {/* Glow filters kept strictly for ambient rim/waveform highlights, never applied to text */}
@@ -84,7 +84,7 @@ export function HudDefs() {
       </clipPath>
     </defs>
   );
-}
+});
 
 /* ────────────────────────────────────────────────────────────────────────
  * Top: voice waveform + "SUIT AI // ONLINE"
@@ -101,37 +101,125 @@ function waveEnvelope(x: number) {
   return Math.min(1, 0.14 + 0.86 * g(512, 52) + 0.55 * g(452, 22) + 0.55 * g(574, 22) + 0.25 * g(418, 16) + 0.25 * g(608, 16));
 }
 
-export function VoiceWaveform({ animate, status }: { animate: boolean; status: string }) {
+export interface VoiceWaveformProps {
+  animate?: boolean;
+  status?: string;
+  statusLabel?: string;
+  detailText?: string;
+  directive?: string;
+  severity?: 'CRITICAL' | 'WARNING' | 'NOMINAL';
+  isOnline?: boolean;
+  isTransmitting?: boolean;
+}
+
+export const VoiceWaveform = memo(function VoiceWaveform({
+  animate = true,
+  status,
+  statusLabel,
+  detailText,
+  directive,
+  severity = 'NOMINAL',
+  isOnline = true,
+  isTransmitting = false,
+}: VoiceWaveformProps) {
   const bars = useRef<(SVGRectElement | null)[]>([]);
+  const ampRef = useRef<number>(0);
+  const settledRef = useRef<boolean>(false);
+
   const seeds = useMemo(() => {
     const rnd = mulberry32(1337);
     return Array.from({ length: WAVE_BARS }, () => ({
-      f1: 0.004 + rnd() * 0.007,
+      f1: 0.005 + rnd() * 0.008,
       p1: rnd() * Math.PI * 2,
-      f2: 0.0011 + rnd() * 0.0022,
+      f2: 0.0016 + rnd() * 0.003,
       p2: rnd() * Math.PI * 2,
+      f3: 0.01 + rnd() * 0.015,
+      p3: rnd() * Math.PI * 2,
       base: 0.35 + rnd() * 0.65,
     }));
   }, []);
 
-  const heightAt = (i: number, t: number) => {
+  const heightAt = (i: number, t: number, amp: number) => {
     const s = seeds[i];
     const env = waveEnvelope(WAVE_X0 + i * WAVE_STEP);
-    const n = animate
-      ? 0.25 + 0.75 * Math.abs(Math.sin(t * s.f1 + s.p1) * (0.55 + 0.45 * Math.sin(t * s.f2 + s.p2)))
-      : s.base;
-    return Math.max(1.4, env * WAVE_MAX * n);
+    // Quiet resting tick height when not transmitting voice
+    const restingH = 1.3 + 0.5 * env;
+    if (amp <= 0.01) {
+      return restingH;
+    }
+    // Dynamic music/remix equalizer wave calculation when voice is actively transmitting
+    const wave = Math.abs(
+      Math.sin(t * s.f1 + s.p1) * 0.52 +
+      Math.sin(t * s.f2 + s.p2) * 0.32 +
+      Math.sin(t * s.f3 + s.p3) * 0.16
+    );
+    const n = 0.22 + 0.78 * wave;
+    const dynamicH = Math.max(1.3, env * WAVE_MAX * n);
+    return restingH + (dynamicH - restingH) * amp;
   };
 
   useRaf((t) => {
+    // Smooth attack and release: springs to life upon speech and gently returns to resting baseline
+    const targetAmp = isTransmitting ? 1.0 : 0.0;
+    const diff = targetAmp - ampRef.current;
+    if (Math.abs(diff) > 0.001) {
+      ampRef.current += diff * (isTransmitting ? 0.22 : 0.08);
+      settledRef.current = false;
+    } else {
+      ampRef.current = targetAmp;
+    }
+
+    const currentAmp = ampRef.current;
+    // 90 FPS performance optimization: skip DOM writes once resting waveform settles
+    if (!isTransmitting && currentAmp <= 0.001) {
+      if (settledRef.current) return;
+      settledRef.current = true;
+    }
+
     for (let i = 0; i < WAVE_BARS; i++) {
       const el = bars.current[i];
       if (!el) continue;
-      const h = heightAt(i, t);
+      const h = heightAt(i, t, currentAmp);
       el.setAttribute('y', (WAVE_CY - h).toFixed(2));
       el.setAttribute('height', (h * 2).toFixed(2));
     }
   }, animate);
+
+  const isCritical = severity === 'CRITICAL';
+  const isWarning = severity === 'WARNING';
+  const hasDirective = Boolean(directive && directive.trim().length > 0);
+
+  // Derive status label and detail text
+  let finalStatus = statusLabel;
+  let finalDetail = detailText;
+
+  if (!finalStatus && status) {
+    const parts = status
+      .replace(/^(?:SUIT AI|AI SURGEON)[\s/·•:-]+/i, '')
+      .split(/[/·•:]+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    finalStatus = parts[0] || (isCritical ? 'CRITICAL' : isWarning ? 'CAUTION' : isOnline ? 'ONLINE' : 'OFFLINE');
+    finalDetail = parts.slice(1).join(' · ');
+  }
+
+  if (!finalStatus) {
+    finalStatus = isCritical ? 'CRITICAL' : isWarning ? 'CAUTION' : isOnline ? 'ONLINE' : 'OFFLINE';
+  }
+
+  // Strip any remaining slashes or redundant prefixes
+  const cleanDetail = finalDetail ? finalDetail.replace(/\s*[/]{2,}\s*/g, ' · ').trim() : '';
+  const formattedDirective = directive
+    ? directive.replace(/^(?:action|directive|instruction|recommendation)[\s:/-]+/i, '').trim()
+    : '';
+
+  const barClass = `hud-wave-bar ${
+    isCritical
+      ? 'hud-wave-bar--critical'
+      : isWarning
+      ? 'hud-wave-bar--warning'
+      : ''
+  } ${isTransmitting ? 'hud-wave-bar--active' : 'hud-wave-bar--idle'}`;
 
   return (
     <Reveal delay={0.1}>
@@ -139,7 +227,7 @@ export function VoiceWaveform({ animate, status }: { animate: boolean; status: s
         <path d="M336,38 L380,38" stroke="url(#shud-fade-l)" strokeWidth="1" />
         <path d="M644,38 L688,38" stroke="url(#shud-fade-r)" strokeWidth="1" />
         {seeds.map((_, i) => {
-          const h = heightAt(i, 0);
+          const h = heightAt(i, 0, 0);
           return (
             <rect
               key={i}
@@ -151,26 +239,105 @@ export function VoiceWaveform({ animate, status }: { animate: boolean; status: s
               width="2"
               height={h * 2}
               rx="1"
-              className="hud-wave-bar"
+              className={barClass}
             />
           );
         })}
       </g>
       <g>
-        <text x="512" y="75" textAnchor="middle" className="hud-ai-status">
-          SUIT AI // {status}
-        </text>
-        <path d="M392,79 L398,85 L626,85 L632,79" className="hud-line hud-line--dim" />
+        <foreignObject
+          x="112"
+          y={hasDirective ? 53 : 58}
+          width="800"
+          height={hasDirective ? 36 : 28}
+          style={{ overflow: 'visible', pointerEvents: 'none' }}
+        >
+          <div className="hud-ai-status-container">
+            {/* Line 1: Icon (before Surgeon label) + AI SURGEON + Status + Detail */}
+            <div
+              className={`hud-ai-status-row ${
+                isCritical
+                  ? 'hud-ai-status-row--critical'
+                  : isWarning
+                  ? 'hud-ai-status-row--warning'
+                  : ''
+              }`}
+            >
+              {isCritical ? (
+                <img
+                  src="/icons/critical.png"
+                  alt="Critical Alert"
+                  className="hud-ai-status-icon hud-ai-status-icon--critical"
+                />
+              ) : isWarning ? (
+                <img
+                  src="/icons/warning.png"
+                  alt="Master Caution"
+                  className="hud-ai-status-icon hud-ai-status-icon--warning"
+                />
+              ) : (
+                <span
+                  className={`hud-ai-status-dot ${
+                    isOnline ? 'hud-ai-status-dot--online' : 'hud-ai-status-dot--offline'
+                  }`}
+                  title={isOnline ? 'AI Surgeon Link: Active (10 Hz)' : 'AI Surgeon Link: Disconnected'}
+                />
+              )}
+
+              <span className="hud-ai-label">AI SURGEON</span>
+              <span className="hud-ai-sep">·</span>
+              <span
+                className={`hud-ai-state ${
+                  isCritical
+                    ? 'hud-ai-state--critical'
+                    : isWarning
+                    ? 'hud-ai-state--warning'
+                    : isOnline
+                    ? 'hud-ai-state--online'
+                    : 'hud-ai-state--offline'
+                }`}
+              >
+                {finalStatus}
+              </span>
+              {cleanDetail && (
+                <>
+                  <span className="hud-ai-sep">·</span>
+                  <span className="hud-ai-detail">{cleanDetail}</span>
+                </>
+              )}
+            </div>
+
+            {/* Line 2: Minimal Actionable Guidance */}
+            {hasDirective && (
+              <div className="hud-ai-directive-row">
+                <span className="hud-ai-directive-tag">ACTION</span>
+                <span>{formattedDirective}</span>
+              </div>
+            )}
+          </div>
+        </foreignObject>
+
+        {/* Sleek Under-Bracket framing the text */}
+        <path
+          d={
+            hasDirective
+              ? 'M350,91 L360,97 L664,97 L674,91'
+              : 'M388,78 L396,84 L628,84 L636,78'
+          }
+          className={`hud-line hud-line--dim ${
+            isCritical ? 'hud-line--critical' : isWarning ? 'hud-line--warning' : ''
+          }`}
+        />
       </g>
     </Reveal>
   );
-}
+});
 
 /* ────────────────────────────────────────────────────────────────────────
  * Thin frame accents (corner brackets)
  * ──────────────────────────────────────────────────────────────────────── */
 
-export function FrameAccents() {
+export const FrameAccents = memo(function FrameAccents() {
   return (
     <Reveal delay={0}>
       <g  className="hud-line">
@@ -183,7 +350,7 @@ export function FrameAccents() {
       </g>
     </Reveal>
   );
-}
+});
 
 /* ────────────────────────────────────────────────────────────────────────
  * BIOMETRICS (top-left)
@@ -251,18 +418,21 @@ function DropIcon() {
   );
 }
 
-export function BiometricsPanel({ data, animate }: { data: SuitTelemetry; animate: boolean }) {
+export const BiometricsPanel = memo(function BiometricsPanel({ data, animate }: { data: SuitTelemetry; animate: boolean }) {
   const spoBar = 82 * Math.min(1, Math.max(0, (data.spo2 - 80) / 19));
+  const isHrWarn = data.heartRate > 105 || data.heartRate < 50;
+  const isSpo2Warn = data.spo2 < 93;
+
   return (
     <Reveal delay={0.35}>
-      <g >
+      <g>
         <text x="140" y="108" className="hud-title">BIOMETRICS</text>
         <path d="M130,121 L136,114 L300,114 L304,110" className="hud-line" />
 
         <HeartIcon />
         <text x="168" y="135" className="hud-label">HEART RATE</text>
         <text x="167" y="161">
-          <tspan className="hud-value-xl">{data.heartRate}</tspan>
+          <tspan className={`hud-value-xl ${isHrWarn ? 'hud-value--warn' : ''}`}>{data.heartRate}</tspan>
           <tspan className="hud-unit" dx="4">BPM</tspan>
         </text>
 
@@ -274,15 +444,15 @@ export function BiometricsPanel({ data, animate }: { data: SuitTelemetry; animat
           <Sub>2</Sub>
         </text>
         <text x="167" y="217">
-          <tspan className="hud-value-xl">{data.spo2}</tspan>
+          <tspan className={`hud-value-xl ${isSpo2Warn ? 'hud-value--warn' : ''}`}>{data.spo2}</tspan>
           <tspan className="hud-unit-lg" dx="1">%</tspan>
         </text>
-        <path d={`M168,224 L${168 + spoBar},224`} className="hud-bar" />
+        <path d={`M168,224 L${168 + spoBar},224`} className={`hud-bar ${isSpo2Warn ? 'hud-value--warn' : ''}`} />
       </g>
       <EcgTrace heartRate={data.heartRate} animate={animate} />
     </Reveal>
   );
-}
+});
 
 /* ────────────────────────────────────────────────────────────────────────
  * LIFE SUPPORT (top-right)
@@ -344,7 +514,11 @@ function ThermoIcon({ y }: { y: number }) {
   );
 }
 
-export function LifeSupportPanel({ data }: { data: SuitTelemetry }) {
+export const LifeSupportPanel = memo(function LifeSupportPanel({ data }: { data: SuitTelemetry }) {
+  const isO2Warn = data.o2Reserve < 75;
+  const isPressWarn = data.suitPressurePsi < 3.5;
+  const isTempWarn = data.temperatureC > 37.8 || data.temperatureC < 35.8;
+
   const rows = [
     {
       y: 137,
@@ -356,7 +530,7 @@ export function LifeSupportPanel({ data }: { data: SuitTelemetry }) {
       ),
       value: (
         <>
-          <tspan className="hud-value">{data.o2Reserve}</tspan>
+          <tspan className={`hud-value ${isO2Warn ? 'hud-value--warn' : ''}`}>{data.o2Reserve}</tspan>
           <tspan className="hud-value-unit" dx="1.5">%</tspan>
         </>
       ),
@@ -377,7 +551,7 @@ export function LifeSupportPanel({ data }: { data: SuitTelemetry }) {
       label: <>SUIT PRESSURE</>,
       value: (
         <>
-          <tspan className="hud-value">{data.suitPressurePsi.toFixed(1)}</tspan>
+          <tspan className={`hud-value ${isPressWarn ? 'hud-value--warn' : ''}`}>{data.suitPressurePsi.toFixed(1)}</tspan>
           <tspan className="hud-value-unit" dx="3">PSI</tspan>
         </>
       ),
@@ -386,7 +560,7 @@ export function LifeSupportPanel({ data }: { data: SuitTelemetry }) {
       y: 234,
       icon: <ThermoIcon y={234} />,
       label: <>TEMPERATURE</>,
-      value: <tspan className="hud-value">{data.temperatureC.toFixed(1)}°C</tspan>,
+      value: <tspan className={`hud-value ${isTempWarn ? 'hud-value--warn' : ''}`}>{data.temperatureC.toFixed(1)}°C</tspan>,
     },
   ];
 
@@ -411,41 +585,81 @@ export function LifeSupportPanel({ data }: { data: SuitTelemetry }) {
       </g>
     </Reveal>
   );
-}
+});
 
 /* ────────────────────────────────────────────────────────────────────────
  * Waypoint marker (world-locked – lives in the parallax layer)
  * ──────────────────────────────────────────────────────────────────────── */
 
-export function WaypointMarker({ data }: { data: SuitTelemetry }) {
+export const WaypointMarker = memo(function WaypointMarker({ data, planet = 'Mars' }: { data: SuitTelemetry; planet?: string }) {
   const w = data.waypoint;
+  const isMoon = planet === 'Moon';
+  const isISS = planet === 'Space Station';
+
+  const modeBadge = isMoon ? 'LUNAR TRAVERSE' : isISS ? 'ORBITAL DOCK' : 'SURFACE EVA';
+  const targetLabel1 = w.line1 || (isMoon ? 'ARTEMIS BASE' : isISS ? 'HARMONY NODE' : 'MARS BASE');
+  const targetLabel2 = w.line2 || (isMoon ? 'SHACKLETON' : isISS ? 'QUEST AIRLOCK' : 'JEZERO HAB');
+
+  // Intelligent distance formatting
+  const distText = w.distanceKm < 0.1
+    ? `${Math.round(w.distanceKm * 1000)}`
+    : w.distanceKm.toFixed(1);
+  const distUnit = w.distanceKm < 0.1 ? 'm' : 'km';
+
   return (
     <Reveal delay={0.7}>
-      <g >
-        <circle cx="510" cy="234" r="12.5" className="hud-reticle-pulse" />
+      <g>
+        {/* Outer Reticle Pulse & Core Rings */}
+        <circle cx="510" cy="234" r="16" className="hud-reticle-pulse" />
         <circle cx="510" cy="234" r="12.5" className="hud-reticle" />
         <circle cx="510" cy="234" r="4" className="hud-reticle-core" />
 
-        <path d="M519,225 L535,198" className="hud-line" />
-        <text x="541" y="196" className="hud-label hud-label--sm">{w.line1}</text>
-        <text x="541" y="207" className="hud-label hud-label--sm">{w.line2}</text>
-        <text x="541" y="224">
-          <tspan className="hud-value">{w.distanceKm.toFixed(1)}</tspan>
-          <tspan className="hud-value-unit" dx="3">km</tspan>
-        </text>
-        <path d="M542,240 L549,233 M544.5,233 L549,233 L549,237.5" className="hud-line hud-line--bright" />
-        <text x="553" y="240" className="hud-label hud-label--md">{w.bearingDeg}°</text>
+        {/* Center Target Crosshairs */}
+        <path d="M499,234 L504,234 M516,234 L521,234" className="hud-line hud-line--bright" />
+        <path d="M510,223 L510,228 M510,240 L510,245" className="hud-line hud-line--bright" />
 
-        <path d="M510,247 L510,286" className="hud-line" />
+        {/* Sci-Fi Tactical Corner Framing Brackets */}
+        <path d="M492,222 L492,216 L498,216" className="hud-line hud-line--dim" />
+        <path d="M528,216 L528,222 M522,216 L528,216" className="hud-line hud-line--dim" />
+        <path d="M492,246 L492,252 L498,252" className="hud-line hud-line--dim" />
+        <path d="M528,246 L528,252 M522,252 L528,252" className="hud-line hud-line--dim" />
+
+        {/* Leader Line to Waypoint Telemetry Block (Anchored cleanly at corner bracket) */}
+        <path d="M528,216 L542,196 L632,196 L632,200" className="hud-line" />
+
+        {/* Tactical Mode & Target Designators */}
+        <text x="546" y="190" className="hud-label hud-label--sm" fill="#38bdf8" style={{ fontSize: '7.5px', letterSpacing: '0.12em', fontWeight: 600 }}>
+          {modeBadge} · NAV-LOCK
+        </text>
+        <text x="546" y="208" style={{ fontSize: '10.5px', fontWeight: 700, fill: '#ffffff', letterSpacing: '0.08em' }}>
+          {targetLabel1}
+        </text>
+        <text x="546" y="219" className="hud-label hud-label--sm" style={{ opacity: 0.75, letterSpacing: '0.06em' }}>
+          {targetLabel2}
+        </text>
+
+        {/* Unified Telemetry Vector: Distance + Bearing */}
+        <text x="546" y="233">
+          <tspan className="hud-value" style={{ fontSize: '12px', fontWeight: 800 }}>{distText}</tspan>
+          <tspan className="hud-value-unit" dx="2" style={{ fontSize: '8.5px' }}>{distUnit}</tspan>
+          <tspan fill="#38bdf8" dx="8" style={{ fontSize: '10.5px', fontWeight: 700 }}>↗</tspan>
+          <tspan className="hud-label" dx="3" style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.06em' }}>
+            BEARING {w.bearingDeg}°
+          </tspan>
+        </text>
+
+        {/* Vertical Azimuth Plummet Line */}
+        <path d="M510,254 L510,286" className="hud-line" />
         <circle cx="510" cy="287" r="1.6" className="hud-reticle-core" />
 
+        {/* Ranging Pitch Ladder Ticks */}
         <path d="M507,300 L492,410" className="hud-line hud-line--dash" />
         <path d="M496,323 L512,323" className="hud-line" />
         <path d="M489,375 L505,375" className="hud-line" />
       </g>
     </Reveal>
   );
-}
+});
 
 /* ────────────────────────────────────────────────────────────────────────
  * Compass (bottom-centre)
@@ -453,7 +667,7 @@ export function WaypointMarker({ data }: { data: SuitTelemetry }) {
 
 const TICK_STEP = 10;
 
-export function CompassStrip({ animate }: { animate: boolean }) {
+export const CompassStrip = memo(function CompassStrip({ animate }: { animate: boolean }) {
   const ticksRef = useRef<SVGGElement>(null);
   useRaf((t) => {
     const off = 3.2 * Math.sin(t / 2600) + 1.4 * Math.sin(t / 1100);
@@ -468,7 +682,7 @@ export function CompassStrip({ animate }: { animate: boolean }) {
 
   return (
     <Reveal delay={0.85}>
-      <g >
+      <g>
         <path d="M510,443 L515.5,451.5 L504.5,451.5 Z" className="hud-fill" />
         <text x="510" y="470" textAnchor="middle" className="hud-compass-n">N</text>
         <path d="M456,466 L497,466" className="hud-line hud-line--dim" />
@@ -488,7 +702,7 @@ export function CompassStrip({ animate }: { animate: boolean }) {
       </g>
     </Reveal>
   );
-}
+});
 
 /* ────────────────────────────────────────────────────────────────────────
  * Battery (bottom-right)
@@ -496,14 +710,14 @@ export function CompassStrip({ animate }: { animate: boolean }) {
 
 const BATT_SEGMENTS = 10;
 
-export function BatteryPanel({ pct }: { pct: number }) {
+export const BatteryPanel = memo(function BatteryPanel({ pct }: { pct: number }) {
   const lit = Math.round((pct / 100) * BATT_SEGMENTS + 0.2);
   const x0 = 777;
   const segW = 5.2;
   const gap = 1.45;
   return (
     <Reveal delay={0.6}>
-      <g >
+      <g>
         <text x="773" y="373" className="hud-label">BATTERY</text>
         <path d="M767,378 L896,378" className="hud-line hud-line--faint" />
         <rect x="773" y="385" width="74" height="22" rx="2.5" className="hud-batt-shell" />
@@ -527,7 +741,7 @@ export function BatteryPanel({ pct }: { pct: number }) {
       </g>
     </Reveal>
   );
-}
+});
 
 /* ────────────────────────────────────────────────────────────────────────
  * Side gauges hugging the visor rim
@@ -546,7 +760,7 @@ const G_SEGMENTS: [number, number][] = [
   [11.6, 13.4],
 ];
 
-export function SideGauge({ side }: { side: Side }) {
+export const SideGauge = memo(function SideGauge({ side }: { side: Side }) {
   const cx = side === 'left' ? 588 : 436;
   const ticks = useMemo(() => {
     const out: string[] = [];
@@ -563,7 +777,7 @@ export function SideGauge({ side }: { side: Side }) {
     <Reveal delay={0.2}>
       {/* soft cyan light spilling onto the glass rim */}
       <polyline points={gaugeArc(cx, G_CY, 546, side, -16, 15)} fill="none" stroke="#3fe6f0" strokeOpacity="0.35" strokeWidth="12" filter="url(#shud-rim-glow)" />
-      <g >
+      <g>
         <polyline points={gaugeArc(cx, G_CY, 545, side, -18, 18)} className="hud-line hud-line--faint" fill="none" />
         <polyline points={gaugeArc(cx, G_CY, 534, side, -3.9, 3.3)} className="hud-gauge-track" fill="none" />
         {G_SEGMENTS.map(([a0, a1], i) => (
@@ -580,13 +794,13 @@ export function SideGauge({ side }: { side: Side }) {
       </g>
     </Reveal>
   );
-}
+});
 
 /* ────────────────────────────────────────────────────────────────────────
  * 3D Holographic Body Scanner Widget (Bottom-Left Visor Gap)
  * ──────────────────────────────────────────────────────────────────────── */
 
-export function HolographicBodyWidget({
+export const HolographicBodyWidget = memo(function HolographicBodyWidget({
   heartRate,
   temperatureC,
 }: {
@@ -617,4 +831,5 @@ export function HolographicBodyWidget({
       </foreignObject>
     </Reveal>
   );
-}
+});
+

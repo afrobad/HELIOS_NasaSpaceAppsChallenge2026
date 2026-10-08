@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useCallback, memo } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
@@ -41,14 +41,14 @@ function getAstronautContour(y: number): { rx: number; rz: number; beamHalfWidth
   }
 }
 
-export function HolographicSuitScanner3D({
+export function _HolographicSuitScanner3D({
   heartRate = 72,
   temperatureC = 21.4,
   width = 136,
   height = 180,
 }: HolographicSuitScanner3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const [regionTag, setRegionTag] = useState<string>('THORACIC');
+  const regionRef = useRef<HTMLSpanElement>(null);
 
   const hrRef = useRef(heartRate);
   hrRef.current = heartRate;
@@ -390,15 +390,19 @@ export function HolographicSuitScanner3D({
       scanContourLine.scale.set(contour.rx / 0.22, 1, contour.rz / 0.18);
       scanSheet.scale.set(contour.beamHalfWidth / 0.25, 1, contour.rz / 0.18);
 
-      // Readout updates smoothly
+      // Readout updates smoothly via direct DOM mutation (zero React re-renders during 90 FPS rAF)
       if (elapsed - lastUiUpdate > 0.15) {
         lastUiUpdate = elapsed;
-        syncPixelRatio(); // keep drawing buffer matched to on-screen size (fullscreen, zoom, layout)
-        if (tBody > 0.78) setRegionTag('CRANIAL');
-        else if (tBody > 0.58) setRegionTag('THORACIC');
-        else if (tBody > 0.42) setRegionTag('ABDOMINAL');
-        else if (tBody > 0.18) setRegionTag('FEMORAL');
-        else setRegionTag('PEDAL // BOOTS');
+        if (regionRef.current) {
+          const tag = tBody > 0.78 ? 'CRANIAL'
+            : tBody > 0.58 ? 'THORACIC'
+            : tBody > 0.42 ? 'ABDOMINAL'
+            : tBody > 0.18 ? 'FEMORAL'
+            : 'PEDAL · BOOTS';
+          if (regionRef.current.textContent !== tag) {
+            regionRef.current.textContent = tag;
+          }
+        }
       }
 
       renderer.render(scene, camera);
@@ -466,7 +470,7 @@ export function HolographicSuitScanner3D({
             color: '#62f3f7',
           }}
         >
-          EVA-01 // BIO-SCAN
+          EVA-01 · BIO-SCAN
         </span>
         <span
           style={{
@@ -495,11 +499,14 @@ export function HolographicSuitScanner3D({
           fontSize: '7.5px',
         }}
       >
-        <span style={{ color: '#94e8eb', letterSpacing: '0.04em' }}>{regionTag}</span>
+        <span ref={regionRef} style={{ color: '#94e8eb', letterSpacing: '0.04em' }}>
+          THORACIC
+        </span>
         <span style={{ color: '#62f3f7', fontWeight: 600, letterSpacing: '0.05em' }}>360° ROT</span>
       </div>
     </div>
   );
 }
 
+export const HolographicSuitScanner3D = memo(_HolographicSuitScanner3D);
 export default HolographicSuitScanner3D;

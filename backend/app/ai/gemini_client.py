@@ -1,6 +1,6 @@
 """
 backend/app/ai/gemini_client.py
-High-Speed Google Gemini AI Client for JARVIS Clinical Telemetry Voice Generation.
+High-Speed Google Gemini AI Client for AI Surgeon Clinical Telemetry Voice Generation.
 Supports real-time 2-sentence conversational triage and asynchronous lookahead pipelining.
 """
 
@@ -15,9 +15,9 @@ from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv(usecwd=True))
 
-JARVIS_GEMINI_SYSTEM_INSTRUCTION = (
-    "You are JARVIS, an autonomous aerospace medical officer and life-support intelligence aboard a deep-space spacecraft. "
-    "Your communication standard is inspired by NASA flight surgeons and JARVIS: calm, highly intelligent, precise, and reassuring. "
+AI_SURGEON_GEMINI_SYSTEM_INSTRUCTION = (
+    "You are AI Surgeon, an autonomous aerospace medical officer and life-support intelligence aboard a deep-space spacecraft. "
+    "Your communication standard is inspired by NASA flight surgeons: calm, highly intelligent, precise, and reassuring. "
     "CRITICAL RULES FOR NATURAL SPOKEN VOICE PACING:\n"
     "1. Address the astronaut by their specific name (e.g. 'Doctor Sian', 'Commander Haley', 'Pilot Chris', 'Specialist Leo').\n"
     "2. NEVER speak in long run-on compound sentences or large paragraphs. Never use more than 14 words in any single sentence.\n"
@@ -27,8 +27,9 @@ JARVIS_GEMINI_SYSTEM_INSTRUCTION = (
     "   - Sentence 3: Connect what these numbers mean clinically.\n"
     "   - Sentence 4: State the calm, practical countermeasure or recommendation.\n"
     "4. Every sentence MUST end with a full stop (period) so your speech synthesizer breathes and pauses naturally between thoughts.\n"
-    "5. Do NOT include markdown, asterisks, bullet points, numbered lists, or prefixes like 'JARVIS:'. Output plain spoken text only."
+    "5. Do NOT include markdown, asterisks, bullet points, numbered lists, or prefixes like 'AI SURGEON:' or 'AI Surgeon:'. Output plain spoken text only."
 )
+JARVIS_GEMINI_SYSTEM_INSTRUCTION = AI_SURGEON_GEMINI_SYSTEM_INSTRUCTION
 
 
 class GeminiClient:
@@ -104,7 +105,7 @@ class GeminiClient:
             f"Live Biometrics: HR={hr} bpm, HRV={hrv} ms, SpO2={spo2}%, Potassium={k} mmol/L, "
             f"Cabin CO2={co2} mmHg, QTc={qtc} ms, ARF={arf}, TRM={trm}, EPI={epi}, RSI={rsi}, Flux={rad_flux} mGy/h.\n"
             f"Context: {stage_context}\n\n"
-            f"Generate the natural spoken statement for JARVIS right now, using 3 to 4 short, crisp sentences (max 14 words each) with clear full stops so you pause naturally between observations."
+            f"Generate the natural spoken statement for the AI Surgeon right now, using 3 to 4 short, crisp sentences (max 14 words each) with clear full stops so you pause naturally between observations."
         )
 
     async def generate_clinical_triage(
@@ -225,7 +226,7 @@ class GeminiClient:
     def _clean_gemini_output(self, text: str, required_name: str) -> str:
         """Cleans markdown, formatting artifacts, and preserves natural 3-4 sentence pacing."""
         cleaned = re.sub(r"\*\*|\*|`|#|\"", "", text).strip()
-        cleaned = re.sub(r"^(?:JARVIS:|AI:|Response:|Directive:)\s*", "", cleaned, flags=re.IGNORECASE).strip()
+        cleaned = re.sub(r"^(?:AI SURGEON:|AI Surgeon:|JARVIS:|AI:|Response:|Directive:)\s*", "", cleaned, flags=re.IGNORECASE).strip()
 
         # Split on sentence boundaries
         sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", cleaned) if s.strip()]

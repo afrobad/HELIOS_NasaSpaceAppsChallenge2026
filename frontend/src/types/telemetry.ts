@@ -32,6 +32,7 @@ export interface TelemetryPacket {
   alert_severity?: string;
   confidence?: number;
   data_source?: string;
+  target_astronaut_id?: string;
 }
 
 export interface EvidenceItem {

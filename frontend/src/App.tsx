@@ -16,6 +16,101 @@ import {
 import type { TelemetryPacket, AlertPayload, DistancePreset } from './types/telemetry';
 import { DISTANCES, fmtTime } from './types/telemetry';
 
+const DEFAULT_NOMINAL_TELEMETRY: Record<string, TelemetryPacket> = {
+  'AST-01_COMMANDER': {
+    timestamp: new Date().toISOString(),
+    tick: 0,
+    astronaut_id: 'AST-01_COMMANDER',
+    astronaut_name: 'Haley',
+    mission_state: 'REST',
+    heart_rate: 62.0,
+    hrv_rmssd: 68.0,
+    spo2: 98.4,
+    core_temp: 36.6,
+    sleep_score: 92,
+    cabin_co2: 1.82,
+    potassium: 4.4,
+    hematocrit: 42.0,
+    wbc_count: 6.8,
+    platelet_count: 240,
+    crp: 0.8,
+    computed_qtc: 405,
+    scenario_phase: 'NOMINAL_CRUISE',
+    z_score_hr: 0.1,
+    z_score_hrv: 0.1,
+    evaluated_severity: 'NOMINAL',
+  },
+  'AST-02_PILOT': {
+    timestamp: new Date().toISOString(),
+    tick: 0,
+    astronaut_id: 'AST-02_PILOT',
+    astronaut_name: 'Chris',
+    mission_state: 'REST',
+    heart_rate: 58.0,
+    hrv_rmssd: 72.0,
+    spo2: 98.5,
+    core_temp: 36.7,
+    sleep_score: 94,
+    cabin_co2: 1.82,
+    potassium: 4.3,
+    hematocrit: 41.5,
+    wbc_count: 6.5,
+    platelet_count: 235,
+    crp: 0.7,
+    computed_qtc: 402,
+    scenario_phase: 'NOMINAL_CRUISE',
+    z_score_hr: 0.1,
+    z_score_hrv: 0.1,
+    evaluated_severity: 'NOMINAL',
+  },
+  'AST-03_MEDICAL': {
+    timestamp: new Date().toISOString(),
+    tick: 0,
+    astronaut_id: 'AST-03_MEDICAL',
+    astronaut_name: 'Dr. Sian',
+    mission_state: 'REST',
+    heart_rate: 66.0,
+    hrv_rmssd: 58.0,
+    spo2: 98.0,
+    core_temp: 36.9,
+    sleep_score: 89,
+    cabin_co2: 1.82,
+    potassium: 4.2,
+    hematocrit: 40.8,
+    wbc_count: 6.9,
+    platelet_count: 245,
+    crp: 0.9,
+    computed_qtc: 410,
+    scenario_phase: 'NOMINAL_CRUISE',
+    z_score_hr: 0.2,
+    z_score_hrv: 0.1,
+    evaluated_severity: 'NOMINAL',
+  },
+  'AST-04_ENGINEER': {
+    timestamp: new Date().toISOString(),
+    tick: 0,
+    astronaut_id: 'AST-04_ENGINEER',
+    astronaut_name: 'Specialist Leo',
+    mission_state: 'REST',
+    heart_rate: 64.0,
+    hrv_rmssd: 62.0,
+    spo2: 98.3,
+    core_temp: 36.8,
+    sleep_score: 91,
+    cabin_co2: 1.82,
+    potassium: 4.3,
+    hematocrit: 42.2,
+    wbc_count: 6.6,
+    platelet_count: 238,
+    crp: 0.8,
+    computed_qtc: 408,
+    scenario_phase: 'NOMINAL_CRUISE',
+    z_score_hr: 0.1,
+    z_score_hrv: 0.1,
+    evaluated_severity: 'NOMINAL',
+  },
+};
+
 export function App() {
   // Parse initial route: '/' -> HUD; '/telemetry/:name' -> Health Telemetry; '/mcc' -> Earth MCC; '/mcc/telemetry/:name' -> Earth MCC Telemetry; '/scanner' -> 3D Hologram
   const initialRoute = parseCurrentRoute();
@@ -34,16 +129,24 @@ export function App() {
   const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
 
   // ─── 1. SPACECRAFT ONBOARD TELEMETRY STATE (INSTANT, LOCAL 10 HZ, ZERO DELAY) ───
-  const [telemetryMap, setTelemetryMap] = useState<Record<string, TelemetryPacket>>({});
+  const [telemetryMap, setTelemetryMap] = useState<Record<string, TelemetryPacket>>(
+    () => JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY))
+  );
   const [latestAlert, setLatestAlert] = useState<AlertPayload | null>(null);
   const [currentScenario, setCurrentScenario] = useState<string>('NOMINAL_CRUISE');
-  const bufferedPacketsRef = useRef<Record<string, TelemetryPacket>>({});
+  const bufferedPacketsRef = useRef<Record<string, TelemetryPacket>>(
+    JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY))
+  );
 
   // ─── 2. EARTH MISSION CONTROL TELEMETRY STATE (SUBJECT TO LIGHT PROPAGATION DELAY) ───
-  const [mccTelemetryMap, setMccTelemetryMap] = useState<Record<string, TelemetryPacket>>({});
+  const [mccTelemetryMap, setMccTelemetryMap] = useState<Record<string, TelemetryPacket>>(
+    () => JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY))
+  );
   const [mccAlert, setMccAlert] = useState<AlertPayload | null>(null);
   const [mccScenario, setMccScenario] = useState<string>('NOMINAL_CRUISE');
-  const bufferedMccPacketsRef = useRef<Record<string, TelemetryPacket>>({});
+  const bufferedMccPacketsRef = useRef<Record<string, TelemetryPacket>>(
+    JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY))
+  );
 
   // Deep-Space In-Transit Signal Tracking for Earth Ground Station
   const [inTransitSignal, setInTransitSignal] = useState<{
@@ -58,10 +161,28 @@ export function App() {
   const inTransitSignalRef = useRef<typeof inTransitSignal>(null);
   const inTransitPacketsRef = useRef<Record<string, TelemetryPacket>>({});
   const inTransitAlertRef = useRef<AlertPayload | null>(null);
+  const mccScenarioRef = useRef<string>(mccScenario);
+  const orbitalPositionRef = useRef<DistancePreset>(orbitalPosition);
+  const marsDelayRef = useRef<boolean>(marsDelay);
+  const mccBaselineSnapshotRef = useRef<Record<string, TelemetryPacket>>(
+    JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY))
+  );
 
   useEffect(() => {
     inTransitSignalRef.current = inTransitSignal;
   }, [inTransitSignal]);
+
+  useEffect(() => {
+    mccScenarioRef.current = mccScenario;
+  }, [mccScenario]);
+
+  useEffect(() => {
+    orbitalPositionRef.current = orbitalPosition;
+  }, [orbitalPosition]);
+
+  useEffect(() => {
+    marsDelayRef.current = marsDelay;
+  }, [marsDelay]);
 
   // Synchronize browser history / URL with application view
   useEffect(() => {
@@ -96,14 +217,18 @@ export function App() {
       .then((res) => res.json())
       .then((data) => {
         if (data.telemetry) {
-          bufferedPacketsRef.current = data.telemetry;
-          bufferedMccPacketsRef.current = data.telemetry;
-          setTelemetryMap(data.telemetry);
-          setMccTelemetryMap(data.telemetry);
+          const onboardData = JSON.parse(JSON.stringify(data.telemetry));
+          const mccData = JSON.parse(JSON.stringify(data.telemetry));
+          bufferedPacketsRef.current = onboardData;
+          bufferedMccPacketsRef.current = mccData;
+          mccBaselineSnapshotRef.current = JSON.parse(JSON.stringify(data.telemetry));
+          setTelemetryMap(onboardData);
+          setMccTelemetryMap(mccData);
           const firstPacket = Object.values(data.telemetry)[0] as TelemetryPacket | undefined;
           if (firstPacket && firstPacket.scenario_phase) {
             setCurrentScenario(firstPacket.scenario_phase);
             setMccScenario(firstPacket.scenario_phase);
+            mccScenarioRef.current = firstPacket.scenario_phase;
           }
         }
       })
@@ -127,14 +252,36 @@ export function App() {
         setCurrentScenario((prev) => (prev === packet.scenario_phase ? prev : packet.scenario_phase));
       }
 
-      // Earth MCC receives packets subject to in-transit light delay:
-      if (inTransitSignalRef.current) {
-        inTransitPacketsRef.current[packet.astronaut_id] = packet;
-      } else {
-        bufferedMccPacketsRef.current[packet.astronaut_id] = packet;
-        if (packet.scenario_phase) {
-          setMccScenario((prev) => (prev === packet.scenario_phase ? prev : packet.scenario_phase));
+      // Deep-space delay check for Earth MCC:
+      const delaySec = DISTANCES[orbitalPositionRef.current]?.delaySec ?? 0;
+      const isDeepSpaceDelayed = delaySec > 0.05 || marsDelayRef.current;
+
+      if (isDeepSpaceDelayed) {
+        // If a scenario transmission is currently in flight OR if incoming packet is from a newer scenario:
+        const isPacketInTransit =
+          inTransitSignalRef.current !== null ||
+          (Boolean(packet.scenario_phase) && packet.scenario_phase !== mccScenarioRef.current);
+
+        if (isPacketInTransit) {
+          // Quarantine new scenario packets into in-transit buffer
+          inTransitPacketsRef.current[packet.astronaut_id] = packet;
+
+          // Crucial: Earth MCC MUST NOT receive this packet!
+          // Maintain the clean pre-scenario baseline packet for Earth MCC:
+          if (mccBaselineSnapshotRef.current[packet.astronaut_id]) {
+            bufferedMccPacketsRef.current[packet.astronaut_id] = {
+              ...mccBaselineSnapshotRef.current[packet.astronaut_id],
+            };
+          }
+          return;
         }
+      }
+
+      // Earth MCC receives packets directly when in LEO or matching the active Earth MCC phase:
+      bufferedMccPacketsRef.current[packet.astronaut_id] = packet;
+      if (packet.scenario_phase && !isDeepSpaceDelayed) {
+        setMccScenario((prev) => (prev === packet.scenario_phase ? prev : packet.scenario_phase));
+        mccScenarioRef.current = packet.scenario_phase;
       }
     });
 
@@ -148,13 +295,16 @@ export function App() {
       }
     }, 100);
 
-    // 4. Subscribe to Proactive JARVIS Alerts
+    // 4. Subscribe to Proactive AI Surgeon Alerts
     const unsubAlert = wsService.subscribeAlert((alert: AlertPayload) => {
       // Spacecraft onboard alert is always instant:
       setLatestAlert(alert);
 
-      // Earth MCC alert is subject to downlink propagation delay:
-      if (inTransitSignalRef.current) {
+      // Deep-space delay check for Earth MCC:
+      const delaySec = DISTANCES[orbitalPositionRef.current]?.delaySec ?? 0;
+      const isDeepSpaceDelayed = delaySec > 0.05 || marsDelayRef.current;
+
+      if (isDeepSpaceDelayed && (inTransitSignalRef.current !== null || alert.severity !== 'NOMINAL')) {
         inTransitAlertRef.current = alert;
       } else {
         setMccAlert(alert);
@@ -172,37 +322,54 @@ export function App() {
 
   const handleOrbitalPositionChange = useCallback((pos: DistancePreset) => {
     setOrbitalPosition(pos);
+    orbitalPositionRef.current = pos;
     const isDelayed = pos === 'MARS_MIN' || pos === 'MARS_MAX';
     setMarsDelay(isDelayed);
+    marsDelayRef.current = isDelayed;
     fetch(`/api/mars-delay?enabled=${isDelayed}`, { method: 'POST' }).catch(() => {});
+
+    // If switched to non-delayed position (e.g. LEO), immediately warp in-transit signal to Earth MCC:
+    if (!isDelayed && inTransitSignalRef.current) {
+      applyMccTelemetryUpdate(inTransitSignalRef.current.scenarioKey, inTransitSignalRef.current.telemetry);
+    }
   }, []);
 
   const handleToggleMarsDelay = async (enabled: boolean) => {
     setMarsDelay(enabled);
-    setOrbitalPosition(enabled ? 'MARS_MAX' : 'LEO');
+    marsDelayRef.current = enabled;
+    const newPos = enabled ? 'MARS_MAX' : 'LEO';
+    setOrbitalPosition(newPos);
+    orbitalPositionRef.current = newPos;
     try {
       await fetch(`/api/mars-delay?enabled=${enabled}`, { method: 'POST' });
     } catch {
       // Ignore
+    }
+    if (!enabled && inTransitSignalRef.current) {
+      applyMccTelemetryUpdate(inTransitSignalRef.current.scenarioKey, inTransitSignalRef.current.telemetry);
     }
   };
 
   // Deliver delayed signal to Earth MCC Ground Station
   const applyMccTelemetryUpdate = useCallback((scenarioKey: string, telemetry?: Record<string, any>) => {
     setMccScenario(scenarioKey);
+    mccScenarioRef.current = scenarioKey;
+
     if (telemetry && Object.keys(telemetry).length > 0) {
-      bufferedMccPacketsRef.current = { ...bufferedMccPacketsRef.current, ...telemetry };
+      bufferedMccPacketsRef.current = { ...bufferedMccPacketsRef.current, ...JSON.parse(JSON.stringify(telemetry)) };
     }
     if (Object.keys(inTransitPacketsRef.current).length > 0) {
-      bufferedMccPacketsRef.current = { ...bufferedMccPacketsRef.current, ...inTransitPacketsRef.current };
+      bufferedMccPacketsRef.current = { ...bufferedMccPacketsRef.current, ...JSON.parse(JSON.stringify(inTransitPacketsRef.current)) };
       inTransitPacketsRef.current = {};
     }
+    mccBaselineSnapshotRef.current = JSON.parse(JSON.stringify(bufferedMccPacketsRef.current));
     setMccTelemetryMap({ ...bufferedMccPacketsRef.current });
 
     if (inTransitAlertRef.current) {
       setMccAlert(inTransitAlertRef.current);
       inTransitAlertRef.current = null;
     }
+    inTransitSignalRef.current = null;
     setInTransitSignal(null);
   }, []);
 
@@ -211,25 +378,51 @@ export function App() {
     // 1. Spacecraft Onboard: 100% instant update with zero latency
     setCurrentScenario(scenarioKey);
     if (telemetry && Object.keys(telemetry).length > 0) {
-      bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...telemetry };
+      bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...JSON.parse(JSON.stringify(telemetry)) };
       setTelemetryMap({ ...bufferedPacketsRef.current });
     }
 
     // 2. Earth MCC: Subject to deep-space radio propagation delay
-    const delaySec = DISTANCES[orbitalPosition]?.delaySec ?? 0;
-    if (delaySec <= 0.05) {
+    const currentPos = orbitalPositionRef.current;
+    const delaySec = DISTANCES[currentPos]?.delaySec ?? 0;
+    const isDelayed = (delaySec > 0.05 || marsDelayRef.current) && scenarioKey !== 'NOMINAL_CRUISE';
+
+    if (!isDelayed) {
       applyMccTelemetryUpdate(scenarioKey, telemetry);
     } else {
-      setInTransitSignal({
+      // Capture clean Earth MCC pre-scenario baseline IF no signal is currently in transit:
+      if (!inTransitSignalRef.current && Object.keys(bufferedMccPacketsRef.current).length > 0) {
+        mccBaselineSnapshotRef.current = JSON.parse(JSON.stringify(bufferedMccPacketsRef.current));
+      }
+
+      // If backend returned immediate scenario telemetry, buffer it into inTransitPacketsRef (NOT bufferedMccPacketsRef):
+      if (telemetry && Object.keys(telemetry).length > 0) {
+        Object.entries(telemetry).forEach(([id, pkt]) => {
+          inTransitPacketsRef.current[id] = pkt;
+        });
+      }
+
+      // Explicitly keep Earth MCC locked to the clean baseline!
+      if (Object.keys(mccBaselineSnapshotRef.current).length > 0) {
+        bufferedMccPacketsRef.current = JSON.parse(JSON.stringify(mccBaselineSnapshotRef.current));
+        setMccTelemetryMap({ ...bufferedMccPacketsRef.current });
+      }
+
+      const calculatedDelay = delaySec > 0 ? delaySec : 1334.925;
+      const newSignal = {
         scenarioKey,
-        telemetry,
-        originPosition: orbitalPosition,
-        delaySec,
-        remainingSec: delaySec,
-        startTime: Date.now(),
-      });
+        telemetry: telemetry || inTransitSignalRef.current?.telemetry,
+        originPosition: currentPos,
+        delaySec: calculatedDelay,
+        remainingSec: inTransitSignalRef.current?.remainingSec ?? calculatedDelay,
+        startTime: inTransitSignalRef.current?.startTime ?? Date.now(),
+      };
+
+      // Crucial: Update ref synchronously so any incoming WebSocket frames are held immediately!
+      inTransitSignalRef.current = newSignal;
+      setInTransitSignal(newSignal);
     }
-  }, [orbitalPosition, applyMccTelemetryUpdate]);
+  }, [applyMccTelemetryUpdate]);
 
   // Deep-space light propagation countdown ticker (accelerated by speedMultiplier)
   useEffect(() => {
@@ -251,8 +444,9 @@ export function App() {
   }, [inTransitSignal, speedMultiplier, applyMccTelemetryUpdate]);
 
   const handleWarpSignal = useCallback(() => {
-    if (inTransitSignal) {
-      applyMccTelemetryUpdate(inTransitSignal.scenarioKey, inTransitSignal.telemetry);
+    const currentSignal = inTransitSignalRef.current || inTransitSignal;
+    if (currentSignal) {
+      applyMccTelemetryUpdate(currentSignal.scenarioKey, currentSignal.telemetry);
     }
   }, [inTransitSignal, applyMccTelemetryUpdate]);
 
@@ -478,7 +672,7 @@ export function App() {
       {/* ─── 2. ONBOARD SPACECRAFT HEALTH TELEMETRY & CLINICAL ANALYSIS (INSTANT) ─── */}
       {activeView === 'HEALTH_TELEMETRY' && (
         <>
-          {/* JARVIS fixed bottom bar on telemetry page */}
+          {/* AI Surgeon fixed bottom bar on telemetry page */}
           <HeaderBar
             jarvisOnly
             connected={connected}

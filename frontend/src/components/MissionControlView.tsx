@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import type { TelemetryPacket, AlertPayload, DistancePreset } from '../types/telemetry';
 import { DISTANCES, C_LIGHT_KMS as C, fmtTime } from '../types/telemetry';
 import { HolographicBodyScanner } from './HolographicBodyScanner';
@@ -406,8 +406,59 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     const evts: MissionEvent[] = [];
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-    // 1. Incorporate real backend database alerts from SQLite /api/alerts
+    // Pre-extract active scenario & environmental parameters from live telemetry
+    const anyPkt = Object.values(telemetryMap)[0];
+    const scenarioKey = currentScenario || anyPkt?.scenario_phase || 'NOMINAL_CRUISE';
+    const isNominalFlight = scenarioKey === 'NOMINAL_CRUISE';
+    const co2Val = anyPkt?.cabin_co2 || 1.82;
+    const isCo2Scen = scenarioKey.includes('CO2') || co2Val > 3.0;
+    const isHypokalemiaScen = scenarioKey.includes('HYPOKALEMIA');
+    const isRadiationScen = scenarioKey.includes('RADIATION') || scenarioKey.includes('SOLAR');
+    const isThrombosisScen = scenarioKey.includes('THROMBOSIS');
+    const isAmmoniaScen = scenarioKey.includes('AMMONIA') || scenarioKey.includes('COOLANT');
+
+    // 1. Incorporate verified backend database alerts (Option 1: Freshness & Scenario Gating + Option 2: Telemetry Corroboration)
     backendAlerts.forEach((al: any) => {
+      // Gate 1: When mission is in NOMINAL_CRUISE, historical scenario alerts are not active emergencies
+      if (isNominalFlight) return;
+
+      // Gate 2: Freshness check (ignore stale alerts older than 30 minutes from active operations)
+      let ageStr = '< 2m';
+      let isStale = false;
+      if (al.timestamp) {
+        try {
+          const rawTs = al.timestamp.includes('T') ? al.timestamp : al.timestamp.replace(' ', 'T') + 'Z';
+          const alertMs = new Date(rawTs).getTime();
+          if (!isNaN(alertMs)) {
+            const diffMin = Math.floor((Date.now() - alertMs) / 60000);
+            if (diffMin > 30) {
+              isStale = true;
+            }
+            if (diffMin < 2) ageStr = '< 2m';
+            else if (diffMin < 60) ageStr = `${diffMin}m`;
+            else if (diffMin < 1440) ageStr = `${Math.floor(diffMin / 60)}h`;
+            else ageStr = `${Math.floor(diffMin / 1440)}d`;
+          }
+        } catch {
+          // fallback
+        }
+      }
+      if (isStale) return;
+
+      // Gate 3: Live Telemetry Corroboration
+      const isAtmospheric = al.astronaut_id === 'ALL_CREW' || (al.trigger_reason && (al.trigger_reason.toLowerCase().includes('co2') || al.trigger_reason.includes('CO₂')));
+      if (isAtmospheric) {
+        // If atmosphere alert, check if CO2 is actually elevated or in CO2/Ammonia scenario
+        if (!isCo2Scen && !isAmmoniaScen && co2Val <= 3.0) {
+          return; // Live sensors prove cabin atmosphere is nominal
+        }
+      } else if (al.astronaut_id) {
+        const targetPkt = telemetryMap[al.astronaut_id];
+        if (targetPkt && targetPkt.evaluated_severity === 'NOMINAL' && !isHypokalemiaScen && !isRadiationScen && !isThrombosisScen) {
+          return; // Astronaut live vitals are currently nominal
+        }
+      }
+
       const crew = CREW.find(c => c.id === al.astronaut_id);
       const entity = al.astronaut_id === 'ALL_CREW' ? 'All Stations (Cabin Atmosphere)' : (crew ? `Crew ${crew.callsign} · ${crew.name}` : al.astronaut_id);
       const timeStr = al.timestamp ? (al.timestamp.includes('T') ? al.timestamp.substring(11, 19) : al.timestamp.substring(11, 19) || al.timestamp) : now;
@@ -421,7 +472,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         astronautId: al.astronaut_id,
         subsystem: al.astronaut_id === 'ALL_CREW' ? 'ECLSS / Atmosphere' : 'Cardiovascular',
         summary: al.trigger_reason || 'Autonomous AI Sentry Threshold Excursion',
-        age: '< 2m',
+        age: ageStr,
         trend: 'WORSENING',
         trajectory: 'WORSENING',
         timeToLimit: '10m evaluation gate',
@@ -460,12 +511,6 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     });
 
     // 2. Derive scenario-aware physiological & environmental excursions from live telemetryMap
-    const scenarioKey = currentScenario || Object.values(telemetryMap)[0]?.scenario_phase || 'NOMINAL_CRUISE';
-    const isCo2Scen = scenarioKey.includes('CO2') || (Object.values(telemetryMap)[0]?.cabin_co2 || 0) > 3.0;
-    const isHypokalemiaScen = scenarioKey.includes('HYPOKALEMIA');
-    const isRadiationScen = scenarioKey.includes('RADIATION') || scenarioKey.includes('SOLAR');
-    const isThrombosisScen = scenarioKey.includes('THROMBOSIS');
-    const isAmmoniaScen = scenarioKey.includes('AMMONIA') || scenarioKey.includes('COOLANT');
 
     Object.entries(telemetryMap).forEach(([astId, pkt]) => {
       const crew = CREW.find(c => c.id === astId);
@@ -474,7 +519,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       const spo2D = pkt.spo2 - crew.baseSpo2;
 
       // Special Scenario: Acute Hypokalemia & Tachyarrhythmia
-      if (isHypokalemiaScen || (pkt.potassium !== undefined && pkt.potassium < 3.5) || (pkt.computed_qtc && pkt.computed_qtc > 450)) {
+      if (isHypokalemiaScen || (!isNominalFlight && ((pkt.potassium !== undefined && pkt.potassium < 3.5) || (pkt.computed_qtc && pkt.computed_qtc > 450))) || (pkt.potassium !== undefined && pkt.potassium < 3.2)) {
         const kVal = pkt.potassium !== undefined ? pkt.potassium : 3.20;
         const qtcVal = pkt.computed_qtc || 482;
         const arfVal = pkt.computed_arf || 1.85;
@@ -797,8 +842,6 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     });
 
     // ECLSS Cabin Atmosphere Event (CO2 Scrubber Saturation)
-    const anyPkt = Object.values(telemetryMap)[0];
-    const co2Val = anyPkt?.cabin_co2 || 1.82;
     if (isCo2Scen || co2Val > 3.0) {
       evts.push({
         id: 'ENV-CO2',
@@ -875,11 +918,149 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     });
   }, [telemetryMap, acked, backendAlerts, currentScenario]);
 
+  // ─── 2-SECOND TEMPORAL HYSTERESIS FILTER (DEBOUNCE ZERO-SHUTTER) ───
+  // Raw instantaneous event state from 10 Hz telemetry
+  const rawActiveAlerts = useMemo(() => events.filter(e => e.priority !== 'NOMINAL'), [events]);
+  const rawHasAnomaly = rawActiveAlerts.length > 0;
+  const rawPrimaryAlert = rawHasAnomaly ? rawActiveAlerts[0] : null;
+
+  // Stable committed state (transitions only after 2.0s sustained persistence)
+  const [stableHasAnomaly, setStableHasAnomaly] = useState<boolean>(false);
+  const [stablePrimaryAlert, setStablePrimaryAlert] = useState<MissionEvent | null>(null);
+
+  // Timer ref to enforce the strict 2.0s confirmation window
+  const anomalyTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTargetRef = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    // If raw instantaneous state matches current stable state, cancel any pending transition
+    if (rawHasAnomaly === stableHasAnomaly) {
+      if (anomalyTransitionTimerRef.current) {
+        clearTimeout(anomalyTransitionTimerRef.current);
+        anomalyTransitionTimerRef.current = null;
+      }
+      pendingTargetRef.current = null;
+      // If sustained in anomaly, keep primary alert updated with freshest packet values
+      if (rawHasAnomaly && rawPrimaryAlert) {
+        setStablePrimaryAlert(rawPrimaryAlert);
+      }
+      return;
+    }
+
+    // Raw state is different from stable state:
+    // If we haven't started a timer for this target yet, start one!
+    if (pendingTargetRef.current !== rawHasAnomaly) {
+      if (anomalyTransitionTimerRef.current) {
+        clearTimeout(anomalyTransitionTimerRef.current);
+      }
+      pendingTargetRef.current = rawHasAnomaly;
+      anomalyTransitionTimerRef.current = setTimeout(() => {
+        // The condition has persisted without interruption for full 2000 ms!
+        setStableHasAnomaly(rawHasAnomaly);
+        setStablePrimaryAlert(rawPrimaryAlert);
+        anomalyTransitionTimerRef.current = null;
+        pendingTargetRef.current = null;
+      }, 2000); // Strict 2.0s hold
+    }
+  }, [rawHasAnomaly, rawPrimaryAlert, stableHasAnomaly]);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (anomalyTransitionTimerRef.current) {
+        clearTimeout(anomalyTransitionTimerRef.current);
+      }
+    };
+  }, []);
+
+  // ─── 2-SECOND CREW-LEVEL HYSTERESIS FILTER (DEBOUNCE ZERO-SHUTTER) ───
+  const [stableCrewAnomalyMap, setStableCrewAnomalyMap] = useState<Record<string, boolean>>({});
+  const crewAnomalyTimersRef = useRef<Record<string, ReturnType<typeof setTimeout> | null>>({});
+  const crewPendingTargetRef = useRef<Record<string, boolean | null>>({});
+
+  useEffect(() => {
+    const anyPkt = Object.values(telemetryMap)[0];
+    const scenKey = currentScenario || anyPkt?.scenario_phase || 'NOMINAL_CRUISE';
+    const isNominalFlight = scenKey === 'NOMINAL_CRUISE';
+    const co2Val = anyPkt?.cabin_co2 || 1.82;
+
+    CREW.forEach(c => {
+      const p = telemetryMap[c.id];
+      const rawSev = p?.evaluated_severity;
+      const hrDeltaPct = p ? ((p.heart_rate - c.baseHr) / c.baseHr) * 100 : 0;
+      const spo2 = p ? p.spo2 : c.baseSpo2;
+      const potassium = p?.potassium;
+      const qtc = p?.computed_qtc;
+      const trm = p?.computed_trm;
+      const radFlux = p?.radiation_flux;
+
+      const targetAstId = anyPkt?.target_astronaut_id || 'AST-02_PILOT';
+      const isTargetCrew = c.id === targetAstId;
+
+      // Corroborate DB alert: only consider if astronaut's live packet is NOT nominal or if they are the scenario target
+      const hasCorroboratedDbAlert = !isNominalFlight && backendAlerts.some(a => {
+        if (a.astronaut_id !== c.id || a.severity === 'NOMINAL') return false;
+        if (p && p.evaluated_severity === 'NOMINAL' && !isTargetCrew) return false;
+        return true;
+      });
+
+      // Raw instantaneous anomaly condition for astronaut c
+      const rawAnomaly = !isNominalFlight
+        ? (
+            (p && (rawSev === 'CRITICAL' || rawSev === 'WARNING' || hrDeltaPct > 20 || spo2 < 95 || (potassium !== undefined && potassium < 3.5) || (qtc !== undefined && qtc > 450) || (trm !== undefined && trm > 1.6) || (radFlux !== undefined && radFlux > 5.0))) ||
+            hasCorroboratedDbAlert ||
+            (scenKey.includes('HYPOKALEMIA') && (isTargetCrew || (potassium !== undefined && potassium < 3.5))) ||
+            (scenKey.includes('THROMBOSIS') && (isTargetCrew || (trm !== undefined && trm > 1.6))) ||
+            (scenKey.includes('RADIATION') && radFlux !== undefined && radFlux > 5.0) ||
+            ((scenKey.includes('CO2') || co2Val > 3.0) && isTargetCrew)
+          )
+        : (
+            // In nominal cruise, only flag if it's truly an acute flight rule breach
+            (potassium !== undefined && potassium < 3.2) || (qtc !== undefined && qtc > 475) || (radFlux !== undefined && radFlux > 10.0) || hrDeltaPct > 35 || spo2 < 92
+          );
+
+      const isCurrentStable = !!stableCrewAnomalyMap[c.id];
+
+      if (rawAnomaly === isCurrentStable) {
+        if (crewAnomalyTimersRef.current[c.id]) {
+          clearTimeout(crewAnomalyTimersRef.current[c.id]!);
+          crewAnomalyTimersRef.current[c.id] = null;
+        }
+        crewPendingTargetRef.current[c.id] = null;
+        return;
+      }
+
+      // If a pending transition isn't already running for this target, start the 2.0s confirmation timer
+      if (crewPendingTargetRef.current[c.id] !== rawAnomaly) {
+        if (crewAnomalyTimersRef.current[c.id]) {
+          clearTimeout(crewAnomalyTimersRef.current[c.id]!);
+        }
+        crewPendingTargetRef.current[c.id] = rawAnomaly;
+        crewAnomalyTimersRef.current[c.id] = setTimeout(() => {
+          setStableCrewAnomalyMap(prev => ({ ...prev, [c.id]: rawAnomaly }));
+          crewAnomalyTimersRef.current[c.id] = null;
+          crewPendingTargetRef.current[c.id] = null;
+        }, 2000); // Strict 2.0s hold
+      }
+    });
+  }, [telemetryMap, backendAlerts, currentScenario, stableCrewAnomalyMap]);
+
+  // Clean up crew timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(crewAnomalyTimersRef.current).forEach(t => {
+        if (t) clearTimeout(t);
+      });
+    };
+  }, []);
+
+
   const missionState = useMemo(() => {
+    if (!stableHasAnomaly) return 'NOMINAL';
     if (events.some(e => e.priority === 'CRITICAL')) return 'CRITICAL';
     if (events.some(e => e.priority === 'WARNING')) return 'WARNING';
     return 'NOMINAL';
-  }, [events]);
+  }, [events, stableHasAnomaly]);
 
   const activeEvent = useMemo(() => {
     if (selEventId) return events.find(e => e.id === selEventId) || events[0];
@@ -1179,12 +1360,20 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   // ─────────────────────────────────────────────────────────────
   // OVERVIEW TAB — NASA MCC OPERATIONAL SUITE WITH LIVE ECG & GRAPHS
   // ─────────────────────────────────────────────────────────────
+  interface DiagnosticTile {
+    label: string;
+    value: string;
+    unit: string;
+    status: string;
+    reference: string;
+    color: string;
+  }
+
   const renderOverview = () => {
     const anyPkt = Object.values(telemetryMap)[0];
     const co2Val = anyPkt?.cabin_co2 || 1.82;
-    const activeAlerts = events.filter(e => e.priority !== 'NOMINAL');
-    const hasAnomaly = activeAlerts.length > 0;
-    const primaryAlert = hasAnomaly ? activeAlerts[0] : null;
+    const hasAnomaly = stableHasAnomaly;
+    const primaryAlert = stablePrimaryAlert || (rawHasAnomaly ? rawActiveAlerts[0] : null);
 
     const handleTriage = (astId: string) => {
       if (onOpenMccTelemetry) {
@@ -1199,17 +1388,28 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* ─── 1. TOP OPERATIONAL INCIDENT & MISSION SYNOPTIC ANCHOR ─── */}
+        {/* ─── 1. TOP OPERATIONAL INCIDENT & MISSION SYNOPTIC ANCHOR (ZERO-SHIFT HARMONIZED CONTAINER) ─── */}
         <div style={{
           ...cardStyle,
           padding: '12px 16px',
+          minHeight: '232px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
           background: hasAnomaly
-            ? 'linear-gradient(180deg, #1f1518 0%, #100d0f 100%)'
+            ? (primaryAlert?.priority === 'CRITICAL'
+                ? 'linear-gradient(180deg, #1f1518 0%, #100d0f 100%)'
+                : 'linear-gradient(180deg, #1f1912 0%, #110e0a 100%)')
             : 'linear-gradient(180deg, #181d22 0%, #0f1316 100%)',
-          border: hasAnomaly ? '1px solid rgba(239, 68, 68, 0.45)' : `1px solid ${T.border}`,
+          border: hasAnomaly
+            ? (primaryAlert?.priority === 'CRITICAL' ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid rgba(245, 158, 11, 0.45)')
+            : `1px solid ${T.border}`,
           boxShadow: hasAnomaly
-            ? '0 4px 20px rgba(239, 68, 68, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+            ? (primaryAlert?.priority === 'CRITICAL'
+                ? '0 4px 20px rgba(239, 68, 68, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
+                : '0 4px 20px rgba(245, 158, 11, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05)')
             : '0 2px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+          transition: 'background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease',
         }}>
           {hasAnomaly && primaryAlert ? (() => {
             const targetAstId = primaryAlert.astronautId || 'AST-02_PILOT';
@@ -1219,7 +1419,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             const isHypo = scenKey.includes('HYPOKALEMIA') || (targetPkt?.potassium !== undefined && targetPkt.potassium < 3.5) || primaryAlert.id.includes('HYPO') || primaryAlert.summary.toLowerCase().includes('hypokalem');
             const isRad = scenKey.includes('RADIATION') || scenKey.includes('SOLAR') || (targetPkt?.radiation_flux !== undefined && targetPkt.radiation_flux > 5.0) || primaryAlert.id.includes('RAD');
             const isThromb = scenKey.includes('THROMBOSIS') || (targetPkt?.computed_trm !== undefined && targetPkt.computed_trm > 1.6) || primaryAlert.id.includes('THROMB');
-            const isCo2Breach = scenKey.includes('CO2') || co2Val > 3.0 || primaryAlert.id.includes('CO2') || primaryAlert.summary.toLowerCase().includes('co2');
+            const isCo2Breach = scenKey.includes('CO2') || co2Val > 3.0 || primaryAlert.id.includes('CO2') || primaryAlert.summary.toLowerCase().includes('co2') || primaryAlert.summary.includes('CO₂');
             const isAmmonia = scenKey.includes('AMMONIA') || primaryAlert.id.includes('AMMONIA');
 
             // Clean title: Strip raw parentheses formulas like "(492.0ms, K+=2.95 mmol/L, ARF=1.75)."
@@ -1251,15 +1451,6 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             const targetResp = targetPkt
               ? (targetPkt.heart_rate > targetCrew.baseHr + 20 ? Math.round(targetCrew.baseResp * 1.35) : Math.round(targetCrew.baseResp * (targetPkt.heart_rate / targetCrew.baseHr)))
               : 24;
-
-            interface DiagnosticTile {
-              label: string;
-              value: string;
-              unit: string;
-              status: string;
-              reference: string;
-              color: string;
-            }
 
             let tiles: DiagnosticTile[] = [];
 
@@ -1666,48 +1857,232 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 </div>
               </div>
             );
-          })() : (
-            <div>
-              <div style={{ ...labelStyle, marginBottom: 8 }}>MISSION OPERATIONAL STATUS // AUTONOMOUS SENTRY</div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                background: '#07090c',
-                border: '1px solid #1c2633',
-                borderRadius: 5,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Dot color={T.nominal} size={8} />
+          })() : (() => {
+            const nominalTiles: DiagnosticTile[] = [
+              {
+                label: 'FLEET CARDIAC HOMEOSTASIS',
+                value: Math.round(anyPkt?.heart_rate || 62).toString(),
+                unit: 'bpm',
+                status: 'NOMINAL SINUS RHYTHM',
+                reference: 'Resting Base: 62 bpm',
+                color: '#38bdf8',
+              },
+              {
+                label: 'CREW OXYGENATION (SpO₂)',
+                value: (anyPkt?.spo2 || 98.3).toFixed(1),
+                unit: '%',
+                status: 'NOMINAL PERFUSION',
+                reference: 'Baseline: 98.0%',
+                color: '#38bdf8',
+              },
+              {
+                label: 'CABIN CO₂ PARTIAL PRESSURE',
+                value: co2Val.toFixed(2),
+                unit: 'mmHg',
+                status: 'OPTIMAL SCRUBBER',
+                reference: 'Flight Rule: < 3.00 mmHg',
+                color: '#38bdf8',
+              },
+              {
+                label: 'CORE BODY TEMPERATURE',
+                value: (anyPkt?.core_temp || 36.8).toFixed(1),
+                unit: '°C',
+                status: 'THERMAL HOMEOSTASIS',
+                reference: 'Baseline: 36.7 °C',
+                color: '#38bdf8',
+              },
+            ];
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* ── 1. BOX MAIN TITLE & TOP CONTROL BAR (NOMINAL MODE) ── */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  paddingBottom: 8,
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ ...labelStyle, marginBottom: 0 }}>MISSION OPERATIONAL STATUS // AUTONOMOUS SENTRY</div>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      background: 'rgba(34, 197, 94, 0.15)',
+                      border: '1px solid rgba(34, 197, 94, 0.4)',
+                      color: '#4ade80',
+                      fontSize: 9.5,
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      letterSpacing: '0.06em',
+                      fontFamily: T.mono,
+                    }}>
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#4ade80' }} />
+                      NOMINAL
+                    </span>
+                    <span style={{
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      color: '#38bdf8',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      fontFamily: T.mono,
+                    }}>
+                      ALL STATIONS (HABITAT OPTIMAL)
+                    </span>
+                  </div>
+
+                  {/* Right: Operational Status & Action */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <div style={{ fontSize: 9.5, fontFamily: T.mono, color: '#94a3b8' }}>
+                      MODE: <span style={{ color: '#4ade80', fontWeight: 700 }}>SUSTAINED CRUISE</span>
+                    </div>
+
+                    <button
+                      onClick={() => setTab('CREW')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: '#0e1726',
+                        border: '1px solid #1e3a8a',
+                        borderRadius: 4,
+                        padding: '4px 12px',
+                        color: '#93c5fd',
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontFamily: T.sans,
+                        letterSpacing: '0.03em',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '#0e1726')}
+                    >
+                      <span>ALL CREW NOMINAL →</span>
+                      <span style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        padding: '1px 5px',
+                        borderRadius: 3,
+                        fontSize: 9,
+                        fontFamily: T.mono,
+                      }}>
+                        NASA-STD-3001
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── 2. CLEAN HEADLINE ROW (NOMINAL MODE) ── */}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '2px 0 4px 0' }}>
                   <span style={{
-                    fontSize: 12.5,
+                    fontSize: 15,
                     fontWeight: 800,
-                    color: T.nominal,
-                    letterSpacing: '0.05em',
+                    color: '#ffffff',
+                    letterSpacing: '0.01em',
                     fontFamily: T.sans,
                   }}>
-                    MISSION HEALTH: NOMINAL
+                    All 4 Crew Members Within Personal Baseline Corridors
                   </span>
-                  <span style={{ color: '#475569' }}>|</span>
-                  <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: T.sans }}>
-                    All 4 Crew Members Within Personal Baseline Corridors · Habitat Optimal
+                  <span style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: '#94a3b8',
+                    fontFamily: T.sans,
+                  }}>
+                    — Autonomous Sentry Pass 84 · Multi-Signal Homeostasis Locked
                   </span>
                 </div>
-                <span style={{ fontSize: 10, fontFamily: T.mono, color: '#64748b' }}>
-                  AUTONOMOUS SENTRY PASS 84 · MARGINS &gt; 70 DAYS
-                </span>
+
+                {/* ── 3. 4 PROMINENT DIAGNOSTIC BIOMARKER TILES (EXACT SAME GRID & TILES AS ALERT MODE) ── */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: 10,
+                }}>
+                  {nominalTiles.map((tile, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        background: '#07090c',
+                        border: '1px solid #1c2633',
+                        borderRadius: 5,
+                        padding: '10px 12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 3,
+                        boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.5)',
+                      }}
+                    >
+                      <span style={{
+                        fontSize: 9.5,
+                        fontFamily: T.mono,
+                        fontWeight: 700,
+                        color: '#94a3b8',
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
+                      }}>
+                        {tile.label}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{
+                          fontSize: 22,
+                          fontFamily: T.mono,
+                          fontWeight: 800,
+                          color: tile.color,
+                          letterSpacing: '-0.02em',
+                          lineHeight: 1.1,
+                        }}>
+                          {tile.value}
+                        </span>
+                        {tile.unit && (
+                          <span style={{
+                            fontSize: 11,
+                            fontFamily: T.mono,
+                            fontWeight: 600,
+                            color: '#94a3b8',
+                          }}>
+                            {tile.unit}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginTop: 2,
+                        paddingTop: 4,
+                        borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                        fontSize: 9.5,
+                        fontFamily: T.mono,
+                      }}>
+                        <span style={{ color: tile.color, fontWeight: 700 }}>
+                          {tile.status}
+                        </span>
+                        <span style={{ color: '#64748b' }}>
+                          {tile.reference}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ── 4-BLOCK SUBSYSTEM & COMMUNICATIONS SYNOPTIC STRIP (COMPACT TITLES, SINGLE DATA, DARK BG) ── */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
             gap: 10,
-            marginTop: hasAnomaly ? 10 : 8,
-            paddingTop: hasAnomaly ? 10 : 6,
+            marginTop: 10,
+            paddingTop: 10,
             borderTop: '1px solid rgba(255, 255, 255, 0.06)',
           }}>
             {/* 1. Crew Status Pill */}
@@ -2430,18 +2805,9 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       const tempDeltaAbs = temp - c.baseTemp;
 
       const rawSev = p?.evaluated_severity;
-      const hasDbAlert = backendAlerts.some(a => (a.astronaut_id === c.id || a.astronaut_id === 'ALL_CREW') && a.severity !== 'NOMINAL');
-      const scenKey = currentScenario || p?.scenario_phase || anyPkt?.scenario_phase || 'NOMINAL_CRUISE';
-      const isAnomaly = (p && (rawSev === 'CRITICAL' || rawSev === 'WARNING' || hrDeltaPct > 20 || spo2 < 97 || potassium < 3.5 || qtc > 450 || trm > 1.6 || radFlux > 5.0)) ||
-        (!p && isPlt) ||
-        hasDbAlert ||
-        (scenKey.includes('HYPOKALEMIA') && (c.id === 'AST-02_PILOT' || potassium < 3.5)) ||
-        (scenKey.includes('THROMBOSIS') && (c.id === 'AST-02_PILOT' || trm > 1.6)) ||
-        (scenKey.includes('RADIATION') && radFlux > 5.0) ||
-        ((scenKey.includes('CO2') || co2Val > 3.0) && c.id === 'AST-02_PILOT');
-
+      const isAnomaly = !!stableCrewAnomalyMap[c.id];
       const status: 'NOMINAL' | 'WARNING' | 'CRITICAL' = isAnomaly
-        ? (rawSev === 'CRITICAL' || hrDeltaPct > 35 || potassium < 3.2 || qtc > 470 || radFlux > 20 || spo2 < 92 ? 'CRITICAL' : 'WARNING')
+        ? (rawSev === 'CRITICAL' || hrDeltaPct > 35 || (potassium !== undefined && potassium < 3.2) || (qtc !== undefined && qtc > 470) || (radFlux !== undefined && radFlux > 20) || spo2 < 92 ? 'CRITICAL' : 'WARNING')
         : 'NOMINAL';
       const statusLabel = isAnomaly ? '↑ At Risk' : 'Nominal';
 
@@ -2485,15 +2851,16 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     const selPkt = telemetryMap[selCrew.id];
     const scen = currentScenario || selPkt?.scenario_phase || anyPkt?.scenario_phase || 'NOMINAL_CRUISE';
 
-    // Scenario flags for selected astronaut
-    const isHypo = scen.includes('HYPOKALEMIA') || selStats.potassium < 3.50 || selStats.qtc > 450;
-    const isRad = scen.includes('RADIATION') || scen.includes('SOLAR') || scen.includes('CYTOGENIC') || selStats.radFlux > 5.0;
-    const isThromb = scen.includes('THROMBOSIS') || selStats.trm > 1.60;
-    const isCo2 = scen.includes('CO2') || co2Val > 3.0;
-    const isAmmonia = scen.includes('AMMONIA') || scen.includes('COOLANT');
-    const isDecomp = scen.includes('DECOMPRESSION') || scen.includes('HYPOXIA') || selStats.spo2 < 92.0;
-    const isImmune = scen.includes('SEPSIS') || scen.includes('CYTOKINE') || scen.includes('VIRUS') || selStats.il6 > 15.0;
-    const isExertion = (selStats.hrDeltaPct > 20 || selPkt?.mission_state === 'WORKOUT') && !isHypo && !isRad && !isThromb && !isCo2 && !isAmmonia && !isDecomp && !isImmune;
+    // Scenario flags for selected astronaut (strictly gated by 2.0s stable debounced state)
+    const selIsAnomaly = !!stableCrewAnomalyMap[selCrew.id];
+    const isHypo = selIsAnomaly && (scen.includes('HYPOKALEMIA') || selStats.potassium < 3.50 || selStats.qtc > 450);
+    const isRad = selIsAnomaly && (scen.includes('RADIATION') || scen.includes('SOLAR') || scen.includes('CYTOGENIC') || selStats.radFlux > 5.0);
+    const isThromb = selIsAnomaly && (scen.includes('THROMBOSIS') || selStats.trm > 1.60);
+    const isCo2 = selIsAnomaly && (scen.includes('CO2') || co2Val > 3.0);
+    const isAmmonia = selIsAnomaly && (scen.includes('AMMONIA') || scen.includes('COOLANT'));
+    const isDecomp = selIsAnomaly && (scen.includes('DECOMPRESSION') || scen.includes('HYPOXIA') || selStats.spo2 < 92.0);
+    const isImmune = selIsAnomaly && (scen.includes('SEPSIS') || scen.includes('CYTOKINE') || scen.includes('VIRUS') || selStats.il6 > 15.0);
+    const isExertion = selIsAnomaly && (selStats.hrDeltaPct > 20 || selPkt?.mission_state === 'WORKOUT') && !isHypo && !isRad && !isThromb && !isCo2 && !isAmmonia && !isDecomp && !isImmune;
 
     // Live Synchronous Trend series (Last 2 Hours) dynamically generated for ANY selected astronaut
     const hrTrendData = generateTrendSeries(selCrew.baseHr, selStats.hr, 11, 1.2);
@@ -2857,107 +3224,115 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.35fr 1.15fr 1.25fr', gap: 12, alignItems: 'stretch' }}>
 
               {/* ──── COLUMN 1: Key Metrics & Personal Baseline Comparison ──── */}
-              <div style={cardStyle}>
-                {/* Alert Badge Pill */}
+              <div style={{
+                ...cardStyle,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}>
+                {/* Astronaut Status & Identity Header */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '6px 10px',
-                  background: selStats.isAnomaly ? '#161008' : '#090e0a',
+                  background: selStats.isAnomaly ? '#18110b' : '#0a100d',
                   border: `1px solid ${selStats.isAnomaly ? T.warningBorder : T.nominalBorder}`,
                   borderRadius: 4,
-                  marginBottom: 10,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 12 }}>{selStats.isAnomaly ? '▲' : '●'}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: selStats.isAnomaly ? T.warning : T.nominal }}>
-                      {selCrew.crewNo} {selCrew.role}
+                    <span style={{ fontSize: 10, color: selStats.isAnomaly ? T.warning : T.nominal }}>
+                      {selStats.isAnomaly ? '▲' : '●'}
                     </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#ffffff', letterSpacing: '0.03em' }}>
+                      {selCrew.crewNo} · {selCrew.role}
+                    </span>
+                    <span style={{ fontSize: 9.5, color: '#8fa4ba' }}>({selCrew.name})</span>
                   </div>
                   <Badge color={severityColor(selStats.status)} borderColor={severityBorder(selStats.status)} bg="#090c0f">
                     {selStats.statusLabel}
                   </Badge>
                 </div>
 
-                <div style={{ ...labelStyle, marginBottom: 6 }}>Key Metrics</div>
-
-                {/* Metric rows with mini SVG Sparklines */}
+                {/* Key Metrics Group */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {/* Heart Rate */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
-                    <div>
-                      <div style={{ fontSize: 9, color: T.textMuted }}>Heart Rate</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.hrDeltaPct > 20 ? T.warning : T.textPrimary }}>
-                        {selStats.hr} <span style={{ fontSize: 9, color: T.textMuted }}>bpm</span>
+                  <div style={labelStyle}>Key Metrics (Real-Time 10 Hz)</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {/* Heart Rate */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
+                      <div>
+                        <div style={{ fontSize: 9, color: T.textMuted }}>Heart Rate</div>
+                        <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.hrDeltaPct > 20 ? T.warning : T.textPrimary }}>
+                          {selStats.hr} <span style={{ fontSize: 9, color: T.textMuted }}>bpm</span>
+                        </div>
+                        <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.hrDeltaPct > 20 ? T.warning : T.textMuted }}>
+                          {selStats.hrDeltaPct >= 0 ? `+${selStats.hrDeltaPct.toFixed(1)}% vs base` : `${selStats.hrDeltaPct.toFixed(1)}% vs base`}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.hrDeltaPct > 20 ? T.warning : T.textMuted }}>
-                        {selStats.hrDeltaPct >= 0 ? `+${selStats.hrDeltaPct.toFixed(1)}% vs base` : `${selStats.hrDeltaPct.toFixed(1)}% vs base`}
-                      </div>
+                      <Sparkline data={sparkHr} color={selStats.hrDeltaPct > 20 ? T.warning : T.nominal} />
                     </div>
-                    <Sparkline data={sparkHr} color={selStats.hrDeltaPct > 20 ? T.warning : T.nominal} />
-                  </div>
 
-                  {/* SpO2 */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
-                    <div>
-                      <div style={{ fontSize: 9, color: T.textMuted }}>SpO₂</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.spo2 < 97 ? T.warning : T.textPrimary }}>
-                        {selStats.spo2.toFixed(1)} <span style={{ fontSize: 9, color: T.textMuted }}>%</span>
+                    {/* SpO2 */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
+                      <div>
+                        <div style={{ fontSize: 9, color: T.textMuted }}>SpO₂</div>
+                        <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.spo2 < 97 ? T.warning : T.textPrimary }}>
+                          {selStats.spo2.toFixed(1)} <span style={{ fontSize: 9, color: T.textMuted }}>%</span>
+                        </div>
+                        <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.spo2 < 97 ? T.warning : T.textMuted }}>
+                          {selStats.spo2DeltaPct >= 0 ? `+${selStats.spo2DeltaPct.toFixed(1)}% vs base` : `${selStats.spo2DeltaPct.toFixed(1)}% vs base`}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.spo2 < 97 ? T.warning : T.textMuted }}>
-                        {selStats.spo2DeltaPct >= 0 ? `+${selStats.spo2DeltaPct.toFixed(1)}% vs base` : `${selStats.spo2DeltaPct.toFixed(1)}% vs base`}
-                      </div>
+                      <Sparkline data={sparkSpo2} color={selStats.spo2 < 97 ? T.warning : '#4682b4'} />
                     </div>
-                    <Sparkline data={sparkSpo2} color={selStats.spo2 < 97 ? T.warning : '#4682b4'} />
-                  </div>
 
-                  {/* Respiration */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
-                    <div>
-                      <div style={{ fontSize: 9, color: T.textMuted }}>Respiration Rate</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.respDeltaPct > 20 ? T.warning : T.textPrimary }}>
-                        {selStats.resp} <span style={{ fontSize: 9, color: T.textMuted }}>br/min</span>
+                    {/* Respiration */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
+                      <div>
+                        <div style={{ fontSize: 9, color: T.textMuted }}>Respiration Rate</div>
+                        <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.respDeltaPct > 20 ? T.warning : T.textPrimary }}>
+                          {selStats.resp} <span style={{ fontSize: 9, color: T.textMuted }}>br/min</span>
+                        </div>
+                        <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.respDeltaPct > 20 ? T.warning : T.textMuted }}>
+                          {selStats.respDeltaPct >= 0 ? `+${selStats.respDeltaPct.toFixed(1)}% vs base` : `${selStats.respDeltaPct.toFixed(1)}% vs base`}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.respDeltaPct > 20 ? T.warning : T.textMuted }}>
-                        {selStats.respDeltaPct >= 0 ? `+${selStats.respDeltaPct.toFixed(1)}% vs base` : `${selStats.respDeltaPct.toFixed(1)}% vs base`}
-                      </div>
+                      <Sparkline data={sparkResp} color={selStats.respDeltaPct > 20 ? T.warning : T.nominal} />
                     </div>
-                    <Sparkline data={sparkResp} color={selStats.respDeltaPct > 20 ? T.warning : T.nominal} />
-                  </div>
 
-                  {/* Core Temp */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
-                    <div>
-                      <div style={{ fontSize: 9, color: T.textMuted }}>Core Temperature</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.tempDeltaAbs > 0.5 ? T.warning : T.textPrimary }}>
-                        {selStats.temp.toFixed(1)} <span style={{ fontSize: 9, color: T.textMuted }}>°C</span>
+                    {/* Core Temp */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
+                      <div>
+                        <div style={{ fontSize: 9, color: T.textMuted }}>Core Temperature</div>
+                        <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.tempDeltaAbs > 0.5 ? T.warning : T.textPrimary }}>
+                          {selStats.temp.toFixed(1)} <span style={{ fontSize: 9, color: T.textMuted }}>°C</span>
+                        </div>
+                        <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.tempDeltaAbs > 0.5 ? T.warning : T.textMuted }}>
+                          {selStats.tempDeltaAbs >= 0 ? `+${selStats.tempDeltaAbs.toFixed(1)}°C vs base` : `${selStats.tempDeltaAbs.toFixed(1)}°C vs base`}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.tempDeltaAbs > 0.5 ? T.warning : T.textMuted }}>
-                        {selStats.tempDeltaAbs >= 0 ? `+${selStats.tempDeltaAbs.toFixed(1)}°C vs base` : `${selStats.tempDeltaAbs.toFixed(1)}°C vs base`}
-                      </div>
+                      <Sparkline data={sparkTemp} color={selStats.tempDeltaAbs > 0.5 ? T.warning : '#e08a3c'} />
                     </div>
-                    <Sparkline data={sparkTemp} color={selStats.tempDeltaAbs > 0.5 ? T.warning : '#e08a3c'} />
-                  </div>
 
-                  {/* Workload / Strain */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
-                    <div>
-                      <div style={{ fontSize: 9, color: T.textMuted }}>Workload / Strain</div>
-                      <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.workload > 0.6 ? T.warning : T.textPrimary }}>
-                        {selStats.workload > 0.6 ? `High (${(selStats.workload).toFixed(2)})` : `Nominal (${(selStats.workload).toFixed(2)})`}
+                    {/* Workload / Strain */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
+                      <div>
+                        <div style={{ fontSize: 9, color: T.textMuted }}>Workload / Strain</div>
+                        <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: selStats.workload > 0.6 ? T.warning : T.textPrimary }}>
+                          {selStats.workload > 0.6 ? `High (${(selStats.workload).toFixed(2)})` : `Nominal (${(selStats.workload).toFixed(2)})`}
+                        </div>
+                        <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.workload > 0.6 ? T.warning : T.textMuted }}>
+                          {selStats.workload > 0.6 ? '+45% vs base' : 'Nominal band'}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 8, fontFamily: T.mono, color: selStats.workload > 0.6 ? T.warning : T.textMuted }}>
-                        {selStats.workload > 0.6 ? '+45% vs base' : 'Nominal band'}
-                      </div>
+                      <Sparkline data={sparkWork} color={selStats.workload > 0.6 ? T.warning : '#7b68ee'} />
                     </div>
-                    <Sparkline data={sparkWork} color={selStats.workload > 0.6 ? T.warning : '#7b68ee'} />
                   </div>
                 </div>
 
                 {/* Personal Baseline Comparison Table */}
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ ...labelStyle, marginBottom: 4 }}>Personal Baseline Comparison</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                  <div style={labelStyle}>Personal Baseline Comparison (OSD-575)</div>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
                     <thead>
                       <tr style={{ color: '#9ec7ef', borderBottom: '1px solid #233140', fontWeight: 700 }}>
@@ -2969,7 +3344,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     </thead>
                     <tbody style={{ fontFamily: T.mono }}>
                       <tr style={{ borderBottom: `1px solid ${T.borderSubtle}` }}>
-                        <td style={{ color: '#d4e3f2', padding: '5px 0', fontFamily: T.sans, fontWeight: 500 }}>Heart Rate</td>
+                        <td style={{ color: '#d4e3f2', padding: '4px 0', fontFamily: T.sans, fontWeight: 500 }}>Heart Rate</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.hrDeltaPct > 20 ? T.warning : '#ffffff' }}>{selStats.hr} bpm</td>
                         <td style={{ textAlign: 'right', color: '#8fa4ba' }}>{selCrew.baseHr} bpm</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.hrDeltaPct > 20 ? T.warning : T.nominal }}>
@@ -2977,7 +3352,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         </td>
                       </tr>
                       <tr style={{ borderBottom: `1px solid ${T.borderSubtle}` }}>
-                        <td style={{ color: '#d4e3f2', padding: '5px 0', fontFamily: T.sans, fontWeight: 500 }}>SpO₂</td>
+                        <td style={{ color: '#d4e3f2', padding: '4px 0', fontFamily: T.sans, fontWeight: 500 }}>SpO₂</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.spo2 < 97 ? T.warning : '#ffffff' }}>{selStats.spo2.toFixed(1)}%</td>
                         <td style={{ textAlign: 'right', color: '#8fa4ba' }}>{selCrew.baseSpo2.toFixed(1)}%</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.spo2 < 97 ? T.warning : T.nominal }}>
@@ -2985,7 +3360,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         </td>
                       </tr>
                       <tr style={{ borderBottom: `1px solid ${T.borderSubtle}` }}>
-                        <td style={{ color: '#d4e3f2', padding: '5px 0', fontFamily: T.sans, fontWeight: 500 }}>Respiration</td>
+                        <td style={{ color: '#d4e3f2', padding: '4px 0', fontFamily: T.sans, fontWeight: 500 }}>Respiration</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.respDeltaPct > 20 ? T.warning : '#ffffff' }}>{selStats.resp} br/m</td>
                         <td style={{ textAlign: 'right', color: '#8fa4ba' }}>{selCrew.baseResp} br/m</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.respDeltaPct > 20 ? T.warning : T.nominal }}>
@@ -2993,7 +3368,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         </td>
                       </tr>
                       <tr style={{ borderBottom: `1px solid ${T.borderSubtle}` }}>
-                        <td style={{ color: '#d4e3f2', padding: '5px 0', fontFamily: T.sans, fontWeight: 500 }}>Core Temp</td>
+                        <td style={{ color: '#d4e3f2', padding: '4px 0', fontFamily: T.sans, fontWeight: 500 }}>Core Temp</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.tempDeltaAbs > 0.5 ? T.warning : '#ffffff' }}>{selStats.temp.toFixed(1)} °C</td>
                         <td style={{ textAlign: 'right', color: '#8fa4ba' }}>{selCrew.baseTemp.toFixed(1)} °C</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.tempDeltaAbs > 0.5 ? T.warning : T.nominal }}>
@@ -3001,7 +3376,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         </td>
                       </tr>
                       <tr>
-                        <td style={{ color: '#d4e3f2', padding: '5px 0', fontFamily: T.sans, fontWeight: 500 }}>Blood Press.</td>
+                        <td style={{ color: '#d4e3f2', padding: '4px 0', fontFamily: T.sans, fontWeight: 500 }}>Blood Press.</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.isAnomaly ? T.warning : '#ffffff' }}>{selStats.isAnomaly ? '135/88' : selCrew.baseBp}</td>
                         <td style={{ textAlign: 'right', color: '#8fa4ba' }}>{selCrew.baseBp}</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: selStats.isAnomaly ? T.warning : T.nominal }}>{selStats.isAnomaly ? '+12%' : '0%'}</td>
@@ -3012,8 +3387,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
 
               {/* ──── COLUMN 2: Synchronized Trends (Last 2 Hours) ──── */}
-              <div style={cardStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{
+                ...cardStyle,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                   <div style={labelStyle}>Trends (Last 2 Hours)</div>
                   {/* Legend */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 9 }}>
@@ -3079,10 +3459,48 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     showTimeTicks={true}
                   />
                 </div>
+
+                {/* Telemetry Horizon & Signal Verification Status */}
+                <div style={{
+                  background: '#090d12',
+                  border: `1px solid ${T.borderSubtle}`,
+                  borderRadius: 4,
+                  padding: '7px 9px',
+                  marginTop: 'auto',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 8.5, fontWeight: 700, color: '#9ec7ef', letterSpacing: '0.04em' }}>
+                      TREND ANALYTICS HORIZON
+                    </span>
+                    <span style={{ fontSize: 8, fontFamily: T.mono, color: '#4ade80' }}>
+                      ● 10 Hz SYNCHRONOUS
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, textAlign: 'center', fontSize: 8.5 }}>
+                    <div style={{ background: '#070a0e', padding: '4px 6px', borderRadius: 3, border: `1px solid ${T.borderSubtle}` }}>
+                      <div style={{ color: '#8fa4ba', fontSize: 7.5 }}>WINDOW</div>
+                      <div style={{ color: '#ffffff', fontFamily: T.mono, fontWeight: 700 }}>120 MIN</div>
+                    </div>
+                    <div style={{ background: '#070a0e', padding: '4px 6px', borderRadius: 3, border: `1px solid ${T.borderSubtle}` }}>
+                      <div style={{ color: '#8fa4ba', fontSize: 7.5 }}>CORRIDOR</div>
+                      <div style={{ color: '#ffffff', fontFamily: T.mono, fontWeight: 700 }}>±2.0σ OSDR</div>
+                    </div>
+                    <div style={{ background: '#070a0e', padding: '4px 6px', borderRadius: 3, border: `1px solid ${T.borderSubtle}` }}>
+                      <div style={{ color: '#8fa4ba', fontSize: 7.5 }}>PACKET LOSS</div>
+                      <div style={{ color: '#4ade80', fontFamily: T.mono, fontWeight: 700 }}>0.00%</div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* ──── COLUMN 3: EVENT CORRELATION ENGINE (DYNAMICALLY TIED TO ACTIVE SCENARIO) ──── */}
-              <div style={cardStyle}>
+              <div style={{
+                ...cardStyle,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                transition: 'background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease',
+              }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                   <div style={labelStyle}>EVENT CORRELATION ENGINE</div>
                   <span style={{
@@ -3410,41 +3828,81 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     </div>
                   </div>
                 ) : (
-                  /* ─── NOMINAL CREW STATE (Crystal Clear Baseline Equilibrium) ─── */
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: 4, padding: '8px 10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 6px #22c55e' }} />
-                        <span style={{ fontSize: 9.5, fontWeight: 800, color: '#4ade80', letterSpacing: '0.04em' }}>
-                          ALL 5 BIOMETRIC CHANNELS IN NOMINAL EQUILIBRIUM
+                  /* ─── NOMINAL CREW STATE (4-STAGE HOMEOSTASIS SYNTHESIS PIPELINE — ZERO LAYOUT SHIFT) ─── */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, position: 'relative' }}>
+                    <div style={{ background: '#09110d', border: '1px solid rgba(34, 197, 94, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#4ade80', letterSpacing: '0.04em' }}>
+                          STAGE 1: [ELECTROLYTE] RENAL REABSORPTION BALANCE
                         </span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:05 UTC</span>
                       </div>
-                      <div style={{ fontSize: 8.5, color: '#a0aec0', lineHeight: 1.35 }}>
-                        Continuous cross-signal synthesis indicates healthy homeostasis for {selCrew.callsign}. No active standard deviation excursions detected.
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Serum Potassium (K⁺) Homeostasis</span>
+                        <span style={{ color: '#4ade80', fontFamily: T.mono }}>{selStats.potassium.toFixed(2)} mmol/L (Floor: 3.50)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>
+                        Tubular electrolyte reabsorption in optimal microgravity equilibrium.
                       </div>
                     </div>
 
-                    {/* Channel Baseline Matrix */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
-                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>HEART RATE</span>
-                        <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.hr} bpm <span style={{ color: '#4ade80' }}>({selStats.hrDeltaPct >= 0 ? '+' : ''}{selStats.hrDeltaPct.toFixed(1)}%)</span></span>
-                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>NOMINAL [Z: {selStats.z_score_hr}σ]</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#4ade80', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Delayed rectifier I_Kr cardiac conductivity preserved</span>
+                    </div>
+
+                    <div style={{ background: '#09110d', border: '1px solid rgba(34, 197, 94, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#4ade80', letterSpacing: '0.04em' }}>
+                          STAGE 2: [ELECTROPHYSIOLOGY] VENTRICULAR REPOLARIZATION
+                        </span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:12 UTC</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
-                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>SPO2 ARTERIAL SATURATION</span>
-                        <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.spo2.toFixed(1)}% <span style={{ color: '#4ade80' }}>(Optimal)</span></span>
-                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>OPTIMAL [Z: {selStats.z_score_spo2}σ]</span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Fridericia QTc Interval</span>
+                        <span style={{ color: '#4ade80', fontFamily: T.mono }}>{selStats.qtc.toFixed(0)} ms (Gate: 450 ms)</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
-                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>RESPIRATION RATE</span>
-                        <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.resp} br/min <span style={{ color: '#4ade80' }}>(Eupneic)</span></span>
-                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>REST BAND [Z: {selStats.z_score_resp}σ]</span>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>
+                        Ventricular action potential duration strictly within nominal rest corridor.
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '4px 8px' }}>
-                        <span style={{ fontSize: 9, color: '#c5d5e5' }}>CORE TEMPERATURE</span>
-                        <span style={{ fontSize: 9, fontFamily: T.mono, color: '#ffffff' }}>{selStats.temp.toFixed(1)} °C</span>
-                        <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>HOMEOSTATIC [Z: {selStats.z_score_temp}σ]</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#4ade80', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Substrate arrhythmogenic vulnerability floor secured</span>
+                    </div>
+
+                    <div style={{ background: '#09110d', border: '1px solid rgba(34, 197, 94, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#4ade80', letterSpacing: '0.04em' }}>
+                          STAGE 3: [AUTONOMIC] VAGAL BAROREFLEX EQUILIBRIUM
+                        </span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:20 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Arrhythmogenic Risk Factor (ARF)</span>
+                        <span style={{ color: '#4ade80', fontFamily: T.mono }}>{selStats.arf.toFixed(2)} (Safe: &lt; 1.00)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>
+                        Stable RMSSD parasympathetic tone indicates balanced autonomic regulation.
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '-2px 0', color: '#4ade80', fontSize: 9 }}>
+                      ↓ <span style={{ fontSize: 7.5, color: '#64748b', marginLeft: 4 }}>Sinus rhythm cadence & eupneic gas exchange locked</span>
+                    </div>
+
+                    <div style={{ background: '#09110d', border: '1px solid rgba(34, 197, 94, 0.4)', borderRadius: 4, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 8.5, fontWeight: 800, color: '#4ade80', letterSpacing: '0.04em' }}>
+                          STAGE 4: [OUTCOME] HOMEOSTATIC EQUILIBRIUM LOCKED
+                        </span>
+                        <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:28 UTC</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#ffffff' }}>
+                        <span>Resting Sinus Rhythm</span>
+                        <span style={{ color: '#4ade80', fontFamily: T.mono }}>{selStats.hr} bpm ({selStats.hrDeltaPct >= 0 ? '+' : ''}{selStats.hrDeltaPct.toFixed(1)}%)</span>
+                      </div>
+                      <div style={{ fontSize: 8.5, color: '#8fa4ba', marginTop: 2 }}>
+                        All 5 biometric channels locked in homeostatic stability (NASA-STD-3001 Sentry Gate).
                       </div>
                     </div>
                   </div>
@@ -3471,7 +3929,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
 
               {/* ──── COLUMN 4: WHY IS THIS FLAGGED? & DECISION SUPPORT (DYNAMIC) ──── */}
-              <div style={cardStyle}>
+              <div style={{
+                ...cardStyle,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                transition: 'background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease',
+              }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                   <div style={labelStyle}>WHY IS THIS FLAGGED?</div>
                   <span style={{ fontSize: 8.5, color: '#9ec7ef', fontFamily: T.mono }}>NASA-STD-3001</span>

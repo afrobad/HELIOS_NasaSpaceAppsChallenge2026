@@ -390,7 +390,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            JARVIS
+            AI SURGEON
           </span>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '14px', width: '14px', flexShrink: 0 }}>
             {(['hud-bar-anim-1', 'hud-bar-anim-2', 'hud-bar-anim-3'] as const).map((cls, i) => (

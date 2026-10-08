@@ -43,9 +43,10 @@ class AudioService {
   private queue: SpeechQueueItem[] = [];
   private isProcessingQueue: boolean = false;
   private activeItem: SpeechQueueItem | null = null;
+  private isVoicePlaying: boolean = false;
   private recentSpoken: Map<string, number> = new Map();
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
-  private listeners: Set<(state: { isTransmitting: boolean; isSpeaking: boolean }) => void> = new Set();
+  private listeners: Set<(state: { isTransmitting: boolean; isSpeaking: boolean; isVoicePlaying: boolean }) => void> = new Set();
 
   constructor() {
     this.initVoices();
@@ -120,21 +121,37 @@ class AudioService {
     return this.isProcessingQueue;
   }
 
-  public onStateChange(listener: (state: { isTransmitting: boolean; isSpeaking: boolean }) => void): () => void {
+  public getIsVoicePlaying(): boolean {
+    return (
+      this.isVoicePlaying ||
+      (!!this.currentAudio && !this.currentAudio.paused && !this.currentAudio.ended) ||
+      (!!this.currentUtterance && typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking)
+    );
+  }
+
+  public onStateChange(listener: (state: { isTransmitting: boolean; isSpeaking: boolean; isVoicePlaying: boolean }) => void): () => void {
     this.listeners.add(listener);
-    listener({ isTransmitting: this.isTransmitting(), isSpeaking: this.isSpeaking() });
+    listener({
+      isTransmitting: this.isTransmitting(),
+      isSpeaking: this.isSpeaking(),
+      isVoicePlaying: this.getIsVoicePlaying(),
+    });
     return () => {
       this.listeners.delete(listener);
     };
   }
 
   private notifyListeners(): void {
-    const state = { isTransmitting: this.isTransmitting(), isSpeaking: this.isSpeaking() };
+    const state = {
+      isTransmitting: this.isTransmitting(),
+      isSpeaking: this.isSpeaking(),
+      isVoicePlaying: this.getIsVoicePlaying(),
+    };
     this.listeners.forEach((listener) => listener(state));
   }
 
   /**
-   * Normalizes raw metrics into natural spoken English for human-like JARVIS prosody.
+   * Normalizes raw metrics into natural spoken English for human-like AI Surgeon prosody.
    */
   public normalizeTextForSpeech(text: string): string {
     let clean = text.trim();
@@ -355,7 +372,7 @@ class AudioService {
     });
   }
 
-  private findNaturalJarvisVoice(): SpeechSynthesisVoice | null {
+  private findNaturalAiSurgeonVoice(): SpeechSynthesisVoice | null {
     if (this.voices.length === 0 && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       this.voices = window.speechSynthesis.getVoices();
     }
@@ -546,6 +563,9 @@ class AudioService {
 
       // Cleanup any previous audio element or blob URL
       if (this.currentAudio) {
+        this.currentAudio.onerror = null;
+        this.currentAudio.onplay = null;
+        this.currentAudio.onended = null;
         this.currentAudio.pause();
         this.currentAudio.src = '';
         this.currentAudio = null;
@@ -606,6 +626,8 @@ class AudioService {
       const cleanupAndNext = () => {
         if (completed) return;
         completed = true;
+        this.isVoicePlaying = false;
+        this.notifyListeners();
         if (progressTimer) {
           clearInterval(progressTimer);
           progressTimer = null;
@@ -654,6 +676,8 @@ class AudioService {
       audio.ontimeupdate = syncPlaybackProgress;
 
       audio.onplay = () => {
+        this.isVoicePlaying = true;
+        this.notifyListeners();
         item.callbacks?.onStart?.();
         // High-frequency 40ms sync locked directly to audio.currentTime
         progressTimer = setInterval(syncPlaybackProgress, 40);
@@ -665,7 +689,10 @@ class AudioService {
       };
 
       audio.onerror = (e) => {
+        if (!audio.src || audio.src === '' || audio.src === window.location.href) return;
         console.error('Playback error on neural audio blob:', e);
+        this.isVoicePlaying = false;
+        this.notifyListeners();
         cleanupAndNext();
       };
 
@@ -711,7 +738,7 @@ class AudioService {
     utterance.pitch = targetPitch;
     utterance.volume = targetVolume;
 
-    const naturalVoice = this.findNaturalJarvisVoice();
+    const naturalVoice = this.findNaturalAiSurgeonVoice();
     if (naturalVoice) {
       utterance.voice = naturalVoice;
     }
@@ -739,6 +766,8 @@ class AudioService {
     };
 
     utterance.onstart = () => {
+      this.isVoicePlaying = true;
+      this.notifyListeners();
       item.callbacks?.onStart?.();
       startTime = Date.now();
       // Continuous progress timer in case browser does not support onboundary
@@ -753,6 +782,8 @@ class AudioService {
     };
 
     const handleComplete = () => {
+      this.isVoicePlaying = false;
+      this.notifyListeners();
       if (speechTimer) {
         clearInterval(speechTimer);
         speechTimer = null;
@@ -819,6 +850,9 @@ class AudioService {
     }
     if (this.currentAudio) {
       try {
+        this.currentAudio.onerror = null;
+        this.currentAudio.onplay = null;
+        this.currentAudio.onended = null;
         this.currentAudio.pause();
         this.currentAudio.src = '';
       } catch {
@@ -844,6 +878,7 @@ class AudioService {
     this.currentUtterance = null;
     this.activeItem = null;
     this.isProcessingQueue = false;
+    this.isVoicePlaying = false;
     this.queue = [];
     this.notifyListeners();
   }

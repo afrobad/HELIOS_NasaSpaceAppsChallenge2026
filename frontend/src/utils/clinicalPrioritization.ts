@@ -160,7 +160,7 @@ export function computeBiomarkerDelta(
  */
 export function evaluateCrewClinicalSummary(
   astronautId: string,
-  telemetry?: TelemetryPacket,
+  telemetry?: Partial<TelemetryPacket>,
   profileOverride?: CrewBaselineAndLabProfile
 ): CrewClinicalSummary {
   const profile = profileOverride || getAstronautOsdrProfile(astronautId);

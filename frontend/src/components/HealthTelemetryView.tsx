@@ -2865,9 +2865,9 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 ]}
               />
 
-              {/* 10. Integrated Clinical Directive & JARVIS (4 Signals) */}
+              {/* 10. Integrated Clinical Directive & AI Surgeon (4 Signals) */}
               <CategoryCard
-                title="10. Integrated Directives & JARVIS"
+                title="10. Integrated Directives & AI Surgeon"
                 icon={<DirectivesIcon />}
                 statusPill={{
                   label: severity === 'CRITICAL' ? 'Critical' : severity === 'WARNING' ? 'Attention' : 'Stable',

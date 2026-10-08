@@ -314,21 +314,95 @@
 
 /* ── HUD Quick Overlay Controls ────────────────────────────────────────── */
 
-.suit-hud__controls {
+.suit-hud__header {
   position: absolute;
-  top: 14px;
-  right: 20px;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  padding: 14px 20px;
   z-index: 50;
   opacity: 0.25;
   transition: opacity 0.24s ease;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
 }
 
-.suit-hud__controls:hover,
-.suit-hud__controls:focus-within {
+.suit-hud__header:hover,
+.suit-hud__header:focus-within {
   opacity: 1;
+}
+
+.suit-hud__header-left,
+.suit-hud__header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.suit-hud__select {
+  background: rgba(6, 12, 18, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(98, 243, 247, 0.35);
+  color: #62f3f7;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), inset 0 0 8px rgba(98, 243, 247, 0.08);
+  transition: all 0.16s ease;
+  font-family: 'Rajdhani', 'Tomorrow', sans-serif;
+  text-transform: uppercase;
+  outline: none;
+}
+
+.suit-hud__select:hover,
+.suit-hud__select:focus {
+  background: rgba(98, 243, 247, 0.18);
+  border-color: #62f3f7;
+  box-shadow: 0 0 14px rgba(98, 243, 247, 0.35);
+}
+
+.suit-hud__select option {
+  background: #060c12;
+  color: #62f3f7;
+}
+
+/* ── Floating Main Scenario Engine (Minimal Tactical Design for Suit HUD) ── */
+
+.suit-hud #scenario-floating-trigger {
+  bottom: 18px !important;
+  right: 20px !important;
+  height: 27px !important;
+  padding: 4px 11px 4px 10px !important;
+  background: rgba(6, 12, 18, 0.72) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(98, 243, 247, 0.35) !important;
+  border-radius: 9999px !important;
+  color: #62f3f7 !important;
+  font-family: 'Rajdhani', 'Tomorrow', sans-serif !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  opacity: 0.45 !important;
+  transition: all 0.22s ease !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), inset 0 0 8px rgba(98, 243, 247, 0.08) !important;
+  z-index: 9990 !important;
+  text-transform: uppercase !important;
+}
+
+.suit-hud #scenario-floating-trigger:hover,
+.suit-hud #scenario-floating-trigger:focus {
+  opacity: 1 !important;
+  background: rgba(98, 243, 247, 0.18) !important;
+  border-color: #62f3f7 !important;
+  box-shadow: 0 0 16px rgba(98, 243, 247, 0.45) !important;
+  transform: translateY(-1px) scale(1.02) !important;
 }
 
 .suit-hud__btn {
@@ -375,4 +449,266 @@
 .hud-scanner-root:active {
   cursor: grabbing;
 }
+
+/* ── HUD AI Surgeon Status Bar (Minimal High-Tech Telemetry HUD) ─────── */
+
+.suit-hud__hud .hud-ai-status-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.suit-hud__hud .hud-ai-status-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-family: 'Rajdhani', 'Tomorrow', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hud-text, #e2e8f0);
+  line-height: 1;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
+  transition: color 0.25s ease;
+}
+
+.suit-hud__hud .hud-ai-status-row--critical {
+  color: #f43f5e;
+  text-shadow: 0 0 10px rgba(244, 63, 94, 0.45);
+}
+
+.suit-hud__hud .hud-ai-status-row--warning {
+  color: #ffb347;
+  text-shadow: 0 0 10px rgba(255, 179, 71, 0.45);
+}
+
+/* Icons placed directly before AI SURGEON label */
+.suit-hud__hud .hud-ai-status-icon {
+  width: 13px;
+  height: 13px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.suit-hud__hud .hud-ai-status-icon--critical {
+  filter: drop-shadow(0 0 5px rgba(244, 63, 94, 0.7));
+  animation: hud-icon-pulse 1.6s ease-in-out infinite;
+}
+
+.suit-hud__hud .hud-ai-status-icon--warning {
+  filter: drop-shadow(0 0 5px rgba(255, 179, 71, 0.7));
+  animation: hud-icon-pulse 2s ease-in-out infinite;
+}
+
+@keyframes hud-icon-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.12); opacity: 0.85; }
+}
+
+/* Online / Offline Status Dot */
+.suit-hud__hud .hud-ai-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.suit-hud__hud .hud-ai-status-dot--online {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981, 0 0 14px rgba(16, 185, 129, 0.6);
+  animation: hud-dot-pulse 2.4s ease-in-out infinite;
+}
+
+.suit-hud__hud .hud-ai-status-dot--offline {
+  background: #64748b;
+  border: 1px solid #94a3b8;
+  box-shadow: none;
+}
+
+@keyframes hud-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.85); }
+}
+
+.suit-hud__hud .hud-ai-label {
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #f8fafc;
+}
+
+.suit-hud__hud .hud-ai-sep {
+  opacity: 0.42;
+  font-weight: 400;
+  color: var(--hud-text, #94a3b8);
+}
+
+.suit-hud__hud .hud-ai-state {
+  font-weight: 700;
+}
+
+.suit-hud__hud .hud-ai-state--online {
+  color: #38bdf8;
+}
+
+.suit-hud__hud .hud-ai-state--offline {
+  color: #94a3b8;
+}
+
+.suit-hud__hud .hud-ai-state--critical {
+  color: #fda4af;
+}
+
+.suit-hud__hud .hud-ai-state--warning {
+  color: #fde68a;
+}
+
+.suit-hud__hud .hud-ai-detail {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  max-width: 440px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Line 2: Minimal Actionable Directive */
+.suit-hud__hud .hud-ai-directive-row {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'Rajdhani', 'Tomorrow', sans-serif;
+  font-size: 8.8px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: #cbd5e1;
+  opacity: 0.92;
+  text-transform: uppercase;
+  max-width: 620px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suit-hud__hud .hud-ai-directive-tag {
+  font-size: 7.8px;
+  font-weight: 800;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 0 4px;
+  border-radius: 3px;
+  letter-spacing: 0.08em;
+}
+
+/* ── Voice Waveform Equalizer (Remix Visualizer) ───────────────────────── */
+
+.suit-hud__hud .hud-wave-bar {
+  fill: var(--hud);
+  transition: fill 0.25s ease, opacity 0.25s ease;
+}
+
+.suit-hud__hud .hud-wave-bar--idle {
+  opacity: 0.45;
+}
+
+.suit-hud__hud .hud-wave-bar--active {
+  opacity: 1;
+}
+
+.suit-hud__hud .hud-wave-bar--critical {
+  fill: #f43f5e;
+}
+
+.suit-hud__hud .hud-wave-bar--warning {
+  fill: #ffb347;
+}
+
+.suit-hud__hud .hud-line--critical {
+  stroke: rgba(244, 63, 94, 0.65);
+}
+
+.suit-hud__hud .hud-line--warning {
+  stroke: rgba(255, 179, 71, 0.65);
+}
+
+/* ── Environmental Scenario Atmospheric FX ────────────────────────────── */
+
+.suit-hud .hud-radiation-curtain {
+  animation: hud-radiation-pulse 6s ease-in-out infinite;
+}
+
+@keyframes hud-radiation-pulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+.suit-hud .hud-frost-halo {
+  animation: hud-frost-shimmer 4s ease-in-out infinite;
+}
+
+@keyframes hud-frost-shimmer {
+  0%, 100% { stroke-opacity: 0.45; }
+  50% { stroke-opacity: 0.72; }
+}
+
+.suit-hud .hud-emergency-pulse {
+  animation: hud-emergency-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes hud-emergency-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.85; }
+}
+
+.suit-hud .hud-breath-fog {
+  animation: hud-breath-fog 3.6s ease-in-out infinite;
+  transform-origin: 512px 460px;
+}
+
+@keyframes hud-breath-fog {
+  0%, 100% { opacity: 0.12; transform: scale(0.95); }
+  45% { opacity: 0.48; transform: scale(1.08); }
+  75% { opacity: 0.22; transform: scale(1.02); }
+}
+
+/* ── FPP First-Person Video & Static World Layer ───────────────────────── */
+
+.suit-hud__world-plate {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.suit-hud__fpp-video,
+.suit-hud__static-bg {
+  position: absolute;
+  left: -3%;
+  top: -3%;
+  width: 106%;
+  height: 106%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  filter: brightness(0.94) contrast(1.06);
+}
+
+
 
