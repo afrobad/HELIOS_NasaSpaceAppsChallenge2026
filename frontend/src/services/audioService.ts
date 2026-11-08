@@ -12,6 +12,16 @@ export interface AudioConfig {
   severity?: 'CRITICAL' | 'WARNING' | 'INFO' | 'NOMINAL';
 }
 
+export interface VoiceLatencyMetrics {
+  id: string;
+  triggerTimestamp: number;
+  firstAudioTimestamp: number;
+  completionTimestamp: number;
+  timeToFirstAudioMs: number;
+  totalDurationMs: number;
+  audioEngine: 'LOCAL_WEB_AUDIO_SPEECH_SYNTHESIS';
+}
+
 export interface SpeechQueueItem {
   id: string;
   text: string;
@@ -28,7 +38,8 @@ export interface SpeechQueueItem {
 
 class AudioService {
   private ctx: AudioContext | null = null;
-  private isEngaged: boolean = false;
+  private isEngaged: boolean = true;
+  private isTourModeActive: boolean = false;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private currentAudio: HTMLAudioElement | null = null;
   private currentBlobUrl: string | null = null;
@@ -37,7 +48,7 @@ class AudioService {
   private voices: SpeechSynthesisVoice[] = [];
 
   // Sequential Audio Queue State
-  public static readonly INTER_TRANSMISSION_PAUSE_MS: number = 3500; // 3.5s quiet break after each voice transmission
+  public static readonly INTER_TRANSMISSION_PAUSE_MS: number = 0; // Zero delay for clinical alerts (instant speech)
   private lastTransmissionEndTime: number = 0;
   private breakTimer: ReturnType<typeof setTimeout> | null = null;
   private queue: SpeechQueueItem[] = [];
@@ -47,9 +58,48 @@ class AudioService {
   private recentSpoken: Map<string, number> = new Map();
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
   private listeners: Set<(state: { isTransmitting: boolean; isSpeaking: boolean; isVoicePlaying: boolean }) => void> = new Set();
+  private latencyHistory: VoiceLatencyMetrics[] = [];
 
   constructor() {
     this.initVoices();
+  }
+
+  public getLatencyMetrics(): VoiceLatencyMetrics[] {
+    return [...this.latencyHistory];
+  }
+
+  public recordLatencyMetric(metric: VoiceLatencyMetrics): void {
+    this.latencyHistory.unshift(metric);
+    if (this.latencyHistory.length > 30) {
+      this.latencyHistory.pop();
+    }
+  }
+
+  public interrupt(): void {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio = null;
+    }
+    this.currentUtterance = null;
+    this.queue = [];
+    this.isProcessingQueue = false;
+    this.isVoicePlaying = false;
+    this.activeItem = null;
+    this.notifyListeners();
+  }
+
+  public setTourMode(active: boolean): void {
+    this.isTourModeActive = active;
+    if (active) {
+      this.interrupt();
+    }
+  }
+
+  public getTourMode(): boolean {
+    return this.isTourModeActive;
   }
 
   public setNeuralVoice(voice: string): void {
@@ -69,7 +119,18 @@ class AudioService {
     }
   }
 
+  public isEmbeddedFrame(): boolean {
+    if (typeof window === 'undefined') return true;
+    try {
+      if (window.self !== window.top) return true;
+    } catch {
+      return true;
+    }
+    return false;
+  }
+
   public initAudioContext(): void {
+    if (this.isEmbeddedFrame()) return;
     if (!this.ctx && typeof window !== 'undefined') {
       const AudioCtx =
         window.AudioContext ||
@@ -83,7 +144,7 @@ class AudioService {
         // Autoplay policy: AudioContext will resume on first user interaction
         const unlock = () => {
           if (this.ctx && this.ctx.state === 'suspended') {
-            this.ctx.resume().catch(() => {});
+            this.ctx.resume().catch(() => { });
           }
           window.removeEventListener('pointerdown', unlock);
           window.removeEventListener('keydown', unlock);
@@ -214,7 +275,8 @@ class AudioService {
     tone: 'klaxon' | 'chime' | 'beep' | 'none',
     severity?: 'CRITICAL' | 'WARNING' | 'INFO' | 'NOMINAL'
   ): void {
-    if (!this.isEngaged) return;
+    if (this.isTourModeActive || tone === 'none') return;
+    if (!this.isEngaged || this.isEmbeddedFrame()) return;
     this.initAudioContext();
     if (!this.ctx) return;
 
@@ -223,7 +285,7 @@ class AudioService {
         this.playCriticalKlaxon();
       } else if (severity === 'WARNING' || tone === 'chime') {
         this.playWarningChime();
-      } else if (severity === 'NOMINAL') {
+      } else if (severity === 'NOMINAL' && tone !== 'none' && tone !== 'beep') {
         this.playNominalChime();
       } else if (tone === 'beep') {
         this.playBeep();
@@ -234,48 +296,32 @@ class AudioService {
   }
 
   /**
-   * CRITICAL: Aviation-grade MASTER WARNING — dual sawtooth pulse klaxon.
-   * Modeled after ISS emergency and aircraft GPWS warning tones.
-   * Two sharp bursts with a hard-cut gap for maximum urgency.
+   * CRITICAL: Aviation-grade NASA ISS Master Alarm — dual-tone acoustic pulse warble.
+   * Modeled after Apollo / Space Shuttle / ISS emergency tone standards (1017 Hz / 840 Hz sine chimes).
    */
   private playCriticalKlaxon(): void {
-    if (!this.ctx) return;
+    if (!this.ctx || !this.isEngaged) return;
     const now = this.ctx.currentTime;
 
-    // Two-pulse klaxon: burst → silence → burst (like GPWS / ISS alarm)
     const pulses = [
-      { startOffset: 0.00, duration: 0.22 },
-      { startOffset: 0.29, duration: 0.22 },
+      { f: 1017, startOffset: 0.00, duration: 0.16 },
+      { f: 840, startOffset: 0.20, duration: 0.16 },
+      { f: 1017, startOffset: 0.40, duration: 0.16 },
+      { f: 840, startOffset: 0.60, duration: 0.16 },
     ];
 
-    pulses.forEach(({ startOffset, duration }) => {
+    pulses.forEach(({ f, startOffset, duration }) => {
       const osc = this.ctx!.createOscillator();
       const gain = this.ctx!.createGain();
-      const distortion = this.ctx!.createWaveShaper();
 
-      // Sawtooth wave — harsh, cutting, impossible to miss
-      osc.type = 'sawtooth';
-      // Rapid pitch sweep up then down within each burst for siren character
-      osc.frequency.setValueAtTime(520, now + startOffset);
-      osc.frequency.linearRampToValueAtTime(880, now + startOffset + duration * 0.5);
-      osc.frequency.linearRampToValueAtTime(520, now + startOffset + duration);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, now + startOffset);
 
-      // Mild waveshaper to add bite without distortion
-      const curve = new Float32Array(256);
-      for (let i = 0; i < 256; i++) {
-        const x = (i * 2) / 256 - 1;
-        curve[i] = Math.sign(x) * (1 - Math.exp(-Math.abs(x) * 5)) * 0.85;
-      }
-      distortion.curve = curve;
-
-      // Hard attack, sustained, hard cut off
       gain.gain.setValueAtTime(0.001, now + startOffset);
-      gain.gain.linearRampToValueAtTime(0.26, now + startOffset + 0.012);
-      gain.gain.setValueAtTime(0.26, now + startOffset + duration - 0.02);
-      gain.gain.linearRampToValueAtTime(0.001, now + startOffset + duration);
+      gain.gain.linearRampToValueAtTime(0.16, now + startOffset + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + startOffset + duration);
 
-      osc.connect(distortion);
-      distortion.connect(gain);
+      osc.connect(gain);
       gain.connect(this.ctx!.destination);
 
       osc.start(now + startOffset);
@@ -372,37 +418,33 @@ class AudioService {
     });
   }
 
-  private findNaturalAiSurgeonVoice(): SpeechSynthesisVoice | null {
+  public findNaturalAiSurgeonVoice(): SpeechSynthesisVoice | null {
     if (this.voices.length === 0 && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       this.voices = window.speechSynthesis.getVoices();
     }
 
-    // High-priority matchers favoring warm, natural, human voices
+    // High-priority local desktop voices (100% reliable offline, zero network latency)
+    // Strictly filter out any Microsoft Edge / Chrome "Online" voices which fail on localhost
+    const offlineVoices = this.voices.filter(
+      (v) => !/online/i.test(v.name) && (v.localService === true || /desktop/i.test(v.name) || !v.name.includes('Natural'))
+    );
+    const pool = offlineVoices.length > 0 ? offlineVoices : this.voices.filter((v) => !/online/i.test(v.name));
+
     const priorityMatchers = [
-      (v: SpeechSynthesisVoice) => /ryan.*natural/i.test(v.name),
-      (v: SpeechSynthesisVoice) => /christopher.*natural/i.test(v.name),
-      (v: SpeechSynthesisVoice) => /george.*natural/i.test(v.name),
-      (v: SpeechSynthesisVoice) => /guy.*natural/i.test(v.name),
-      (v: SpeechSynthesisVoice) => /jenny.*natural/i.test(v.name),
-      (v: SpeechSynthesisVoice) => /natural/i.test(v.name) && (v.lang === 'en-GB' || v.lang.startsWith('en')),
-      // High-quality British & natural voices
-      (v: SpeechSynthesisVoice) => /google.*uk.*male/i.test(v.name),
-      (v: SpeechSynthesisVoice) => /daniel/i.test(v.name) && v.lang.startsWith('en'),
-      (v: SpeechSynthesisVoice) => v.lang === 'en-GB',
-      (v: SpeechSynthesisVoice) => /google.*uk.*female/i.test(v.name),
-      (v: SpeechSynthesisVoice) => /google.*us/i.test(v.name),
-      // Local desktop fallbacks
-      (v: SpeechSynthesisVoice) => /mark/i.test(v.name) && v.lang.startsWith('en'),
+      (v: SpeechSynthesisVoice) => /david/i.test(v.name) && v.lang.startsWith('en'),
       (v: SpeechSynthesisVoice) => /zira/i.test(v.name) && v.lang.startsWith('en'),
+      (v: SpeechSynthesisVoice) => /mark/i.test(v.name) && v.lang.startsWith('en'),
+      (v: SpeechSynthesisVoice) => /google.*us/i.test(v.name),
+      (v: SpeechSynthesisVoice) => v.lang.startsWith('en') && (v.localService === true || /desktop/i.test(v.name)),
       (v: SpeechSynthesisVoice) => v.lang.startsWith('en'),
     ];
 
     for (const matcher of priorityMatchers) {
-      const match = this.voices.find(matcher);
+      const match = pool.find(matcher);
       if (match) return match;
     }
 
-    return null;
+    return pool[0] || this.voices.find((v) => !/online/i.test(v.name)) || this.voices[0] || null;
   }
 
   /**
@@ -419,9 +461,15 @@ class AudioService {
     };
     priority?: number;
   }): void {
-    if (!this.isEngaged || typeof window === 'undefined') {
+    if (typeof window === 'undefined' || this.isEmbeddedFrame() || this.isTourModeActive) {
       return;
     }
+    if (!this.isEngaged) {
+      return;
+    }
+    try {
+      this.initAudioContext();
+    } catch { }
 
     const rawText = item.text.trim();
     if (!rawText) return;
@@ -429,18 +477,41 @@ class AudioService {
     const severity = item.config?.severity || 'NOMINAL';
     const priority = item.priority ?? (severity === 'CRITICAL' ? 3 : severity === 'WARNING' ? 2 : 1);
 
-    // Anti-duplication check: ignore if identical sentence was spoken in the last 8 seconds
+    // Anti-duplication check: ignore if identical sentence was spoken in the last 4 seconds
+    // Only apply if no callbacks are attached (background chatter deduplication; UI actions always speak)
     const now = Date.now();
-    const lastSpoken = this.recentSpoken.get(rawText);
-    if (lastSpoken && now - lastSpoken < 8000) {
-      return;
+    if (!item.callbacks) {
+      const lastSpoken = this.recentSpoken.get(rawText);
+      if (lastSpoken && now - lastSpoken < 4000) {
+        return;
+      }
+      this.recentSpoken.set(rawText, now);
     }
-    this.recentSpoken.set(rawText, now);
 
     // Prune stale cache entries
     for (const [key, ts] of this.recentSpoken.entries()) {
       if (now - ts > 20000) {
         this.recentSpoken.delete(key);
+      }
+    }
+
+    // Strict Clinical Guard: If an active emergency scenario is unresolved,
+    // NEVER announce that all systems are nominal! Nominal announcements are strictly prohibited
+    // until all issues have been resolved/nominal and mission is back in NOMINAL_CRUISE.
+    const activeScenario = typeof localStorage !== 'undefined' ? localStorage.getItem('helios_scenario') : null;
+    const isScenarioActive = Boolean(activeScenario && activeScenario !== 'NOMINAL_CRUISE');
+    if (isScenarioActive) {
+      const lower = rawText.toLowerCase();
+      const isNominalAnnouncement = (
+        severity === 'NOMINAL' ||
+        lower.includes('all systems nominal') ||
+        lower.includes('systems continue nominal') ||
+        lower.includes('baselines within nominal') ||
+        lower.includes('flight cruise restored') ||
+        lower.includes('all crew vital signs are stable and within safe limits')
+      );
+      if (isNominalAnnouncement) {
+        return; // Suppress premature nominal announcement during active unresolved scenario
       }
     }
 
@@ -454,9 +525,10 @@ class AudioService {
       timestamp: now,
     };
 
-    // If life-safety CRITICAL and current active is lower priority, clear non-critical and pre-empt
-    if (priority === 3 && this.activeItem && this.activeItem.priority < 3) {
+    // If life-safety ALERT (CRITICAL or WARNING) and current active is lower/equal priority, clear queue and preempt immediately
+    if (priority >= 2 && this.activeItem && this.activeItem.priority <= priority) {
       this.stopSpeaking();
+      this.queue = [];
       this.queue.unshift(queueItem);
       this.processQueue();
       return;
@@ -515,206 +587,31 @@ class AudioService {
     const spokenText = this.normalizeTextForSpeech(item.text);
     const severity = item.config?.severity || 'NOMINAL';
 
-    // 2. Prepare neural fetch immediately in parallel with alert tone (pass severity for distinct pitch & cadence)
-    const voiceParam = encodeURIComponent(this.selectedNeuralVoice);
-    const textParam = encodeURIComponent(spokenText);
-    const sevParam = encodeURIComponent(severity);
-    const neuralUrl = `/api/voice/synthesize?text=${textParam}&voice=${voiceParam}&severity=${sevParam}`;
-
     if (this.currentAbortController) {
       this.currentAbortController.abort();
+      this.currentAbortController = null;
     }
-    const controller = new AbortController();
-    this.currentAbortController = controller;
 
-    // Launch neural TTS fetch concurrently
-    const fetchPromise = fetch(neuralUrl, { signal: controller.signal });
-
-    // 3. Play severity-differentiated Alert Tone concurrently
+    // 2. Play severity-differentiated Alert Tone immediately
     if (item.tone && item.tone !== 'none') {
       this.playTone(item.tone, severity);
-      const toneDuration = severity === 'CRITICAL' ? 340 : severity === 'WARNING' ? 240 : 160;
+      const toneDuration = severity === 'CRITICAL' ? 180 : severity === 'WARNING' ? 140 : 100;
       await new Promise((resolve) => setTimeout(resolve, toneDuration));
     }
 
     // Emotional Prosody Calibration: Natural, crisp conversational pace with clean pauses
-    const targetRate = item.config?.rate ?? 1.0;
+    const targetRate = item.config?.rate ?? (severity === 'CRITICAL' ? 1.05 : 1.0);
     const targetPitch = item.config?.pitch ?? 1.0;
     const targetVolume = item.config?.volume ?? (severity === 'CRITICAL' ? 1.0 : severity === 'WARNING' ? 0.98 : 0.95);
 
-    // 4. Fetch neural audio blob with generous 8000ms budget — prevents accidental fallback to robotic desktop voice
-    try {
-      const timeoutPromise = new Promise<Response>((_, reject) =>
-        setTimeout(() => reject(new Error('Neural audio fetch exceeded 8000ms budget')), 8000)
-      );
-      const res = await Promise.race([fetchPromise, timeoutPromise]);
-      if (!res.ok) {
-        throw new Error(`Neural audio endpoint HTTP ${res.status}`);
-      }
-      const blob = await res.blob();
-      if (!blob || blob.size === 0) {
-        throw new Error('Neural audio response is empty');
-      }
-
-      // Ensure Web Speech is completely cancelled before starting audio
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-
-      // Cleanup any previous audio element or blob URL
-      if (this.currentAudio) {
-        this.currentAudio.onerror = null;
-        this.currentAudio.onplay = null;
-        this.currentAudio.onended = null;
-        this.currentAudio.pause();
-        this.currentAudio.src = '';
-        this.currentAudio = null;
-      }
-      if (this.currentBlobUrl) {
-        URL.revokeObjectURL(this.currentBlobUrl);
-        this.currentBlobUrl = null;
-      }
-
-      const blobUrl = URL.createObjectURL(blob);
-      this.currentBlobUrl = blobUrl;
-      const audio = new Audio(blobUrl);
-      audio.volume = targetVolume;
-      audio.playbackRate = targetRate;
-      this.currentAudio = audio;
-
-      // Ensure audio metadata is loaded before starting playback
-      await new Promise<void>((resolve) => {
-        if (audio.readyState >= 1) return resolve();
-        audio.onloadedmetadata = () => resolve();
-        setTimeout(resolve, 300);
-      });
-
-      // Get exact microsecond-precise duration via Web Audio API decodeAudioData
-      let exactDuration = 0;
-      try {
-        this.initAudioContext();
-        if (this.ctx) {
-          if (this.ctx.state === 'suspended') {
-            await this.ctx.resume();
-          }
-          const arrayBuffer = await blob.arrayBuffer();
-          const decoded = await new Promise<AudioBuffer>((resolve, reject) => {
-            const res = this.ctx!.decodeAudioData(arrayBuffer.slice(0), resolve, reject);
-            if (res && typeof (res as Promise<AudioBuffer>).then === 'function') {
-              (res as Promise<AudioBuffer>).then(resolve).catch(reject);
-            }
-          });
-          if (decoded && isFinite(decoded.duration) && decoded.duration > 0) {
-            exactDuration = decoded.duration;
-          }
-        }
-      } catch {
-        // Fallback to estimation or audio element duration if decode fails
-      }
-
-      const words = spokenText.split(/\s+/).filter(Boolean);
-      // Fast, natural aerospace speech pace (~240 WPM = ~230ms per word)
-      const estimatedSec = Math.max(1.2, words.length * 0.23);
-      const totalDuration = (exactDuration > 0 && isFinite(exactDuration))
-        ? exactDuration
-        : (isFinite(audio.duration) && audio.duration > 0 ? audio.duration : estimatedSec);
-
-      let lastReportedProgress = -1;
-      let progressTimer: ReturnType<typeof setInterval> | null = null;
-
-      let completed = false;
-      const cleanupAndNext = () => {
-        if (completed) return;
-        completed = true;
-        this.isVoicePlaying = false;
-        this.notifyListeners();
-        if (progressTimer) {
-          clearInterval(progressTimer);
-          progressTimer = null;
-        }
-        if (this.currentAudio === audio) {
-          this.currentAudio = null;
-        }
-        if (this.currentBlobUrl === blobUrl) {
-          URL.revokeObjectURL(blobUrl);
-          this.currentBlobUrl = null;
-        }
-        this.activeItem = null;
-        this.lastTransmissionEndTime = Date.now();
-        item.callbacks?.onEnd?.();
-
-        // Enforce 3.5s quiet break after voice transmission before next queued transmission begins
-        if (this.breakTimer) {
-          clearTimeout(this.breakTimer);
-        }
-        this.breakTimer = setTimeout(() => {
-          this.breakTimer = null;
-          this.isProcessingQueue = false;
-          this.notifyListeners();
-          this.processQueue();
-        }, AudioService.INTER_TRANSMISSION_PAUSE_MS);
-      };
-
-      const syncPlaybackProgress = () => {
-        if (!audio || audio.paused || audio.ended) return;
-        const liveDur = (isFinite(audio.duration) && audio.duration > 0) ? audio.duration : 0;
-        const dur = (exactDuration > 0 && isFinite(exactDuration))
-          ? exactDuration
-          : (liveDur > 0 ? liveDur : totalDuration);
-
-        // Account for trailing silence (speech finishes ~0.4s to 0.6s before audio ends)
-        const activeSpeechDuration = Math.max(0.6, dur - 0.45);
-        // +180ms vocalization lead ensures the word appears immediately as vocalization starts
-        const progress = Math.min(1.0, (audio.currentTime + 0.18) / activeSpeechDuration);
-        if (progress > lastReportedProgress) {
-          lastReportedProgress = progress;
-          const wordIdx = Math.min(words.length - 1, Math.floor(progress * words.length));
-          item.callbacks?.onWord?.(wordIdx, progress);
-        }
-      };
-
-      audio.ontimeupdate = syncPlaybackProgress;
-
-      audio.onplay = () => {
-        this.isVoicePlaying = true;
-        this.notifyListeners();
-        item.callbacks?.onStart?.();
-        // High-frequency 40ms sync locked directly to audio.currentTime
-        progressTimer = setInterval(syncPlaybackProgress, 40);
-      };
-
-      audio.onended = () => {
-        item.callbacks?.onWord?.(words.length - 1, 1.0);
-        cleanupAndNext();
-      };
-
-      audio.onerror = (e) => {
-        if (!audio.src || audio.src === '' || audio.src === window.location.href) return;
-        console.error('Playback error on neural audio blob:', e);
-        this.isVoicePlaying = false;
-        this.notifyListeners();
-        cleanupAndNext();
-      };
-
-      await audio.play();
-      return;
-
-    } catch (err: unknown) {
-      if ((err as Error)?.name === 'AbortError') {
-        return;
-      }
-      if (this.currentAudio) {
-        this.currentAudio.pause();
-        this.currentAudio = null;
-      }
-      this.fallbackWebSpeech(spokenText, item, targetRate, targetPitch, targetVolume);
-    }
+    // 3. Instantaneous zero-delay aerospace vocal synthesis via Web Speech API
+    this.speakWebSpeech(spokenText, item, targetRate, targetPitch, targetVolume);
   }
 
   /**
-   * Graceful degraded fallback using client-side SpeechSynthesis if backend neural audio is unreachable.
+   * Authoritative, zero-delay client-side SpeechSynthesis with natural human prosody.
    */
-  private fallbackWebSpeech(
+  private speakWebSpeech(
     spokenText: string,
     item: SpeechQueueItem,
     targetRate: number,
@@ -743,6 +640,9 @@ class AudioService {
       utterance.voice = naturalVoice;
     }
 
+    const triggerTime = performance.now();
+    let firstAudioTime = 0;
+
     const words = spokenText.split(/\s+/).filter(Boolean);
     let wordCount = 0;
     let boundaryFired = false;
@@ -750,6 +650,7 @@ class AudioService {
     const msPerWord = Math.max(130, Math.round(210 / targetRate));
     const totalEstimatedMs = Math.max(400, (words.length * msPerWord) - 250);
     let speechTimer: ReturnType<typeof setInterval> | null = null;
+    let safetyTimer: ReturnType<typeof setTimeout> | null = null;
     let startTime = 0;
 
     utterance.onboundary = (e: SpeechSynthesisEvent) => {
@@ -766,10 +667,12 @@ class AudioService {
     };
 
     utterance.onstart = () => {
+      firstAudioTime = performance.now();
       this.isVoicePlaying = true;
       this.notifyListeners();
       item.callbacks?.onStart?.();
       startTime = Date.now();
+
       // Continuous progress timer in case browser does not support onboundary
       speechTimer = setInterval(() => {
         if (!boundaryFired && startTime > 0) {
@@ -779,9 +682,20 @@ class AudioService {
           item.callbacks?.onWord?.(targetWordIdx, progress);
         }
       }, 40);
+
+      // Robust fallback completion timer: guarantees onEnd fires even if Chrome drops onend event!
+      safetyTimer = setTimeout(() => {
+        if (this.currentUtterance === utterance) {
+          handleComplete();
+        }
+      }, totalEstimatedMs + 1800);
     };
 
     const handleComplete = () => {
+      if (safetyTimer) {
+        clearTimeout(safetyTimer);
+        safetyTimer = null;
+      }
       this.isVoicePlaying = false;
       this.notifyListeners();
       if (speechTimer) {
@@ -798,16 +712,32 @@ class AudioService {
       item.callbacks?.onWord?.(words.length - 1, 1.0);
       item.callbacks?.onEnd?.();
 
-      // Enforce 3.5s quiet break after voice transmission before next queued transmission begins
-      if (this.breakTimer) {
-        clearTimeout(this.breakTimer);
-      }
-      this.breakTimer = setTimeout(() => {
-        this.breakTimer = null;
+      const completionTime = performance.now();
+      this.recordLatencyMetric({
+        id: item.id,
+        triggerTimestamp: triggerTime,
+        firstAudioTimestamp: firstAudioTime || completionTime,
+        completionTimestamp: completionTime,
+        timeToFirstAudioMs: Math.max(1, Math.round((firstAudioTime || completionTime) - triggerTime)),
+        totalDurationMs: Math.max(1, Math.round(completionTime - triggerTime)),
+        audioEngine: 'LOCAL_WEB_AUDIO_SPEECH_SYNTHESIS',
+      });
+
+      if (AudioService.INTER_TRANSMISSION_PAUSE_MS <= 0) {
         this.isProcessingQueue = false;
         this.notifyListeners();
         this.processQueue();
-      }, AudioService.INTER_TRANSMISSION_PAUSE_MS);
+      } else {
+        if (this.breakTimer) {
+          clearTimeout(this.breakTimer);
+        }
+        this.breakTimer = setTimeout(() => {
+          this.breakTimer = null;
+          this.isProcessingQueue = false;
+          this.notifyListeners();
+          this.processQueue();
+        }, AudioService.INTER_TRANSMISSION_PAUSE_MS);
+      }
     };
 
     utterance.onend = handleComplete;
@@ -843,7 +773,12 @@ class AudioService {
     });
   }
 
+  public stopKlaxon(): void {
+    this.stopSpeaking();
+  }
+
   public stopSpeaking(): void {
+    if (this.isTourModeActive) return;
     if (this.currentAbortController) {
       this.currentAbortController.abort();
       this.currentAbortController = null;
@@ -880,6 +815,8 @@ class AudioService {
     this.isProcessingQueue = false;
     this.isVoicePlaying = false;
     this.queue = [];
+    this.lastTransmissionEndTime = 0;
+    this.recentSpoken.clear();
     this.notifyListeners();
   }
 

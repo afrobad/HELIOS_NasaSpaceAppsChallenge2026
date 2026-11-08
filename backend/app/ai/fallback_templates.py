@@ -178,121 +178,121 @@ FALLBACK_VOICE_SCRIPTS: Dict[str, str] = {
 
 PROGRESSIVE_SCENARIO_SCRIPTS: Dict[str, list] = {
     "SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH": [
-        "Commander {name}, cabin carbon dioxide is rising. I advise switching to the backup air scrubber and checking airflow.",
-        "Air update, {name}: scrubber bypass is engaged and cabin air quality is stabilizing. Please continue monitoring the atmospheric gauges.",
-        "Atmospheric report, {name}: carbon dioxide has returned to safe levels. You may return the life-support loop to standard cruise mode."
+        "All stations, emergency alert! Cabin carbon dioxide is surging at {co2} millimeters of mercury with blood oxygen at {spo2} percent. Don emergency oxygen masks immediately.",
+        "Atmospheric sentry alert for {name}: cabin carbon dioxide remains elevated at {co2} millimeters of mercury with crew blood oxygen at {spo2} percent and heart rate at {hr} bpm. Maintain emergency oxygen masks while backup scrubbers cycle.",
+        "Atmospheric report for {name}: cabin carbon dioxide has successfully cleared to nominal baseline. Normal ventilation is restored."
     ],
     "SCENARIO_2_SLOW_DECOMPRESSION_HYPOXIA": [
-        "Emergency, {name}! Cabin pressure is falling and oxygen levels are dropping. Please put on your oxygen mask and seal the bulkheads immediately!",
-        "Pressure update, {name}: emergency oxygen flow is confirmed at ninety-five percent. I advise verifying compartment hatch seals.",
-        "Life-support report, {name}: cabin pressure has stabilized. Please remain on supplemental oxygen until the hull patch is inspected."
+        "Emergency, {name}! Cabin pressure has dropped to {press} kilopascals with blood oxygen at {spo2} percent. Don pressurized oxygen masks and seal compartment bulkheads immediately!",
+        "Decompression sentry update for {name}: cabin pressure remains critical at {press} kilopascals with blood oxygen at {spo2} percent. Maintain 100 percent oxygen flow and continue hull seal verification.",
+        "Life-support report, {name}: cabin pressure has stabilized within nominal envelope. Inspection complete."
     ],
     "SCENARIO_3_SOLAR_RADIATION_STORM": [
-        "Urgent alert, {name}! A solar particle storm is approaching our spacecraft. I advise taking your radiation medication and heading to the storm shelter right now!",
-        "Radiation update, {name}: particle flux has reached peak storm intensity. Please remain securely inside the water-shielded storm shelter.",
-        "Dosimetry check, {name}: radiation counters indicate the solar storm is subsiding. Stand by for the all-clear before exiting the shelter."
+        "Urgent alert, {name}! Severe solar particle storm detected with cosmic radiation flux surging to {rad} milligray per hour. Take radioprotective medication and evacuate to the storm shelter immediately!",
+        "Radiation sentry monitoring for {name}: cosmic proton flux remains dangerous at {rad} milligray per hour. All crew members must remain inside the water-shielded storm shelter.",
+        "Dosimetry check, {name}: exterior radiation counters confirm solar particle flux has returned to nominal cosmic background."
     ],
     "SCENARIO_4_AMMONIA_COOLANT_LEAK": [
-        "Emergency, {name}! Toxic chemical coolant has entered the cabin air. Please put on your full face mask and evacuate to the safe module!",
-        "Chemical warning, {name}: ventilation scrubber purge cycle is running at maximum power. Please keep your respirator sealed.",
-        "Module report, {name}: chemical levels have dropped below toxic detection limits. Air scrubbers are operating normally."
+        "Emergency, {name}! Toxic ammonia coolant ingress detected with crew blood oxygen at {spo2} percent. Put on full-face respirators and isolate the internal thermal loop immediately!",
+        "Toxic sentry update for {name}: chemical contamination persists with blood oxygen at {spo2} percent. Maintain respirator seal and full charcoal filtration purge.",
+        "Module report, {name}: ambient chemical sensors confirm ammonia has dropped below detection limits."
     ],
     "SCENARIO_5_ELECTRICAL_FIRE_SMOLDER": [
-        "Caution, {name}. Sensors detect smoldering wiring behind the avionics panel. I advise cutting power to that bus and inspecting with a fire extinguisher.",
-        "Thermal update, {name}: electrical circuit breaker has tripped and panel temperatures are cooling. Please verify with the thermal camera.",
-        "Avionics check, {name}: smoke particulate has cleared from the avionics bay. Power can be routed through the auxiliary inverter."
+        "Caution, {name}. Sensors detect avionics smoldering combustion with crew blood oxygen at {spo2} percent. Depower affected bus immediately and prepare halon suppression.",
+        "Thermal sentry update for {name}: electrical bus smoke particulate remains detected. Verify complete circuit de-energization and continue cooling.",
+        "Avionics check, {name}: particulate sensors confirm smoke has cleared from the avionics bay."
     ],
     "SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA": [
-        "Hello {name}. Your potassium levels are running low, which can cause muscle cramps and heart flutter. I advise drinking your potassium electrolyte pouch and resting.",
-        "Heart check, {name}: your heart rhythm is responding well to the electrolyte drink. I advise resting comfortably for another fifteen minutes.",
-        "Rhythm update, {name}: potassium levels and heart timing have normalized. You are clear to resume routine light duties."
+        "Critical alert, {name}. Serum potassium has dropped to {k} millimoles per liter with Q-T prolongation at {qtc} milliseconds and heart rate at {hr} bpm. Consume oral potassium electrolyte pouch immediately.",
+        "Cardiac sentry monitoring for {name}: serum potassium remains depleted at {k} millimoles per liter with ongoing ventricular strain and heart rate at {hr} bpm. Continue potassium rehydration and complete physical rest.",
+        "Rhythm update, {name}: serum potassium and ventricular repolarization have normalized to nominal flight baseline."
     ],
     "SCENARIO_7_VENOUS_THROMBOSIS_RISK": [
-        "Hello {name}. Blood is moving slowly in your neck veins from weightlessness. I advise putting on your compression cuffs and drinking some water to help circulation.",
-        "Circulation update, {name}: venous outflow velocity is improving. I advise doing gentle neck and shoulder stretches.",
-        "Vascular check, {name}: blood flow has smoothed out nicely. Please remember to drink water regularly throughout your shift."
+        "Critical alert, {name}. Internal jugular venous stasis and thrombosis risk elevated with TRM ratio at {trm}. Put on compression cuffs and initiate fluid protocol.",
+        "Vascular sentry update for {name}: cephalic blood stasis persists with TRM ratio at {trm}. Maintain lower-body compression cuffs and structured hydration.",
+        "Vascular check, {name}: Doppler ultrasound confirms jugular outflow velocity has restored to nominal baseline."
     ],
     "SCENARIO_8_CARDIOVASCULAR_DECONDITIONING": [
-        "{name}, your heart is working harder to pump blood today. I advise doing thirty minutes on the cycle ergometer and having a salt hydration drink.",
-        "Conditioning check, {name}: your vascular tone is improving with exercise. Keep a steady pedaling pace for the remainder of the session.",
-        "Recovery report, {name}: post-workout recovery is smooth and heart rate is returning to baseline. Excellent job."
+        "{name}, cardiovascular orthostatic deconditioning detected with compensatory heart rate elevated to {hr} beats per minute. Prescribe cycle ergometer countermeasure and fluid loading.",
+        "Cardiovascular monitoring for {name}: autonomic deconditioning persists with heart rate at {hr} beats per minute. Continue prescribed countermeasure protocol.",
+        "Recovery report, {name}: cardiovascular autonomic tone has returned to resting baseline."
     ],
     "SCENARIO_9_CORONARY_MICROVASCULAR_STRESS": [
-        "{name}, your heart blood vessels are showing signs of stress and inflammation. I advise taking one chewable baby aspirin and resting while we monitor your ECG.",
-        "Cardiovascular update, {name}: heart muscle stress markers are calming and your ECG rhythm is steady. Continue resting in your bunk.",
-        "Medical status, {name}: vascular stress indicators have subsided to nominal range. Please avoid high-intensity workouts today."
+        "{name}, coronary microvascular endothelial stress detected with heart rate at {hr} beats per minute. Take baby aspirin and rest while we monitor continuous vector ECG.",
+        "Myocardial sentry tracking for {name}: coronary endothelial strain remains active with heart rate at {hr} beats per minute. Maintain physical rest and continuous 12-lead vector monitoring.",
+        "Medical status, {name}: vascular stress indicators have fully subsided to nominal cruise baseline."
     ],
     "SCENARIO_10_PRESYMPTOMATIC_SEPSIS": [
-        "{name}, your immune system is working hard to fight off an infection before you feel sick. I advise resting in your quarters and starting an intravenous hydration bag.",
-        "Immune update, {name}: your white blood cells are mobilizing well. I advise taking your prescribed antibiotic dose as scheduled.",
-        "Recovery check, {name}: inflammatory markers are trending downward. Your body is successfully clearing the infection."
+        "Critical alert, {name}. Presymptomatic sepsis inflammatory cascade detected with interleukin-6 at {il6} picograms per milliliter and core temperature at {temp} degrees Celsius. Commence broad-spectrum antibiotic regimen immediately.",
+        "Immune sentry tracking for {name}: inflammatory cascade remains active with interleukin-6 at {il6} picograms per milliliter and heart rate at {hr} bpm. Maintain intravenous hydration and antimicrobial therapy.",
+        "Recovery check, {name}: inflammatory biomarkers have returned to nominal baseline."
     ],
     "SCENARIO_11_LATENT_VIRUS_REACTIVATION": [
-        "{name}, your immune markers show an old dormant virus is waking up inside your nerve pathways. I advise taking your antiviral tablets and resting.",
-        "Immune check, {name}: antiviral medication has halted viral replication. Please ensure you get a full eight hours of undisturbed sleep.",
-        "Nerve status, {name}: cellular immune scores have stabilized and viral activity is suppressed. Looking much better."
+        "{name}, latent viral reactivation detected along sensory pathways. Administer oral antiviral countermeasure and schedule circadian sleep recovery.",
+        "Immunological sentry update for {name}: viral transcription markers remain active. Maintain prescribed antiviral dosing and undisturbed rest in quarters.",
+        "Nerve status, {name}: cellular immune scores have stabilized and viral activity is suppressed."
     ],
     "SCENARIO_12_CYTOKINE_RELEASE_STORM": [
-        "Warning, {name}. Your body's immune chemicals are spiking into an over-reactive inflammatory storm. I advise taking your anti-inflammatory medication immediately.",
-        "Inflammation update, {name}: cytokine levels are beginning to decline. Please remain reclined with cool ventilation active.",
-        "Immune report, {name}: hyper-inflammatory markers have successfully normalized. Your immune system is back under control."
+        "Emergency alert, {name}. Hyper-inflammatory cytokine storm detected with interleukin-6 at {il6} picograms per milliliter. High-dose steroid intervention indicated immediately.",
+        "Inflammatory sentry tracking for {name}: cytokine release storm remains active with interleukin-6 at {il6} picograms per milliliter. Continue dexamethasone protocol and active hemodynamics monitoring.",
+        "Immune report, {name}: hyper-inflammatory markers have successfully normalized."
     ],
     "SCENARIO_13_RADIATION_MARROW_EXHAUSTION": [
-        "{name}, prolonged cosmic radiation has depleted your white blood cell factory. I advise an injection of white-cell booster medication and staying in the clean room.",
-        "Marrow update, {name}: bone marrow stimulation is underway and blood cell counts are beginning to recover. Continue sterile precautions.",
-        "Hematology check, {name}: white blood cell production has rebounded to safe levels. Immune defense is restored."
+        "Critical alert, {name}. Radiation-induced hematopoietic marrow depletion detected. Administer filgrastim colony-stimulating factor and initiate reverse isolation sterile protocol.",
+        "Hematology sentry tracking for {name}: marrow white blood cell recovery protocol active. Maintain strict sterile clean room precautions.",
+        "Hematology check, {name}: white blood cell production has rebounded to safe levels."
     ],
     "SCENARIO_14_NEPHROLITHIASIS": [
-        "{name}, your bone calcium is crystallizing in your kidneys and could form a painful stone. I advise drinking extra water today and taking a potassium citrate packet.",
-        "Renal update, {name}: increased hydration is actively flushing your renal tract. Please drink another half liter of water.",
-        "Kidney check, {name}: calcium crystallization has cleared from your kidneys. Great job staying on top of your hydration."
+        "Warning, {name}. Renal hypercalciuria and micro-crystallization detected in renal collecting system. Administer potassium citrate and increase hydration protocol to two-point-five liters.",
+        "Renal sentry update for {name}: calcium crystallization remains active in renal tract. Continue aggressive oral hydration and urinary alkalization.",
+        "Kidney check, {name}: calcium crystallization has cleared from your kidneys."
     ],
     "SCENARIO_15_INTRAVASCULAR_DEHYDRATION": [
-        "{name}, your fluid levels are low and your blood is becoming concentrated. I advise drinking two electrolyte recovery packs and resting from heavy duties.",
-        "Hydration update, {name}: blood volume is replenishing and your pulse is relaxing. Finish your second electrolyte flask.",
-        "Vascular check, {name}: hydration levels and blood thickness have fully returned to green status."
+        "Warning, {name}. Acute intravascular volume depletion detected with compensatory heart rate at {hr} beats per minute. Initiate rapid isotonic oral electrolyte loading.",
+        "Hydration sentry tracking for {name}: fluid volume depletion persists with heart rate at {hr} beats per minute. Complete second electrolyte flask and maintain rest.",
+        "Vascular check, {name}: hydration levels and blood thickness have fully returned to nominal green status."
     ],
     "SCENARIO_16_HEPATIC_METABOLIC_DYSFUNCTION": [
-        "{name}, your liver is processing medication more slowly in zero gravity today. I advise reducing your medication dose by half to avoid accidental buildup.",
-        "Liver update, {name}: metabolic clearance rate has stabilized. Continue with the adjusted medication schedule.",
-        "Metabolism report, {name}: liver enzymes have settled into steady range. Medication clearance is functioning normally."
+        "Warning, {name}. Microgravity hepatic clearance reduction detected. Adjust pharmaceutical dosing by fifty percent to avoid toxicity.",
+        "Pharmacokinetic sentry update for {name}: hepatic clearance rate remains slowed. Maintain modified medication titration and liver enzyme monitoring.",
+        "Metabolism report, {name}: liver enzymes have settled into nominal steady range."
     ],
     "SCENARIO_17_SPACE_VISION_SANS": [
-        "{name}, fluid pressure is building up behind your eyes from weightlessness. I advise using the lower-body negative pressure suit for two hours to draw fluid back down.",
-        "Vision check, {name}: negative pressure treatment is successfully redistributing fluids toward your lower body. Visual acuity is protected.",
-        "Ocular report, {name}: optic nerve sheath pressure has normalized. Treatment session is complete."
+        "Warning, {name}. Cephalad venous pressure has elevated optic nerve sheath diameter beyond threshold. Initiate two-hour lower-body negative pressure protocol.",
+        "Ocular sentry tracking for {name}: retrobulbar pressure remains elevated. Continue lower-body negative pressure session to counteract cephalad fluid shift.",
+        "Ocular report, {name}: optic nerve sheath pressure has normalized."
     ],
     "SCENARIO_18_CIRCADIAN_FATIGUE_DRIFT": [
-        "{name}, you have been working long hours and your body clock is out of rhythm. I advise turning on the blue light therapy lamp and taking a brief rest.",
-        "Circadian check, {name}: light therapy is helping synchronize your alertness rhythm. Take a ten-minute break from the console.",
-        "Fatigue update, {name}: resting autonomic scores have stabilized. Your alertness and focus are restored."
+        "Warning, {name}. Circadian phase desynchrony and autonomic exhaustion detected with resting heart rate at {hr} beats per minute. Initiate blue-spectrum phototherapy and off-duty rest.",
+        "Neuro-fatigue sentry tracking for {name}: autonomic strain ongoing with resting heart rate at {hr} beats per minute. Maintain light therapy and sleep cabin quiet protocol.",
+        "Fatigue update, {name}: resting autonomic scores have stabilized to nominal baseline."
     ],
 
     # Aliases
     "SCENARIO_3_CO2_HYPOXIA": [
-        "All stations, emergency alert! Cabin oxygen is dropping fast and carbon dioxide is rising. I advise all crew to put on your oxygen masks and seal your suits immediately!",
-        "Telemetry update for {name}: cabin oxygen is stabilizing at ninety-two percent. I advise verifying regulator pressure seals and checking your secondary oxygen supply.",
-        "Medical sentry advisory for {name}: oxygen flow is confirmed active across all stations. Please maintain measured respirations while environmental scrubbers complete the purge cycle."
+        "All stations, emergency alert! Cabin carbon dioxide is surging at {co2} millimeters of mercury with blood oxygen at {spo2} percent. Don emergency oxygen masks immediately.",
+        "Atmospheric sentry alert: cabin carbon dioxide remains elevated at {co2} millimeters of mercury with crew blood oxygen at {spo2} percent. Emergency oxygen masks must remain securely donned.",
+        "Atmospheric report: cabin carbon dioxide has successfully cleared to nominal baseline."
     ],
     "ALL_CREW_HYPOXIA": [
-        "All stations, emergency alert! Cabin oxygen is dropping fast and carbon dioxide is rising. I advise all crew to put on your oxygen masks and seal your suits immediately!",
-        "Telemetry update across crew stations: cabin oxygen is stabilizing at ninety-two percent. I advise verifying regulator pressure seals and checking your secondary oxygen supply.",
-        "Medical sentry advisory across all stations: oxygen flow is confirmed active. Please maintain measured respirations while environmental scrubbers complete the purge cycle."
+        "All stations, emergency alert! Cabin carbon dioxide is surging at {co2} millimeters of mercury with blood oxygen at {spo2} percent. Don emergency oxygen masks immediately.",
+        "Atmospheric sentry alert: cabin carbon dioxide remains elevated at {co2} millimeters of mercury with crew blood oxygen at {spo2} percent. Emergency oxygen masks must remain securely donned.",
+        "Atmospheric report: cabin carbon dioxide has successfully cleared to nominal baseline."
     ],
     "SCENARIO_1_BASELINE_DRIFT": [
-        "{name}, you have been working long hours and your body is getting tired. I advise taking a ten-minute rest and having a cool drink.",
-        "Follow-up observation, {name}: your heart rate variability indicates continued autonomic strain. I advise reclining in your sleep quarters and completing a brief neuro-fatigue reset.",
-        "Station status update, {name}: rest cycle telemetry is beginning to stabilize. I advise remaining off-duty until baseline autonomic scores fully normalize."
+        "{name}, autonomic fatigue and physiological strain detected with heart rate at {hr} beats per minute. I advise off-duty rest and hydration.",
+        "Autonomic sentry tracking for {name}: physiological strain persists with heart rate at {hr} beats per minute. Maintain sleep cabin rest.",
+        "Station status update, {name}: baseline autonomic scores fully normalize."
     ],
     "SCENARIO_5_PRESYMPTOMATIC_SEPSIS": [
-        "{name}, your immune system is working hard to fight off an infection before you feel sick. I advise resting in your quarters and starting an intravenous hydration bag.",
-        "Telemetry update, {name}: inflammatory biomarkers are elevated with core temperature shifting upward. I advise administering the broad-spectrum antimicrobial pouch now.",
-        "Medical sentry protocol, {name}: intravenous hydration infusion is ongoing. Please remain horizontal in your bunk while the automated diagnostics track your cellular response."
+        "Critical alert, {name}. Presymptomatic sepsis inflammatory cascade detected with interleukin-6 at {il6} picograms per milliliter. Commence broad-spectrum antibiotic regimen immediately.",
+        "Immune sentry tracking for {name}: inflammatory cascade remains active with interleukin-6 at {il6} picograms per milliliter. Maintain intravenous hydration and antimicrobial therapy.",
+        "Recovery check, {name}: inflammatory biomarkers have returned to nominal baseline."
     ],
     "SCENARIO_8_SOLAR_RADIATION_STORM": [
-        "Urgent alert, {name}! A solar particle storm is approaching our spacecraft. I advise taking your radiation medication and heading to the storm shelter right now!",
-        "Radiation dosimetry update, {name}: external proton flux has reached peak storm intensity. I advise remaining firmly inside the storm shelter core behind the water shielding.",
-        "All crew stations, storm telemetry confirms secondary shielding is holding securely. I advise remaining sheltered until exterior sensors confirm the particle wave has passed."
+        "Urgent alert, {name}! Severe solar particle storm detected with cosmic radiation flux surging to {rad} milligray per hour. Evacuate to the storm shelter immediately!",
+        "Radiation sentry monitoring for {name}: cosmic proton flux remains dangerous at {rad} milligray per hour. Remain inside the water-shielded storm shelter.",
+        "Dosimetry check, {name}: exterior radiation counters confirm solar particle flux has returned to nominal cosmic background."
     ]
 }
 
@@ -426,10 +426,39 @@ def get_progressive_script(
     reason: str = "",
     telemetry: Optional[Dict[str, Any]] = None
 ) -> str:
-    """Retrieves the progressive multi-stage spoken script for an evolving scenario."""
+    """Retrieves the progressive multi-stage spoken script for an evolving scenario with 100% dynamic live telemetry."""
+    if severity == "NOMINAL" or scenario_key == "NOMINAL_CRUISE":
+        return "All physiological baselines and life-support parameters have returned to nominal flight limits. Life-support telemetry steady."
+
     clean_name = clean_crew_name(astronaut_name, astronaut_id)
     key = scenario_key or ""
     is_all_crew = (astronaut_id in ("ALL_CREW", "all_crew") or clean_name == "All Crew Stations")
+
+    t = telemetry or {}
+    co2 = round(float(t.get("cabin_co2", 4.25)), 2) if "cabin_co2" in t else "4.25"
+    spo2 = round(float(t.get("spo2", 88.5)), 1) if "spo2" in t else "88.5"
+    hr = int(round(float(t.get("heart_rate", 118.0)))) if "heart_rate" in t else 118
+    press = round(float(t.get("cabin_pressure", 85.0)), 1) if "cabin_pressure" in t else "85.0"
+    rad = round(float(t.get("radiation_flux", 85.0)), 1) if "radiation_flux" in t else "85.0"
+    k = round(float(t.get("potassium", 2.95)), 2) if "potassium" in t else "2.95"
+    qtc = int(round(float(t.get("computed_qtc", 495)))) if "computed_qtc" in t else 495
+    temp = round(float(t.get("core_temperature", t.get("core_temp", 39.1))), 1) if ("core_temperature" in t or "core_temp" in t) else "39.1"
+    il6 = int(round(float(t.get("il_6", 125)))) if "il_6" in t else 125
+    trm = round(float(t.get("trm_ratio", 2.35)), 2) if "trm_ratio" in t else "2.35"
+
+    format_kwargs = {
+        "name": "All stations" if is_all_crew else clean_name,
+        "co2": co2,
+        "spo2": spo2,
+        "hr": hr,
+        "press": press,
+        "rad": rad,
+        "k": k,
+        "qtc": qtc,
+        "temp": temp,
+        "il6": il6,
+        "trm": trm,
+    }
 
     # 1. Match direct key or mapped alias from PROGRESSIVE_SCENARIO_SCRIPTS
     target_stages = None
@@ -460,31 +489,23 @@ def get_progressive_script(
                 target_stages = PROGRESSIVE_SCENARIO_SCRIPTS.get("SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH")
 
     if target_stages:
-        # Clamp to at most stage 1 (ongoing monitoring) — never stage 2+ which says "situation resolved".
-        # Stage 2 scripts are written for manual resolution events, not for continuous active scenarios.
+        # For active emergencies, stage 1 represents ongoing persistent monitoring.
+        # Stage 2 is only for manual resolution when nominal.
         max_safe_stage = min(stage_index, max(0, len(target_stages) - 2))
         script = target_stages[max_safe_stage]
         if is_all_crew and "Commander {name}" in script:
             script = script.replace("Commander {name}", "All stations")
-        return script.format(name=clean_name)
+        try:
+            return script.format(**format_kwargs)
+        except Exception:
+            return script.format(name=clean_name)
 
-    # 2. If stage_index > 0 and no scenario match, deliver dynamic progressive clinical follow-up
+    # 2. If stage_index > 0 and no scenario match, deliver dynamic live clinical follow-up
     if stage_index > 0:
-        if stage_index == 1:
-            return (
-                f"Status update, {clean_name}: life support sentry is tracking your physiological response. "
-                f"Please maintain prescribed medical countermeasure directives while telemetry verifies stabilization."
-            )
-        elif stage_index == 2:
-            return (
-                f"Clinical follow-up, {clean_name}: bio-telemetry shows trending improvement toward baseline limits. "
-                f"Continue resting comfortably until full recovery is confirmed."
-            )
-        else:
-            return (
-                f"Recovery report, {clean_name}: physiological parameters have stabilized within safe operational margins. "
-                f"You may stand down from emergency protocol and resume planned mission shift."
-            )
+        return (
+            f"Active sentry monitoring for {clean_name}: continuous biometrics show heart rate at {hr} bpm and blood oxygen at {spo2} percent. "
+            f"Active alert status remains engaged. Maintain all prescribed clinical countermeasures."
+        )
 
     return get_fallback_script(scenario_key, severity, astronaut_name, astronaut_id, reason=reason, telemetry=telemetry)
 

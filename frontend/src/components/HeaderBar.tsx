@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Volume2, VolumeX } from 'lucide-react';
+import { Volume2, VolumeX, X, Compass, Sparkles, CheckCircle2 } from 'lucide-react';
 import { audioService } from '../services/audioService';
 import type { AlertPayload, DistancePreset, TelemetryPacket } from '../types/telemetry';
 import { DISTANCES } from '../types/telemetry';
+import { EvidenceProvenanceModal } from './EvidenceProvenanceModal';
 import './HeaderBar.css';
 
 interface HeaderBarProps {
@@ -12,8 +13,8 @@ interface HeaderBarProps {
   orbitalPosition?: DistancePreset;
   onSelectOrbitalPosition?: (pos: DistancePreset) => void;
   speedMultiplier?: number;
-  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD';
-  onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD') => void;
+  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD' | 'CABIN_3D' | 'DRAGON_DOCKING' | 'SELF_ASSESSMENT' | 'MISSION_ROUTINE';
+  onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD' | 'CABIN_3D' | 'DRAGON_DOCKING' | 'SELF_ASSESSMENT' | 'MISSION_ROUTINE') => void;
   latestAlert?: AlertPayload | null;
   selectedAstronautId?: string;
   /** When true, renders ONLY the fixed bottom JARVIS bar — no top navbar */
@@ -25,6 +26,9 @@ interface HeaderBarProps {
   currentScenario?: string;
   telemetryMap?: Record<string, TelemetryPacket>;
   onOpenTriage?: (astronautId: string) => void;
+  onStartTour?: () => void;
+  isTourActive?: boolean;
+  onSolveSituation?: () => void;
 }
 
 const formatChemicalSubscripts = (text: string): string => {
@@ -63,6 +67,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   currentScenario: _currentScenario = 'NOMINAL_CRUISE',
   telemetryMap: _telemetryMap,
   onOpenTriage: _onOpenTriage,
+  onStartTour,
+  isTourActive = false,
+  onSolveSituation,
 }) => {
   const [audioEngaged, setAudioEngaged] = useState<boolean>(true);
 
@@ -86,6 +93,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     latestAlert?.severity || 'NOMINAL'
   );
   const [displayedWordCount, setDisplayedWordCount] = useState<number>(0);
+  const [showEvidenceModal, setShowEvidenceModal] = useState<boolean>(false);
 
   const isSpeakingRef = useRef<boolean>(false);
   const activeSpeechTextRef = useRef<string>(activeSpeech);
@@ -194,17 +202,26 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     tone: 'klaxon' | 'chime' | 'beep' | 'none' = 'chime',
     config: { severity?: 'CRITICAL' | 'WARNING' | 'INFO' | 'NOMINAL'; rate?: number; volume?: number } = {}
   ) => {
+    if (isTourActive) return;
     const cleanText = text.trim();
     if (!cleanText) return;
     const sev = config.severity || 'NOMINAL';
 
-    // Clear any pending dismiss
+    // Clear any pending dismiss timer
     if (autoDismissTimerRef.current) {
       clearTimeout(autoDismissTimerRef.current);
       autoDismissTimerRef.current = null;
     }
 
     setActiveSeverity(sev);
+    setActiveSpeech(cleanText);
+    activeSpeechTextRef.current = cleanText;
+    const words = cleanText.split(/\s+/).filter(Boolean);
+    speechWordsRef.current = words;
+    // Show full text immediately so it is readable on-screen in the bottom bar
+    setDisplayedWordCount(words.length);
+    setIsTransmitting(true);
+
     lastSpokenAdviceBodyRef.current = extractAdviceBody(cleanText);
     lastSpokenTimestampRef.current = Date.now();
 
@@ -221,7 +238,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       },
       callbacks: {
         onStart: () => {
-          // Streaming begins the exact instant audio begins playing — lockstep sync
           isSpeakingRef.current = true;
           setIsSpeaking(true);
           setIsTransmitting(true);
@@ -230,7 +246,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
           const words = cleanText.split(/\s+/).filter(Boolean);
           speechWordsRef.current = words;
-          setDisplayedWordCount(1);
+          setDisplayedWordCount(words.length);
         },
         onWord: (_wordIndex: number, progress?: number) => {
           const total = speechWordsRef.current.length;
@@ -281,64 +297,107 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       }
     }
 
-    // Keep transmission navbar readable after transmission ends (12 seconds)
+    // Keep bottom directive banner visible while an emergency or warning scenario is active
+    // For nominal/info messages, keep visible for 3.5 seconds before gracefully sliding down
     if (autoDismissTimerRef.current) clearTimeout(autoDismissTimerRef.current);
-    autoDismissTimerRef.current = setTimeout(() => {
-      setIsTransmitting(false);
-    }, 12000);
+    const isEmergency = activeSeverity === 'CRITICAL' || activeSeverity === 'WARNING';
+    if (!isEmergency) {
+      autoDismissTimerRef.current = setTimeout(() => {
+        setIsTransmitting(false);
+        setActiveSpeech('');
+        setDisplayedWordCount(0);
+      }, 3500);
+    }
   };
 
-  // React to incoming WebSocket alerts
+  // React to explicit change to nominal cruise scenario
   useEffect(() => {
+    if (isTourActive) return;
+    if (_currentScenario === 'NOMINAL_CRUISE' && activeSeverity !== 'NOMINAL') {
+      if (autoDismissTimerRef.current) {
+        clearTimeout(autoDismissTimerRef.current);
+        autoDismissTimerRef.current = null;
+      }
+      setActiveSeverity('NOMINAL');
+      const text = 'All systems nominal. Spaceflight cruise baseline restored.';
+      setActiveSpeech(text);
+      activeSpeechTextRef.current = text;
+      const words = text.split(/\s+/).filter(Boolean);
+      speechWordsRef.current = words;
+      setDisplayedWordCount(words.length);
+      setIsTransmitting(true);
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      pendingObservedAlertRef.current = null;
+      audioService.stopKlaxon();
+      audioService.stopSpeaking();
+      autoDismissTimerRef.current = setTimeout(() => {
+        setIsTransmitting(false);
+        setActiveSpeech('');
+        setDisplayedWordCount(0);
+      }, 3500);
+    }
+  }, [_currentScenario, isTourActive]);
+
+  // React to incoming WebSocket alerts or scenario changes
+  useEffect(() => {
+    if (isTourActive) return;
     if (!latestAlert || !latestAlert.speech_text) return;
 
     const alertText = latestAlert.speech_text.trim();
     if (!alertText) return;
 
-    // Prevent duplicate triggers of identical text
-    if (alertText === activeSpeechTextRef.current) return;
+    const isNominal = latestAlert.severity === 'NOMINAL' || _currentScenario === 'NOMINAL_CRUISE';
 
-    // Semantic deduplication: if core advice was recently spoken (<8s), ignore without re-triggering
-    const incomingAdvice = extractAdviceBody(alertText);
-    const timeSinceLastSpoken = Date.now() - lastSpokenTimestampRef.current;
-    if (incomingAdvice && incomingAdvice === lastSpokenAdviceBodyRef.current && timeSinceLastSpoken < 8000) {
-      return;
-    }
+    if (isNominal) {
+      // Nominal cruise state: cancel sirens, stop emergency speech, display nominal status
+      if (autoDismissTimerRef.current) {
+        clearTimeout(autoDismissTimerRef.current);
+        autoDismissTimerRef.current = null;
+      }
+      const nominalText = latestAlert.severity === 'NOMINAL'
+        ? alertText
+        : 'All systems nominal. Spaceflight cruise baseline restored.';
 
-    const isEmergency = latestAlert.severity === 'CRITICAL' || latestAlert.severity === 'WARNING';
-    const isHigherPriority =
-      (latestAlert.severity === 'CRITICAL' && activeSeverity !== 'CRITICAL') ||
-      (latestAlert.severity === 'WARNING' && activeSeverity === 'NOMINAL');
-
-    if (isEmergency && (isHigherPriority || !isSpeakingRef.current || activeSeverity === 'NOMINAL')) {
-      // PREEMPT IMMEDIATELY: Stop lower-priority speech, sound emergency tone, and deliver emergency directive
-      audioService.stopSpeaking();
+      setActiveSeverity('NOMINAL');
+      setActiveSpeech(nominalText);
+      activeSpeechTextRef.current = nominalText;
+      const words = nominalText.split(/\s+/).filter(Boolean);
+      speechWordsRef.current = words;
+      setDisplayedWordCount(words.length);
+      setIsTransmitting(true);
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
       pendingObservedAlertRef.current = null;
-      speakStatement(
-        latestAlert.speech_text,
-        latestAlert.tone || (latestAlert.severity === 'CRITICAL' ? 'klaxon' : 'chime'),
-        {
-          ...latestAlert.audio_config,
-          severity: latestAlert.severity,
-        }
-      );
+      audioService.stopKlaxon();
+      audioService.stopSpeaking();
+
+      // Automatically slide down and dismiss after 3.5 seconds
+      autoDismissTimerRef.current = setTimeout(() => {
+        setIsTransmitting(false);
+        setActiveSpeech('');
+        setDisplayedWordCount(0);
+      }, 3500);
       return;
     }
 
-    if (isSpeakingRef.current) {
-      // Buffer sequential telemetry calculation for playback after current speech completes
-      pendingObservedAlertRef.current = latestAlert;
-    } else {
-      speakStatement(
-        latestAlert.speech_text,
-        latestAlert.tone || 'chime',
-        {
-          ...latestAlert.audio_config,
-          severity: latestAlert.severity,
-        }
-      );
-    }
-  }, [latestAlert, activeSeverity]);
+    if (isTourActive) return;
+
+    // Prevent duplicate re-trigger of identical active text while speaking
+    if (alertText === activeSpeechTextRef.current && isSpeakingRef.current) return;
+
+    // PREEMPT IMMEDIATELY: Stop any active speech, abort old audio, and deliver emergency directive
+    audioService.stopSpeaking();
+    pendingObservedAlertRef.current = null;
+    speakStatement(
+      latestAlert.speech_text,
+      latestAlert.tone || (latestAlert.severity === 'CRITICAL' ? 'klaxon' : 'chime'),
+      {
+        ...latestAlert.audio_config,
+        severity: latestAlert.severity,
+      }
+    );
+  }, [latestAlert, _currentScenario, isTourActive]);
 
 
   // ── JARVIS FIXED BOTTOM BAR (shared across HUD and Telemetry views) ──
@@ -364,15 +423,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         boxSizing: 'border-box',
         maxWidth: '1400px',
         width: 'calc(100% - 32px)',
-        overflow: 'hidden',
       }}
     >
       {/* Inner container */}
       <div
         style={{
           margin: '0 auto',
-          padding: '0 16px',
-          height: '52px',
+          padding: '8px 16px',
+          minHeight: '56px',
+          height: 'auto',
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
@@ -410,7 +469,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            AI SURGEON
+            Helix-Ai Analyst
           </span>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '14px', width: '14px', flexShrink: 0 }}>
             {(['hud-bar-anim-1', 'hud-bar-anim-2', 'hud-bar-anim-3'] as const).map((cls, i) => (
@@ -430,7 +489,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             ))}
           </div>
           <div className="hud-tooltip hud-tooltip-up">
-            AI medical assistant
+            Helix-Ai Analyst · Autonomous Medical Intelligence
           </div>
         </div>
 
@@ -440,17 +499,20 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             display: 'flex',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: '5px',
+            gap: '6px 7px',
             flex: 1,
             minWidth: 0,
-            padding: '6px 14px',
+            padding: '8px 14px',
             backgroundColor: '#0c0d10',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            borderRadius: '6px',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '8px',
             boxShadow: 'inset 0 1px 4px rgba(0, 0, 0, 0.7)',
-            height: '38px',
-            overflow: 'hidden',
+            minHeight: '44px',
+            height: 'auto',
+            maxHeight: '90px',
+            overflowY: 'auto',
             boxSizing: 'border-box',
+            lineHeight: 1.45,
           }}
         >
           {speechWords.slice(0, displayedWordCount).map((word: string, idx: number) => {
@@ -462,7 +524,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 style={{
                   color: isLatest ? transmissionTheme.latestWordColor : transmissionTheme.textColor,
                   fontFamily: "var(--hud-font-mono, 'Tomorrow', monospace)",
-                  fontSize: '12px',
+                  fontSize: '12.5px',
                   fontWeight: isLatest ? 700 : 500,
                   letterSpacing: '0.02em',
                   textShadow: isLatest ? `0 0 10px ${transmissionTheme.accentColor}` : 'none',
@@ -488,7 +550,117 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             />
           )}
         </div>
+
+        {/* RIGHT: Inspect Evidence / NASA OSDR Button & Baseline Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <span
+            className="helios-sim-telemetry-badge"
+            title="NASA Space Apps Challenge 2026 - Evidence Layer: 30-Day Rolling Baselines from NASA OSDR"
+            style={{
+              fontSize: '9.5px',
+              fontFamily: 'monospace',
+              fontWeight: 600,
+              color: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              padding: '0 8px',
+              height: '38px',
+              borderRadius: '6px',
+              letterSpacing: '0.04em',
+              whiteSpace: 'nowrap',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxSizing: 'border-box',
+            }}
+          >
+            <span>SIMULATED TELEMETRY · 10 Hz</span>
+            <span style={{ color: 'rgba(255,255,255,0.3)' }}>//</span>
+            <span style={{ color: '#94a3b8' }}>OSDR BASELINES</span>
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setShowEvidenceModal(true)}
+            title="Inspect Deterministic Math Rules & NASA OSDR Study Evidence"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.35)',
+              color: '#38bdf8',
+              borderRadius: '6px',
+              padding: '0 12px',
+              height: '38px',
+              fontSize: '10.5px',
+              fontFamily: "'Orbitron', var(--hud-font-brand, sans-serif)",
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              cursor: 'pointer',
+              flexShrink: 0,
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.22)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.12)')}
+          >
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#38bdf8', boxShadow: '0 0 6px #38bdf8' }} />
+            <span>EVIDENCE / OSDR</span>
+          </button>
+
+          {/* Dismiss Banner Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsTransmitting(false);
+              setActiveSpeech('');
+              setDisplayedWordCount(0);
+              if (autoDismissTimerRef.current) {
+                clearTimeout(autoDismissTimerRef.current);
+                autoDismissTimerRef.current = null;
+              }
+            }}
+            aria-label="Dismiss Helix-Ai Analyst directive banner"
+            title="Dismiss Helix-Ai Analyst Directive"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '38px',
+              backgroundColor: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.16)',
+              color: '#94a3b8',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              flexShrink: 0,
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+              e.currentTarget.style.color = '#ef4444';
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
+              e.currentTarget.style.color = '#94a3b8';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.16)';
+            }}
+          >
+            <X size={15} />
+          </button>
+        </div>
       </div>
+
+      <EvidenceProvenanceModal
+        isOpen={showEvidenceModal}
+        onClose={() => setShowEvidenceModal(false)}
+        latestAlert={latestAlert}
+        currentScenario={_currentScenario}
+        selectedAstronautId={_selectedAstronautId}
+        telemetryMap={_telemetryMap}
+      />
     </div>
   );
 
@@ -531,10 +703,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <nav aria-label="Universal Navigation" className="helios-nav-capsule">
               {[
                 { id: 'HUD', label: 'Dashboard' },
-                { id: 'HEALTH_TELEMETRY', label: 'Health-Telemetry' },
+                { id: 'HEALTH_TELEMETRY', label: 'Telemetry', title: 'Health & Clinical Telemetry' },
+                { id: 'SELF_ASSESSMENT', label: 'Self-Check' },
+                { id: 'MISSION_ROUTINE', label: 'Routine' },
                 { id: 'MCC', label: 'Earth MCC' },
                 { id: 'SCANNER', label: '3D Scanner' },
                 { id: 'SUIT_HUD', label: 'Suit HUD' },
+                { id: 'CABIN_3D', label: 'ISS Deck' },
               ].map((tab) => {
                 const isActive =
                   activeView === tab.id || (tab.id === 'MCC' && activeView === 'MCC_TELEMETRY');
@@ -542,6 +717,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   <button
                     key={tab.id}
                     type="button"
+                    title={tab.title || tab.label}
                     onClick={() => onSelectView(tab.id as any)}
                     className={`helios-nav-tab ${isActive ? 'helios-nav-tab--active' : ''}`}
                   >
@@ -549,6 +725,29 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   </button>
                 );
               })}
+              {onStartTour && (
+                <>
+                  <span className="helios-nav-divider" aria-hidden="true" />
+                  <button
+                    type="button"
+                    title="Start 3-Minute Automated Interactive Walkthrough Tour"
+                    onClick={() => {
+                      audioService.initAudioContext();
+                      audioService.setEngaged(true);
+                      audioService.setTourMode(true);
+                      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        window.speechSynthesis.resume();
+                      }
+                      onStartTour();
+                    }}
+                    className="helios-nav-tab helios-tour-nav-btn"
+                  >
+                    <Sparkles size={13} style={{ marginRight: 5, flexShrink: 0, color: '#fef08a', filter: 'drop-shadow(0 0 4px rgba(253, 224, 71, 0.8))' }} />
+                    <span>3-Min Tour</span>
+                  </button>
+                </>
+              )}
             </nav>
           </div>
         )}
@@ -563,14 +762,15 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               </span>{' '}
               <span className="helios-clock-zone">UTC</span>
             </span>
-            <span className="helios-clock-divider">|</span>
-            <span className="helios-clock-item">
+            <span className="helios-clock-divider helios-clock-divider--spacecraft">|</span>
+            <span className="helios-clock-item helios-clock-item--spacecraft">
               <span className="helios-clock-label">SPACECRAFT</span>{' '}
               <span className="helios-clock-val helios-clock-val--spacecraft">
                 {new Date(earthTime.getTime() - Math.round(delaySec) * 1000).toISOString().substring(11, 19)}
               </span>{' '}
               <span className="helios-clock-zone">SVT</span>
             </span>
+            <span className="helios-clock-divider">|</span>
             <span className="helios-clock-item helios-clock-item--met">
               <span className="helios-clock-label">MET</span>{' '}
               <span className="helios-clock-val helios-clock-val--met">

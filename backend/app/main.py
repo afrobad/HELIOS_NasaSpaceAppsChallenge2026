@@ -83,11 +83,33 @@ app.add_middleware(
 )
 
 
+import os as _os  # noqa: E402 – already imported above; aliased to avoid shadowing
+
+# SEC-06: Allowed cabin embedding origins (read from env, space-separated).
+# Set HELIOS_EMBED_ORIGINS to allow additional origins (e.g. your deployed cabin host).
+# Defaults: the local 3D cabin dev server (port 5173), Vite dev server (port 3000), and the main app itself.
+_EMBED_ORIGINS_RAW = _os.environ.get(
+    "HELIOS_EMBED_ORIGINS",
+    "http://localhost:5173 http://127.0.0.1:5173 http://localhost:3000 http://127.0.0.1:3000"
+)
+_EMBED_ORIGINS: list[str] = [o.strip() for o in _EMBED_ORIGINS_RAW.split() if o.strip()]
+# Build CSP frame-ancestors directive: 'self' + allowed cabin origins
+_FRAME_ANCESTORS = "frame-ancestors 'self' " + " ".join(_EMBED_ORIGINS) + ";"
+
+
 @app.middleware("http")
 async def add_security_headers(request, call_next):
-    """Enforces NASA-STD-8739.8 & OWASP Top 10 defense-in-depth security headers (SEC-06)."""
+    """Enforces NASA-STD-8739.8 & OWASP Top 10 defense-in-depth security headers (SEC-06).
+
+    X-Frame-Options is intentionally set to SAMEORIGIN (instead of DENY) so the
+    HELIOS 3D CABIN (served from the same origin or HELIOS_EMBED_ORIGINS) can embed
+    the main dashboard and MCC pages in its wall-monitor iframes.
+    The CSP frame-ancestors directive provides the fine-grained allow-list.
+    """
     response = await call_next(request)
-    response.headers["X-Frame-Options"] = "DENY"
+    # SAMEORIGIN allows the cabin served from localhost to embed these pages.
+    # The cabin origin is also whitelisted via CSP frame-ancestors below.
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=(), payment=()"
@@ -99,9 +121,9 @@ async def add_security_headers(request, call_next):
         "img-src 'self' data: https: blob:; "
         "media-src 'self' blob: data:; "
         "connect-src 'self' ws: wss: http: https:; "
-        "frame-ancestors 'none'; "
-        "object-src 'none'; "
-        "base-uri 'self';"
+        + _FRAME_ANCESTORS +
+        " object-src 'none';"
+        " base-uri 'self';"
     )
     return response
 
@@ -202,6 +224,46 @@ def get_recent_alerts(limit: int = 20) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail="Database uninitialized.")
     alerts = repo.get_recent_alerts(limit=limit)
     return {"count": len(alerts), "alerts": alerts}
+
+
+@app.get("/api/self-assessment/{astronaut_id}")
+def get_crew_self_assessments(astronaut_id: str, limit: int = 30) -> Dict[str, Any]:
+    """Returns longitudinal self-assessment check-in records for a crew member."""
+    if not repo:
+        raise HTTPException(status_code=500, detail="Database uninitialized.")
+    canonical_id = resolve_astronaut_id(astronaut_id)
+    records = repo.get_self_assessments(canonical_id, limit=limit)
+    return {"astronaut_id": canonical_id, "count": len(records), "records": records}
+
+
+@app.post("/api/self-assessment")
+async def record_self_assessment(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Logs a guided astronaut self-assessment check-in locally to SQLite."""
+    if not repo:
+        raise HTTPException(status_code=500, detail="Database uninitialized.")
+    ast_id = resolve_astronaut_id(payload.get("astronaut_id", "AST-01_COMMANDER"))
+    record = {**payload, "astronaut_id": ast_id, "provenance": "USER_REPORTED_MANUAL"}
+    inserted_id = repo.log_self_assessment(record)
+    return {"status": "RECORDED", "id": inserted_id, "astronaut_id": ast_id}
+
+
+@app.delete("/api/self-assessment/{astronaut_id}")
+def clear_crew_self_assessments(astronaut_id: str) -> Dict[str, Any]:
+    """Deletes all logged self-assessment check-in records for a specific crew member."""
+    if not repo:
+        raise HTTPException(status_code=500, detail="Database uninitialized.")
+    canonical_id = resolve_astronaut_id(astronaut_id)
+    deleted_count = repo.clear_self_assessments(canonical_id)
+    return {"status": "CLEARED", "astronaut_id": canonical_id, "deleted_count": deleted_count}
+
+
+@app.delete("/api/self-assessment")
+def clear_all_self_assessments() -> Dict[str, Any]:
+    """Deletes all logged self-assessment check-in records across all crew members."""
+    if not repo:
+        raise HTTPException(status_code=500, detail="Database uninitialized.")
+    deleted_count = repo.clear_self_assessments(None)
+    return {"status": "ALL_CLEARED", "deleted_count": deleted_count}
 
 
 @app.post("/api/scenario/{scenario_key}")
@@ -357,6 +419,11 @@ async def get_voice_greeting(astronaut_id: str) -> Dict[str, Any]:
     recent = get_latest_or_seed_telemetry(resolved_id)
     ast_name = clean_crew_name(recent.get("astronaut_name", ""), resolved_id)
     severity = recent.get("evaluated_severity", "NOMINAL")
+    if feeder and getattr(feeder, "_active_scenario", "NOMINAL_CRUISE") != "NOMINAL_CRUISE":
+        active_sc = feeder._active_scenario
+        if severity == "NOMINAL":
+            severity = "WARNING"
+        recent["scenario_phase"] = active_sc
 
     engine = voice_engine or VoiceEngine()
     greeting_payload = await engine.create_greeting_advisory(

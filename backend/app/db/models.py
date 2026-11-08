@@ -68,4 +68,25 @@ CREATE TABLE IF NOT EXISTS proactive_alerts (
     acknowledged BOOLEAN DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_alerts_sev ON proactive_alerts(severity, timestamp);
+
+-- 4. Astronaut Self-Assessment & Longitudinal Daily Check-in Log
+CREATE TABLE IF NOT EXISTS astronaut_self_assessments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    astronaut_id TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    sleep_hours REAL,
+    sleep_quality INTEGER,
+    fatigue_score INTEGER,
+    mood_score INTEGER,
+    cognitive_workload INTEGER,
+    discomfort_regions TEXT,
+    reported_hr REAL,
+    reported_bp_sys REAL,
+    reported_bp_dia REAL,
+    reported_spo2 REAL,
+    reported_temp REAL,
+    notes TEXT,
+    provenance TEXT DEFAULT 'USER_REPORTED_MANUAL'
+);
+CREATE INDEX IF NOT EXISTS idx_self_assess_ast ON astronaut_self_assessments(astronaut_id, timestamp);
 """

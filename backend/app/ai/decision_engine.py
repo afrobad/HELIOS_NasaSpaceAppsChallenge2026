@@ -7,6 +7,8 @@ clinical confidence scores, and structures triage records for the JARVIS advisor
 import math
 from typing import Dict, Any, List, Optional
 import numpy as np
+from .osdr_evidence import get_osdr_evidence_for_scenario
+from .guardrails import guard_alert_payload
 
 
 class DecisionEngine:
@@ -257,7 +259,9 @@ class DecisionEngine:
             diagnosis = "All Physiological Systems Nominal"
             action = "Nominal mission operations."
 
-        return {
+        osdr_ev = get_osdr_evidence_for_scenario(telemetry.get("scenario_phase") or reason)
+
+        raw_payload = {
             "astronaut_id": astronaut_id,
             "astronaut_name": astronaut_name,
             "severity": severity,
@@ -268,5 +272,7 @@ class DecisionEngine:
             "actionable_instruction": action,
             "trigger_reason": reason,
             "evidence_breakdown": evidence["findings"],
-            "telemetry_snapshot": telemetry
+            "telemetry_snapshot": telemetry,
+            "osdr_evidence": osdr_ev
         }
+        return guard_alert_payload(raw_payload)

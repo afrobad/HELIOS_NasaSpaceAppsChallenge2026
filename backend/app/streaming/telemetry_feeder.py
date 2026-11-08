@@ -17,12 +17,19 @@ from ..db.repository import TelemetryRepository
 from ..ai.decision_engine import DecisionEngine
 from ..ai.voice_engine import VoiceEngine
 from ..ai.fallback_templates import clean_crew_name, format_crew_names_list
+from ..ai.osdr_evidence import get_osdr_evidence_for_scenario
 from .websocket_manager import WebSocketManager
 
 DEFAULT_CSV_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
     "data",
     "astronaut_telemetry_stream.csv"
+)
+
+DEFAULT_FIXTURE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+    "demo_fixtures",
+    "vitals.json"
 )
 
 ASTRONAUT_ALIAS_MAP: Dict[str, str] = {
@@ -104,6 +111,57 @@ class TelemetryFeeder:
         self.current_tick = val
 
     def load_dataset(self) -> None:
+        is_offline_fixture = os.environ.get("OFFLINE") == "1" and os.path.exists(DEFAULT_FIXTURE_PATH)
+        if is_offline_fixture:
+            print(f"[OFFLINE=1] TelemetryFeeder: Initializing from committed demo fixture: {DEFAULT_FIXTURE_PATH}")
+            import json
+            try:
+                with open(DEFAULT_FIXTURE_PATH, "r", encoding="utf-8") as fj:
+                    raw_fixtures = json.load(fj)
+                self.records = []
+                self.records_by_astronaut = {ast_id: [] for ast_id in self.baseline_mgr.get_astronaut_ids()}
+                for row in raw_fixtures:
+                    ast_id = row.get("astronaut_id", "AST-01_COMMANDER")
+                    rec = {
+                        "timestamp": f"MET+00:{row.get('tick', 0)//60:02d}:{row.get('tick', 0)%60:02d}",
+                        "tick": int(row.get("tick", 0)),
+                        "astronaut_id": ast_id,
+                        "astronaut_name": clean_crew_name(ast_id),
+                        "mission_state": "NOMINAL_CRUISE",
+                        "heart_rate": float(row.get("heart_rate", 62.0)),
+                        "hrv_rmssd": float(row.get("hrv_rmssd", 65.0)),
+                        "spo2": float(row.get("spo2", 98.2)),
+                        "core_temp": float(row.get("core_temp", 36.7)),
+                        "sleep_score": float(row.get("sleep_score", 85.0)),
+                        "cabin_co2": float(row.get("cabin_co2", 2.2)),
+                        "potassium": float(row.get("potassium", 4.2)),
+                        "hematocrit": float(row.get("hematocrit", 44.0)),
+                        "wbc_count": float(row.get("wbc_count", 6.8)),
+                        "il_6": float(row.get("il_6", 6.2)),
+                        "platelet_count": float(row.get("platelet_count", 240.0)),
+                        "crp": float(row.get("crp", 1.2)),
+                        "radiation_flux": float(row.get("radiation_flux", 0.05)),
+                        "lymphocyte_count": float(row.get("lymphocyte_count", 2.2)),
+                        "radiation_dose_gy": float(row.get("radiation_dose_gy", 0.0)),
+                        "computed_qtc": float(row.get("computed_qtc", 400.0)),
+                        "computed_epi": float(row.get("computed_epi", 0.0)),
+                        "computed_arf": float(row.get("computed_arf", 0.74)),
+                        "computed_trm": float(row.get("computed_trm", 1.0)),
+                        "computed_rsi": float(row.get("computed_rsi", 0.1)),
+                        "scenario_phase": "SCENARIO_8_CARDIOVASCULAR_DECONDITIONING" if row.get("anomaly_planted") else "NOMINAL_CRUISE",
+                        "z_score_hr": float(row.get("z_score_hr", 0.0)),
+                        "z_score_hrv": float(row.get("z_score_hrv", -2.84 if row.get("anomaly_planted") else 0.0)),
+                        "alert_severity": "WARNING" if row.get("anomaly_planted") else "NOMINAL",
+                        "data_source": "COMMITTED_FIXTURE_OSDR"
+                    }
+                    self.records.append(rec)
+                    if ast_id in self.records_by_astronaut:
+                        self.records_by_astronaut[ast_id].append(rec)
+                self.total_ticks = len(self.records)
+                return
+            except Exception as e:
+                print(f"[WARN] Error loading demo fixture, falling back to CSV: {e}")
+
         if not os.path.exists(self.csv_path):
             raise FileNotFoundError(f"Telemetry stream CSV not found at {self.csv_path}")
 
@@ -498,8 +556,11 @@ class TelemetryFeeder:
 
                 self.last_severities[ast_id] = severity
 
-                # 4. Asynchronously log telemetry to SQLite WAL
-                self.repo.log_telemetry(packet)
+                # 4. Asynchronously log telemetry to SQLite WAL (Fault-tolerant)
+                try:
+                    self.repo.log_telemetry(packet)
+                except Exception:
+                    pass
 
                 # 5. Broadcast to connected WebSocket HUD clients
                 await self.ws_manager.broadcast_telemetry(packet)
@@ -754,7 +815,8 @@ class TelemetryFeeder:
             "actionable_instruction": triage["actionable_instruction"],
             "confidence": confidence,
             "evidence_breakdown": triage["evidence_breakdown"],
-            "telemetry": packet
+            "telemetry": packet,
+            "osdr_evidence": triage.get("osdr_evidence") or get_osdr_evidence_for_scenario(packet.get("scenario_phase") or reason)
         }
 
         # Log to SQLite proactive_alerts table
@@ -815,7 +877,8 @@ class TelemetryFeeder:
                 {"metric": f"{name2} Heart Rate", "value": p2.get("heart_rate"), "clinical_finding": f"{name2} HR: {p2.get('heart_rate')} bpm"},
                 {"metric": "Primary Condition", "value": reason, "clinical_finding": reason}
             ],
-            "telemetry": p1
+            "telemetry": p1,
+            "osdr_evidence": get_osdr_evidence_for_scenario(scenario_phase or reason)
         }
 
         # Suppress individual alerts for both crew members
@@ -888,7 +951,8 @@ class TelemetryFeeder:
             "actionable_instruction": f"Cross-verify telemetry across {multi_names}. Initiate synchronized rest and hydration protocol.",
             "confidence": max((c.get("confidence", 0.95) for c in candidates), default=0.95),
             "evidence_breakdown": evidence_breakdown,
-            "telemetry": packets[0]
+            "telemetry": packets[0],
+            "osdr_evidence": get_osdr_evidence_for_scenario(scenario_phase or reason)
         }
 
         # Suppress individual alerts for all included crew members
@@ -977,7 +1041,8 @@ class TelemetryFeeder:
                 {"metric": "Minimum SpO₂", "value": min_spo2, "clinical_finding": f"Systemic desaturation (Mean: {mean_spo2}%)"},
                 {"metric": "Mean Heart Rate", "value": mean_hr, "clinical_finding": f"Compensatory tachycardia across {len(elevated_candidates)} crew"}
             ],
-            "telemetry": aggregate_telemetry
+            "telemetry": aggregate_telemetry,
+            "osdr_evidence": get_osdr_evidence_for_scenario(scenario_phase or reason)
         }
 
         # Suppress individual alerts for all elevated crew

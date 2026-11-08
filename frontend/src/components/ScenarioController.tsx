@@ -10,6 +10,7 @@ interface ScenarioControllerProps {
   onScenarioTriggered?: (scenarioKey: string, telemetry?: Record<string, any>, targetCrewId?: string | null) => void;
   selectedCrewId?: string;
   onSelectCrewId?: (crewId: string) => void;
+  hideFloatingPill?: boolean;
 }
 
 export type MissionCohort = 'ALL' | 'ARTEMIS_I' | 'ARTEMIS_II';
@@ -319,6 +320,7 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
   onScenarioTriggered,
   selectedCrewId: propSelectedCrewId,
   onSelectCrewId,
+  hideFloatingPill = false,
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [scopeTab, setScopeTab] = useState<ScopeTab>('UNIVERSAL');
@@ -352,8 +354,17 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
     scrollBodyRef.current?.scrollTo({ top: 0, behavior: 'instant' });
   }, [scopeTab, clinicalCategory, selectedCrewId]);
 
-  // Keyboard shortcut listener: [S] to toggle modal, [Escape] to close
+  // Keyboard shortcut listener: [S] to toggle modal, [Escape] to close + global event/message listener
   useEffect(() => {
+    const handleOpenScenarios = () => setIsOpen(true);
+    window.addEventListener('helios:open_scenarios', handleOpenScenarios);
+    const handleMsg = (e: MessageEvent) => {
+      if (e.data === 'OPEN_SCENARIOS' || e.data?.type === 'OPEN_SCENARIOS') {
+        setIsOpen(true);
+      }
+    };
+    window.addEventListener('message', handleMsg);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
@@ -380,6 +391,8 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
     window.addEventListener('resize', handleDismissTooltip);
     window.addEventListener('scroll', handleDismissTooltip, true);
     return () => {
+      window.removeEventListener('helios:open_scenarios', handleOpenScenarios);
+      window.removeEventListener('message', handleMsg);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', handleDismissTooltip);
       window.removeEventListener('scroll', handleDismissTooltip, true);
@@ -514,6 +527,10 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
     setActiveTargetCrewId(effectiveTarget);
 
     try {
+      localStorage.setItem('helios_scenario', key);
+    } catch {}
+
+    try {
       if (key === 'SCENARIO_4_DEEP_SPACE_BLACKOUT') {
         onToggleMarsDelay(true);
       } else if (key === 'NOMINAL_CRUISE' && marsDelay) {
@@ -526,11 +543,32 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
         onScenarioTriggered(key, undefined, effectiveTarget);
       }
 
-      const queryUrl = effectiveTarget
+      const path = effectiveTarget
         ? `/api/scenario/${key}?astronaut_id=${effectiveTarget}`
         : `/api/scenario/${key}`;
 
-      const res = await fetch(queryUrl, { method: 'POST' });
+      const getApiUrl = (endpoint: string) => {
+        if (typeof window !== 'undefined') {
+          const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          if (isLocal && window.location.port !== '8000') {
+            return `http://${window.location.hostname}:8000${endpoint}`;
+          }
+        }
+        return endpoint;
+      };
+
+      const queryUrl = getApiUrl(path);
+
+      let res: Response;
+      try {
+        res = await fetch(queryUrl, { method: 'POST' });
+        if (!res.ok && queryUrl !== path) {
+          res = await fetch(path, { method: 'POST' });
+        }
+      } catch {
+        res = await fetch(path, { method: 'POST' });
+      }
+
       let telData: Record<string, any> | undefined;
       if (res.ok) {
         const data = await res.json().catch(() => null);
@@ -545,7 +583,10 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
         onScenarioTriggered(key, undefined, effectiveTarget);
       }
     } finally {
-      setTimeout(() => setTriggeringKey(null), 300);
+      setTimeout(() => {
+        setTriggeringKey(null);
+        setIsOpen(false);
+      }, 200);
     }
   };
 
@@ -597,19 +638,21 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
   return (
     <>
       {/* ── Fixed Floating Action Trigger Pill (Bottom-Right) ── */}
-      <button
-        id="scenario-floating-trigger"
-        onClick={() => setIsOpen(true)}
-        aria-label="Open Scenarios Engine"
-        title={isNominalActive ? "Simulation Scenarios · NOMINAL CRUISE (Hotkey: S)" : `Simulation Scenarios · ${activeScenarioMeta.label} (${activeSeverity}) · Hotkey: S`}
-        style={{
-          position: 'fixed',
-          bottom: isTransmitting ? '72px' : '18px',
-          right: '20px',
-          zIndex: 9990,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '7px',
+      {!hideFloatingPill && (
+        <button
+          id="scenario-floating-trigger"
+          data-tour="scenario-trigger"
+          onClick={() => setIsOpen(true)}
+          aria-label="Open Scenarios Engine"
+          title={isNominalActive ? "Simulation Scenarios · NOMINAL CRUISE (Hotkey: S)" : `Simulation Scenarios · ${activeScenarioMeta.label} (${activeSeverity}) · Hotkey: S`}
+          style={{
+            position: 'fixed',
+            bottom: isTransmitting ? '76px' : '22px',
+            right: '24px',
+            zIndex: 100005,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '7px',
           padding: '4px 8px 4px 9px',
           height: '28px',
           background: 'rgba(8, 14, 23, 0.88)',
@@ -724,6 +767,7 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
           S
         </span>
       </button>
+      )}
 
       {/* ── Modal Dialog Overlay ── */}
       {isOpen && (
@@ -739,7 +783,7 @@ export const ScenarioController: React.FC<ScenarioControllerProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9999,
+            zIndex: 100010,
             padding: '20px',
           }}
         >

@@ -515,7 +515,7 @@ export const JarvisConsole: React.FC<JarvisConsoleProps> = ({
         }}
       >
         <span style={{ fontSize: '13px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.04em' }}>
-          AI SURGEON
+          Helix-Ai Analyst
         </span>
 
         {/* Minimal Model Status & Equalizer Visualizer */}
@@ -595,7 +595,7 @@ export const JarvisConsole: React.FC<JarvisConsoleProps> = ({
       <div
         tabIndex={0}
         role="region"
-        aria-label="AI Surgeon Active Voice Message"
+        aria-label="Helix-Ai Analyst Active Voice Message"
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         style={{
@@ -717,7 +717,7 @@ export const JarvisConsole: React.FC<JarvisConsoleProps> = ({
           type="text"
           value={queryText}
           onChange={(e) => setQueryText(e.target.value)}
-          placeholder={`Consult AI Surgeon for ${currentCrewName} (e.g. 'AI Surgeon, what is the clinical status?')`}
+          placeholder={`Consult Helix-Ai Analyst for ${currentCrewName} (e.g. 'Helix-Ai Analyst, what is the clinical status?')`}
           style={{
             flex: 1,
             padding: '9px 14px',
@@ -760,7 +760,7 @@ export const JarvisConsole: React.FC<JarvisConsoleProps> = ({
             outline: 'none',
             flexShrink: 0,
           }}
-          title="Transmit query to AI Surgeon (Enter)"
+          title="Transmit query to Helix-Ai Analyst (Enter)"
           aria-label="Transmit query"
         >
           {isProcessing ? (

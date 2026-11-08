@@ -13,7 +13,11 @@ import {
   Droplets,
   Sparkles,
   Shield,
+  AlertTriangle,
+  Volume2,
+  CheckCircle2,
 } from 'lucide-react';
+import { audioService } from '../services/audioService';
 
 interface MainIndexDeckProps {
   telemetryMap: Record<string, TelemetryPacket>;
@@ -27,6 +31,7 @@ interface MainIndexDeckProps {
   showEclssBar?: boolean;
   onToggleEclss?: () => void;
   targetAstronautId?: string | null;
+  onSolveSituation?: () => void;
 }
 
 interface CrewMemberInfo {
@@ -90,7 +95,7 @@ const CREW_ROSTER: CrewMemberInfo[] = [
 
 export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
   telemetryMap,
-  latestAlert: _latestAlert,
+  latestAlert,
   currentScenario = 'NOMINAL_CRUISE',
   orbitalPosition,
   onOpenTriage,
@@ -100,6 +105,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
   showEclssBar: externalShowEclssBar,
   onToggleEclss: _onToggleEclss,
   targetAstronautId,
+  onSolveSituation,
 }) => {
   // Selected astronaut currently focused in the center 3D Holographic Scanner
   const [selectedAstronautId, setSelectedAstronautId] = useState<string>('AST-02_PILOT');
@@ -160,8 +166,9 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
     return evaluateCrewClinicalSummary(selectedAstronautId, activeTelemetry);
   }, [selectedAstronautId, activeTelemetry]);
 
-  // Determine if active crew is abnormal
-  const isAbnormal = activeClinical.isAbnormal || activeTelemetry.heart_rate > 100 || activeTelemetry.spo2 < 97.0;
+  // Determine if active crew is abnormal or if an active scenario/alert is in effect
+  const isScenarioElevated = Boolean(currentScenario && currentScenario !== 'NOMINAL_CRUISE');
+  const isAbnormal = isScenarioElevated || activeClinical.isAbnormal || activeTelemetry.heart_rate > 100 || activeTelemetry.spo2 < 97.0 || Boolean(latestAlert && latestAlert.severity !== 'NOMINAL');
 
   // Filtered crew members
   const filteredCrew = useMemo(() => {
@@ -181,9 +188,9 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
       style={{
         position: 'relative',
         zIndex: 1,
-        minHeight: 'calc(100vh - 60px)',
-        padding: '20px 24px 84px',
-        maxWidth: '1600px',
+        minHeight: 'calc(100vh - 56px)',
+        padding: '4px 16px 14px',
+        maxWidth: '1840px',
         margin: '0 auto',
         boxSizing: 'border-box',
         fontFamily: "var(--hud-font-sans, 'Tomorrow', -apple-system, BlinkMacSystemFont, sans-serif)",
@@ -195,13 +202,13 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
         <section
           aria-label="Cabin Environmental Ribbon"
           style={{
-            marginBottom: 18,
+            marginBottom: 6,
             background: 'linear-gradient(180deg, rgba(12, 18, 30, 0.65) 0%, rgba(8, 13, 22, 0.75) 100%)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             border: '1px solid rgba(255, 255, 255, 0.07)',
-            borderRadius: 14,
-            padding: '12px 20px',
+            borderRadius: 10,
+            padding: '5px 14px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -295,32 +302,133 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
         </section>
       )}
 
+      {/* ─── 2.5 EMERGENCY DIRECTIVE & RECOMMENDED ACTION BANNER ─── */}
+      {isAbnormal && latestAlert && latestAlert.severity !== 'NOMINAL' && (
+        <section
+          aria-label="Active Clinical Directive Banner"
+          data-tour="alert-banner"
+          style={{
+            marginBottom: 18,
+            background: latestAlert.severity === 'CRITICAL'
+              ? 'linear-gradient(135deg, rgba(22, 6, 10, 0.96) 0%, rgba(35, 10, 18, 0.98) 100%)'
+              : 'linear-gradient(135deg, rgba(24, 16, 6, 0.96) 0%, rgba(36, 22, 10, 0.98) 100%)',
+            backdropFilter: 'blur(32px)',
+            WebkitBackdropFilter: 'blur(32px)',
+            border: latestAlert.severity === 'CRITICAL'
+              ? '1.5px solid rgba(239, 68, 68, 0.85)'
+              : '1.5px solid rgba(245, 158, 11, 0.85)',
+            borderRadius: 16,
+            padding: '16px 22px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 20,
+            boxShadow: latestAlert.severity === 'CRITICAL'
+              ? '0 12px 36px rgba(239, 68, 68, 0.35), 0 0 20px rgba(239, 68, 68, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+              : '0 12px 36px rgba(245, 158, 11, 0.30), 0 0 20px rgba(245, 158, 11, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                background: latestAlert.severity === 'CRITICAL' ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.35)',
+                border: latestAlert.severity === 'CRITICAL' ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(245, 158, 11, 0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                flexShrink: 0,
+                boxShadow: latestAlert.severity === 'CRITICAL' ? '0 0 16px rgba(239, 68, 68, 0.5)' : '0 0 16px rgba(245, 158, 11, 0.4)',
+              }}
+            >
+              <AlertTriangle size={22} style={{ color: latestAlert.severity === 'CRITICAL' ? '#fca5a5' : '#fde68a' }} />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              {/* Row 1: Badges & Problem Diagnosis Title */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 900,
+                    letterSpacing: '0.08em',
+                    fontFamily: 'monospace',
+                    color: '#ffffff',
+                    background: latestAlert.severity === 'CRITICAL' ? '#dc2626' : '#d97706',
+                    padding: '3px 9px',
+                    borderRadius: 6,
+                    boxShadow: latestAlert.severity === 'CRITICAL' ? '0 0 12px rgba(220, 38, 38, 0.6)' : 'none',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Helix-Ai Analyst // {latestAlert.severity}
+                </span>
+
+                <span style={{ fontSize: 13.5, fontWeight: 800, color: '#ffffff', fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)", letterSpacing: '0.02em', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                  {latestAlert.reason || latestAlert.triage_diagnosis}
+                </span>
+              </div>
+
+              {/* Row 2: Prominent Surgeon Directive Action Box */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: 8,
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  border: latestAlert.severity === 'CRITICAL' ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)',
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  color: '#ffffff',
+                  lineHeight: 1.5,
+                  boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.6)',
+                }}
+              >
+                <span style={{ color: latestAlert.severity === 'CRITICAL' ? '#fca5a5' : '#fde047', fontWeight: 900, fontFamily: 'monospace', fontSize: 11, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                  RECOMMENDED HELIX-AI ACTION:
+                </span>
+                <span style={{ fontWeight: 600, color: '#f8fafc' }}>
+                  {latestAlert.actionable_instruction || 'Follow standard stabilization protocol and monitor vitals.'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Action: Beautiful "SOLVED" Button (Restore All Systems to Nominal) */}
+          {onSolveSituation && (
+            <button
+              type="button"
+              onClick={onSolveSituation}
+              className="helios-solved-btn"
+              title="Situation Solved — Restore all life support and crew telemetry back to Nominal"
+            >
+              <CheckCircle2 size={20} className="helios-solved-icon" />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left', lineHeight: 1.15 }}>
+                <span className="helios-solved-title">SOLVED</span>
+                <span className="helios-solved-sub">All Nominal</span>
+              </div>
+            </button>
+          )}
+        </section>
+      )}
+
       {/* ─── 3. MAIN COMMAND TRI-PANE VIEWPORT (ENTERPRISE GRID SYSTEM) ─── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(250px, 280px) minmax(620px, 1fr) minmax(280px, 310px)',
-          gap: 16,
-          alignItems: 'start',
-        }}
-      >
+      <div className="helios-main-deck-grid">
         {/* ─────────────────────────────────────────────────────────────
             LEFT FLANK: TACTICAL CREW ROSTER & QUICK VITAL CARDS
            ───────────────────────────────────────────────────────────── */}
-        <aside
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-          }}
-        >
+        <aside className="helios-left-flank" data-tour="crew-manifest">
           {/* Flank Header with Segmented Filter Pill */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '10px 14px',
+              padding: '7px 12px',
               background: 'linear-gradient(180deg, rgba(14, 22, 36, 0.7) 0%, rgba(10, 16, 26, 0.8) 100%)',
               backdropFilter: 'blur(16px)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -395,7 +503,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
           </div>
 
           {/* 4 Astronaut Cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {filteredCrew.map((crew) => {
               const isSelected = selectedAstronautId === crew.id;
               const telemetry = telemetryMap[crew.id];
@@ -430,8 +538,8 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                         : isSelected
                           ? '1.5px solid rgba(56, 189, 248, 0.55)'
                           : '1px solid rgba(255, 255, 255, 0.07)',
-                    borderRadius: 14,
-                    padding: '12px 14px',
+                    borderRadius: 10,
+                    padding: '7px 11px',
                     cursor: 'pointer',
                     transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                     boxShadow: isCritical
@@ -457,7 +565,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                   }}
                 >
                   {/* Top Row: Avatar, Name, Role Badge, and Holo-Badge */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       {/* Avatar with Smooth Glow Border */}
                       <div
@@ -485,15 +593,15 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
 
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 12, fontWeight: 800, color: '#ffffff', letterSpacing: '0.02em' }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', letterSpacing: '0.02em' }}>
                             {crew.name}
                           </span>
                           <span
                             style={{
-                              fontSize: 8.5,
+                              fontSize: 9,
                               fontWeight: 700,
                               fontFamily: 'monospace',
-                              padding: '1px 5px',
+                              padding: '1.5px 5px',
                               borderRadius: 4,
                               background: 'rgba(255, 255, 255, 0.06)',
                               color: '#cbd5e1',
@@ -502,7 +610,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                             {crew.roleShort}
                           </span>
                         </div>
-                        <div style={{ fontSize: 9.5, color: '#94a3b8', fontFamily: 'monospace', marginTop: 1 }}>
+                        <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace', marginTop: 1 }}>
                           {crew.crewNo} · Age {crew.age}
                         </div>
                       </div>
@@ -518,13 +626,17 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                             fontFamily: 'monospace',
                             color: '#38bdf8',
                             background: 'rgba(56, 189, 248, 0.16)',
-                            border: '1px solid rgba(56, 189, 248, 0.4)',
-                            padding: '2px 6px',
+                            border: '1px solid rgba(56, 189, 248, 0.45)',
+                            padding: '2px 7px',
                             borderRadius: 9999,
                             letterSpacing: '0.04em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 3,
                           }}
                         >
-                          3D TWIN
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 6px #38bdf8' }} />
+                          ACTIVE
                         </span>
                       )}
                       {isCritical ? (
@@ -592,31 +704,31 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                       gridTemplateColumns: '1fr 1fr 1fr 1fr',
                       gap: 6,
                       background: 'rgba(0, 0, 0, 0.35)',
-                      borderRadius: 10,
-                      padding: '7px 10px',
+                      borderRadius: 7,
+                      padding: '5px 8px',
                       border: '1px solid rgba(255, 255, 255, 0.05)',
                       fontFamily: 'monospace',
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 8, color: '#94a3b8' }}>HR</div>
+                      <div style={{ fontSize: 8.5, color: '#94a3b8' }}>HR</div>
                       <div
                         style={{
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: 800,
                           color: hr > 100 ? '#ef4444' : hr > 85 ? '#fbbf24' : '#ffffff',
                           marginTop: 1,
                         }}
                       >
-                        {hr.toFixed(0)} <span style={{ fontSize: 7.5, color: '#64748b' }}>bpm</span>
+                        {hr.toFixed(0)} <span style={{ fontSize: 8, color: '#64748b' }}>bpm</span>
                       </div>
                     </div>
 
                     <div>
-                      <div style={{ fontSize: 8, color: '#94a3b8' }}>SPO₂</div>
+                      <div style={{ fontSize: 8.5, color: '#94a3b8' }}>SPO₂</div>
                       <div
                         style={{
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: 800,
                           color: spo2 < 90 ? '#ef4444' : spo2 < 96.5 ? '#fbbf24' : '#ffffff',
                           marginTop: 1,
@@ -627,16 +739,16 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                     </div>
 
                     <div>
-                      <div style={{ fontSize: 8, color: '#94a3b8' }}>TEMP</div>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: temp > 37.5 ? '#fbbf24' : '#ffffff', marginTop: 1 }}>
+                      <div style={{ fontSize: 8.5, color: '#94a3b8' }}>TEMP</div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: temp > 37.5 ? '#fbbf24' : '#ffffff', marginTop: 1 }}>
                         {temp.toFixed(1)}°
                       </div>
                     </div>
 
                     <div>
-                      <div style={{ fontSize: 8, color: '#94a3b8' }}>HRV</div>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: '#ffffff', marginTop: 1 }}>
-                        {hrv.toFixed(0)} <span style={{ fontSize: 7.5, color: '#64748b' }}>ms</span>
+                      <div style={{ fontSize: 8.5, color: '#94a3b8' }}>HRV</div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', marginTop: 1 }}>
+                        {hrv.toFixed(0)} <span style={{ fontSize: 8, color: '#64748b' }}>ms</span>
                       </div>
                     </div>
                   </div>
@@ -672,34 +784,38 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      marginTop: 8,
+                      marginTop: 6,
                       fontSize: 9,
                       color: '#94a3b8',
                       fontFamily: 'monospace',
                     }}
                   >
-                    <span style={{ color: '#64748b' }}>{crew.specialty.split('&')[0]}</span>
+                    <span style={{ color: '#94a3b8', fontSize: 9, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ color: '#38bdf8', fontSize: 7 }}>●</span>
+                      {crew.specialty.split('&')[0].trim()}
+                    </span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onOpenTriage(crew.id);
                       }}
                       style={{
-                        background: 'transparent',
-                        border: 'none',
+                        background: 'rgba(56, 189, 248, 0.08)',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
                         color: isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#38bdf8',
-                        fontSize: 9.5,
+                        fontSize: 9,
                         fontWeight: 700,
                         cursor: 'pointer',
-                        padding: 0,
+                        padding: '3px 8px',
+                        borderRadius: 4,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 3,
-                        transition: 'color 0.14s ease',
+                        gap: 4,
+                        transition: 'all 0.15s ease',
                       }}
                     >
                       <span>TRIAGE CLINICAL</span>
-                      <ArrowRight size={11} />
+                      <ArrowRight size={10} />
                     </button>
                   </div>
                 </div>
@@ -725,31 +841,24 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
             }}
           >
             <div style={{ color: '#38bdf8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Shield size={13} />
-              <span>SENTRY LINK: 10 Hz ACTIVE</span>
+              <Shield size={12} />
+              <span>CREW TELEMETRY LINK</span>
             </div>
-            <span style={{ color: '#64748b', fontSize: 9 }}>NASA-STD-3001</span>
+            <span style={{ color: '#34d399', fontSize: 8.5, fontWeight: 700 }}>ONLINE</span>
           </div>
         </aside>
 
         {/* ─────────────────────────────────────────────────────────────
             CENTER FLANK: THE 3D HOLOGRAPHIC BIO-TWIN SCANNER VIEWPORT
            ───────────────────────────────────────────────────────────── */}
-        <main
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 14,
-            minWidth: 0,
-          }}
-        >
+        <main className="helios-center-flank">
           {/* Holo-Bay Cyber Frame Header with Mac-Style Traffic Light Beacons */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '12px 18px',
+              padding: '8px 14px',
               background: 'linear-gradient(180deg, rgba(15, 23, 40, 0.8) 0%, rgba(9, 14, 25, 0.9) 100%)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
@@ -837,10 +946,8 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
 
           {/* Embedded 3D Holographic Body Scanner Container with Mac-Style Rounded Base */}
           <div
+            data-tour="bio-twin"
             style={{
-              position: 'relative',
-              background: '#04070e',
-              border: '1px solid rgba(255, 255, 255, 0.09)',
               borderBottomLeftRadius: 18,
               borderBottomRightRadius: 18,
               overflow: 'hidden',
@@ -865,11 +972,11 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '12px 18px',
+              padding: '5px 12px',
               background: 'linear-gradient(180deg, rgba(14, 21, 35, 0.7) 0%, rgba(9, 14, 24, 0.8) 100%)',
               backdropFilter: 'blur(16px)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 14,
+              borderRadius: 12,
               fontSize: 10.5,
               fontFamily: 'monospace',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
@@ -927,29 +1034,24 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
         {/* ─────────────────────────────────────────────────────────────
             RIGHT FLANK: REAL-TIME ECG WAVEFORM & CLINICAL DIAGNOSTICS LAB
            ───────────────────────────────────────────────────────────── */}
-        <aside
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 14,
-          }}
-        >
+        <aside className="helios-right-flank">
           {/* Live ECG Rhythm Strip Card (Mac-Style Card) */}
           <div
+            data-tour="live-ecg"
             style={{
               background: 'linear-gradient(180deg, rgba(14, 21, 35, 0.7) 0%, rgba(9, 14, 24, 0.8) 100%)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 16,
-              padding: 16,
+              borderRadius: 12,
+              padding: '8px 13px',
               boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <Heart
-                  size={15}
+                  size={14}
                   style={{
                     color: isAbnormal ? '#f43f5e' : '#38bdf8',
                   }}
@@ -969,7 +1071,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
 
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 8.5,
                   fontWeight: 700,
                   fontFamily: 'monospace',
                   color: isAbnormal ? '#fb7185' : '#34d399',
@@ -986,10 +1088,10 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
             {/* Embedded ECG Canvas with Rounded Inset */}
             <div
               style={{
-                height: 112,
+                height: 62,
                 width: '100%',
                 background: '#020409',
-                borderRadius: 10,
+                borderRadius: 8,
                 border: '1px solid rgba(255, 255, 255, 0.06)',
                 overflow: 'hidden',
                 position: 'relative',
@@ -998,7 +1100,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               <EcgRowCanvas
                 astronautId={activeCrew.id}
                 telemetry={activeTelemetry}
-                height={112}
+                height={62}
               />
             </div>
 
@@ -1007,8 +1109,8 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginTop: 8,
-                fontSize: 9,
+                marginTop: 5,
+                fontSize: 8.5,
                 color: '#94a3b8',
                 fontFamily: 'monospace',
               }}
@@ -1026,8 +1128,8 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 16,
-              padding: 16,
+              borderRadius: 12,
+              padding: '8px 13px',
               boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
             }}
           >
@@ -1038,13 +1140,13 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 letterSpacing: '0.06em',
                 color: '#ffffff',
                 fontFamily: 'monospace',
-                marginBottom: 10,
+                marginBottom: 6,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 7,
               }}
             >
-              <Zap size={14} style={{ color: '#38bdf8' }} />
+              <Zap size={13} style={{ color: '#38bdf8' }} />
               <span>PHYSIOLOGICAL VITAL MATRIX</span>
             </div>
 
@@ -1052,7 +1154,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
-                gap: 10,
+                gap: 7,
                 fontFamily: 'monospace',
               }}
             >
@@ -1061,19 +1163,19 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 style={{
                   background: 'rgba(0, 0, 0, 0.35)',
                   border: '1px solid rgba(255, 255, 255, 0.05)',
-                  borderRadius: 10,
-                  padding: '10px 12px',
+                  borderRadius: 7,
+                  padding: '6px 9px',
                 }}
               >
                 <div style={{ fontSize: 8.5, color: '#94a3b8', textTransform: 'uppercase' }}>Heart Rate</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 3 }}>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: activeTelemetry.heart_rate > 100 ? '#fbbf24' : '#ffffff' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 2 }}>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: activeTelemetry.heart_rate > 100 ? '#fbbf24' : '#ffffff' }}>
                     {activeTelemetry.heart_rate.toFixed(0)}
                   </span>
-                  <span style={{ fontSize: 9.5, color: '#64748b' }}>bpm</span>
+                  <span style={{ fontSize: 9, color: '#64748b' }}>bpm</span>
                 </div>
-                <div style={{ fontSize: 8.5, color: activeTelemetry.z_score_hr > 1.5 ? '#fbbf24' : '#34d399', marginTop: 3 }}>
-                  Z: +{activeTelemetry.z_score_hr.toFixed(1)}σ
+                <div style={{ fontSize: 8, color: Math.abs(activeTelemetry.z_score_hr) > 1.5 ? '#fbbf24' : '#34d399', marginTop: 1, fontWeight: 600 }}>
+                  Z: {activeTelemetry.z_score_hr >= 0 ? '+' : ''}{activeTelemetry.z_score_hr.toFixed(1)}σ
                 </div>
               </div>
 
@@ -1082,18 +1184,18 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 style={{
                   background: 'rgba(0, 0, 0, 0.35)',
                   border: '1px solid rgba(255, 255, 255, 0.05)',
-                  borderRadius: 10,
-                  padding: '10px 12px',
+                  borderRadius: 7,
+                  padding: '6px 9px',
                 }}
               >
                 <div style={{ fontSize: 8.5, color: '#94a3b8', textTransform: 'uppercase' }}>O₂ Saturation</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 3 }}>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: activeTelemetry.spo2 < 97 ? '#fbbf24' : '#ffffff' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 2 }}>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: activeTelemetry.spo2 < 97 ? '#fbbf24' : '#ffffff' }}>
                     {activeTelemetry.spo2.toFixed(1)}
                   </span>
-                  <span style={{ fontSize: 9.5, color: '#64748b' }}>%</span>
+                  <span style={{ fontSize: 9, color: '#64748b' }}>%</span>
                 </div>
-                <div style={{ fontSize: 8.5, color: '#34d399', marginTop: 3 }}>
+                <div style={{ fontSize: 8, color: '#34d399', marginTop: 1, fontWeight: 600 }}>
                   Capillary Nom
                 </div>
               </div>
@@ -1103,18 +1205,18 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 style={{
                   background: 'rgba(0, 0, 0, 0.35)',
                   border: '1px solid rgba(255, 255, 255, 0.05)',
-                  borderRadius: 10,
-                  padding: '10px 12px',
+                  borderRadius: 7,
+                  padding: '6px 9px',
                 }}
               >
                 <div style={{ fontSize: 8.5, color: '#94a3b8', textTransform: 'uppercase' }}>Core Body Temp</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 3 }}>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: '#ffffff' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 2 }}>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>
                     {activeTelemetry.core_temp.toFixed(1)}
                   </span>
-                  <span style={{ fontSize: 9.5, color: '#64748b' }}>°C</span>
+                  <span style={{ fontSize: 9, color: '#64748b' }}>°C</span>
                 </div>
-                <div style={{ fontSize: 8.5, color: '#94a3b8', marginTop: 3 }}>
+                <div style={{ fontSize: 8, color: '#cbd5e1', marginTop: 1 }}>
                   Circadian Steady
                 </div>
               </div>
@@ -1124,18 +1226,18 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 style={{
                   background: 'rgba(0, 0, 0, 0.35)',
                   border: '1px solid rgba(255, 255, 255, 0.05)',
-                  borderRadius: 10,
-                  padding: '10px 12px',
+                  borderRadius: 7,
+                  padding: '6px 9px',
                 }}
               >
                 <div style={{ fontSize: 8.5, color: '#94a3b8', textTransform: 'uppercase' }}>HRV (RMSSD)</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 3 }}>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: '#ffffff' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 2 }}>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>
                     {activeTelemetry.hrv_rmssd.toFixed(0)}
                   </span>
-                  <span style={{ fontSize: 9.5, color: '#64748b' }}>ms</span>
+                  <span style={{ fontSize: 9, color: '#64748b' }}>ms</span>
                 </div>
-                <div style={{ fontSize: 8.5, color: '#94a3b8', marginTop: 3 }}>
+                <div style={{ fontSize: 8, color: '#cbd5e1', marginTop: 1 }}>
                   Vagal Autonomic
                 </div>
               </div>
@@ -1149,8 +1251,8 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 16,
-              padding: 16,
+              borderRadius: 12,
+              padding: '8px 13px',
               fontFamily: 'monospace',
               boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
             }}
@@ -1161,30 +1263,30 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 fontWeight: 800,
                 letterSpacing: '0.06em',
                 color: '#ffffff',
-                marginBottom: 8,
+                marginBottom: 6,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 7,
               }}
             >
-              <Droplets size={14} style={{ color: '#38bdf8' }} />
+              <Droplets size={13} style={{ color: '#38bdf8' }} />
               <span>FLUID & BIOCHEMISTRY PANEL</span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4.5, fontSize: 9.5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
                 <span>Serum Potassium (K⁺):</span>
-                <span style={{ color: '#ffffff', fontWeight: 700 }}>{activeTelemetry.potassium ?? 4.4} mmol/L</span>
+                <span style={{ color: '#38bdf8', fontWeight: 700 }}>{activeTelemetry.potassium ?? 4.4} mmol/L</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
                 <span>Hematocrit (HCT):</span>
                 <span style={{ color: '#ffffff', fontWeight: 700 }}>{activeTelemetry.hematocrit ?? 42.0}%</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
                 <span>WBC Leukocytes:</span>
                 <span style={{ color: '#ffffff', fontWeight: 700 }}>{activeTelemetry.wbc_count ?? 6.8} × 10³/µL</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
                 <span>C-Reactive Protein (CRP):</span>
                 <span style={{ color: '#ffffff', fontWeight: 700 }}>{activeTelemetry.crp ?? 0.8} mg/L</span>
               </div>
@@ -1193,6 +1295,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
 
           {/* AI Flight Surgeon Decision Card (Mac-Style Card) */}
           <div
+            data-tour="ai-diagnostic"
             style={{
               background: isAbnormal
                 ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(20, 14, 8, 0.85) 100%)'
@@ -1200,38 +1303,64 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               border: isAbnormal ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid rgba(56, 189, 248, 0.35)',
-              borderRadius: 16,
-              padding: 16,
+              borderRadius: 12,
+              padding: '8px 13px',
               boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <Sparkles size={15} style={{ color: isAbnormal ? '#fbbf24' : '#38bdf8' }} />
+                <Sparkles size={14} style={{ color: isAbnormal ? '#fbbf24' : '#38bdf8' }} />
                 <span style={{ fontSize: 10.5, fontWeight: 900, color: '#ffffff', letterSpacing: '0.04em', fontFamily: 'monospace' }}>
-                  AI SURGEON DIAGNOSTIC
+                  HELIX-AI ANALYST DIAGNOSTIC
                 </span>
               </div>
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize: 8.5,
                   fontWeight: 800,
                   fontFamily: 'monospace',
-                  color: isAbnormal ? '#fbbf24' : '#38bdf8',
-                  background: isAbnormal ? 'rgba(245, 158, 11, 0.2)' : 'rgba(56, 189, 248, 0.16)',
-                  padding: '2px 8px',
+                  color: isAbnormal ? (latestAlert?.severity === 'CRITICAL' ? '#ef4444' : '#fbbf24') : '#38bdf8',
+                  background: isAbnormal ? (latestAlert?.severity === 'CRITICAL' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)') : 'rgba(56, 189, 248, 0.16)',
+                  padding: '2px 7px',
                   borderRadius: 9999,
                 }}
               >
-                {isAbnormal ? 'PROTOCOL M-204' : 'NASA-STD-3001'}
+                {isAbnormal ? (latestAlert?.severity ? `ALERT: ${latestAlert.severity}` : 'ANOMALY DETECTED') : 'NOMINAL'}
               </span>
             </div>
 
-            <div style={{ fontSize: 10, color: '#cbd5e1', lineHeight: 1.45, marginBottom: 12, fontFamily: 'monospace' }}>
-              {isAbnormal
-                ? 'Pilot Chris exhibiting sinus tachycardia excursion with cephalic venous engorgement. Recommend immediate oral electrolyte rehydration and recumbent rest.'
-                : 'All physiological baselines within nominal flight limits. Autonomic cardiac stability steady at 60 FPS sentry lock.'}
-            </div>
+            {(isAbnormal || isScenarioElevated) ? (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 9, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2, letterSpacing: '0.04em' }}>
+                  PROBLEM / DIAGNOSIS:
+                </div>
+                <div style={{ fontSize: 10, color: '#f8fafc', fontWeight: 700, marginBottom: 6, lineHeight: 1.35 }}>
+                  {latestAlert?.reason || latestAlert?.triage_diagnosis || activeClinical?.primaryConcern?.title || currentScenario.replace(/_/g, ' ')}
+                </div>
+
+                <div style={{ fontSize: 9, fontWeight: 800, color: (latestAlert?.severity === 'CRITICAL' || activeClinical?.severity === 'CRITICAL') ? '#f87171' : '#fbbf24', textTransform: 'uppercase', marginBottom: 2, letterSpacing: '0.04em' }}>
+                  RECOMMENDED ACTION:
+                </div>
+                <div
+                  style={{
+                    fontSize: 9.5,
+                    color: '#e2e8f0',
+                    lineHeight: 1.35,
+                    background: 'rgba(0, 0, 0, 0.35)',
+                    padding: '6px 9px',
+                    borderRadius: 6,
+                    border: `1px solid ${(latestAlert?.severity === 'CRITICAL' || activeClinical?.severity === 'CRITICAL') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                  }}
+                >
+                  {latestAlert?.actionable_instruction || activeClinical?.primaryConcern?.recommendation || 'Initiate NASA clinical countermeasure protocol and monitor.'}
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 10, color: '#cbd5e1', lineHeight: 1.45, marginBottom: 8, fontFamily: 'monospace' }}>
+                All physiological baselines within nominal flight limits. Autonomic cardiac stability steady at 60 FPS sentry lock.
+              </div>
+            )}
 
             <button
               onClick={() => onOpenTriage(activeCrew.id)}
@@ -1241,8 +1370,8 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                   ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(217, 119, 6, 0.25) 100%)'
                   : 'linear-gradient(135deg, rgba(56, 189, 248, 0.3) 0%, rgba(2, 132, 199, 0.2) 100%)',
                 border: `1px solid ${isAbnormal ? 'rgba(245, 158, 11, 0.6)' : 'rgba(56, 189, 248, 0.5)'}`,
-                borderRadius: 10,
-                padding: '9px 14px',
+                borderRadius: 8,
+                padding: '8px 14px',
                 color: '#ffffff',
                 fontSize: 10.5,
                 fontWeight: 800,
@@ -1252,7 +1381,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 8,
+                gap: 7,
                 transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                 boxShadow: isAbnormal
                   ? '0 4px 16px rgba(245, 158, 11, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'

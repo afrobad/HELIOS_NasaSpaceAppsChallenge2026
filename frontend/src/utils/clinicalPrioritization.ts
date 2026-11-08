@@ -96,6 +96,9 @@ export function getBiomarkerCadence(metricId: string): BiomarkerCadenceInfo {
   if (['il6', 'il-6', 'tnf', 'ifn', 'interleukin', 'cytokine'].some(k => id.includes(k))) {
     return { mode: 'LAB', intervalHours: 12, badgeLabel: 'LAB · 12h', isContinuous: false };
   }
+  if (['dna', 'dna_breaks', 'double-strand', 'breaks', 'dsb'].some(k => id.includes(k))) {
+    return { mode: 'LAB', intervalHours: 24, badgeLabel: 'LAB · 24h', isContinuous: false };
+  }
   return { mode: 'PERIODIC', intervalHours: 6, badgeLabel: 'PERIODIC · 6h', isContinuous: false };
 }
 
@@ -540,8 +543,11 @@ export function evaluateCrewClinicalSummary(
 
   // Highest urgency item determines primary pathology
   const topCandidate = candidatePool[0];
-  const isCritical = candidatePool.some((c) => c.tier === 'CRITICAL') || telemetry?.evaluated_severity === 'CRITICAL';
-  const isWarning = !isCritical && (candidatePool.some((c) => c.tier === 'WARNING') || telemetry?.evaluated_severity === 'WARNING');
+  const isNominalCruise = !telemetry?.scenario_phase || telemetry.scenario_phase === 'NOMINAL_CRUISE';
+  const hasAbnormalBiomarkers = candidatePool.some((c) => c.tier === 'CRITICAL' || c.tier === 'WARNING');
+
+  const isCritical = candidatePool.some((c) => c.tier === 'CRITICAL') || (!isNominalCruise && telemetry?.evaluated_severity === 'CRITICAL');
+  const isWarning = !isCritical && (candidatePool.some((c) => c.tier === 'WARNING') || (!isNominalCruise && telemetry?.evaluated_severity === 'WARNING'));
   const isAbnormal = isCritical || isWarning;
 
   const severity: 'CRITICAL' | 'WARNING' | 'NOMINAL' = isCritical

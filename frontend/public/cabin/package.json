@@ -1,0 +1,11 @@
+{
+  "name": "helios-3d-cabin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HELIOS 3D CABIN - scroll-driven interactive space-station experience (Three.js, no build step)",
+  "scripts": {
+    "manifest": "node tools/gen-manifest.mjs",
+    "start": "node tools/gen-manifest.mjs && npx --yes http-server . -p 5173 -c-1 -o"
+  }
+}

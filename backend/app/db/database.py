@@ -15,25 +15,81 @@ DEFAULT_DB_DIR = os.path.join(
 DEFAULT_DB_PATH = os.path.join(DEFAULT_DB_DIR, "astronaut_health.db")
 
 
-def get_connection(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
+def _apply_pragmas(cursor: sqlite3.Cursor) -> None:
+    """Safely configures SQLite pragmas with automatic fallback for WSL DrvFs /mnt/c shared mounts."""
+    # Attempt WAL mode. If filesystem rejects shared-memory mapping (e.g. WSL /mnt/c), fallback to DELETE
+    try:
+        cursor.execute("PRAGMA journal_mode = WAL;")
+    except sqlite3.OperationalError:
+        try:
+            cursor.execute("PRAGMA journal_mode = DELETE;")
+        except Exception:
+            pass
+
+    for pragma in [
+        "PRAGMA synchronous = NORMAL;",
+        "PRAGMA busy_timeout = 30000;",
+        "PRAGMA cache_size = -64000;",
+        "PRAGMA foreign_keys = ON;",
+    ]:
+        try:
+            cursor.execute(pragma)
+        except Exception:
+            pass
+
+    try:
+        cursor.execute("PRAGMA mmap_size = 268435456;")
+    except Exception:
+        pass
+
+
+def get_connection(db_path: str = DEFAULT_DB_PATH, force_recovery: bool = False) -> sqlite3.Connection:
     """
     Connects to the SQLite database and tunes pragmas for aerospace performance:
-    WAL mode, normal sync, memory mapping (256 MB), and cache sizing (64 MB).
+    WAL mode (or DELETE on WSL mounts), normal sync, memory mapping, and cache sizing.
+    Includes automatic self-healing recovery if a file is malformed from an interrupted process.
     """
     os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-    conn = sqlite3.connect(db_path, timeout=10.0, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
 
-    # WAL mode: Concurrent reads and writes with zero lock blocking
-    cursor.execute("PRAGMA journal_mode = WAL;")
-    cursor.execute("PRAGMA synchronous = NORMAL;")
-    cursor.execute("PRAGMA mmap_size = 268435456;") # 256 MB memory-mapped I/O
-    cursor.execute("PRAGMA cache_size = -64000;")    # 64 MB RAM cache
-    cursor.execute("PRAGMA foreign_keys = ON;")
-    conn.commit()
+    def _clean_and_reopen():
+        for ext in ["", "-wal", "-shm"]:
+            f = db_path + ext
+            if os.path.exists(f):
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
+        new_conn = sqlite3.connect(db_path, timeout=30.0, check_same_thread=False)
+        new_conn.row_factory = sqlite3.Row
+        cur = new_conn.cursor()
+        _apply_pragmas(cur)
+        cur.executescript(SCHEMA_DDL)
+        new_conn.commit()
+        return new_conn
 
-    return conn
+    if force_recovery:
+        return _clean_and_reopen()
+
+    try:
+        conn = sqlite3.connect(db_path, timeout=30.0, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Quick integrity verification to catch corrupted pages immediately
+        try:
+            cursor.execute("PRAGMA quick_check(1);")
+            check_row = cursor.fetchone()
+            if not check_row or check_row[0] != "ok":
+                conn.close()
+                return _clean_and_reopen()
+        except sqlite3.OperationalError:
+            pass
+
+        _apply_pragmas(cursor)
+        conn.commit()
+        return conn
+    except (sqlite3.DatabaseError, sqlite3.OperationalError):
+        return _clean_and_reopen()
 
 
 def init_database(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:

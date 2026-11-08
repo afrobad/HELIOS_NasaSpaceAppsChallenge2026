@@ -10,7 +10,7 @@
  */
 
 export interface AppRouteState {
-  view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD';
+  view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD' | 'CABIN_3D' | 'DRAGON_DOCKING' | 'SELF_ASSESSMENT' | 'MISSION_ROUTINE';
   astronautId: string;
 }
 
@@ -132,6 +132,36 @@ export function parseCurrentRoute(): AppRouteState {
     };
   }
 
+  if (path.includes('/docking') || path.includes('/intro') || path.includes('/spacex')) {
+    return {
+      view: 'DRAGON_DOCKING',
+      astronautId: 'AST-01_COMMANDER',
+    };
+  }
+
+  if (path.includes('/iss') || path.includes('/cabin') || path.includes('/3d')) {
+    return {
+      view: 'CABIN_3D',
+      astronautId: 'AST-01_COMMANDER',
+    };
+  }
+
+  if (path.includes('/self-assessment') || path.includes('/assessment') || path.includes('/self-check') || path.includes('/selfcheck') || path.includes('/self_check')) {
+    return {
+      view: 'SELF_ASSESSMENT',
+      astronautId: 'AST-01_COMMANDER',
+    };
+  }
+
+  if (path.includes('/mission-routine') || path.includes('/routine')) {
+    return {
+      view: 'MISSION_ROUTINE',
+      astronautId: 'AST-01_COMMANDER',
+    };
+  }
+
+
+
   if (path.includes('/mcc')) {
     return {
       view: 'MCC',
@@ -176,6 +206,11 @@ export function navigateTo(targetPath: string, replace = false): void {
     if (prefix && !resolvedPath.startsWith(prefix)) {
       resolvedPath = `${prefix}${resolvedPath.startsWith('/') ? '' : '/'}${resolvedPath}`;
     }
+  }
+
+  // Preserve existing query parameters (such as ?embed=1&cabin=1) if targetPath does not specify query params
+  if (window.location.search && !resolvedPath.includes('?')) {
+    resolvedPath += window.location.search;
   }
 
   if (replace) {

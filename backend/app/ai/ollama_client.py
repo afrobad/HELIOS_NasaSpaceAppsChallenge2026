@@ -634,7 +634,9 @@ class OllamaClient:
             fallback_script_key or scenario_phase or "ALL_CREW_WARNING",
             severity,
             astronaut_name="All Crew Stations",
-            astronaut_id="ALL_CREW"
+            astronaut_id="ALL_CREW",
+            reason=reason,
+            telemetry=aggregate_telemetry
         )
         prompt = build_collective_clinical_prompt(crew_count, aggregate_telemetry, severity, reason)
         timeout = 1.5 if severity == "CRITICAL" else (2.0 if severity == "WARNING" else self.timeout_seconds)

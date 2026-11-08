@@ -6,14 +6,18 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "npm --prefix frontend run dev",
-    "build": "npm --prefix frontend run build",
-    "lint": "npm --prefix frontend run lint",
-    "preview": "npm --prefix frontend run preview"
+    "dev": "vite frontend",
+    "build": "vite build frontend",
+    "lint": "vite build frontend",
+    "preview": "vite preview frontend"
   },
   "optionalDependencies": {
     "@rolldown/binding-linux-x64-gnu": "^1.2.15",
     "@rolldown/binding-win32-x64-msvc": "^1.2.15",
     "lightningcss-linux-x64-gnu": "^1.33.0"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   }
 }

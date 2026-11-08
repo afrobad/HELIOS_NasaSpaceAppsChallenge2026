@@ -5,6 +5,7 @@ Packages aerospace-grade audio warning payloads with priority tones, Web Speech 
 and synchronized frequency tokens for HUD canvas visualizers.
 """
 
+import os
 import time
 import math
 import uuid
@@ -232,7 +233,9 @@ class VoiceEngine:
                 severity=severity,
                 astronaut_name=crew_names,
                 astronaut_id="+".join(astronaut_ids),
-                stage_index=stage_index
+                stage_index=stage_index,
+                reason=reason,
+                telemetry=telemetry_1
             )
             triage_res = {
                 "spoken_text": speech_raw,
@@ -294,7 +297,9 @@ class VoiceEngine:
                 severity=severity,
                 astronaut_name=crew_names,
                 astronaut_id="+".join(astronaut_ids),
-                stage_index=stage_index
+                stage_index=stage_index,
+                reason=reason,
+                telemetry=telemetries[0] if telemetries else None
             )
             triage_res = {
                 "spoken_text": speech_raw,
@@ -355,7 +360,9 @@ class VoiceEngine:
                 severity=severity,
                 astronaut_name="All Crew Stations",
                 astronaut_id="ALL_CREW",
-                stage_index=stage_index
+                stage_index=stage_index,
+                reason=reason,
+                telemetry=aggregate_telemetry
             )
             triage_res = {
                 "spoken_text": speech_raw,
@@ -597,6 +604,12 @@ class VoiceEngine:
         if cache_key in cls._audio_cache:
             return cls._audio_cache[cache_key]
 
+        # Zero-Cloud / Offline Invariant:
+        # Remote cloud TTS (e.g. edge-tts) is disabled by default to guarantee zero-cloud offline operation.
+        # Audio playback seamlessly routes to the client's local Web Audio & SpeechSynthesis engine.
+        if os.environ.get("HELIOS_ZERO_CLOUD", "1") == "1":
+            return None
+
         try:
             import importlib
             edge_tts = importlib.import_module("edge_tts")
@@ -619,9 +632,12 @@ class VoiceEngine:
     @classmethod
     async def prewarm_scenario_cache(cls) -> None:
         """
-        Pre-synthesizes standard scenario voice messages into memory in the background,
-        guaranteeing instant sub-millisecond response times across all crew members and scenarios.
+        Pre-synthesizes standard scenario voice messages into memory.
+        In Zero-Cloud mode, remote prewarming is skipped as client handles synthesis locally.
         """
+        if os.environ.get("HELIOS_ZERO_CLOUD", "1") == "1":
+            return
+
         from .fallback_templates import FALLBACK_VOICE_SCRIPTS
 
         crew_names = ["Commander Haley", "Pilot Chris", "Doctor Sian", "Specialist Leo"]
@@ -655,6 +671,37 @@ class VoiceEngine:
             (FALLBACK_VOICE_SCRIPTS.get("ALL_CREW_CRITICAL", "All stations, critical emergency! Environmental safety limits have been breached. I advise immediate emergency containment protocols!"), "CRITICAL"),
         ]
         for text, sev in all_crew_items:
+            try:
+                await cls.synthesize_neural_speech(text, severity=sev)
+            except Exception:
+                pass
+
+        # 3. Prewarm 18 Spaceflight Simulation Scenarios & Nominal Cruise for instant sub-millisecond frontend response
+        sim_scenarios = [
+            ("Nominal flight cruise restored. All crew vital signs are stable and within safe limits.", "NOMINAL"),
+            ("Warning. Carbon dioxide scrubber breakthrough detected across cabin modules. Don emergency masks.", "WARNING"),
+            ("Critical alert. Rapid cabin decompression and hypoxia detected. Don pressurized oxygen masks immediately.", "CRITICAL"),
+            ("Emergency. Severe solar particle storm detected. Direct all crew to storm shelter immediately.", "CRITICAL"),
+            ("Critical alert. Toxic ammonia coolant ingress detected. Isolate loop and activate gas filtration.", "CRITICAL"),
+            ("Warning. Avionics smoldering combustion detected. Depower bus and discharge halon.", "WARNING"),
+        ]
+        for name in crew_names:
+            sim_scenarios.extend([
+                (f"Critical alert for {name}. Dangerous potassium depletion and Q-T prolongation detected. Oral potassium required.", "CRITICAL"),
+                (f"Critical alert for {name}. Cephalad blood stasis and thrombosis risk elevated.", "CRITICAL"),
+                (f"Warning for {name}. Cardiovascular deconditioning observed with compensatory tachycardia.", "WARNING"),
+                (f"Warning for {name}. Myocardial endothelial stress and Q-T elevation detected.", "WARNING"),
+                (f"Critical alert for {name}. Presymptomatic sepsis inflammatory cascade detected. Initiate intravenous broad-spectrum regimen.", "CRITICAL"),
+                (f"Warning for {name}. Latent viral reactivation detected. Administer antiviral countermeasure.", "WARNING"),
+                (f"Emergency for {name}. Hyper-inflammatory cytokine storm detected. High-dose steroid intervention indicated.", "CRITICAL"),
+                (f"Critical alert for {name}. Bone marrow leukocyte exhaustion following radiation exposure.", "CRITICAL"),
+                (f"Warning for {name}. Renal calculi transit risk detected. Administer oral hydration and antispasmodic.", "WARNING"),
+                (f"Warning for {name}. Severe hemoconcentration and plasma loss detected.", "WARNING"),
+                (f"Warning for {name}. Liver metabolic enzyme elevation detected.", "WARNING"),
+                (f"Warning for {name}. Cephalad venous pressure and optic disc sheath dilation observed.", "WARNING"),
+                (f"Warning for {name}. Circadian phase drift and sleep score drop to 42 detected.", "WARNING"),
+            ])
+        for text, sev in sim_scenarios:
             try:
                 await cls.synthesize_neural_speech(text, severity=sev)
             except Exception:

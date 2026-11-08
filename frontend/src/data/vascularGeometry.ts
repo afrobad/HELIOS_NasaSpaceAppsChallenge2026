@@ -5,78 +5,7 @@
  * 1. High-density celestial stardust point cloud (SMPL base silhouette)
  * 2. Complete arterial vascular network (cerebral, carotid, aortic, brachial, iliac, femoral, tibial)
  * 3. Hot pink / magenta cardiac myocardium node
- * 4. 5 NASA Spaceflight Hazard definitions (Isolation, Radiation, Environment, Distance, Gravity)
  */
-
-export interface HazardTarget {
-  id: 'ISOLATION' | 'RADIATION' | 'ENVIRONMENT' | 'DISTANCE' | 'GRAVITY';
-  title: string;
-  status: 'NOMINAL' | 'WATCH' | 'CRITICAL';
-  color: string;
-  borderColor: string;
-  subsystemId: 'OCULAR' | 'CARDIAC' | 'RENAL' | 'SKELETAL';
-  iconType: 'BRAIN' | 'RADIATION' | 'ENVIRONMENT' | 'DISTANCE' | 'GRAVITY';
-  side: 'LEFT' | 'RIGHT';
-  pos: [number, number, number]; // Coordinates inside humanGroup (scale 0.82)
-}
-
-export const HAZARD_TARGETS: HazardTarget[] = [
-  {
-    id: 'ISOLATION',
-    title: 'Isolation',
-    status: 'NOMINAL',
-    color: '#00e5a3',
-    borderColor: '#00e5a3',
-    subsystemId: 'OCULAR',
-    iconType: 'BRAIN',
-    side: 'LEFT',
-    pos: [0.0, 1.30, 0.05],
-  },
-  {
-    id: 'RADIATION',
-    title: 'Radiation',
-    status: 'NOMINAL',
-    color: '#00e5a3',
-    borderColor: '#00e5a3',
-    subsystemId: 'RENAL',
-    iconType: 'RADIATION',
-    side: 'LEFT',
-    pos: [-0.10, 0.18, 0.05],
-  },
-  {
-    id: 'ENVIRONMENT',
-    title: 'Environment',
-    status: 'NOMINAL',
-    color: '#00e5a3',
-    borderColor: '#00e5a3',
-    subsystemId: 'CARDIAC',
-    iconType: 'ENVIRONMENT',
-    side: 'RIGHT',
-    pos: [-0.07, 0.72, 0.10],
-  },
-  {
-    id: 'DISTANCE',
-    title: 'Distance',
-    status: 'WATCH',
-    color: '#f59e0b',
-    borderColor: '#f59e0b',
-    subsystemId: 'CARDIAC',
-    iconType: 'DISTANCE',
-    side: 'RIGHT',
-    pos: [0.18, 0.40, 0.04],
-  },
-  {
-    id: 'GRAVITY',
-    title: 'Gravity',
-    status: 'NOMINAL',
-    color: '#00e5a3',
-    borderColor: '#00e5a3',
-    subsystemId: 'SKELETAL',
-    iconType: 'GRAVITY',
-    side: 'RIGHT',
-    pos: [0.10, -0.85, 0.04],
-  },
-];
 
 /**
  * Generate a dense, luminous celestial stardust point cloud from base anatomy

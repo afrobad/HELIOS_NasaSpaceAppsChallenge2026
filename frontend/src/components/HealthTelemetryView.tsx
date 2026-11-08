@@ -106,12 +106,12 @@ export const NASA_OSDR_PROFILES: Record<string, CrewBaselineAndLabProfile> = {
     restTemp: 36.70,
     restSleep: 88.0,
     wbc: 5.5,
-    hct: 43.8,
+    hct: 36.4,
     plt: 252.0,
     hgb: 14.8,
     rbc: 4.85,
     na: 137.0,
-    k: 4.30,
+    k: 3.52,
     glu: 85.0,
     bun: 16.0,
     cr: 0.95,
@@ -1281,6 +1281,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
       stepVal('rad_dose', radDose);
       stepVal('rsi', rsi);
       stepVal('alc', alc);
+      stepVal('dna_breaks', radDose >= 0.22 ? 12.0 : 2.0);
 
       // 9. Thrombosis & Vascular
       stepVal('trm', trm);
@@ -1490,7 +1491,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
       <div
         style={{
           width: '100%',
-          maxWidth: '1250px',
+          maxWidth: '1600px',
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100%',
@@ -1624,45 +1625,51 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                   >
                     Inspiration4 ({activeCrew.subjectId})
                   </span>
-                  {severity !== 'NOMINAL' && (
-                    <>
-                      <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 600 }}>•</span>
-                      <div
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {severity === 'CRITICAL' ? (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                            <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
-                            <line x1="12" y1="8" x2="12" y2="12" />
-                            <line x1="12" y1="16" x2="12.01" y2="16" />
-                          </svg>
-                        ) : (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                            <line x1="12" y1="9" x2="12" y2="13" />
-                            <line x1="12" y1="17" x2="12.01" y2="17" />
-                          </svg>
-                        )}
-                        <span
+                  {(() => {
+                    const abnormalCount = clinicalSummary.prioritizedBiomarkers.filter(b => b.tier === 'CRITICAL' || b.tier === 'WARNING').length;
+                    if (!clinicalSummary.isAbnormal || abnormalCount === 0 || (severity === 'NOMINAL' && clinicalSummary.severity === 'NOMINAL')) {
+                      return null;
+                    }
+                    return (
+                      <>
+                        <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 600 }}>•</span>
+                        <div
                           style={{
-                            fontSize: '11px',
-                            fontWeight: 800,
-                            color: severity === 'CRITICAL' ? '#ef4444' : '#f59e0b',
-                            fontFamily: 'var(--hud-font-mono, monospace)',
-                            fontVariantNumeric: 'tabular-nums',
-                            lineHeight: 1,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            flexShrink: 0,
                           }}
                         >
-                          {clinicalSummary.prioritizedBiomarkers.filter(b => b.tier === 'CRITICAL' || b.tier === 'WARNING').length || 1}
-                        </span>
-                      </div>
-                    </>
-                  )}
+                          {(severity === 'CRITICAL' || clinicalSummary.severity === 'CRITICAL') ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
+                              <line x1="12" y1="8" x2="12" y2="12" />
+                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                          ) : (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                              <line x1="12" y1="9" x2="12" y2="13" />
+                              <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                          )}
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              color: (severity === 'CRITICAL' || clinicalSummary.severity === 'CRITICAL') ? '#ef4444' : '#f59e0b',
+                              fontFamily: 'var(--hud-font-mono, monospace)',
+                              fontVariantNumeric: 'tabular-nums',
+                              lineHeight: 1,
+                            }}
+                          >
+                            {abnormalCount}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -2096,6 +2103,7 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
           <div style={{ padding: '20px 24px 80px 24px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'transparent' }}>
             {/* ── OPERATIONAL HEALTH STATUS & RAPID SCAN SUMMARY LAYER ── */}
             <div
+              data-tour="telemetry-card"
               style={{
                 background: clinicalSummary.isAbnormal
                   ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.16) 0%, rgba(34, 18, 22, 0.88) 35%, rgba(18, 11, 13, 0.96) 70%, rgba(12, 8, 10, 0.98) 100%)'
@@ -2855,7 +2863,18 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                   { label: 'Cumulative absorbed dose', metricId: 'rad_dose', unit: 'Gy', baselineValue: 0.05, value: `${radDose.toFixed(2)} Gy`, dotColor: '#22c55e', history: metricHistories['rad_dose'] },
                   { label: 'Radiation sickness index', metricId: 'rsi', unit: 'idx', baselineValue: 0.12, value: rsi.toFixed(2), dotColor: rsi >= 0.5 ? '#f59e0b' : '#22c55e', history: metricHistories['rsi'] },
                   { label: 'Absolute lymphocytes', metricId: 'alc', unit: 'k/μL', baselineValue: 2.15, value: `${alc.toFixed(2)} k/μL`, dotColor: alc < 1.0 ? '#ef4444' : '#22c55e', history: metricHistories['alc'] },
-                  { label: 'DNA double-strand breaks', value: radDose > 0.2 ? 'Elevated repairs' : 'Nominal repair', dotColor: radDose > 0.2 ? '#f59e0b' : '#22c55e', noGraph: true },
+                  {
+                    label: 'DNA double-strand breaks',
+                    metricId: 'dna_breaks',
+                    unit: 'foci',
+                    baselineValue: 'Nominal repair',
+                    value: radDose >= 0.22 ? 'Elevated repairs' : 'Nominal repair',
+                    dotColor: radDose >= 0.22 ? '#f59e0b' : '#22c55e',
+                    trend: radDose >= 0.22 ? 'up' : 'stable',
+                    noGraph: true,
+                    isWarning: radDose >= 0.22,
+                    isCritical: false,
+                  },
                 ]}
               />
 
@@ -2875,9 +2894,9 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                 ]}
               />
 
-              {/* 10. Integrated Clinical Directive & AI Surgeon (4 Signals) */}
+              {/* 10. Integrated Clinical Directive & Helix-Ai Analyst (4 Signals) */}
               <CategoryCard
-                title="10. Integrated Directives & AI Surgeon"
+                title="10. Integrated Directives & Helix-Ai Analyst"
                 icon={<DirectivesIcon />}
                 statusPill={{
                   label: severity === 'CRITICAL' ? 'Critical' : severity === 'WARNING' ? 'Attention' : 'Stable',

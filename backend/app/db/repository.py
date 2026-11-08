@@ -16,7 +16,7 @@ class TelemetryRepository:
         self.conn = conn or get_connection()
 
     def log_telemetry(self, packet: Dict[str, Any]) -> int:
-        """Inserts a single telemetry packet in sub-millisecond time."""
+        """Inserts a single telemetry packet in sub-millisecond time with automatic recovery."""
         sql = """
         INSERT INTO telemetry_log (
             astronaut_id, timestamp, mission_state, heart_rate, hrv_rmssd,
@@ -27,8 +27,7 @@ class TelemetryRepository:
             z_score_hr, z_score_hrv, alert_severity, data_source
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        cursor = self.conn.cursor()
-        cursor.execute(sql, (
+        params = (
             packet["astronaut_id"],
             packet["timestamp"],
             packet.get("mission_state", "REST"),
@@ -56,9 +55,24 @@ class TelemetryRepository:
             packet.get("z_score_hrv", 0.0),
             packet.get("alert_severity", "NOMINAL"),
             packet.get("data_source", "REAL_NASA_DERIVED_10HZ_STREAM")
-        ))
-        self.conn.commit()
-        return cursor.lastrowid or 0
+        )
+
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(sql, params)
+            self.conn.commit()
+            return cursor.lastrowid or 0
+        except sqlite3.DatabaseError:
+            # Self-healing database recovery
+            try:
+                self.conn.close()
+            except Exception:
+                pass
+            self.conn = get_connection(force_recovery=True)
+            cursor = self.conn.cursor()
+            cursor.execute(sql, params)
+            self.conn.commit()
+            return cursor.lastrowid or 0
 
     def batch_log_telemetry(self, packets: List[Dict[str, Any]]) -> int:
         """Executes a high-speed multi-row batch insert inside a single transaction."""
@@ -162,3 +176,63 @@ class TelemetryRepository:
         cursor.execute(sql, (limit,))
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
+
+    def log_self_assessment(self, record: Dict[str, Any]) -> int:
+        """Inserts an astronaut daily self-assessment record."""
+        sql = """
+        INSERT INTO astronaut_self_assessments (
+            astronaut_id, sleep_hours, sleep_quality, fatigue_score, mood_score,
+            cognitive_workload, discomfort_regions, reported_hr, reported_bp_sys,
+            reported_bp_dia, reported_spo2, reported_temp, notes, provenance
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(sql, (
+            record["astronaut_id"],
+            record.get("sleep_hours"),
+            record.get("sleep_quality"),
+            record.get("fatigue_score"),
+            record.get("mood_score"),
+            record.get("cognitive_workload"),
+            json.dumps(record.get("discomfort_regions", [])),
+            record.get("reported_hr"),
+            record.get("reported_bp_sys"),
+            record.get("reported_bp_dia"),
+            record.get("reported_spo2"),
+            record.get("reported_temp"),
+            record.get("notes", ""),
+            record.get("provenance", "USER_REPORTED_MANUAL")
+        ))
+        self.conn.commit()
+        return cursor.lastrowid or 0
+
+    def get_self_assessments(self, astronaut_id: str, limit: int = 30) -> List[Dict[str, Any]]:
+        """Retrieves historical self-assessments for a specific crew member."""
+        sql = """
+        SELECT * FROM astronaut_self_assessments
+        WHERE astronaut_id = ?
+        ORDER BY id DESC
+        LIMIT ?
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(sql, (astronaut_id, limit))
+        rows = cursor.fetchall()
+        results = []
+        for row in rows:
+            d = dict(row)
+            try:
+                d["discomfort_regions"] = json.loads(d.get("discomfort_regions") or "[]")
+            except Exception:
+                d["discomfort_regions"] = []
+            results.append(d)
+        return results
+
+    def clear_self_assessments(self, astronaut_id: Optional[str] = None) -> int:
+        """Deletes self-assessment records for a specific astronaut or all astronauts."""
+        cursor = self.conn.cursor()
+        if astronaut_id:
+            cursor.execute("DELETE FROM astronaut_self_assessments WHERE astronaut_id = ?", (astronaut_id,))
+        else:
+            cursor.execute("DELETE FROM astronaut_self_assessments")
+        self.conn.commit()
+        return cursor.rowcount

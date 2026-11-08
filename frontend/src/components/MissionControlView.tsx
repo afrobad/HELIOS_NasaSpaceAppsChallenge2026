@@ -5,6 +5,9 @@ import { HolographicBodyScanner } from './HolographicBodyScanner';
 import { CrewGrid } from './CrewGrid';
 import { CabinEnvironmentalBar } from './CabinEnvironmentalBar';
 import { NASA_OSDR_PROFILES } from './HealthTelemetryView';
+import { Volume2, VolumeX, AlertTriangle, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { audioService } from '../services/audioService';
+import { IssCommunicationSimulator } from './IssCommunicationSimulator';
 
 // ─────────────────────────────────────────────────────────────
 // MCC Design Tokens — Refined Olive-Charcoal Operational Palette
@@ -246,6 +249,36 @@ function trendArrow(trend: string): string {
   if (trend === 'IMPROVING') return '↘';
   if (trend === 'STABLE') return '→';
   return '?';
+}
+
+class TabErrorBoundary extends React.Component<{ children: React.ReactNode; tabName: string }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: React.ReactNode; tabName: string }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error(`Error in ${this.props.tabName} tab:`, error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 24, margin: '20px auto', maxWidth: 900, background: 'rgba(28, 12, 16, 0.95)', border: '1px solid #ef4444', borderRadius: 8, color: '#fca5a5' }}>
+          <h3 style={{ color: '#ef4444', margin: '0 0 8px 0', fontSize: 16 }}>MCC {this.props.tabName} View Error</h3>
+          <p style={{ color: '#ffffff', fontSize: 13, margin: '0 0 12px 0' }}>{this.state.error?.message || 'Unknown error occurred while rendering.'}</p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            style={{ padding: '6px 14px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+          >
+            Retry View
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1378,7 +1411,15 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     const primaryAlert = stablePrimaryAlert || (rawHasAnomaly ? rawActiveAlerts[0] : null);
 
     const handleTriage = (astId: string) => {
-      if (onOpenMccTelemetry) {
+      const isEmbeddedFrame = typeof window !== 'undefined' && (
+        window.self !== window.top ||
+        new URLSearchParams(window.location.search).get('embed') === '1' ||
+        new URLSearchParams(window.location.search).get('cabin') === '1'
+      );
+      if (isEmbeddedFrame) {
+        setSelCrewId(astId);
+        setTab('CREW');
+      } else if (onOpenMccTelemetry) {
         onOpenMccTelemetry(astId);
       } else if (onOpenTriage) {
         onOpenTriage(astId);
@@ -1391,7 +1432,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* ─── 1. TOP OPERATIONAL INCIDENT & MISSION SYNOPTIC ANCHOR (ZERO-SHIFT HARMONIZED CONTAINER) ─── */}
-        <div style={{
+        <div data-tour="mcc-console" style={{
           ...cardStyle,
           padding: '12px 16px',
           minHeight: '232px',
@@ -1857,6 +1898,49 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     </div>
                   ))}
                 </div>
+
+                {/* ── 4. SCENARIO SITUATION SUMMARY & SOLUTION VOICE BRIEFING ── */}
+                <div style={{
+                  marginTop: 6,
+                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, rgba(8, 12, 18, 0.95) 0%, rgba(14, 20, 30, 0.9) 100%)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 14,
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontSize: 9,
+                        fontFamily: T.mono,
+                        fontWeight: 800,
+                        color: primaryAlert?.priority === 'CRITICAL' ? '#f87171' : (primaryAlert?.priority === 'WARNING' ? '#fde047' : '#4ade80'),
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        padding: '1px 6px',
+                        borderRadius: 3,
+                        border: `1px solid ${primaryAlert?.priority === 'CRITICAL' ? 'rgba(239, 68, 68, 0.4)' : (primaryAlert?.priority === 'WARNING' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(34, 197, 94, 0.4)')}`,
+                      }}>
+                        OPERATIONAL SITUATION SUMMARY
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#f8fafc', fontFamily: T.sans }}>
+                        {latestAlert?.reason || primaryAlert?.summary || 'All aerospace systems nominal. Continuous baseline surveillance active.'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 10.5, color: '#cbd5e1', lineHeight: 1.4 }}>
+                      <strong style={{ color: '#38bdf8', fontFamily: T.mono, fontSize: 10, letterSpacing: '0.04em' }}>
+                        FLIGHT SURGEON SOLUTION:
+                      </strong>
+                      <span>
+                        {latestAlert?.actionable_instruction || (primaryAlert?.procedure && (PROCEDURES[primaryAlert.procedure]?.steps || []).map(s => `[${s.role}] ${s.text}`).slice(0, 2).join(' • ')) || 'Maintain nominal telemetry logging and routine ECLSS monitoring.'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             );
           })() : (() => {
@@ -2073,6 +2157,49 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* ── 4. SCENARIO SITUATION SUMMARY & SOLUTION VOICE BRIEFING ── */}
+                <div style={{
+                  marginTop: 6,
+                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, rgba(8, 12, 18, 0.95) 0%, rgba(14, 20, 30, 0.9) 100%)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 14,
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontSize: 9,
+                        fontFamily: T.mono,
+                        fontWeight: 800,
+                        color: primaryAlert?.priority === 'CRITICAL' ? '#f87171' : (primaryAlert?.priority === 'WARNING' ? '#fde047' : '#4ade80'),
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        padding: '1px 6px',
+                        borderRadius: 3,
+                        border: `1px solid ${primaryAlert?.priority === 'CRITICAL' ? 'rgba(239, 68, 68, 0.4)' : (primaryAlert?.priority === 'WARNING' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(34, 197, 94, 0.4)')}`,
+                      }}>
+                        OPERATIONAL SITUATION SUMMARY
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#f8fafc', fontFamily: T.sans }}>
+                        {latestAlert?.reason || primaryAlert?.summary || 'All aerospace systems nominal. Continuous baseline surveillance active.'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 10.5, color: '#cbd5e1', lineHeight: 1.4 }}>
+                      <strong style={{ color: '#38bdf8', fontFamily: T.mono, fontSize: 10, letterSpacing: '0.04em' }}>
+                        FLIGHT SURGEON SOLUTION:
+                      </strong>
+                      <span>
+                        {latestAlert?.actionable_instruction || (primaryAlert?.procedure && (PROCEDURES[primaryAlert.procedure]?.steps || []).map(s => `[${s.role}] ${s.text}`).slice(0, 2).join(' • ')) || 'Maintain nominal telemetry logging and routine ECLSS monitoring.'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
@@ -2732,18 +2859,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
 
   // ─────────────────────────────────────────────────────────────
-  // CREW TAB — NASA MCC 4-COLUMN DECISION DASHBOARD (OPTION 2)
-  // ─────────────────────────────────────────────────────────────
-  // ─────────────────────────────────────────────────────────────
-  // CREW TAB — NASA MCC 4-COLUMN DECISION DASHBOARD (FULLY DYNAMIC & SCENARIO-AWARE)
-  // ─────────────────────────────────────────────────────────────
-  // ─────────────────────────────────────────────────────────────
   // CREW TAB — NASA MCC 4-COLUMN DECISION DASHBOARD (FULLY DYNAMIC & SCENARIO-AWARE)
   // ─────────────────────────────────────────────────────────────
   const renderCrew = () => {
     const selCrew = CREW.find(c => c.id === selCrewId) || CREW[1]; // Default to CREW-02 Pilot
     const anyPkt = Object.values(telemetryMap)[0];
     const co2Val = anyPkt?.cabin_co2 || 1.82;
+    const primaryAlert = stablePrimaryAlert || (rawHasAnomaly ? rawActiveAlerts[0] : null);
 
     // Helper: generate realistic, smooth 2-hour trend history ending precisely at live metric value
     const generateTrendSeries = (baseVal: number, currentVal: number, count = 11, noise = 0.5) => {
@@ -2970,13 +3092,30 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '6px 0',
+          padding: '8px 14px',
+          background: 'rgba(5, 9, 16, 0.95)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          border: '1px solid rgba(56, 189, 248, 0.35)',
+          borderRadius: 8,
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.7)',
         }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>Crew Health</span>
-              <span style={{ fontSize: 10, fontFamily: T.mono, color: T.textMuted, fontWeight: 400 }}>
-                · 10 Hz Telemetry Lock · Inspiration4 OSDR Baselines
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ textShadow: '0 2px 6px rgba(0,0,0,0.95)' }}>Crew Health</span>
+              <span style={{
+                fontSize: 10.5,
+                fontFamily: T.mono,
+                color: '#38bdf8',
+                fontWeight: 700,
+                background: 'rgba(56, 189, 248, 0.18)',
+                border: '1px solid rgba(56, 189, 248, 0.45)',
+                borderRadius: 4,
+                padding: '2px 8px',
+                letterSpacing: '0.03em',
+                textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+              }}>
+                10 Hz Telemetry Lock · Inspiration4 OSDR Baselines
               </span>
             </div>
           </div>
@@ -4108,7 +4247,15 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   {(onOpenMccTelemetry || onOpenTriage) && (
                     <button
                       onClick={() => {
-                        if (onOpenMccTelemetry) {
+                        const isEmbeddedFrame = typeof window !== 'undefined' && (
+                          window.self !== window.top ||
+                          new URLSearchParams(window.location.search).get('embed') === '1' ||
+                          new URLSearchParams(window.location.search).get('cabin') === '1'
+                        );
+                        if (isEmbeddedFrame) {
+                          setSelCrewId(selCrew.id);
+                          setTab('CREW');
+                        } else if (onOpenMccTelemetry) {
                           onOpenMccTelemetry(selCrew.id);
                         } else if (onOpenTriage) {
                           onOpenTriage(selCrew.id);
@@ -4309,6 +4456,49 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* ── 4. SCENARIO SITUATION SUMMARY & SOLUTION VOICE BRIEFING ── */}
+                <div style={{
+                  marginTop: 6,
+                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, rgba(8, 12, 18, 0.95) 0%, rgba(14, 20, 30, 0.9) 100%)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 14,
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontSize: 9,
+                        fontFamily: T.mono,
+                        fontWeight: 800,
+                        color: primaryAlert?.priority === 'CRITICAL' ? '#f87171' : (primaryAlert?.priority === 'WARNING' ? '#fde047' : '#4ade80'),
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        padding: '1px 6px',
+                        borderRadius: 3,
+                        border: `1px solid ${primaryAlert?.priority === 'CRITICAL' ? 'rgba(239, 68, 68, 0.4)' : (primaryAlert?.priority === 'WARNING' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(34, 197, 94, 0.4)')}`,
+                      }}>
+                        OPERATIONAL SITUATION SUMMARY
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#f8fafc', fontFamily: T.sans }}>
+                        {latestAlert?.reason || primaryAlert?.summary || 'All aerospace systems nominal. Continuous baseline surveillance active.'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 10.5, color: '#cbd5e1', lineHeight: 1.4 }}>
+                      <strong style={{ color: '#38bdf8', fontFamily: T.mono, fontSize: 10, letterSpacing: '0.04em' }}>
+                        FLIGHT SURGEON SOLUTION:
+                      </strong>
+                      <span>
+                        {latestAlert?.actionable_instruction || (primaryAlert?.procedure && (PROCEDURES[primaryAlert.procedure]?.steps || []).map(s => `[${s.role}] ${s.text}`).slice(0, 2).join(' • ')) || 'Maintain nominal telemetry logging and routine ECLSS monitoring.'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -5379,117 +5569,122 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   // COMMS TAB
   // ─────────────────────────────────────────────────────────────
   const renderComms = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      {/* DSN Tracking */}
-      <div style={cardStyle}>
-        <div style={labelStyle}>Deep Space Network Tracking</div>
-        {DSN.map((stn, i) => (
-          <div key={stn.name} style={{
-            display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0',
-            borderBottom: i < DSN.length - 1 ? `1px solid ${T.borderSubtle}` : 'none',
-          }}>
-            <Dot color={i === dsnIdx ? T.nominal : T.textMuted} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, fontWeight: i === dsnIdx ? 600 : 400, color: i === dsnIdx ? T.textPrimary : T.textSecondary }}>{stn.name}</div>
-              <div style={{ fontSize: 9, color: T.textMuted }}>{stn.loc} · {stn.freq}</div>
-            </div>
-            <div style={{ fontSize: 11, fontFamily: T.mono, color: T.textSecondary }}>SNR {stn.snr} dB</div>
-            <span style={{
-              fontSize: 9,
-              fontWeight: 600,
-              color: i === dsnIdx ? T.nominal : T.textMuted,
-              background: '#090c0f',
-              border: `1px solid ${i === dsnIdx ? T.nominalBorder : T.borderSubtle}`,
-              borderRadius: 3,
-              padding: '2px 6px',
-              letterSpacing: '0.04em',
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Authentic ISS Multi-Link Communication Resilience Simulator */}
+      <IssCommunicationSimulator distancePreset={distPreset} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {/* DSN Tracking */}
+        <div style={cardStyle}>
+          <div style={labelStyle}>Deep Space Network Tracking</div>
+          {DSN.map((stn, i) => (
+            <div key={stn.name} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0',
+              borderBottom: i < DSN.length - 1 ? `1px solid ${T.borderSubtle}` : 'none',
             }}>
-              {i === dsnIdx ? 'ACTIVE' : 'STANDBY'}
-            </span>
-          </div>
-        ))}
-        <div style={{ fontSize: 9, color: T.textMuted, marginTop: 8, lineHeight: 1.4 }}>
-          DSN station network tracking (Goldstone DSS-14, Madrid DSS-63, Canberra DSS-43).
-          Autonomous rotation schedule every 45 seconds.
-        </div>
-      </div>
-
-      {/* Station Handover & Conjunction Geometry */}
-      <div style={cardStyle}>
-        <div style={labelStyle}>Station Handover & Conjunction Geometry</div>
-        <MetricRow label="Active Carrier" value={activeDSN.name.split(' ')[0]} unit="" delta="Carrier lock" color={T.nominal} />
-        <MetricRow label="Next Handover" value="Madrid → Canberra" unit="" delta="in 01h 42m" />
-        <MetricRow label="Receiver Margin" value="+14.2" unit=" dB" delta="above threshold" color={T.nominal} />
-        <MetricRow label="Solar SEP Angle" value="14.8" unit=" °" delta="clear of disk (>3.0°)" color={T.nominal} />
-        <div style={{ fontSize: 9, color: T.textMuted, marginTop: 8, lineHeight: 1.4 }}>
-          Sun-Earth-Probe (SEP) angle &gt; 3.0° ensures zero solar coronal plasma radio scintillation.
-          Link margin guarantees continuous telemetry decode.
-        </div>
-      </div>
-
-      {/* Propagation */}
-      <div style={{ ...cardStyle, gridColumn: 'span 2' }}>
-        <div style={labelStyle}>Speed-of-Light Propagation Calculator (τ = d / c)</div>
-
-        {/* Distance presets — Clean Buttons without External Container Dock */}
-        <div style={{ display: 'flex', gap: 6, marginTop: 6, marginBottom: 12 }}>
-          {(Object.keys(DISTANCES) as DistancePreset[]).map(k => {
-            const isSel = distPreset === k;
-            return (
-              <button
-                key={k}
-                onClick={() => setDistPreset(k)}
-                style={{
-                  background: isSel ? 'rgba(56, 189, 248, 0.30)' : '#0b0e11',
-                  border: isSel ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid #202b38',
-                  borderRadius: 4,
-                  padding: '5px 12px',
-                  fontSize: 10,
-                  fontWeight: isSel ? 700 : 500,
-                  color: isSel ? '#ffffff' : '#9ec7ef',
-                  cursor: 'pointer',
-                  letterSpacing: '0.03em',
-                  textShadow: isSel ? '0 1px 2px rgba(0, 0, 0, 0.75)' : 'none',
-                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
-                  transition: 'all 0.12s ease',
-                }}
-              >
-                {DISTANCES[k].label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-          <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
-            <div style={{ fontSize: 9, color: T.textMuted }}>DISTANCE (d)</div>
-            <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary, marginTop: 2 }}>
-              {prop.km >= 1e6 ? `${(prop.km / 1e6).toFixed(1)}M` : prop.km >= 1e3 ? `${(prop.km / 1e3).toFixed(0)}k` : `${prop.km}`} <span style={unitStyle}>km</span>
+              <Dot color={i === dsnIdx ? T.nominal : T.textMuted} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: i === dsnIdx ? 600 : 400, color: i === dsnIdx ? T.textPrimary : T.textSecondary }}>{stn.name}</div>
+                <div style={{ fontSize: 9, color: T.textMuted }}>{stn.loc} · {stn.freq}</div>
+              </div>
+              <div style={{ fontSize: 11, fontFamily: T.mono, color: T.textSecondary }}>SNR {stn.snr} dB</div>
+              <span style={{
+                fontSize: 9,
+                fontWeight: 600,
+                color: i === dsnIdx ? T.nominal : T.textMuted,
+                background: '#090c0f',
+                border: `1px solid ${i === dsnIdx ? T.nominalBorder : T.borderSubtle}`,
+                borderRadius: 3,
+                padding: '2px 6px',
+                letterSpacing: '0.04em',
+              }}>
+                {i === dsnIdx ? 'ACTIVE' : 'STANDBY'}
+              </span>
             </div>
-          </div>
-          <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
-            <div style={{ fontSize: 9, color: T.textMuted }}>ONE-WAY LIGHT TIME</div>
-            <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary, marginTop: 2 }}>
-              {prop.owFmt}
-            </div>
-          </div>
-          <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
-            <div style={{ fontSize: 9, color: T.textMuted }}>ROUND-TRIP DELAY</div>
-            <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary, marginTop: 2 }}>
-              {prop.rtFmt}
-            </div>
-          </div>
-          <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
-            <div style={{ fontSize: 9, color: T.textMuted }}>RF CARRIER STATE</div>
-            <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: connected ? T.nominal : T.critical, marginTop: 2 }}>
-              {connected ? 'CARRIER LOCK' : 'NO LOCK'}
-            </div>
+          ))}
+          <div style={{ fontSize: 9, color: T.textMuted, marginTop: 8, lineHeight: 1.4 }}>
+            DSN station network tracking (Goldstone DSS-14, Madrid DSS-63, Canberra DSS-43).
+            Autonomous rotation schedule every 45 seconds.
           </div>
         </div>
 
-        <div style={{ fontSize: 9, color: T.textMuted, marginTop: 10, lineHeight: 1.5 }}>
-          Speed-of-light propagation delay is strictly calculated using vacuum velocity c = 299,792 km/s.
-          This is electromagnetic physics propagation time, NOT software network latency.
+        {/* Station Handover & Conjunction Geometry */}
+        <div style={cardStyle}>
+          <div style={labelStyle}>Station Handover & Conjunction Geometry</div>
+          <MetricRow label="Active Carrier" value={activeDSN.name.split(' ')[0]} unit="" delta="Carrier lock" color={T.nominal} />
+          <MetricRow label="Next Handover" value="Madrid → Canberra" unit="" delta="in 01h 42m" />
+          <MetricRow label="Receiver Margin" value="+14.2" unit=" dB" delta="above threshold" color={T.nominal} />
+          <MetricRow label="Solar SEP Angle" value="14.8" unit=" °" delta="clear of disk (>3.0°)" color={T.nominal} />
+          <div style={{ fontSize: 9, color: T.textMuted, marginTop: 8, lineHeight: 1.4 }}>
+            Sun-Earth-Probe (SEP) angle &gt; 3.0° ensures zero solar coronal plasma radio scintillation.
+            Link margin guarantees continuous telemetry decode.
+          </div>
+        </div>
+
+        {/* Propagation */}
+        <div style={{ ...cardStyle, gridColumn: 'span 2' }}>
+          <div style={labelStyle}>Speed-of-Light Propagation Calculator (τ = d / c)</div>
+
+          {/* Distance presets — Clean Buttons without External Container Dock */}
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, marginBottom: 12 }}>
+            {(Object.keys(DISTANCES) as DistancePreset[]).map(k => {
+              const isSel = distPreset === k;
+              return (
+                <button
+                  key={k}
+                  onClick={() => setDistPreset(k)}
+                  style={{
+                    background: isSel ? 'rgba(56, 189, 248, 0.30)' : '#0b0e11',
+                    border: isSel ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid #202b38',
+                    borderRadius: 4,
+                    padding: '5px 12px',
+                    fontSize: 10,
+                    fontWeight: isSel ? 700 : 500,
+                    color: isSel ? '#ffffff' : '#9ec7ef',
+                    cursor: 'pointer',
+                    letterSpacing: '0.03em',
+                    textShadow: isSel ? '0 1px 2px rgba(0, 0, 0, 0.75)' : 'none',
+                    boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
+                    transition: 'all 0.12s ease',
+                  }}
+                >
+                  {DISTANCES[k].label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
+              <div style={{ fontSize: 9, color: T.textMuted }}>DISTANCE (d)</div>
+              <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary, marginTop: 2 }}>
+                {prop.km >= 1e6 ? `${(prop.km / 1e6).toFixed(1)}M` : prop.km >= 1e3 ? `${(prop.km / 1e3).toFixed(0)}k` : `${prop.km}`} <span style={unitStyle}>km</span>
+              </div>
+            </div>
+            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
+              <div style={{ fontSize: 9, color: T.textMuted }}>ONE-WAY LIGHT TIME</div>
+              <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary, marginTop: 2 }}>
+                {prop.owFmt}
+              </div>
+            </div>
+            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
+              <div style={{ fontSize: 9, color: T.textMuted }}>ROUND-TRIP DELAY</div>
+              <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: T.textPrimary, marginTop: 2 }}>
+                {prop.rtFmt}
+              </div>
+            </div>
+            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px' }}>
+              <div style={{ fontSize: 9, color: T.textMuted }}>RF CARRIER STATE</div>
+              <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 600, color: connected ? T.nominal : T.critical, marginTop: 2 }}>
+                {connected ? 'CARRIER LOCK' : 'NO LOCK'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ fontSize: 9, color: T.textMuted, marginTop: 10, lineHeight: 1.5 }}>
+            Speed-of-light propagation delay is strictly calculated using vacuum velocity c = 299,792 km/s.
+            This is electromagnetic physics propagation time, NOT software network latency.
+          </div>
         </div>
       </div>
     </div>
@@ -5963,11 +6158,11 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
       {/* ─── CONTENT (matches 1250px width of other views) ─── */}
       <main style={{ padding: '16px 20px 80px 20px', maxWidth: '1250px', margin: '0 auto', boxSizing: 'border-box' }}>
-        {tab === 'OVERVIEW' && renderOverview()}
-        {tab === 'CREW' && renderCrew()}
-        {tab === 'SYSTEMS' && renderSystems()}
-        {tab === 'COMMS' && renderComms()}
-        {tab === 'INVESTIGATE' && renderInvestigate()}
+        {tab === 'OVERVIEW' && <TabErrorBoundary tabName="Overview">{renderOverview()}</TabErrorBoundary>}
+        {tab === 'CREW' && <TabErrorBoundary tabName="Crew">{renderCrew()}</TabErrorBoundary>}
+        {tab === 'SYSTEMS' && <TabErrorBoundary tabName="Systems">{renderSystems()}</TabErrorBoundary>}
+        {tab === 'COMMS' && <TabErrorBoundary tabName="Comms">{renderComms()}</TabErrorBoundary>}
+        {tab === 'INVESTIGATE' && <TabErrorBoundary tabName="Investigate">{renderInvestigate()}</TabErrorBoundary>}
       </main>
 
       {/* ─── SHIFT HANDOVER BRIEFING MODAL ─── */}

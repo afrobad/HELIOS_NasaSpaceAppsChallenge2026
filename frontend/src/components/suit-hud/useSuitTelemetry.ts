@@ -47,7 +47,7 @@ export const DEFAULT_SUIT_TELEMETRY: SuitTelemetry = {
   commSignalPct: 98,
   pitchDeg: 1.8,
   rollDeg: -0.6,
-  waypoint: { line1: 'MARS BASE', line2: 'HABITAT', distanceKm: 1.8, bearingDeg: 12 },
+  waypoint: { line1: 'MARS ONE BASE', line2: 'HABITAT POD 01', distanceKm: 0.032, bearingDeg: 4 },
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));

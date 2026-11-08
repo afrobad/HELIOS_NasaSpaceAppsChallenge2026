@@ -1,286 +1,207 @@
 <div align="center">
 
-# H.E.L.I.O.S
+# H.E.L.I.O.S.
 ### Health Evaluation Logistic Intelligent Onboard System
+**NASA International Space Apps Challenge 2026**
 
-**NASA Space Apps Challenge 2026**
+[![NASA Space Apps 2026](https://img.shields.io/badge/NASA_Space_Apps-2026-blue.svg?style=for-the-badge&logo=nasa)](https://www.spaceappschallenge.org/)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Three.js](https://img.shields.io/badge/Three.js-WebGL-black?style=for-the-badge&logo=three.js&logoColor=white)](https://threejs.org/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?style=flat&logo=typescript&logoColor=white)](https://typescriptlang.org)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
+*An autonomous, offline-first astronaut biometric evaluation, clinical triage, and decision-support platform engineered for deep-space exploration and planetary transit.*
 
-*An offline-first astronaut health-monitoring and decision-support prototype for deep-space missions.*
+---
+
+[🚀 Quick Start](#-quick-start) • [🌌 The Challenge](#-the-challenge) • [🧠 Helix-Ai Analyst](#-helix-ai-analyst) • [🛸 Key Subsystems](#-key-subsystems) • [🧬 NASA OSDR Grounding](#-nasa-osdr-data-grounding) • [📐 System Architecture](#-system-architecture) • [📄 License](#-license)
+
+---
 
 </div>
 
-## Overview
+## 🌌 The Challenge
 
-H.E.L.I.O.S. is a real-time health-monitoring HUD for a simulated four-person deep-space crew. It replays NASA OSDR-derived physiological telemetry at 10 Hz, evaluates each packet against personal baselines, and presents vitals, ECG/PPG waveforms, alerts, triage information, and voice advisories in a browser interface.
+During deep-space exploratory voyages — such as the Artemis Moon-to-Mars missions — astronauts travel millions of kilometers away from Earth. Under these conditions:
 
-The project is designed for communication-blackout scenarios such as a Mars transit. Its core telemetry processing and fallback alert logic run locally. Optional voice features may use Ollama locally; Microsoft Edge Neural TTS and Gemini integrations require network access unless a local fallback is used.
+1. **Light-Speed Communication Delays**: Radio transmissions between Mars and Earth suffer from **4 to 24 minutes of one-way latency** (8 to 48 minutes round-trip), making real-time telemedicine from Earth flight surgeons physically impossible.
+2. **Microgravity Physiological Hazards**: Prolonged zero-gravity exposure causes spaceflight-associated neuro-ocular syndrome (SANS), cardiovascular deconditioning, bone mineral loss, muscle atrophy, radiation damage, and hypercapnia/hypoxia from cabin life support fluctuations.
+3. **Absence of Specialized Clinical Personnel**: Not every deep-space crew can include a specialized medical surgeon. The crew requires an **autonomous, on-board AI clinical partner** that runs locally, processes 10 Hz continuous biometric feeds, detects presymptomatic anomalies, and formulates prioritized clinical countermeasures with zero latency.
 
-> **Important:** This is a demonstration and research prototype, not a certified medical device or flight-qualified clinical system. Its alerts and calculated risk indices must not be used for real medical or mission decisions.
+---
 
-## Main capabilities
+## 💡 The HELIOS Solution
 
-- **First-Person Astronaut Helmet Visor Suit HUD (`/suit-hud`)**:
-  - Optical helmet visor simulation with curvature, edge vignette, glare, and dynamic scenario frost/fog/smoke FX.
-  - Multi-scene planetary backdrop engine: Mars Surface, Lunar Surface, and real NASA International Space Station (ISS) exterior spacewalk.
-  - First-person head-tracking parallax responding to user pointer motion.
-  - Role-specific astronaut perspectives (Commander, Pilot, Medical Specialist, Systems Engineer) with tailored pan/tilt/zoom and gyro ladder pitch/roll rungs.
-  - Scene- and crew-aware tactical waypoint lock navigation system targeting station modules and planetary habitats with meter-accurate distance and bearing.
-  - Laser-etched chin console flight unit identity badges (`NASA xEMU · S/N 4081–4084`).
-  - Dual-line non-overlapping Life Support (ECLSS) MFD avionics layout completely eliminating text collisions.
-  - Authentic military avionics typography (`'Rajdhani'`, `'Tomorrow'`, monospace) strictly isolated to the HUD visor.
-  - Real-time continuous 10 Hz telemetry synchronization, live Mission Elapsed Time (MET) counter, and physiological respiratory sinus arrhythmia (RSA) sinus ticker.
-- **Dedicated Earth Mission Control Center (MCC) Console (`/mcc`, `/mcc/telemetry/:name`)**:
-  - Deep-space speed-of-light propagation delay countdown ticker (Mars transit: 4 to 24 min one-way) with instant warp-signal bypass.
-  - Dedicated JSC Flight Surgeon workstation with live crew telemetry, laboratory panels, and historical trends.
-- **Dedicated 3D Holographic Anatomical Body Scanner (`/scanner`)**:
-  - Interactive 3D WebGL wireframe rotating mannequin with cyan, amber, and thermal stress modes.
-- **Live Spacecraft Cockpit HUD (`/`)**:
-  - 10 Hz real-time sensor stream with decoupled 60–90 FPS Lead II ECG and SpO₂ Plethysmograph waveforms.
-  - Universal enterprise capsule navigation bar with live telemetry pills and voice toggle.
-- **NASA OSDR Laboratory Assays & Computational Biomarkers**:
-  - 149 multimodal biomarkers across 10 clinical categories from NASA OSDR Inspiration4 (SOMA).
-  - Mathematical risk indices: Early Sepsis (EPI), Arrhythmogenic Risk (ARF), Thrombosis (TRM), and Radiation Sickness (RSI).
-- **Hardened Aerospace Security Architecture (OWASP A+ / NASA Class B)**:
-  - Canonical path traversal prevention (`SEC-02`), automated security headers middleware (`SEC-06`), and PBKDF2-HMAC-SHA256 authentication.
+**H.E.L.I.O.S.** (Health Evaluation Logistic Intelligent Onboard System) acts as an autonomous digital medical officer. Powered by the on-board **Helix-Ai Analyst**, it processes real-time multimodal sensor streams, compares them against crew-specific NASA OSDR baseline distributions, renders real-time 3D anatomical twins, and speaks actionable clinical guidance directly into crew headsets and suit visors.
 
-## Architecture
+---
+
+## 🛸 Key Subsystems & Features
+
+### 1. Unified Spacecraft Flight Command Deck (`Dashboard`)
+- **10 Hz Real-Time Biometric Stream**: Continuously monitors heart rate, SpO₂, core body temperature, heart rate variability (HRV RMSSD), blood pressure, and cabin life-support telemetry.
+- **Hardware-Decoupled 90 FPS Waveform Engine**: Smooth, clinically accurate Lead II ECG and SpO₂ plethysmograph waveforms rendered in real time.
+- **ECLSS Life Support Bar**: Active monitors for cabin pressure (101.3 kPa), O₂ fraction (20.9%), cabin CO₂ (1.82 mmHg), cabin temperature, and radiation flux.
+- **Crew Manifest & Triage Sentry**: Live status cards for all 4 crew members (Commander Haley, Pilot Chris, Dr. Sian, Specialist Leo) with instant clinical severity indicators.
+
+### 2. Beautiful "SOLVED // ALL NOMINAL" Situation Normalization
+- When an emergency scenario is active (e.g., CO₂ scrubber breakthrough, depressurization, solar particle storm), a prominent **SOLVED** action button appears directly on the emergency directive banner.
+- **One-Click Normalization**: Clicking **SOLVED** immediately resets all 4 crew members' vital signs to nominal flight baseline, sanitizes in-flight packets, silences klaxons, triggers a harmonic nominal chime, and broadcasts speech confirmation across all views and open windows.
+
+### 3. Interactive 3D Holographic Bio-Twin (`3D Scanner`)
+- **3D Anatomical Wireframe Scanner**: Rotatable 360° holographic mannequin with Cyan Bio-Holo, Thermal IR Heatmap, and Amber Tactical HUD modes.
+- **Organ Telemetry Inspector**: Interactive clickable anatomical subsystems (Ocular, Brain, Cardiac, Lungs, Kidneys/Renal, Skeletal) with dynamic multi-frequency SVG waveforms and deep clinical readouts.
+
+### 4. First-Person Astronaut Helmet Visor (`Suit HUD`)
+- **Immersive Optical Helmet HUD**: Simulates astronaut helmet curvature, edge vignetting, visor glare, and dynamic environmental frost/smoke effects.
+- **Planetary Surface Backdrops**: Real-time switchable perspectives across Mars Surface, Lunar Artemis Base, and ISS Exterior Spacewalk.
+- **Tactical Waypoint Navigation**: Meter-accurate directional guidance targeting station modules and airlocks with live bearing angles.
+- **Head-Tracking Parallax**: Dynamic camera shift responding to cursor motion for true zero-g immersion.
+
+### 5. 3D ISS Orbital Flight Deck (`ISS Deck`)
+- **Walkthrough Station Navigation**: Seamless transition between 10 station waypoints (Corridor, Biometrics Console, Cargo Bay, Mission Control Starboard, Navigation, Cupola, Aft, Airlock).
+- **Interactive Bulkhead Monitors**: Bulkhead terminals rendering real-time crew vitals and orbital velocity coordinates ($27,600\text{ km/h}$ at $408\text{ km}$ altitude over Earth).
+- **Snapshot Capture**: On-demand viewport screenshot tool with flash effect and downloadable high-res capture.
+
+### 6. Earth Mission Control Center Ground Console (`Earth MCC`)
+- **Physical Propagation Delay Engine**: Simulates authentic communication delays based on orbital distance (LEO 0.0s, Lunar Gateway 1.3s, Mars Closest 4.3m, Mars Conjunction 21.0m).
+- **Flight Surgeon Telemetry Workstation**: Ground station console mirroring spacecraft downlink telemetry, historical trends, and remote advisories.
+
+### 7. Mission Routine & Psychomotor Vigilance Drill (`Routine`)
+- **Real-Time Dynamic Schedule**: Routine activities (countermeasure workouts, fluid balance logging, cognitive checks) update dynamically with live astronaut physiological data.
+- **Interactive PVT Reaction Drill**: Validated Psychomotor Vigilance Task measuring microsecond reaction times to assess crew fatigue.
+- **Exercise & Hydration Simulators**: Interactive treadmill/ARED resistive workout simulation and daily fluid intake logging.
+
+### 8. Automated 3-Minute Interactive Tour (`3-Min Tour`)
+- Top menubar features an eye-catching, luminous **3-Min Tour** button with a cosmic jewel gradient, golden sparkle icon, and animated aura pulse.
+- Fully automated walkthrough choreographing cameras, views, and narration across the entire platform.
+
+---
+
+## 🧠 Helix-Ai Analyst
+
+The **Helix-Ai Analyst** is the autonomous clinical engine embedded into HELIOS:
+
+- **Local Offline Inference**: Runs via lightweight local models (Ollama / Llama-3.2) or deterministic zero-dependency fallback trees with sub-second response times.
+- **Spoken Clinical Directives**: Synthesizes natural English directives with medical prosody and authentic Quindar radio tones.
+- **Dynamic Consultation Console**: Crew can consult the AI analyst at any time using the natural language interface at the bottom of the flight deck.
+
+---
+
+## 🧬 NASA OSDR Data Grounding
+
+HELIOS grounds all baseline thresholds, biomarker ranges, and clinical indices in genuine NASA scientific datasets:
+
+| Dataset / Standard | Description | Clinical Application in HELIOS |
+|:---|:---|:---|
+| **NASA OSDR OSD-575** | SpaceX Inspiration4 SOMA Crew Profile | Baseline reference for cytokine panels, serum potassium, and hematocrit |
+| **NASA OSDR OSD-569** | Space Omics & Longitudinal Epigenomics | Microgravity fluid shift and endothelial inflammatory markers |
+| **NASA-STD-3001** | Space Flight Human-System Standard | Vol 1 (Crew Health) & Vol 2 (Habitability, ECLSS thresholds) |
+| **NASA HRP Protocols** | Human Research Program Risk Matrix | SANS ocular ICP metrics, radiation dose limits, circadian fatigue baselines |
+
+---
+
+## 📐 System Architecture
 
 ```text
-React 19 + TypeScript + Vite Frontend
-  ├── /                Spacecraft Flight HUD (Lead II ECG & Pleth waveforms at 90 FPS)
-  ├── /suit-hud        First-Person Astronaut Helmet Visor EVA HUD (Parallax, ISS/Moon/Mars)
-  ├── /mcc             Earth Mission Control Ground Station (Deep-Space Latency & Telemetry)
-  ├── /scanner         3D Holographic Anatomical Body Scanner (WebGL Wireframe Mannequin)
-  └── /telemetry/:slug Individual Clinical Crew Dossier & 119 NASA OSDR Lab Assays
-        │
-        │ REST /api/* and WebSocket /ws/telemetry (10 Hz)
-        ▼
-FastAPI Aerospace Backend
-  ├── TelemetryFeeder       Replays physiological packets at 10 Hz
-  ├── SentryMatrixEngine    Evaluates personal zero-g baselines, z-scores, and severity
-  ├── BaselineManager       Maintains crew circadian profiles and resting thresholds
-  ├── Decision/Voice Engine Generates clinical voice advisories (Deterministic fallback + Ollama)
-  ├── Security Middleware   Enforces X-Frame-Options, X-Content-Type-Options, CSP, and LFI bounds
-  └── SQLite WAL Engine     High-throughput local logging (>168,000 writes/sec)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       HELIOS FLIGHT SYSTEM INTERFACE                        │
+│   Dashboard  ·  Telemetry  ·  Self-Check  ·  Routine  ·  MCC  ·  Suit HUD   │
+│                   ISS Deck  ·  3D Scanner  ·  3-Min Tour                    │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │
+                      WebSocket (10 Hz) & REST API
+                                       │
+┌──────────────────────────────────────▼──────────────────────────────────────┐
+│                            FASTAPI AEROSPACE CORE                           │
+│  ├── TelemetryFeeder        10 Hz telemetry playback from NASA OSDR data    │
+│  ├── SentryMatrixEngine     Evaluates baselines, z-scores & anomaly triggers│
+│  ├── BaselineManager        Maintains crew circadian profiles & thresholds  │
+│  ├── Helix-Ai Analyst       Generates speech directives & triage decisions  │
+│  ├── RadioPropagationDelay  Simulates speed-of-light deep space latency     │
+│  └── SQLite WAL Database    High-throughput local event & biomarker logging │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Repository structure
+---
 
-```text
-backend/
-  app/
-    main.py                 FastAPI application, REST routes, WebSocket endpoint
-    ai/                     Ollama, decision, fallback, and voice services
-    core/                   Biomarkers, baselines, z-scores, and anomaly logic
-    db/                     SQLite database and telemetry repositories
-    streaming/              10 Hz feeder and WebSocket broadcasting
-  tests/                    Backend unit and API tests
-
-frontend/
-  src/
-    App.tsx                 Main HUD state and telemetry subscriptions
-    components/             Crew grid, ECG, triage, JARVIS, and scenario UI
-    services/               WebSocket, audio, and routing services
-    types/                  TypeScript telemetry definitions
-    utils/                  Clinical prioritization and display helpers
-
-data/                       Telemetry stream, baselines, and NASA OSDR data
-scripts/                    Data-generation, download, reporting, and test tools
-documentation/              Engineering, architecture, and dataset documentation
-Demo/                       Demonstration material
-render.yaml                 Render deployment configuration
-requirements.txt            Python backend dependencies
-```
-
-## Setup
+## 🚀 Quick Start
 
 ### Prerequisites
+- **Python**: 3.11 or newer
+- **Node.js**: 18.0 or newer
+- **Git**
 
-- Python 3.11 or newer
-- Node.js 18 or newer
-- Git
-- Ollama, only if local AI voice features are required
-
-### 1. Clone the repository
+### Installation
 
 ```bash
+# 1. Clone the repository
 git clone https://github.com/zihaduzzamaan/H.E.L.I.O.S.git
 cd H.E.L.I.O.S
-```
 
-### 2. Install backend dependencies
-
-```bash
-python -m venv .venv
-
-# macOS/Linux
-source .venv/bin/activate
+# 2. Setup and activate Python virtual environment
+python -m venv venv
 
 # Windows
-.venv\Scripts\activate
+venv\Scripts\activate
+# Linux/macOS
+source venv/bin/activate
 
+# 3. Install backend dependencies
 pip install -r requirements.txt
+
+# 4. Install frontend dependencies
+cd frontend
+npm install
+cd ..
 ```
 
-If the backend reports that `dotenv` is missing, install the package used by the application:
+### Running the System
 
-```bash
-pip install python-dotenv
-```
-
-### 3. Start the backend
-
-Run this command from the repository root:
-
+**Terminal 1 — Aerospace Backend Core:**
 ```bash
 python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-The API is available at `http://localhost:8000` and interactive documentation is available at `http://localhost:8000/docs`.
-
-### 4. Start the frontend
-
-In a second terminal:
-
+**Terminal 2 — Flight Command Interface:**
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. Vite proxies `/api/*` and `/ws/*` to the backend at port 8000.
+Open your browser at **`http://localhost:3000`** to experience the full flight command deck.
 
-### 5. Optional: enable local JARVIS AI
+---
 
-```bash
-ollama pull llama3.2:1b
-ollama create helios-jarvis -f backend/app/ai/Modelfile
-ollama serve
-```
-
-Ollama is optional for the core telemetry dashboard. The repository includes deterministic/fallback alert behavior for environments where the local model is unavailable. Edge TTS and Gemini features are network-dependent and should not be described as fully offline.
-
-## Quick commands
-
-```bash
-# Backend
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
-
-# Frontend
-cd frontend && npm run dev
-
-# Frontend production build
-cd frontend && npm run build
-
-# Run the project test orchestrator from the repository root
-python scripts/run_all_tests.py
-```
-
-For the backend API tests that verify serving the compiled frontend, build the frontend first with `npm run build`.
-
-## API reference
-
-### REST endpoints
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/api/health` | Basic service and crew status |
-| `GET` | `/api/ai/status` | Local AI and voice subsystem status |
-| `POST` | `/api/ai/initiate` | Warm up the local Ollama model |
-| `GET` | `/api/baselines` | Crew and environmental baselines |
-| `GET` | `/api/telemetry/latest-all` | Latest packet for every crew member |
-| `GET` | `/api/telemetry/recent/{astronaut_id}` | Recent stored telemetry records |
-| `GET` | `/api/telemetry/lab-assays/{astronaut_id}` | Laboratory profile for one astronaut |
-| `GET` | `/api/telemetry/lab-assays` | Laboratory profiles for all crew |
-| `GET` | `/api/alerts` | Recent proactive alerts |
-| `POST` | `/api/scenario/{scenario_key}` | Trigger a named demonstration scenario |
-| `POST` | `/api/mars-delay?enabled=true` | Enable or disable Mars-delay simulation |
-| `POST` | `/api/voice/query` | Ask JARVIS a text voice query |
-| `GET` | `/api/voice/synthesize` | Stream synthesized speech |
-| `POST` | `/api/ai/triage/{astronaut_id}` | Generate an on-demand triage record |
-| `POST` | `/api/ai/joint-triage` | Generate a joint two-crew advisory |
-
-### WebSocket
+## 📂 Project Structure
 
 ```text
-ws://localhost:8000/ws/telemetry
+├── backend/
+│   └── app/
+│       ├── main.py              # FastAPI REST endpoints & 10 Hz WebSocket server
+│       ├── ai/                  # Helix-Ai Analyst inference, voice & fallback logic
+│       ├── core/                # NASA OSDR biomarkers, baselines & anomaly triggers
+│       ├── db/                  # SQLite WAL database & historical telemetry tables
+│       └── streaming/           # Real-time telemetry feeder & broadcast loops
+├── frontend/
+│   └── src/
+│       ├── App.tsx              # Universal state, audio & cross-view synchronization
+│       ├── components/          # Dashboard, 3D Scanner, Suit HUD, ISS Deck, MCC
+│       ├── services/            # Audio synthesis, WebSocket client, PDF generator
+│       ├── types/               # TypeScript aerospace telemetry definitions
+│       └── utils/               # Clinical prioritization algorithms & calculations
+├── data/                        # NASA OSDR Inspiration4 (SOMA) baselines & CSV data
+├── docs/                        # Engineering specifications & medical safety boundaries
+├── documentation/               # Comprehensive system architecture & challenge guides
+├── trash/                       # Safely archived temporary notes, test scripts & captures
+├── LICENSE                      # MIT Open Science License with NASA Space Apps notice
+└── README.md                    # Project master documentation
 ```
 
-The backend broadcasts telemetry packets at approximately 10 Hz and sends alert packets when severity changes or a proactive advisory is generated.
+---
 
-## Telemetry and alert pipeline
+## 📄 License & NASA Space Apps Notice
 
-```text
-data/astronaut_telemetry_stream.csv
-        |
-        v
-TelemetryFeeder.step_tick()
-        |
-        v
-SentryMatrixEngine.evaluate_state()
-  ├── personal-baseline z-scores
-  ├── activity/workout gating
-  ├── EPI: early sepsis index
-  ├── ARF: arrhythmogenic risk
-  ├── TRM: thrombosis risk
-  └── RSI: radiation sickness index
-        |
-        v
-SQLite logging + WebSocket broadcast + optional JARVIS advisory
-```
-
-The scenario controller can modify selected telemetry values to demonstrate conditions such as hypoxia, CO₂ scrubber failure, radiation storms, hypokalemia, thrombosis risk, sepsis, and circadian fatigue.
-
-## Data sources
-
-The included data is derived from NASA Open Science Data Repository studies, including:
-
-- **OSD-569:** Inspiration4 complete blood-count data
-- **OSD-575:** cardiovascular, metabolic, and immune panels from the SOMA Human Spaceflight Atlas
-
-See [`documentation/dataset_coverage_analysis.md`](documentation/dataset_coverage_analysis.md) for the field-by-field coverage review.
-
-## Deployment
-
-`render.yaml` contains a production-ready Render Blueprint. If configuring manually in the Render Dashboard:
-
-- **Environment**: `Python`
-- **Build Command**:
-  ```bash
-  npm install && npm install @rolldown/binding-linux-x64-gnu@1.2.15 lightningcss-linux-x64-gnu@1.33.0 --no-save && (cd frontend && npm install @rolldown/binding-linux-x64-gnu@1.2.15 lightningcss-linux-x64-gnu@1.33.0 --no-save) && npm run build && pip install -r requirements.txt
-  ```
-- **Start Command**:
-  ```bash
-  uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
-  ```
-- **Environment Variables**:
-  - `NODE_VERSION`: `22`
-  - `PYTHON_VERSION`: `3.11.9`
-  - `DETERMINISTIC_FALLBACK_ACTIVE`: `true`
-
-## Known limitations
-
-- This repository replays and simulates telemetry; it is not connected to live astronaut sensors.
-- The risk indices are project algorithms and have not been validated for clinical or flight use.
-- Telemetry is primarily stored in memory during replay, with SQLite used for logging and queries.
-- Ollama requires local compute and model storage.
-- Microsoft Edge TTS and Gemini integrations require network access.
-- The system should display stale-data status and service degradation clearly before being considered operationally reliable.
-
-## Documentation
-
-- [`security.md`](security.md) — Security Audit & Red Team Assessment (OWASP Top 10 / NASA Flight Safety Class B)
-- [`documentation/PROJECT_MASTER_DOCUMENTATION.md`](documentation/PROJECT_MASTER_DOCUMENTATION.md) — Project Master Architecture & Specifications
-- [`documentation/Astronaut_Health_JARVIS_System_Documentation.md`](documentation/Astronaut_Health_JARVIS_System_Documentation.md) — JARVIS AI Clinical System Guide
-- [`documentation/NASA_Flight_Software_Architecture_Standard.md`](documentation/NASA_Flight_Software_Architecture_Standard.md) — Flight Software Standards & Compliance
-- [`documentation/dataset_coverage_analysis.md`](documentation/dataset_coverage_analysis.md) — NASA OSDR Inspiration4 Dataset Coverage Audit
-
-## License
-
-MIT License. See [`LICENSE`](LICENSE).
+This software is released under the **MIT License** with open-science provisions for the **NASA International Space Apps Challenge 2026**. See the complete [`LICENSE`](LICENSE) file for attribution, NASA OSDR terms, and non-clinical research prototype notices.

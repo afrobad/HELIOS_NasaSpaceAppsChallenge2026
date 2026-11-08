@@ -396,7 +396,8 @@ export function generateScenarioTelemetry(
  */
 export function generateScenarioAlert(
   scenarioKey: string,
-  targetCrewId?: string | null
+  targetCrewId?: string | null,
+  liveTelemetry?: Record<string, any>
 ): AlertPayload | null {
   if (scenarioKey === 'NOMINAL_CRUISE') {
     return {
@@ -423,66 +424,78 @@ export function generateScenarioAlert(
     : 'AST-01_COMMANDER';
 
   const crewName = isUniversal ? 'All Crew Members' : CREW_NAMES[targetId];
+  const targetTel = liveTelemetry ? (liveTelemetry[targetId] || Object.values(liveTelemetry)[0] || {}) : {};
+
+  const co2Val = targetTel.cabin_co2 ? Number(targetTel.cabin_co2).toFixed(2) : '4.25';
+  const spo2Val = targetTel.spo2 ? Number(targetTel.spo2).toFixed(1) : '88.5';
+  const hrVal = targetTel.heart_rate ? Math.round(Number(targetTel.heart_rate)) : 118;
+  const pressVal = targetTel.cabin_pressure ? Number(targetTel.cabin_pressure).toFixed(1) : '85.0';
+  const radVal = targetTel.radiation_flux ? Number(targetTel.radiation_flux).toFixed(1) : '85.0';
+  const kVal = targetTel.potassium ? Number(targetTel.potassium).toFixed(2) : '2.95';
+  const qtcVal = targetTel.computed_qtc ? Math.round(Number(targetTel.computed_qtc)) : 495;
+  const tempVal = (targetTel.core_temp || targetTel.core_temperature) ? Number(targetTel.core_temp || targetTel.core_temperature).toFixed(1) : '39.1';
+  const il6Val = targetTel.il_6 ? Math.round(Number(targetTel.il_6)) : 125;
+  const trmVal = targetTel.trm_ratio ? Number(targetTel.trm_ratio).toFixed(2) : '2.35';
 
   const map: Record<string, { severity: 'CRITICAL' | 'WARNING'; title: string; speech: string; action: string }> = {
     SCENARIO_1_CO2_SCRUBBER_BREAKTHROUGH: {
       severity: 'WARNING',
-      title: 'CO₂ Scrubber Breakthrough (4.25 mmHg)',
-      speech: 'Warning. Carbon dioxide scrubber breakthrough detected across cabin modules. Don emergency masks.',
-      action: 'Switch to backup lithium hydroxide scrubber beds and verify mask seals.',
+      title: `CO₂ Scrubber Breakthrough (${co2Val} mmHg)`,
+      speech: `Critical alert. Carbon dioxide scrubber breakthrough detected. Cabin carbon dioxide surged to ${co2Val} millimeters of mercury with crew blood oxygen at ${spo2Val} percent. Don emergency oxygen masks immediately.`,
+      action: 'Switch to backup lithium hydroxide scrubber beds, verify mask seals, and ventilate cabin module.',
     },
     SCENARIO_2_SLOW_DECOMPRESSION_HYPOXIA: {
       severity: 'CRITICAL',
-      title: 'Cabin Decompression & Acute Hypoxia (SpO₂ 88.5%)',
-      speech: 'Critical alert. Rapid cabin decompression and hypoxia detected. Don pressurized oxygen masks immediately.',
+      title: `Cabin Decompression & Acute Hypoxia (SpO₂ ${spo2Val}%)`,
+      speech: `Critical alert. Cabin decompression detected at ${pressVal} kilopascals with blood oxygen critically low at ${spo2Val} percent. Don pressurized oxygen masks immediately.`,
       action: 'Don pressurized oxygen masks immediately, locate hull breach, and seal pressure bulkheads.',
     },
     SCENARIO_3_SOLAR_RADIATION_STORM: {
       severity: 'CRITICAL',
-      title: 'Solar Particle Radiation Storm (85 mGy/h)',
-      speech: 'Emergency. Severe solar particle storm detected. Direct all crew to storm shelter immediately.',
+      title: `Solar Particle Radiation Storm (${radVal} mGy/h)`,
+      speech: `Emergency alert. Severe solar particle storm detected with cosmic radiation flux surging to ${radVal} milligray per hour. Direct all crew to storm shelter immediately.`,
       action: 'Direct all crew to the water-shielded storm shelter; monitor active radiation dosimeters.',
     },
     SCENARIO_4_AMMONIA_COOLANT_LEAK: {
       severity: 'CRITICAL',
-      title: 'Toxic Ammonia Coolant Ingress (SpO₂ 89.5%)',
-      speech: 'Critical alert. Toxic ammonia coolant ingress detected. Isolate loop and activate gas filtration.',
+      title: `Toxic Ammonia Coolant Ingress (SpO₂ ${spo2Val}%)`,
+      speech: `Critical alert. Toxic ammonia coolant ingress detected with crew blood oxygen at ${spo2Val} percent. Isolate loop and activate gas filtration immediately.`,
       action: 'Isolate internal thermal loop, put on emergency breathing apparatus, and run charcoal filtration.',
     },
     SCENARIO_5_ELECTRICAL_FIRE_SMOLDER: {
       severity: 'WARNING',
-      title: 'Avionics Smoldering Fire (SpO₂ 93.5%)',
-      speech: 'Warning. Avionics smoldering combustion detected. Depower bus and discharge halon.',
-      action: 'Depower affected electrical bus and prepare portable fire suppression cannisters.',
+      title: `Avionics Smoldering Fire (SpO₂ ${spo2Val}%)`,
+      speech: `Warning. Avionics smoldering combustion detected with crew blood oxygen at ${spo2Val} percent. Depower bus and discharge halon.`,
+      action: 'Depower affected electrical bus and prepare portable fire suppression canisters.',
     },
     SCENARIO_6_HYPOKALEMIA_ARRHYTHMIA: {
       severity: 'CRITICAL',
-      title: `${crewName} · Severe Hypokalemia & QTc Prolongation (2.95 mmol/L)`,
-      speech: `Critical alert for ${crewName}. Dangerous potassium depletion and Q-T prolongation detected. Oral potassium required.`,
+      title: `${crewName} · Severe Hypokalemia & QTc Prolongation (${kVal} mmol/L)`,
+      speech: `Critical alert for ${crewName}. Serum potassium dropped to ${kVal} millimoles per liter with Q-T interval prolonged at ${qtcVal} milliseconds and heart rate at ${hrVal} beats per minute. Oral potassium required.`,
       action: 'Suspend EVA excursion; initiate emergency KCl oral rehydration protocol (40 mEq) immediately.',
     },
     SCENARIO_7_VENOUS_THROMBOSIS_RISK: {
       severity: 'CRITICAL',
-      title: `${crewName} · Internal Jugular Venous Thrombosis Risk (TRM 2.35)`,
-      speech: `Critical alert for ${crewName}. Cephalad blood stasis and thrombosis risk elevated.`,
+      title: `${crewName} · Internal Jugular Venous Thrombosis Risk (TRM ${trmVal})`,
+      speech: `Critical alert for ${crewName}. Internal jugular venous stasis detected with TRM ratio elevated at ${trmVal}. Initiate compression countermeasures.`,
       action: 'Conduct ultrasound imaging on bilateral jugular veins; initiate low-molecular-weight heparin countermeasure.',
     },
     SCENARIO_8_CARDIOVASCULAR_DECONDITIONING: {
       severity: 'WARNING',
       title: `${crewName} · Cardiovascular Orthostatic Deconditioning`,
-      speech: `Warning for ${crewName}. Cardiovascular deconditioning observed with compensatory tachycardia.`,
+      speech: `Warning for ${crewName}. Cardiovascular orthostatic deconditioning observed with compensatory heart rate at ${hrVal} beats per minute.`,
       action: 'Prescribe high-intensity interval ARED cycle countermeasure and isotonic fluid loading.',
     },
     SCENARIO_9_CORONARY_MICROVASCULAR_STRESS: {
       severity: 'WARNING',
       title: `${crewName} · Coronary Microvascular Endothelial Stress`,
-      speech: `Warning for ${crewName}. Myocardial endothelial stress and Q-T elevation detected.`,
+      speech: `Warning for ${crewName}. Myocardial endothelial stress and heart rate elevated to ${hrVal} beats per minute.`,
       action: 'Reduce cardiovascular load; monitor continuous 12-lead vector ECG.',
     },
     SCENARIO_10_PRESYMPTOMATIC_SEPSIS: {
       severity: 'CRITICAL',
-      title: `${crewName} · Presymptomatic Systemic Sepsis Cascade (IL-6 125 pg/mL)`,
-      speech: `Critical alert for ${crewName}. Presymptomatic sepsis inflammatory cascade detected. Initiate intravenous broad-spectrum regimen.`,
+      title: `${crewName} · Presymptomatic Systemic Sepsis Cascade (IL-6 ${il6Val} pg/mL)`,
+      speech: `Critical alert for ${crewName}. Presymptomatic sepsis inflammatory cascade detected. Interleukin-6 at ${il6Val} picograms per milliliter with core temperature at ${tempVal} degrees Celsius.`,
       action: 'Commence immediate broad-spectrum antibiotic countermeasure; draw peripheral blood culture.',
     },
     SCENARIO_11_LATENT_VIRUS_REACTIVATION: {
@@ -493,8 +506,8 @@ export function generateScenarioAlert(
     },
     SCENARIO_12_CYTOKINE_RELEASE_STORM: {
       severity: 'CRITICAL',
-      title: `${crewName} · Hyper-Inflammatory Cytokine Release Storm (IL-6 195 pg/mL)`,
-      speech: `Emergency for ${crewName}. Hyper-inflammatory cytokine storm detected. High-dose steroid intervention indicated.`,
+      title: `${crewName} · Hyper-Inflammatory Cytokine Release Storm (IL-6 ${il6Val} pg/mL)`,
+      speech: `Emergency for ${crewName}. Hyper-inflammatory cytokine storm detected with Interleukin-6 at ${il6Val} picograms per milliliter. High-dose steroid intervention indicated.`,
       action: 'Administer IV dexamethasone or IL-6 receptor antagonist; monitor core temperature and hemodynamics.',
     },
     SCENARIO_13_RADIATION_MARROW_EXHAUSTION: {
@@ -512,26 +525,26 @@ export function generateScenarioAlert(
     SCENARIO_15_INTRAVASCULAR_DEHYDRATION: {
       severity: 'WARNING',
       title: `${crewName} · Microgravity Intravascular Dehydration (Hct 52%)`,
-      speech: `Warning for ${crewName}. Severe hemoconcentration and plasma loss detected.`,
+      speech: `Warning for ${crewName}. Severe hemoconcentration and plasma loss detected with heart rate at ${hrVal} beats per minute.`,
       action: 'Administer 800 mL oral rehydration solution; pause strenuous EVA exertion.',
     },
     SCENARIO_16_HEPATIC_METABOLIC_DYSFUNCTION: {
       severity: 'WARNING',
       title: `${crewName} · Hepatic Microvascular Metabolic Stress`,
-      speech: `Warning for ${crewName}. Liver metabolic enzyme elevation detected.`,
-      action: 'Adjust nutritional protein intake and monitor hepatic transaminases.',
+      speech: `Warning for ${crewName}. Microgravity hepatic clearance reduction detected. Adjust medication dosage.`,
+      action: 'Titrate pharmaceutical dosing by -50%; monitor liver transaminases.',
     },
     SCENARIO_17_SPACE_VISION_SANS: {
       severity: 'WARNING',
       title: `${crewName} · Spaceflight-Associated Neuro-Ocular Syndrome (SANS)`,
-      speech: `Warning for ${crewName}. Cephalad venous pressure and optic disc sheath dilation observed.`,
-      action: 'Perform funduscopic optical coherence tomography (OCT); initiate chinstrap venoconstrictive countermeasure.',
+      speech: `Warning for ${crewName}. Cephalad venous pressure and optic disc sheath dilation observed. Initiate negative pressure protocol.`,
+      action: 'Schedule 2 hours lower-body negative pressure (LBNP); perform funduscopic OCT.',
     },
     SCENARIO_18_CIRCADIAN_FATIGUE_DRIFT: {
       severity: 'WARNING',
       title: `${crewName} · Deep Circadian Desynchronosis & Sleep Deficit`,
-      speech: `Warning for ${crewName}. Circadian phase drift and sleep score drop to 42 detected.`,
-      action: 'Administer 0.5 mg exogenous melatonin; enforce 450 nm blue-depleted cabin lighting protocol.',
+      speech: `Warning for ${crewName}. Circadian phase drift detected with resting heart rate at ${hrVal} beats per minute.`,
+      action: 'Administer 30-minute blue-enriched light therapy (480 nm, 10,000 lux); reschedule sleep window.',
     },
   };
 
@@ -549,7 +562,7 @@ export function generateScenarioAlert(
     astronaut_name: crewName,
     severity: info.severity,
     tone: info.severity === 'CRITICAL' ? 'klaxon' : 'chime',
-    speech_text: info.speech,
+    speech_text: `${info.speech} Helix-Ai Analyst directive: ${info.action}`,
     source: 'HELIOS_SENTRY',
     is_fallback: false,
     duration_ms: info.severity === 'CRITICAL' ? 5500 : 4000,

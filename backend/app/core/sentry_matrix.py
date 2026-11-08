@@ -181,7 +181,8 @@ class SentryMatrixEngine:
         base_hct = 48.3 if ("04" in ast_id or "ENGINEER" in ast_id or "c004" in ast_id.lower()) else 43.5
 
         if (
-            telemetry.get("potassium", 4.2) < 3.8 or
+            telemetry.get("potassium", 4.2) < 3.4 or
+            telemetry.get("potassium", 4.2) > 5.2 or
             telemetry.get("il_6", 6.0) > 15.0 or
             telemetry.get("hematocrit", 44.0) > max(51.0, base_hct + 3.0)
         ):

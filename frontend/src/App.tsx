@@ -7,6 +7,11 @@ import { HolographicBodyScanner } from './components/HolographicBodyScanner';
 import { SpaceBackground } from './components/SpaceBackground';
 import { MainIndexDeck } from './components/MainIndexDeck';
 import { SuitHudView } from './components/suit-hud/SuitHudView';
+import { Cabin3DView } from './components/cabin3d/Cabin3DView';
+import { DragonDockingIntro } from './components/docking/DragonDockingIntro';
+import { AstronautSelfAssessment } from './components/AstronautSelfAssessment';
+import { MissionRoutineAdherence } from './components/MissionRoutineAdherence';
+import { ProjectTourOverlay } from './components/ProjectTourOverlay';
 import { wsService } from './services/websocketService';
 import { audioService } from './services/audioService';
 import {
@@ -23,10 +28,55 @@ import {
   tickOfflineTelemetry,
 } from './utils/scenarioSimulator';
 
+// Helper to broadcast live telemetry, scenarios, and alerts across tabs and frames
+function broadcastCabinSync(telemetryMap: any, latestAlert: any, currentScenario: string) {
+  // Embedded sub-frames (such as 3D cabin wall monitors) must NEVER broadcast state to localStorage or BroadcastChannel
+  if (typeof window !== 'undefined' && window.self !== window.top) {
+    return;
+  }
+
+  const isNominal = !currentScenario || currentScenario === 'NOMINAL_CRUISE';
+  const payload = {
+    type: isNominal ? 'NOMINAL_STATE' : 'HELIOS_TELEMETRY_SYNC',
+    telemetryMap,
+    latestAlert: isNominal ? null : latestAlert,
+    scenario: isNominal ? 'NOMINAL_CRUISE' : currentScenario,
+    timestamp: Date.now(),
+  };
+
+  // 1. Instant cross-tab sync via localStorage (fires in all open tabs/windows of localhost:3000)
+  try {
+    localStorage.setItem('helios_scenario', isNominal ? 'NOMINAL_CRUISE' : currentScenario);
+    localStorage.setItem('helios_live_sync', JSON.stringify(payload));
+  } catch {
+    // Storage quota or private browsing
+  }
+
+  // 2. BroadcastChannel multi-context broadcast
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      const bc = new BroadcastChannel('helios-telemetry');
+      bc.postMessage(payload);
+      setTimeout(() => {
+        try { bc.close(); } catch {}
+      }, 500);
+    }
+  } catch {
+    // BroadcastChannel unsupported
+  }
+
+  // 3. Post to parent window if inside an iframe (like wall monitor or modal terminal)
+  try {
+    if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+      window.parent.postMessage(payload, '*');
+    }
+  } catch {}
+}
+
 export function App() {
   // Parse initial route: '/' -> HUD; '/telemetry/:name' -> Health Telemetry; '/mcc' -> Earth MCC; '/mcc/telemetry/:name' -> Earth MCC Telemetry; '/scanner' -> 3D Hologram
   const initialRoute = parseCurrentRoute();
-  const [activeView, setActiveView] = useState<'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD'>(initialRoute.view);
+  const [activeView, setActiveView] = useState<'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD' | 'CABIN_3D' | 'DRAGON_DOCKING' | 'SELF_ASSESSMENT' | 'MISSION_ROUTINE'>(initialRoute.view);
   const [activeTriageAstronautId, setActiveTriageAstronautId] = useState<string | null>(
     initialRoute.view === 'HEALTH_TELEMETRY' ? initialRoute.astronautId : null
   );
@@ -42,21 +92,103 @@ export function App() {
   const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
   const [targetAstronautId, setTargetAstronautId] = useState<string | null>('AST-01_COMMANDER');
   const targetAstronautIdRef = useRef<string | null>('AST-01_COMMANDER');
+  const [isTourActive, setIsTourActive] = useState<boolean>(false);
+
+  useEffect(() => {
+    audioService.setTourMode(isTourActive);
+  }, [isTourActive]);
+
+  // Embed mode detection: inside an iframe with ?embed=1 (hides browser chrome for wall monitors)
+  const isEmbedMode = typeof window !== 'undefined' && (() => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get('embed') === '1' || sp.get('cabin') === '1') return true;
+      if (window.self !== window.top) return true;
+      return false;
+    } catch {
+      return false;
+    }
+  })();
+
+  useEffect(() => {
+    if (isEmbedMode) {
+      document.body.classList.add('embed-mode');
+      document.documentElement.style.overflow = 'hidden';
+      audioService.setEngaged(false);
+      audioService.stopSpeaking();
+      audioService.stopKlaxon();
+    }
+    return () => {
+      document.body.classList.remove('embed-mode');
+      document.documentElement.style.overflow = '';
+      if (!isEmbedMode) {
+        audioService.setEngaged(true);
+      }
+    };
+  }, [isEmbedMode]);
 
   useEffect(() => {
     connectedRef.current = connected;
   }, [connected]);
 
   // ─── 1. SPACECRAFT ONBOARD TELEMETRY STATE (INSTANT, LOCAL 10 HZ, ZERO DELAY) ───
-  const [telemetryMap, setTelemetryMap] = useState<Record<string, TelemetryPacket>>(
-    () => JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY))
-  );
-  const [latestAlert, setLatestAlert] = useState<AlertPayload | null>(null);
-  const [currentScenario, setCurrentScenario] = useState<string>('NOMINAL_CRUISE');
+  const [telemetryMap, setTelemetryMap] = useState<Record<string, TelemetryPacket>>(() => {
+    try {
+      const saved = localStorage.getItem('helios_live_sync');
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p?.telemetryMap && Object.keys(p.telemetryMap).length > 0) {
+          return p.telemetryMap;
+        }
+      }
+      const savedScenario = localStorage.getItem('helios_scenario');
+      if (savedScenario && savedScenario !== 'NOMINAL_CRUISE') {
+        return generateScenarioTelemetry(savedScenario, 'AST-01_COMMANDER');
+      }
+    } catch {}
+    return JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY));
+  });
+  const [latestAlert, setLatestAlert] = useState<AlertPayload | null>(() => {
+    try {
+      const saved = localStorage.getItem('helios_live_sync');
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p?.latestAlert && p.scenario && p.scenario !== 'NOMINAL_CRUISE') return p.latestAlert;
+      }
+    } catch {}
+    return null;
+  });
+  const [currentScenario, setCurrentScenario] = useState<string>(() => {
+    try {
+      const savedScenario = localStorage.getItem('helios_scenario');
+      if (savedScenario) return savedScenario;
+      const saved = localStorage.getItem('helios_live_sync');
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p?.scenario) return p.scenario;
+      }
+    } catch {}
+    return 'NOMINAL_CRUISE';
+  });
   const [scannerTheme, setScannerTheme] = useState<'CYAN' | 'THERMAL' | 'AMBER'>('CYAN');
   const [showEclssBar, setShowEclssBar] = useState<boolean>(true);
   const bufferedPacketsRef = useRef<Record<string, TelemetryPacket>>(
-    JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY))
+    (() => {
+      try {
+        const saved = localStorage.getItem('helios_live_sync');
+        if (saved) {
+          const p = JSON.parse(saved);
+          if (p?.telemetryMap && Object.keys(p.telemetryMap).length > 0) {
+            return p.telemetryMap;
+          }
+        }
+        const savedScenario = localStorage.getItem('helios_scenario');
+        if (savedScenario && savedScenario !== 'NOMINAL_CRUISE') {
+          return generateScenarioTelemetry(savedScenario, 'AST-01_COMMANDER');
+        }
+      } catch {}
+      return JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY));
+    })()
   );
 
   // ─── 2. EARTH MISSION CONTROL TELEMETRY STATE (SUBJECT TO LIGHT PROPAGATION DELAY) ───
@@ -141,6 +273,11 @@ export function App() {
       .then((res) => res.json())
       .then((data) => {
         if (data.telemetry) {
+          // If a non-nominal scenario is already active in this session, preserve its biometrics
+          const activeSavedScenario = localStorage.getItem('helios_scenario');
+          if (activeSavedScenario && activeSavedScenario !== 'NOMINAL_CRUISE') {
+            return;
+          }
           const onboardData = JSON.parse(JSON.stringify(data.telemetry));
           const mccData = JSON.parse(JSON.stringify(data.telemetry));
           bufferedPacketsRef.current = onboardData;
@@ -170,10 +307,47 @@ export function App() {
 
     // 3. Subscribe to 10 Hz Telemetry
     const unsubTelemetry = wsService.subscribeTelemetry((packet: TelemetryPacket) => {
+      const activeStored = localStorage.getItem('helios_scenario') || currentScenario;
+      const isScenarioActive = activeStored && activeStored !== 'NOMINAL_CRUISE';
+
+      let effectivePacket = packet;
+      if (isScenarioActive) {
+        // If incoming packet hasn't updated its phase or values yet, shape it to the active scenario:
+        if (!packet.scenario_phase || packet.scenario_phase === 'NOMINAL_CRUISE') {
+          const shaped = generateScenarioTelemetry(activeStored, targetAstronautIdRef.current);
+          if (shaped[packet.astronaut_id]) {
+            effectivePacket = { ...packet, ...shaped[packet.astronaut_id] };
+          }
+        }
+      } else {
+        // Active scenario is NOMINAL_CRUISE: sanitize any lingering or out-of-order emergency packet
+        if (effectivePacket.scenario_phase && effectivePacket.scenario_phase !== 'NOMINAL_CRUISE') {
+          const nom = DEFAULT_NOMINAL_TELEMETRY[effectivePacket.astronaut_id];
+          if (nom) {
+            effectivePacket = {
+              ...effectivePacket,
+              ...nom,
+              timestamp: effectivePacket.timestamp || new Date().toISOString(),
+              scenario_phase: 'NOMINAL_CRUISE',
+              evaluated_severity: 'NOMINAL',
+              alert_severity: 'NOMINAL',
+            };
+          }
+        }
+      }
+
       // Spacecraft onboard sensors are ALWAYS instant:
-      bufferedPacketsRef.current[packet.astronaut_id] = packet;
-      if (packet.scenario_phase) {
-        setCurrentScenario((prev) => (prev === packet.scenario_phase ? prev : packet.scenario_phase));
+      bufferedPacketsRef.current[effectivePacket.astronaut_id] = effectivePacket;
+
+      // Maintain scenario phase consistency between user selection and live telemetry
+      if (isScenarioActive) {
+        if (currentScenario !== activeStored) {
+          setCurrentScenario(activeStored);
+        }
+      } else {
+        if (currentScenario !== 'NOMINAL_CRUISE') {
+          setCurrentScenario('NOMINAL_CRUISE');
+        }
       }
 
       // Deep-space delay check for Earth MCC:
@@ -227,6 +401,12 @@ export function App() {
 
     // 4. Subscribe to Proactive AI Surgeon Alerts
     const unsubAlert = wsService.subscribeAlert((alert: AlertPayload) => {
+      const activeStored = localStorage.getItem('helios_scenario');
+      if (activeStored === 'NOMINAL_CRUISE' && alert.severity !== 'NOMINAL') {
+        // Discard stale in-flight alerts from an old scenario
+        return;
+      }
+
       // Spacecraft onboard alert is always instant:
       setLatestAlert(alert);
 
@@ -303,10 +483,62 @@ export function App() {
     setInTransitSignal(null);
   }, []);
 
+  const activeViewRef = useRef(activeView);
+  useEffect(() => {
+    activeViewRef.current = activeView;
+  }, [activeView]);
+
+  // Voice synthesis coordinator for AI Surgeon across all views without HeaderBar (SUIT_HUD and CABIN_3D)
+  const lastSpokenAlertRef = useRef<string>('');
+
+  const playAiSurgeonAlert = useCallback((alert: AlertPayload | null) => {
+    if (isTourActive) return;
+    if (!alert || !alert.speech_text || alert.severity === 'NOMINAL') {
+      audioService.stopSpeaking();
+      lastSpokenAlertRef.current = '';
+      return;
+    }
+    const cleanText = alert.speech_text.trim();
+    if (!cleanText) return;
+
+    const alertKey = `${alert.id || alert.speech_text}_${cleanText}`;
+    if (alertKey === lastSpokenAlertRef.current) return;
+    lastSpokenAlertRef.current = alertKey;
+
+    audioService.initAudioContext();
+    audioService.setEngaged(true);
+    const tone = alert.tone || (alert.severity === 'CRITICAL' ? 'klaxon' : 'chime');
+    audioService.queueSpeech({
+      text: cleanText,
+      tone,
+      config: {
+        ...alert.audio_config,
+        severity: alert.severity,
+      },
+      callbacks: {
+        onStart: () => {},
+        onEnd: () => {},
+      },
+    });
+  }, [isTourActive]);
+
+  // When activeView is SUIT_HUD or CABIN_3D and latestAlert changes, speak AI Surgeon directive
+  useEffect(() => {
+    if (activeView !== 'SUIT_HUD' && activeView !== 'CABIN_3D') {
+      lastSpokenAlertRef.current = '';
+      return;
+    }
+    if (isTourActive) return;
+    playAiSurgeonAlert(latestAlert);
+  }, [latestAlert, activeView, isTourActive, playAiSurgeonAlert]);
+
   // Scenario Triggered: Spacecraft onboard responds INSTANTLY; Earth MCC enters in-transit delay
   const handleScenarioTriggered = useCallback(
     (scenarioKey: string, telemetry?: Record<string, any>, targetCrewId?: string | null) => {
       // 1. Spacecraft Onboard: 100% instant update with zero latency
+      try {
+        localStorage.setItem('helios_scenario', scenarioKey);
+      } catch {}
       setCurrentScenario(scenarioKey);
       const effectiveTarget = targetCrewId || targetAstronautIdRef.current || 'AST-01_COMMANDER';
       setTargetAstronautId(effectiveTarget);
@@ -321,18 +553,33 @@ export function App() {
       bufferedPacketsRef.current = effectiveTelemetry;
       setTelemetryMap({ ...effectiveTelemetry });
 
-      // Trigger clinical alert immediately
-      const alert = generateScenarioAlert(scenarioKey, effectiveTarget);
-      if (alert) {
+      let alert: AlertPayload | null = null;
+      if (scenarioKey === 'NOMINAL_CRUISE') {
+        alert = generateScenarioAlert('NOMINAL_CRUISE', effectiveTarget);
         setLatestAlert(alert);
-        if (alert.speech_text && scenarioKey !== 'NOMINAL_CRUISE') {
-          audioService.queueSpeech({
-            text: alert.speech_text,
-            tone: alert.tone,
-            config: { severity: alert.severity },
-          });
+        setMccAlert(alert);
+        inTransitAlertRef.current = null;
+        inTransitSignalRef.current = null;
+        setInTransitSignal(null);
+        audioService.stopKlaxon();
+        audioService.stopSpeaking();
+        lastSpokenAlertRef.current = '';
+      } else {
+        // Trigger clinical alert immediately - HeaderBar coordinates unified AI Surgeon voice & subtitles
+        alert = generateScenarioAlert(scenarioKey, effectiveTarget, effectiveTelemetry);
+        if (alert) {
+          audioService.initAudioContext();
+          audioService.setEngaged(true);
+          setLatestAlert(alert);
+          if (activeViewRef.current === 'SUIT_HUD' || activeViewRef.current === 'CABIN_3D') {
+            lastSpokenAlertRef.current = '';
+            playAiSurgeonAlert(alert);
+          }
         }
       }
+
+      // Synchronously broadcast scenario & alert to ISS Deck / Cabin views in real time
+      broadcastCabinSync(effectiveTelemetry, alert, scenarioKey);
 
       // 2. Earth MCC: Subject to deep-space radio propagation delay
       const currentPos = orbitalPositionRef.current;
@@ -375,6 +622,193 @@ export function App() {
     },
     [applyMccTelemetryUpdate]
   );
+
+  // Handler for "SOLVED" button: instantly restores nominal flight cruise and clears all active clinical alarms
+  const handleSolveSituation = useCallback(async () => {
+    // 1. Force local state & storage to NOMINAL_CRUISE immediately
+    try {
+      localStorage.setItem('helios_scenario', 'NOMINAL_CRUISE');
+    } catch {}
+    setCurrentScenario('NOMINAL_CRUISE');
+    setMccScenario('NOMINAL_CRUISE');
+    mccScenarioRef.current = 'NOMINAL_CRUISE';
+
+    // 2. Clear all active emergency alerts immediately
+    const nomAlert = generateScenarioAlert('NOMINAL_CRUISE', targetAstronautIdRef.current);
+    setLatestAlert(nomAlert);
+    setMccAlert(nomAlert);
+    inTransitAlertRef.current = null;
+    inTransitSignalRef.current = null;
+    setInTransitSignal(null);
+    lastSpokenAlertRef.current = '';
+
+    // 3. Immediately reset telemetry buffers for all 4 crew members to nominal baseline
+    const nom = JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY));
+    bufferedPacketsRef.current = nom;
+    setTelemetryMap({ ...nom });
+    bufferedMccPacketsRef.current = nom;
+    setMccTelemetryMap({ ...nom });
+
+    // 4. Silence alarms and klaxons immediately
+    audioService.stopKlaxon();
+    audioService.stopSpeaking();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    audioService.playTone('chime', 'NOMINAL');
+
+    // 5. Broadcast nominal state across tabs / cabin 3D / monitor iframes
+    broadcastCabinSync(nom, nomAlert, 'NOMINAL_CRUISE');
+
+    // 6. Notify backend API to jump back to NOMINAL_CRUISE playback
+    try {
+      const getApiUrl = (endpoint: string) => {
+        if (typeof window !== 'undefined') {
+          const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          if (isLocal && window.location.port !== '8000') {
+            return `http://${window.location.hostname}:8000${endpoint}`;
+          }
+        }
+        return endpoint;
+      };
+      const queryUrl = getApiUrl('/api/scenario/NOMINAL_CRUISE');
+      let res = await fetch(queryUrl, { method: 'POST' }).catch(() => null);
+      if (!res?.ok) {
+        res = await fetch('/api/scenario/NOMINAL_CRUISE', { method: 'POST' }).catch(() => null);
+      }
+      if (res?.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.telemetry && Object.keys(data.telemetry).length > 0) {
+          bufferedPacketsRef.current = { ...data.telemetry };
+          setTelemetryMap({ ...data.telemetry });
+        }
+      }
+    } catch {
+      // Backend offline fallback handled above
+    }
+
+    setTimeout(() => {
+      audioService.speak('Situation resolved. All life support and crew biometric systems restored to nominal baseline.');
+    }, 200);
+  }, []);
+
+  const isIncomingSyncRef = useRef<boolean>(false);
+
+  // Synchronize live telemetry and alerts to cabin 3D views (both embedded & cross-tab)
+  useEffect(() => {
+    if (isIncomingSyncRef.current) {
+      isIncomingSyncRef.current = false;
+      return;
+    }
+    broadcastCabinSync(telemetryMap, latestAlert, currentScenario || 'NOMINAL_CRUISE');
+  }, [currentScenario, latestAlert]);
+
+  // Bidirectional Synchronization: Receive scenario & alert updates from other tabs, wall monitor iframes, or ISS Deck
+  useEffect(() => {
+    const handleIncomingSync = (payload: any) => {
+      if (!payload || typeof payload !== 'object') return;
+      if (payload.fromCabin || payload.fromIframe) return; // Prevent echo feedback loops from monitor iframes
+      isIncomingSyncRef.current = true;
+      if (payload.type === 'HELIOS_SPEAK_DIRECTIVE' && payload.text && !isEmbedMode) {
+        audioService.initAudioContext();
+        audioService.setEngaged(true);
+        audioService.queueSpeech({
+          text: payload.text,
+          tone: payload.tone || 'chime',
+          config: { severity: payload.severity || 'INFO' },
+        });
+        return;
+      }
+      if (payload.type === 'NOMINAL_STATE' || payload.scenario === 'NOMINAL_CRUISE') {
+        const wasNonNominal = currentScenario && currentScenario !== 'NOMINAL_CRUISE';
+        try {
+          localStorage.setItem('helios_scenario', 'NOMINAL_CRUISE');
+        } catch {}
+        setCurrentScenario('NOMINAL_CRUISE');
+        const nomAlert = generateScenarioAlert('NOMINAL_CRUISE', targetAstronautIdRef.current);
+        setLatestAlert(nomAlert);
+        setMccAlert(nomAlert);
+        inTransitAlertRef.current = null;
+        inTransitSignalRef.current = null;
+        setInTransitSignal(null);
+        audioService.stopKlaxon();
+        audioService.stopSpeaking();
+        const nom = JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY));
+        bufferedPacketsRef.current = nom;
+        setTelemetryMap(nom);
+        bufferedMccPacketsRef.current = nom;
+        setMccTelemetryMap(nom);
+        return;
+      }
+      if (payload.type === 'HELIOS_TELEMETRY_SYNC') {
+        if (payload.scenario) {
+          try {
+            localStorage.setItem('helios_scenario', payload.scenario);
+          } catch {}
+          if (payload.scenario !== currentScenario) {
+            setCurrentScenario(payload.scenario);
+          }
+        }
+        if (payload.latestAlert !== undefined) {
+          setLatestAlert(payload.latestAlert);
+        }
+        if (payload.telemetryMap && Object.keys(payload.telemetryMap).length > 0) {
+          bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...payload.telemetryMap };
+          setTelemetryMap({ ...bufferedPacketsRef.current });
+        } else if (payload.scenario && payload.scenario !== 'NOMINAL_CRUISE') {
+          const syn = generateScenarioTelemetry(payload.scenario, targetAstronautIdRef.current);
+          bufferedPacketsRef.current = { ...bufferedPacketsRef.current, ...syn };
+          setTelemetryMap({ ...bufferedPacketsRef.current });
+        }
+        if (payload.scenario && payload.scenario !== mccScenarioRef.current && !inTransitSignalRef.current) {
+          setMccScenario(payload.scenario);
+          mccScenarioRef.current = payload.scenario;
+        }
+      }
+    };
+
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('helios-telemetry');
+        bc.onmessage = (e) => handleIncomingSync(e.data);
+      } catch {}
+    }
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'helios_live_sync' && e.newValue) {
+        try {
+          handleIncomingSync(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data === 'PLAY_DRAGON_DOCKING' || e.data?.type === 'PLAY_DRAGON_DOCKING') {
+        handleSelectView('DRAGON_DOCKING');
+        return;
+      }
+      if (e.data === 'OPEN_SCENARIOS' || e.data?.type === 'OPEN_SCENARIOS') {
+        window.dispatchEvent(new CustomEvent('helios:open_scenarios'));
+        return;
+      }
+      if (e.data?.type === 'TRIGGER_SCENARIO' && e.data.scenario) {
+        handleScenarioTriggered(e.data.scenario, e.data.telemetry, e.data.targetCrewId);
+        return;
+      }
+      handleIncomingSync(e.data);
+    };
+    window.addEventListener('message', handleMessage);
+
+    return () => {
+      if (bc) {
+        try { bc.close(); } catch {}
+      }
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [currentScenario]);
 
   // Deep-space light propagation countdown ticker (accelerated by speedMultiplier)
   useEffect(() => {
@@ -443,12 +877,37 @@ export function App() {
   }, []);
 
   const handleSelectView = useCallback(
-    (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD') => {
-      if (view === 'HUD') {
+    (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD' | 'CABIN_3D' | 'DRAGON_DOCKING' | 'SELF_ASSESSMENT' | 'MISSION_ROUTINE') => {
+      if (view === 'DRAGON_DOCKING') {
+        setActiveView('DRAGON_DOCKING');
+        setActiveTriageAstronautId(null);
+        setActiveMccAstronautId(null);
+        navigateTo('/docking');
+      } else if (view === 'HUD') {
         setActiveView('HUD');
         setActiveTriageAstronautId(null);
         setActiveMccAstronautId(null);
+        sessionStorage.setItem('helios_docking_intro_seen', 'true');
         navigateTo('/');
+      } else if (view === 'SELF_ASSESSMENT') {
+        setActiveView('SELF_ASSESSMENT');
+        setActiveTriageAstronautId(null);
+        setActiveMccAstronautId(null);
+        sessionStorage.setItem('helios_docking_intro_seen', 'true');
+        navigateTo('/self-assessment');
+      } else if (view === 'MISSION_ROUTINE') {
+        setActiveView('MISSION_ROUTINE');
+        setActiveTriageAstronautId(null);
+        setActiveMccAstronautId(null);
+        sessionStorage.setItem('helios_docking_intro_seen', 'true');
+        navigateTo('/mission-routine');
+
+      } else if (view === 'CABIN_3D') {
+        setActiveView('CABIN_3D');
+        setActiveTriageAstronautId(null);
+        setActiveMccAstronautId(null);
+        sessionStorage.setItem('helios_docking_intro_seen', 'true');
+        navigateTo('/iss');
       } else if (view === 'MCC') {
         setActiveView('MCC');
         setActiveTriageAstronautId(null);
@@ -578,44 +1037,49 @@ export function App() {
 
   return (
     <>
-      {/* GPU-Composited Photorealistic Earth Orbital Space Background */}
-      <SpaceBackground activeView={activeView} />
+      {/* GPU-Composited Photorealistic Earth Orbital Space Background (disabled in embed frames for high FPS) */}
+      {!isEmbedMode && <SpaceBackground activeView={activeView} />}
 
       {/* ─── 1. FLIGHT HUD VIEW (DEFAULT HOME PAGE — 100% INSTANT SPACECRAFT DATA) ─── */}
       {activeView === 'HUD' && (
         <>
           {/* Universal Floating Header Capsule */}
-          <div
-            style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 200,
-              overflow: 'visible',
-              width: '100%',
-              padding: '12px 20px 0',
-              boxSizing: 'border-box',
-            }}
-          >
-            <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
-              <HeaderBar
-                connected={connected}
-                marsDelay={false}
-                orbitalPosition={orbitalPosition}
-                speedMultiplier={speedMultiplier}
-                activeView={activeView}
-                onSelectView={handleSelectView}
-                latestAlert={latestAlert}
-                selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
-                scannerTheme={scannerTheme}
-                onSelectScannerTheme={setScannerTheme}
-                showEclssBar={showEclssBar}
-                onToggleEclss={() => setShowEclssBar((prev) => !prev)}
-                currentScenario={currentScenario}
-                telemetryMap={telemetryMap}
-                onOpenTriage={handleOpenTriage}
-              />
+          {!isEmbedMode && (
+            <div
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 200,
+                overflow: 'visible',
+                width: '100%',
+                padding: '8px 20px 0',
+                boxSizing: 'border-box',
+              }}
+            >
+              <div style={{ maxWidth: '1840px', margin: '0 auto' }}>
+                <HeaderBar
+                  connected={connected}
+                  marsDelay={false}
+                  orbitalPosition={orbitalPosition}
+                  speedMultiplier={speedMultiplier}
+                  activeView={activeView}
+                  onSelectView={handleSelectView}
+                  latestAlert={latestAlert}
+                  selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
+                  scannerTheme={scannerTheme}
+                  onSelectScannerTheme={setScannerTheme}
+                  showEclssBar={showEclssBar}
+                  onToggleEclss={() => setShowEclssBar((prev) => !prev)}
+                  currentScenario={currentScenario}
+                  telemetryMap={telemetryMap}
+                  onOpenTriage={handleOpenTriage}
+                  onStartTour={() => setIsTourActive(true)}
+                  isTourActive={isTourActive}
+                  onSolveSituation={handleSolveSituation}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Futuristic 3D Holographic Flight Command Deck */}
           <MainIndexDeck
@@ -630,6 +1094,7 @@ export function App() {
             showEclssBar={showEclssBar}
             onToggleEclss={() => setShowEclssBar((prev) => !prev)}
             targetAstronautId={targetAstronautId}
+            onSolveSituation={handleSolveSituation}
           />
         </>
       )}
@@ -649,7 +1114,7 @@ export function App() {
               boxSizing: 'border-box',
             }}
           >
-            <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
+            <div style={{ maxWidth: '1840px', margin: '0 auto' }}>
               <HeaderBar
                 connected={connected}
                 marsDelay={false}
@@ -666,29 +1131,33 @@ export function App() {
                 currentScenario={currentScenario}
                 telemetryMap={telemetryMap}
                 onOpenTriage={handleOpenTriage}
+                onStartTour={() => setIsTourActive(true)}
+                isTourActive={isTourActive}
+                onSolveSituation={handleSolveSituation}
               />
             </div>
           </div>
-          <HealthTelemetryView
-            hideHeader={true}
-            initialAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
-            telemetryMap={telemetryMap}
-            marsDelay={false}
-            connected={connected}
-            latestAlert={latestAlert}
-            onToggleMarsDelay={handleToggleMarsDelay}
-            activeView={activeView}
-            onSelectView={handleSelectView}
-            onClose={handleCloseTelemetry}
-            onAstronautChange={handleAstronautChange}
-          />
+          <div data-tour="health-telemetry-view">
+            <HealthTelemetryView
+              hideHeader={true}
+              initialAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
+              telemetryMap={telemetryMap}
+              marsDelay={false}
+              connected={connected}
+              latestAlert={latestAlert}
+              onToggleMarsDelay={handleToggleMarsDelay}
+              activeView={activeView}
+              onSelectView={handleSelectView}
+              onClose={handleCloseTelemetry}
+              onAstronautChange={handleAstronautChange}
+            />
+          </div>
         </>
       )}
 
-      {/* ─── 3. EARTH MISSION CONTROL CENTER (MCC GROUND CONSOLE — DELAYED TELEMETRY) ─── */}
-      {activeView === 'MCC' && (
-        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backgroundColor: 'transparent' }}>
-          {/* Top Sticky Header */}
+      {/* ─── 2.5 ASTRONAUT DAILY SELF-ASSESSMENT & SUBJECTIVE HEALTH LOG ─── */}
+      {activeView === 'SELF_ASSESSMENT' && (
+        <div style={{ minHeight: '100vh', position: 'relative', zIndex: 1, backgroundColor: 'transparent' }}>
           <div
             style={{
               position: 'sticky',
@@ -700,53 +1169,43 @@ export function App() {
               boxSizing: 'border-box',
             }}
           >
-            <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
+            <div style={{ maxWidth: '1840px', margin: '0 auto' }}>
               <HeaderBar
                 connected={connected}
-                marsDelay={marsDelay}
-                onToggleMarsDelay={handleToggleMarsDelay}
+                marsDelay={false}
                 orbitalPosition={orbitalPosition}
-                onSelectOrbitalPosition={handleOrbitalPositionChange}
                 speedMultiplier={speedMultiplier}
                 activeView={activeView}
                 onSelectView={handleSelectView}
-                latestAlert={mccAlert}
+                latestAlert={latestAlert}
                 selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
                 scannerTheme={scannerTheme}
                 onSelectScannerTheme={setScannerTheme}
                 showEclssBar={showEclssBar}
                 onToggleEclss={() => setShowEclssBar((prev) => !prev)}
-                currentScenario={mccScenario}
-                telemetryMap={mccTelemetryMap}
-                onOpenTriage={handleOpenMccTelemetry}
+                currentScenario={currentScenario}
+                telemetryMap={telemetryMap}
+                onOpenTriage={handleOpenTriage}
+                onStartTour={() => setIsTourActive(true)}
+                isTourActive={isTourActive}
+                onSolveSituation={handleSolveSituation}
               />
             </div>
-            {/* Deep-Space Downlink In-Transit Status Ribbon (shown only on Earth MCC views) */}
-            {renderInTransitBanner()}
           </div>
-
-          <MissionControlView
-            telemetryMap={mccTelemetryMap}
-            latestAlert={mccAlert}
-            connected={connected}
-            marsDelay={marsDelay}
-            onToggleMarsDelay={handleToggleMarsDelay}
-            orbitalPosition={orbitalPosition}
-            onSelectOrbitalPosition={handleOrbitalPositionChange}
-            speedMultiplier={speedMultiplier}
-            onSpeedMultiplierChange={setSpeedMultiplier}
-            onSelectView={handleSelectView}
-            currentScenario={mccScenario}
-            onOpenTriage={handleOpenMccTelemetry}
-            onOpenMccTelemetry={handleOpenMccTelemetry}
-          />
+          <div data-tour="self-assessment-view" style={{ maxWidth: '1840px', margin: '14px auto 0', padding: '0 20px 40px' }}>
+            <AstronautSelfAssessment
+              initialAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
+              telemetryMap={telemetryMap}
+              currentScenario={currentScenario}
+              onClose={() => handleSelectView('HUD')}
+            />
+          </div>
         </div>
       )}
 
-      {/* ─── 4. DEDICATED EARTH MCC BIOMEDICAL TELEMETRY CONSOLE (/mcc/telemetry/:name) ─── */}
-      {activeView === 'MCC_TELEMETRY' && (
-        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backgroundColor: 'transparent' }}>
-          {/* Top Sticky Header for Earth Ground Station */}
+      {/* ─── 2.6 ASTRONAUT MISSION ROUTINE, PVT DRILL & COUNTERMEASURE ADHERENCE ─── */}
+      {activeView === 'MISSION_ROUTINE' && (
+        <div style={{ minHeight: '100vh', position: 'relative', zIndex: 1, backgroundColor: 'transparent' }}>
           <div
             style={{
               position: 'sticky',
@@ -758,114 +1217,276 @@ export function App() {
               boxSizing: 'border-box',
             }}
           >
-            <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
+            <div style={{ maxWidth: '1840px', margin: '0 auto' }}>
               <HeaderBar
                 connected={connected}
-                marsDelay={marsDelay}
-                onToggleMarsDelay={handleToggleMarsDelay}
+                marsDelay={false}
                 orbitalPosition={orbitalPosition}
-                onSelectOrbitalPosition={handleOrbitalPositionChange}
                 speedMultiplier={speedMultiplier}
                 activeView={activeView}
                 onSelectView={handleSelectView}
-                latestAlert={mccAlert}
-                selectedAstronautId={activeMccAstronautId || 'AST-01_COMMANDER'}
+                latestAlert={latestAlert}
+                selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
                 scannerTheme={scannerTheme}
                 onSelectScannerTheme={setScannerTheme}
                 showEclssBar={showEclssBar}
                 onToggleEclss={() => setShowEclssBar((prev) => !prev)}
-                currentScenario={mccScenario}
-                telemetryMap={mccTelemetryMap}
-                onOpenTriage={handleOpenMccTelemetry}
+                currentScenario={currentScenario}
+                telemetryMap={telemetryMap}
+                onOpenTriage={handleOpenTriage}
+                onStartTour={() => setIsTourActive(true)}
+                isTourActive={isTourActive}
+                onSolveSituation={handleSolveSituation}
               />
             </div>
+          </div>
+          <div data-tour="mission-routine-view" style={{ maxWidth: '1840px', margin: '14px auto 0', padding: '0 20px 40px' }}>
+            <MissionRoutineAdherence
+              astronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
+              telemetryMap={telemetryMap}
+              currentScenario={currentScenario}
+              onClose={() => handleSelectView('HUD')}
+            />
+          </div>
+        </div>
+      )}
 
-            {/* Earth Ground Station Operational Breadcrumb Bar */}
+
+
+      {/* ─── 3. EARTH MISSION CONTROL CENTER (MCC GROUND CONSOLE — DELAYED TELEMETRY) ─── */}
+      {activeView === 'MCC' && (
+        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backgroundColor: 'transparent' }}>
+          {/* Top Sticky Header */}
+          {!isEmbedMode && (
             <div
               style={{
-                background: 'linear-gradient(90deg, #0b1117 0%, #080d12 100%)',
-                borderBottom: '1px solid rgba(56, 189, 248, 0.25)',
-                padding: '7px 20px',
+                position: 'sticky',
+                top: 0,
+                zIndex: 200,
+                overflow: 'visible',
+                width: '100%',
+                padding: '8px 20px 0',
+                boxSizing: 'border-box',
+              }}
+            >
+              <div style={{ maxWidth: '1840px', margin: '0 auto' }}>
+                <HeaderBar
+                  connected={connected}
+                  marsDelay={marsDelay}
+                  onToggleMarsDelay={handleToggleMarsDelay}
+                  orbitalPosition={orbitalPosition}
+                  onSelectOrbitalPosition={handleOrbitalPositionChange}
+                  speedMultiplier={speedMultiplier}
+                  activeView={activeView}
+                  onSelectView={handleSelectView}
+                  latestAlert={mccAlert}
+                  selectedAstronautId={activeTriageAstronautId || 'AST-01_COMMANDER'}
+                  scannerTheme={scannerTheme}
+                  onSelectScannerTheme={setScannerTheme}
+                  showEclssBar={showEclssBar}
+                  onToggleEclss={() => setShowEclssBar((prev) => !prev)}
+                  currentScenario={mccScenario}
+                  telemetryMap={mccTelemetryMap}
+                  onOpenTriage={handleOpenMccTelemetry}
+                  onStartTour={() => setIsTourActive(true)}
+                  onSolveSituation={handleSolveSituation}
+                />
+              </div>
+              {/* Deep-Space Downlink In-Transit Status Ribbon (shown only on Earth MCC views) */}
+              {renderInTransitBanner()}
+            </div>
+          )}
+
+          <div data-tour="mcc-view">
+            <MissionControlView
+              telemetryMap={mccTelemetryMap}
+              latestAlert={mccAlert}
+              connected={connected}
+              marsDelay={marsDelay}
+              onToggleMarsDelay={handleToggleMarsDelay}
+              orbitalPosition={orbitalPosition}
+              onSelectOrbitalPosition={handleOrbitalPositionChange}
+              speedMultiplier={speedMultiplier}
+              onSpeedMultiplierChange={setSpeedMultiplier}
+              onSelectView={handleSelectView}
+              currentScenario={mccScenario}
+              onOpenTriage={handleOpenMccTelemetry}
+              onOpenMccTelemetry={handleOpenMccTelemetry}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ─── 4. DEDICATED EARTH MCC BIOMEDICAL TELEMETRY CONSOLE (/mcc/telemetry/:name) ─── */}
+      {activeView === 'MCC_TELEMETRY' && (
+        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backgroundColor: isEmbedMode ? '#070b12' : 'transparent' }}>
+          {/* Top Sticky Header for Earth Ground Station */}
+          {!isEmbedMode && (
+            <div
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 200,
+                overflow: 'visible',
+                width: '100%',
+                padding: '8px 20px 0',
+                boxSizing: 'border-box',
+              }}
+            >
+              <div style={{ maxWidth: '1840px', margin: '0 auto' }}>
+                <HeaderBar
+                  connected={connected}
+                  marsDelay={marsDelay}
+                  onToggleMarsDelay={handleToggleMarsDelay}
+                  orbitalPosition={orbitalPosition}
+                  onSelectOrbitalPosition={handleOrbitalPositionChange}
+                  speedMultiplier={speedMultiplier}
+                  activeView={activeView}
+                  onSelectView={handleSelectView}
+                  latestAlert={mccAlert}
+                  selectedAstronautId={activeMccAstronautId || 'AST-01_COMMANDER'}
+                  scannerTheme={scannerTheme}
+                  onSelectScannerTheme={setScannerTheme}
+                  showEclssBar={showEclssBar}
+                  onToggleEclss={() => setShowEclssBar((prev) => !prev)}
+                  currentScenario={mccScenario}
+                  telemetryMap={mccTelemetryMap}
+                  onOpenTriage={handleOpenMccTelemetry}
+                  onStartTour={() => setIsTourActive(true)}
+                  onSolveSituation={handleSolveSituation}
+                />
+              </div>
+
+              {/* Earth Ground Station Operational Breadcrumb Bar */}
+              <div
+                style={{
+                  background: 'linear-gradient(90deg, #0b1117 0%, #080d12 100%)',
+                  borderBottom: '1px solid rgba(56, 189, 248, 0.25)',
+                  padding: '7px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontFamily: "var(--hud-font-mono, 'Tomorrow', monospace)",
+                  fontSize: '11px',
+                  color: '#94a3b8',
+                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <button
+                    onClick={handleCloseMccTelemetry}
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      borderRadius: 4,
+                      padding: '3px 10px',
+                      color: '#38bdf8',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                      letterSpacing: '0.04em',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
+                    }}
+                  >
+                    <span>← RETURN TO MCC MAIN CONSOLE</span>
+                  </button>
+
+                  <span style={{ color: '#334155' }}>|</span>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        background: '#38bdf8',
+                        boxShadow: '0 0 8px #38bdf8',
+                        display: 'inline-block',
+                      }}
+                    />
+                    <span style={{ color: '#f8fafc', fontWeight: 800, letterSpacing: '0.06em' }}>
+                      EARTH MCC // CLINICAL TELEMETRY CONSOLE
+                    </span>
+                    <span style={{ color: '#64748b' }}>(JSC FLIGHT SURGEON WORKSTATION)</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '10.5px' }}>
+                    <span style={{ color: '#64748b' }}>DOWNLINK:</span>
+                    <span style={{ color: '#4ade80', fontWeight: 700 }}>
+                      DSN KA-BAND ({DISTANCES[orbitalPosition]?.label})
+                    </span>
+                  </div>
+
+                  <span style={{ color: '#334155' }}>|</span>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '10.5px' }}>
+                    <span style={{ color: '#64748b' }}>PROPAGATION LATENCY:</span>
+                    <span style={{ color: '#fbbf24', fontWeight: 800 }}>
+                      +{fmtTime(DISTANCES[orbitalPosition]?.delaySec ?? 0)} ONE-WAY
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Deep-Space Downlink In-Transit Status Ribbon */}
+              {renderInTransitBanner()}
+            </div>
+          )}
+
+          {/* Compact Embedded Header Bar for Cabin Wall Monitor */}
+          {isEmbedMode && (
+            <div
+              style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                padding: '7px 16px',
+                background: 'linear-gradient(90deg, #0b1117 0%, #080d12 100%)',
+                borderBottom: '1px solid rgba(56, 189, 248, 0.3)',
                 fontFamily: "var(--hud-font-mono, 'Tomorrow', monospace)",
-                fontSize: '11px',
-                color: '#94a3b8',
-                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.5)',
+                position: 'sticky',
+                top: 0,
+                zIndex: 100,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button
-                  onClick={handleCloseMccTelemetry}
-                  style={{
-                    background: 'rgba(56, 189, 248, 0.12)',
-                    border: '1px solid rgba(56, 189, 248, 0.35)',
-                    borderRadius: 4,
-                    padding: '3px 10px',
-                    color: '#38bdf8',
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-                    letterSpacing: '0.04em',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
-                  }}
-                >
-                  <span>← RETURN TO MCC MAIN CONSOLE</span>
-                </button>
-
-                <span style={{ color: '#334155' }}>|</span>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      background: '#38bdf8',
-                      boxShadow: '0 0 8px #38bdf8',
-                      display: 'inline-block',
-                    }}
-                  />
-                  <span style={{ color: '#f8fafc', fontWeight: 800, letterSpacing: '0.06em' }}>
-                    EARTH MCC // CLINICAL TELEMETRY CONSOLE
-                  </span>
-                  <span style={{ color: '#64748b' }}>(JSC FLIGHT SURGEON WORKSTATION)</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '10.5px' }}>
-                  <span style={{ color: '#64748b' }}>DOWNLINK:</span>
-                  <span style={{ color: '#4ade80', fontWeight: 700 }}>
-                    DSN KA-BAND ({DISTANCES[orbitalPosition]?.label})
-                  </span>
-                </div>
-
-                <span style={{ color: '#334155' }}>|</span>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '10.5px' }}>
-                  <span style={{ color: '#64748b' }}>PROPAGATION LATENCY:</span>
-                  <span style={{ color: '#fbbf24', fontWeight: 800 }}>
-                    +{fmtTime(DISTANCES[orbitalPosition]?.delaySec ?? 0)} ONE-WAY
-                  </span>
-                </div>
+              <button
+                onClick={handleCloseMccTelemetry}
+                style={{
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                  borderRadius: 4,
+                  padding: '3px 10px',
+                  color: '#38bdf8',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                ← RETURN TO MCC OVERVIEW
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '10.5px' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8', display: 'inline-block' }} />
+                <span style={{ color: '#f8fafc', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  EARTH MCC // CLINICAL TELEMETRY ({activeMccAstronautId ? activeMccAstronautId.replace('AST-0', 'CREW-0') : 'CREW-01'})
+                </span>
               </div>
             </div>
-
-            {/* Deep-Space Downlink In-Transit Status Ribbon */}
-            {renderInTransitBanner()}
-          </div>
+          )}
 
           {/* Earth MCC Health Telemetry Component fed by delayed Earth state */}
           <HealthTelemetryView
@@ -898,7 +1519,7 @@ export function App() {
               boxSizing: 'border-box',
             }}
           >
-            <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
+            <div style={{ maxWidth: '1840px', margin: '0 auto' }}>
               <HeaderBar
                 connected={connected}
                 marsDelay={marsDelay}
@@ -917,6 +1538,9 @@ export function App() {
                 currentScenario={currentScenario}
                 telemetryMap={telemetryMap}
                 onOpenTriage={handleOpenTriage}
+                onStartTour={() => setIsTourActive(true)}
+                isTourActive={isTourActive}
+                onSolveSituation={handleSolveSituation}
               />
             </div>
           </div>
@@ -1017,16 +1641,42 @@ export function App() {
         <SuitHudView
           telemetryMap={telemetryMap}
           currentScenario={currentScenario}
+          latestAlert={latestAlert}
           initialAstronautId={activeTriageAstronautId || targetAstronautId || 'AST-01_COMMANDER'}
           onExit={() => handleSelectView('HUD')}
+          onOpenTriage={handleOpenTriage}
+          onTriggerScenario={handleScenarioTriggered}
+        />
+      )}
+
+      {/* ─── 7. ASTRODOCX 3D CABIN & FIRST-PERSON DOCK TOUR VIEW ─── */}
+      {activeView === 'CABIN_3D' && (
+        <Cabin3DView
+          telemetryMap={telemetryMap}
+          latestAlert={latestAlert}
+          currentScenario={currentScenario}
+          initialAstronautId={activeTriageAstronautId || targetAstronautId || 'AST-01_COMMANDER'}
+          onExit={() => handleSelectView('HUD')}
+          onOpenTriage={handleOpenTriage}
+          onTriggerScenario={handleScenarioTriggered}
+          isTourActive={isTourActive}
+        />
+      )}
+
+      {/* ─── 8. SPACEX CREW DRAGON CINEMATIC DOCKING INTRO VIEW ─── */}
+      {activeView === 'DRAGON_DOCKING' && (
+        <DragonDockingIntro
+          onEnterStation={() => handleSelectView('CABIN_3D')}
+          onEnterDashboard={() => handleSelectView('HUD')}
         />
       )}
 
       {/* Global Scenario Controller (Floating Action Pill + Aerospace Modal) */}
-      {activeView !== 'SUIT_HUD' && (
+      {activeView !== 'DRAGON_DOCKING' && (
         <ScenarioController
           currentScenario={currentScenario}
           marsDelay={marsDelay}
+          hideFloatingPill={isEmbedMode || activeView === 'CABIN_3D'}
           onToggleMarsDelay={handleToggleMarsDelay}
           onScenarioTriggered={handleScenarioTriggered}
           selectedCrewId={targetAstronautId || 'AST-01_COMMANDER'}
@@ -1036,6 +1686,14 @@ export function App() {
           }}
         />
       )}
+
+      {/* ─── 9. AUTOMATED 3-MINUTE INTERACTIVE PROJECT TOUR OVERLAY ─── */}
+      <ProjectTourOverlay
+        active={isTourActive}
+        onEndTour={() => setIsTourActive(false)}
+        onSelectView={handleSelectView}
+        onTriggerScenario={handleScenarioTriggered}
+      />
     </>
   );
 }

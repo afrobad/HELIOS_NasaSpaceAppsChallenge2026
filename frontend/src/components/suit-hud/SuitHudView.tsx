@@ -3,6 +3,7 @@ import { Volume2, VolumeX, Maximize2 } from 'lucide-react';
 import './SuitHudView.css';
 import { VB_ASPECT, VB_H, VB_W, VIEWBOX } from './geometry';
 import { GlassUnderLayer, HelmetShellLayer } from './HelmetLayers';
+import { MarsSurfaceView3D } from './MarsSurfaceView3D';
 import {
   AttitudeGyroLadder,
   BatteryPanel,
@@ -24,6 +25,7 @@ import { wsService } from '../../services/websocketService';
 import { audioService } from '../../services/audioService';
 import type { TelemetryPacket, AlertPayload } from '../../types/telemetry';
 import { ScenarioController, ALL_SCENARIOS } from '../ScenarioController';
+import { EvidenceProvenanceModal } from '../EvidenceProvenanceModal';
 import {
   generateScenarioTelemetry,
   DEFAULT_NOMINAL_TELEMETRY,
@@ -37,6 +39,8 @@ export interface SuitHudViewProps {
   telemetryMap?: Record<string, TelemetryPacket>;
   /** Active scenario key from main deck */
   currentScenario?: string;
+  /** Active clinical alert from AI Surgeon */
+  latestAlert?: AlertPayload | null;
   /** Initial selected astronaut */
   initialAstronautId?: string;
   /** Gently drift values around the reference numbers (default true). */
@@ -45,6 +49,10 @@ export interface SuitHudViewProps {
   landscapeSrc?: string;
   /** Optional callback to return to main flight deck */
   onExit?: () => void;
+  /** Callback to trigger medical triage view */
+  onOpenTriage?: (astronautId?: string) => void;
+  /** Callback to trigger a scenario via main engine */
+  onTriggerScenario?: (scenarioKey: string, telemetry?: Record<string, any>, targetCrewId?: string | null) => void;
 }
 
 type Fit = 'slice' | 'meet';
@@ -68,10 +76,10 @@ function usePrefersReducedMotion() {
 
 const PLANET_WAYPOINTS: Record<string, { line1: string; line2: string; distanceKm: number; bearingDeg: number }> = {
   Mars: {
-    line1: 'MARS BASE',
-    line2: 'JEZERO HABITAT',
-    distanceKm: 1.8,
-    bearingDeg: 12,
+    line1: 'MARS ONE BASE',
+    line2: 'HABITAT POD 01',
+    distanceKm: 0.032,
+    bearingDeg: 4,
   },
   Moon: {
     line1: 'ARTEMIS BASE',
@@ -196,14 +204,17 @@ export function isAlertReferredToCrew(alert: AlertPayload, targetCrewId: string)
   const rawName = (alert.astronaut_name || '').toLowerCase();
   const rawReason = (alert.triage_diagnosis || alert.reason || '').toLowerCase();
 
-  // 1. Explicit collective "ALL_CREW" broadcasts are vessel-wide announcements, NOT individual helmet HUD directives
+  // 1. Universal / vessel-wide announcements affect ALL crew members:
   if (
+    !rawId ||
     rawId === 'ALL_CREW' ||
+    rawId === 'ALL' ||
     rawName.includes('all crew') ||
     rawName.includes('all stations') ||
-    rawReason.includes('spacecraft-wide alert')
+    rawReason.includes('spacecraft-wide') ||
+    rawReason.includes('vessel')
   ) {
-    return false;
+    return true;
   }
 
   const targetIdentity = CREW_IDENTITIES[targetCrewId] || {
@@ -371,10 +382,13 @@ export function SuitHudView({
   telemetry,
   telemetryMap,
   currentScenario = 'NOMINAL_CRUISE',
+  latestAlert,
   initialAstronautId = 'AST-01_COMMANDER',
   simulate = true,
   landscapeSrc = '/suit-hud/mars_surface.jpg',
   onExit,
+  onOpenTriage: _onOpenTriage,
+  onTriggerScenario,
 }: SuitHudViewProps) {
   const reducedMotion = usePrefersReducedMotion();
   const animate = !reducedMotion;
@@ -408,6 +422,8 @@ export function SuitHudView({
   };
 
   const currentMet = formatMet(metSeconds);
+  const currentMetRef = useRef<string>(currentMet);
+  currentMetRef.current = currentMet;
 
   // Live Telemetry from selected crew
   const [liveTelemetry, setLiveTelemetry] = useState<Partial<SuitTelemetry>>(() => {
@@ -421,6 +437,7 @@ export function SuitHudView({
   const [isVoiceTransmitting, setIsVoiceTransmitting] = useState<boolean>(false);
   const [audioEngaged, setAudioEngaged] = useState<boolean>(true);
   const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [showEvidenceModal, setShowEvidenceModal] = useState<boolean>(false);
 
   // Anti-Chatter / Deduplication Refs (talks only when needed)
   const lastSpokenAdviceRef = useRef<string>('');
@@ -547,15 +564,51 @@ export function SuitHudView({
     });
   }, []);
 
+  // Synchronize scenario when changed externally (from Dashboard or global Scenario modal)
+  useEffect(() => {
+    if (currentScenario && currentScenario !== scenario) {
+      setScenario(currentScenario);
+    }
+  }, [currentScenario, scenario]);
+
+  // Synchronize active alert when changed externally
+  useEffect(() => {
+    if (!latestAlert) return;
+    const isReferred = isAlertReferredToCrew(latestAlert, crewId);
+    if (latestAlert.severity === 'NOMINAL') {
+      if (isReferred || latestAlert.astronaut_id === 'ALL_CREW' || !latestAlert.astronaut_id) {
+        setActiveWarning(null);
+        setIsVoiceTransmitting(false);
+      }
+      return;
+    }
+    if (!isReferred) return;
+    if (latestAlert.severity === 'CRITICAL' || latestAlert.severity === 'WARNING') {
+      const alertCode = latestAlert.id ? `CW-${latestAlert.id.slice(0, 6).toUpperCase()}` : 'CW-EVA-901';
+      const title = latestAlert.triage_diagnosis || latestAlert.reason || 'HELIX-AI ANALYST DIRECTIVE';
+      const directive = latestAlert.actionable_instruction || latestAlert.speech_text || latestAlert.reason;
+
+      setActiveWarning({
+        id: latestAlert.id || String(Date.now()),
+        title,
+        severity: latestAlert.severity,
+        directive,
+        code: alertCode,
+        targetCrew: latestAlert.astronaut_name || latestAlert.astronaut_id,
+        timestamp: Date.now(),
+      });
+    }
+  }, [latestAlert, crewId]);
+
   // 1. Synchronize with real-time telemetryMap from main flight deck when available
   useEffect(() => {
     if (telemetryMap && Object.keys(telemetryMap).length > 0) {
       bufferedPacketsRef.current = telemetryMap;
       if (telemetryMap[crewId]) {
-        setLiveTelemetry(packetToSuitTelemetry(telemetryMap[crewId], planet, crewId, currentMet));
+        setLiveTelemetry(packetToSuitTelemetry(telemetryMap[crewId], planet, crewId, currentMetRef.current));
       }
     }
-  }, [telemetryMap, crewId, planet, currentMet]);
+  }, [telemetryMap, crewId, planet]);
 
   // 2. Standalone / Offline 10 Hz Real-Time Physiological Sinus Ticker (RSA Cadence)
   useEffect(() => {
@@ -568,13 +621,13 @@ export function SuitHudView({
       if (!isOnline && Object.keys(bufferedPacketsRef.current).length > 0) {
         bufferedPacketsRef.current = tickOfflineTelemetry(bufferedPacketsRef.current, offlineTick);
         if (bufferedPacketsRef.current[crewId]) {
-          setLiveTelemetry(packetToSuitTelemetry(bufferedPacketsRef.current[crewId], planet, crewId, currentMet));
+          setLiveTelemetry(packetToSuitTelemetry(bufferedPacketsRef.current[crewId], planet, crewId, currentMetRef.current));
         }
       }
     }, 120);
 
     return () => clearInterval(ticker);
-  }, [telemetryMap, isOnline, crewId, planet, currentMet]);
+  }, [telemetryMap, isOnline, crewId, planet]);
 
   // 3. Initial REST Telemetry Snapshot for Selected Crew
   useEffect(() => {
@@ -587,7 +640,7 @@ export function SuitHudView({
         if (payload?.telemetry) {
           bufferedPacketsRef.current = payload.telemetry;
           if (payload.telemetry[crewId]) {
-            setLiveTelemetry(packetToSuitTelemetry(payload.telemetry[crewId], planet, crewId, currentMet));
+            setLiveTelemetry(packetToSuitTelemetry(payload.telemetry[crewId], planet, crewId, currentMetRef.current));
           }
         }
       })
@@ -598,7 +651,7 @@ export function SuitHudView({
     return () => {
       isSubscribed = false;
     };
-  }, [crewId, planet, currentMet]);
+  }, [crewId, planet]);
 
   // 4. Continuous 10 Hz WebSocket Telemetry Stream (strictly filtered for selected crew)
   useEffect(() => {
@@ -607,7 +660,7 @@ export function SuitHudView({
     const unsub = wsService.subscribeTelemetry((packet: TelemetryPacket) => {
       bufferedPacketsRef.current[packet.astronaut_id] = packet;
       if (packet.astronaut_id === crewId) {
-        setLiveTelemetry(packetToSuitTelemetry(packet, planet, crewId, currentMet));
+        setLiveTelemetry(packetToSuitTelemetry(packet, planet, crewId, currentMetRef.current));
 
         // When telemetry confirms nominal cruise, automatically clear active warnings
         if (packet.scenario_phase === 'NOMINAL_CRUISE' && packet.evaluated_severity === 'NOMINAL') {
@@ -620,7 +673,7 @@ export function SuitHudView({
     return () => {
       unsub();
     };
-  }, [crewId, planet, currentMet]);
+  }, [crewId, planet]);
 
   // 5. WebSocket Alert Subscription (listens strictly to directives referred to the selected crew)
   useEffect(() => {
@@ -659,7 +712,7 @@ export function SuitHudView({
           timestamp: Date.now(),
         });
 
-        // Deliver speech directive only when needed
+        // AI Surgeon delivers vocal directive with zero delay
         const speechText = alert.speech_text || directive;
         const tone = alert.tone || (alert.severity === 'CRITICAL' ? 'klaxon' : 'chime');
         speakAlertDirective(speechText, tone, alert.severity);
@@ -669,20 +722,24 @@ export function SuitHudView({
     return () => {
       unsubAlert();
     };
-  }, [crewId, speakAlertDirective]);
+  }, [crewId, speakAlertDirective, onTriggerScenario]);
 
-  // 6. Crew Switch: Immediately load the new astronaut's live vitals and clear old alarms
+  // 6. Crew Switch: Immediately load the new astronaut's live vitals and clear old alarms (ONLY on actual astronaut switch)
+  const lastActiveCrewIdRef = useRef<string>(crewId);
   useEffect(() => {
-    const pkt = telemetryMap?.[crewId] || bufferedPacketsRef.current?.[crewId];
-    if (pkt) {
-      setLiveTelemetry(packetToSuitTelemetry(pkt, planet, crewId, currentMet));
+    if (lastActiveCrewIdRef.current !== crewId) {
+      lastActiveCrewIdRef.current = crewId;
+      const pkt = telemetryMap?.[crewId] || bufferedPacketsRef.current?.[crewId];
+      if (pkt) {
+        setLiveTelemetry(packetToSuitTelemetry(pkt, planet, crewId, currentMetRef.current));
+      }
+      audioService.stopSpeaking();
+      setIsVoiceTransmitting(false);
+      activeSpeechTextRef.current = '';
+      lastSpokenAdviceRef.current = '';
+      setActiveWarning(null);
     }
-    audioService.stopSpeaking();
-    setIsVoiceTransmitting(false);
-    activeSpeechTextRef.current = '';
-    lastSpokenAdviceRef.current = '';
-    setActiveWarning(null);
-  }, [crewId, planet, currentMet, telemetryMap]);
+  }, [crewId, planet, telemetryMap]);
 
   // 7. Handle Scenario Trigger Dispatch
   const handleScenarioTriggered = (
@@ -691,6 +748,19 @@ export function SuitHudView({
     targetCrewId?: string | null
   ) => {
     setScenario(scenKey);
+
+    if (scenKey === 'NOMINAL_CRUISE') {
+      audioService.stopSpeaking();
+      setActiveWarning(null);
+      setIsVoiceTransmitting(false);
+      activeSpeechTextRef.current = '';
+      lastSpokenAdviceRef.current = '';
+    }
+
+    if (onTriggerScenario) {
+      onTriggerScenario(scenKey, telData, targetCrewId || crewId);
+      return;
+    }
 
     const effectiveTarget = targetCrewId || crewId;
     const tel = telData || generateScenarioTelemetry(scenKey, effectiveTarget, bufferedPacketsRef.current);
@@ -823,7 +893,7 @@ export function SuitHudView({
     <main className="suit-hud" id="suit-hud-root">
       <h1 className="suit-hud__sr">Astronaut suit heads-up display — {planet} EVA</h1>
 
-      {/* 1 · World plate (oversized so parallax never reveals an edge, hardware-accelerated FPP video/image) */}
+      {/* 1 · World plate (oversized so parallax never reveals an edge, hardware-accelerated FPP 3D Mars Base / video / image) */}
       <div
         ref={(el) => {
           worldLayers.current[0] = el;
@@ -831,7 +901,9 @@ export function SuitHudView({
         className="suit-hud__world-plate"
         aria-hidden="true"
       >
-        {effectiveVideo ? (
+        {planet === 'Mars' ? (
+          <MarsSurfaceView3D fit={fit} />
+        ) : effectiveVideo ? (
           <video
             key={effectiveVideo}
             className="suit-hud__fpp-video"
@@ -965,11 +1037,41 @@ export function SuitHudView({
           >
             <option value="Mars">Mars Surface</option>
             <option value="Moon">Lunar Surface</option>
-            <option value="Space Station">Space Station (ISS)</option>
           </select>
         </div>
 
         <div className="suit-hud__header-right">
+          <span
+            className="suit-hud__btn"
+            style={{
+              fontSize: '10px',
+              fontFamily: 'monospace',
+              color: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              cursor: 'default',
+              letterSpacing: '0.04em',
+            }}
+          >
+            SIMULATED TELEMETRY · 10 Hz // OSDR
+          </span>
+          <button
+            type="button"
+            className="suit-hud__btn"
+            onClick={() => setShowEvidenceModal(true)}
+            title="Inspect Deterministic Math Rules & NASA OSDR Study Evidence"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              color: '#38bdf8',
+              borderColor: 'rgba(56, 189, 248, 0.35)',
+              backgroundColor: 'rgba(56, 189, 248, 0.12)',
+              fontWeight: 700,
+            }}
+          >
+            <span>EVIDENCE / OSDR</span>
+          </button>
           <button
             type="button"
             className="suit-hud__btn"
@@ -1014,14 +1116,13 @@ export function SuitHudView({
         </div>
       </header>
 
-      {/* Floating Main Scenario Engine (Minimal Tactical Design) */}
-      <ScenarioController
+      <EvidenceProvenanceModal
+        isOpen={showEvidenceModal}
+        onClose={() => setShowEvidenceModal(false)}
+        latestAlert={activeWarning as any}
         currentScenario={scenario}
-        marsDelay={false}
-        onToggleMarsDelay={() => {}}
-        selectedCrewId={crewId}
-        onSelectCrewId={(newCrewId) => setCrewId(newCrewId)}
-        onScenarioTriggered={handleScenarioTriggered}
+        selectedAstronautId={crewId}
+        telemetryMap={bufferedPacketsRef.current}
       />
     </main>
   );

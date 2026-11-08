@@ -195,7 +195,7 @@ export const VoiceWaveform = memo(function VoiceWaveform({
 
   if (!finalStatus && status) {
     const parts = status
-      .replace(/^(?:SUIT AI|AI SURGEON)[\s/·•:-]+/i, '')
+      .replace(/^(?:SUIT AI|AI SURGEON|Helix-Ai Analyst|HELIX-AI ANALYST)[\s/·•:-]+/i, '')
       .split(/[/·•:]+/)
       .map((p) => p.trim())
       .filter(Boolean);
@@ -280,11 +280,11 @@ export const VoiceWaveform = memo(function VoiceWaveform({
                   className={`hud-ai-status-dot ${
                     isOnline ? 'hud-ai-status-dot--online' : 'hud-ai-status-dot--offline'
                   }`}
-                  title={isOnline ? 'AI Surgeon Link: Active (10 Hz)' : 'AI Surgeon Link: Disconnected'}
+                  title={isOnline ? 'Helix-Ai Analyst Link: Active (10 Hz)' : 'Helix-Ai Analyst Link: Disconnected'}
                 />
               )}
 
-              <span className="hud-ai-label">AI SURGEON</span>
+              <span className="hud-ai-label">Helix-Ai Analyst</span>
               <span className="hud-ai-sep">·</span>
               <span
                 className={`hud-ai-state ${
@@ -868,31 +868,31 @@ export const CREW_SCENE_WAYPOINTS: Record<string, Record<string, { mode: string;
   Mars: {
     'AST-01_COMMANDER': {
       mode: 'SURFACE EVA',
-      line1: 'MARS BASE ALPHA',
-      line2: 'JEZERO CENTRAL HABITAT',
-      distanceKm: 1.8,
-      bearingDeg: 12,
+      line1: 'MARS ONE BASE',
+      line2: 'HABITAT POD 01 // AIRLOCK',
+      distanceKm: 0.032,
+      bearingDeg: 4,
     },
     'AST-02_PILOT': {
-      mode: 'MAV ASCENT',
-      line1: 'MAV RETURN VEHICLE',
-      line2: 'LANDING SITE BRAVO',
-      distanceKm: 3.4,
-      bearingDeg: 88,
+      mode: 'SURFACE EVA',
+      line1: 'MARS ONE BASE',
+      line2: 'HABITAT POD 02 // COMMS',
+      distanceKm: 0.035,
+      bearingDeg: 8,
     },
     'AST-03_MEDICAL': {
       mode: 'BIO-SHELTER',
-      line1: 'BIO-RESEARCH AIRLOCK',
-      line2: 'AGRI-PRESS DOME',
-      distanceKm: 0.85,
-      bearingDeg: 230,
+      line1: 'MARS ONE BASE',
+      line2: 'BIO-HABITAT MODULE 03',
+      distanceKm: 0.028,
+      bearingDeg: 356,
     },
     'AST-04_ENGINEER': {
-      mode: 'ECLSS RIG',
-      line1: 'MOXIE O2 EXTRACTION',
-      line2: 'SUB-SURFACE WATER RIG',
-      distanceKm: 2.2,
-      bearingDeg: 345,
+      mode: 'SOLAR ARRAY',
+      line1: 'MARS ONE BASE',
+      line2: 'PV COLLECTOR GRID 02',
+      distanceKm: 0.016,
+      bearingDeg: 14,
     },
   },
 };
@@ -912,17 +912,17 @@ export const WaypointMarker = memo(function WaypointMarker({
   const defaultForPlanet = CREW_SCENE_WAYPOINTS[planet]?.[crewId] ||
     CREW_SCENE_WAYPOINTS[planet]?.['AST-01_COMMANDER'] || {
       mode: isMoon ? 'LUNAR TRAVERSE' : isISS ? 'ORBITAL DOCK' : 'SURFACE EVA',
-      line1: isMoon ? 'ARTEMIS BASE CAMP' : isISS ? 'HARMONY NODE' : 'MARS BASE ALPHA',
-      line2: isMoon ? 'SHACKLETON OUTPOST' : isISS ? 'QUEST AIRLOCK 2' : 'JEZERO HABITAT',
-      distanceKm: isISS ? 0.04 : isMoon ? 0.6 : 1.8,
-      bearingDeg: isISS ? 285 : isMoon ? 44 : 12,
+      line1: isMoon ? 'ARTEMIS BASE CAMP' : isISS ? 'HARMONY NODE' : 'MARS ONE BASE',
+      line2: isMoon ? 'SHACKLETON OUTPOST' : isISS ? 'QUEST AIRLOCK 2' : 'HABITAT POD 01',
+      distanceKm: isISS ? 0.04 : isMoon ? 0.6 : 0.032,
+      bearingDeg: isISS ? 285 : isMoon ? 44 : 4,
     };
 
   const matchesCurrentPlanet = Boolean(
     data.waypoint?.line1 && (
       (isISS && (data.waypoint.line1.includes('NODE') || data.waypoint.line1.includes('HARMONY') || data.waypoint.line1.includes('QUEST') || data.waypoint.line1.includes('DESTINY') || data.waypoint.line1.includes('SARJ'))) ||
       (isMoon && (data.waypoint.line1.includes('ARTEMIS') || data.waypoint.line1.includes('SHACKLETON') || data.waypoint.line1.includes('LUNAR') || data.waypoint.line1.includes('LANDER'))) ||
-      (!isISS && !isMoon && (data.waypoint.line1.includes('MARS') || data.waypoint.line1.includes('JEZERO') || data.waypoint.line1.includes('MAV')))
+      (!isISS && !isMoon && (data.waypoint.line1.includes('MARS') || data.waypoint.line1.includes('JEZERO') || data.waypoint.line1.includes('MAV') || data.waypoint.line1.includes('HABITAT')))
     )
   );
 

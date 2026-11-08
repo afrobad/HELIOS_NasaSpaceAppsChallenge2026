@@ -1,0 +1,594 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   ASTRODOCX 3D CABIN & FIRST-PERSON HELMET HUD STYLES
+   Exact high-fidelity match for the HELIOS NASA Space Apps 3D Experience
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.cabin3d-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #020408;
+  color: #e2e8f0;
+  font-family: var(--hud-font-sans, 'Hubot Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  user-select: none;
+}
+
+.cabin3d-canvas-wrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.cabin3d-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ─── ARRIVAL CINEMATIC OVERLAY ─── */
+.cabin3d-arrival-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 50;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 32px 48px;
+  box-sizing: border-box;
+}
+
+.cabin3d-arrival-title {
+  position: absolute;
+  bottom: 40px;
+  left: 48px;
+  font-family: var(--hud-font-mono, 'Tomorrow', monospace);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  color: #38bdf8;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
+  animation: pulseArrival 2s infinite ease-in-out;
+}
+
+.cabin3d-arrival-skip {
+  position: absolute;
+  bottom: 36px;
+  right: 48px;
+  pointer-events: auto;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #e0f2fe;
+  padding: 8px 18px;
+  border-radius: 4px;
+  font-family: var(--hud-font-mono, monospace);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.cabin3d-arrival-skip:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
+}
+
+@keyframes pulseArrival {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Center Targeting Reticle for Arrival Approach (matching Image 4) */
+.cabin3d-arrival-reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 80px;
+  border: 1.5px solid rgba(56, 189, 248, 0.65);
+  border-radius: 50%;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.4), inset 0 0 10px rgba(56, 189, 248, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: reticlePulse 2.5s infinite ease-in-out;
+}
+
+.cabin3d-reticle-ring {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #38bdf8;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #38bdf8;
+}
+
+@keyframes reticlePulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.75; }
+  50% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+}
+
+.cabin3d-flash-white {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.8s ease-out;
+}
+
+.cabin3d-flash-white.active {
+  opacity: 1;
+  transition: none;
+}
+
+/* ─── TOP NAVIGATION BAR ─── */
+.cabin3d-topbar {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  right: 20px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.cabin3d-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  pointer-events: auto;
+}
+
+.cabin3d-btn-console {
+  background: rgba(10, 16, 26, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  padding: 7px 16px;
+  border-radius: 4px;
+  font-family: var(--hud-font-mono, monospace);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.cabin3d-btn-console:hover {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+}
+
+.cabin3d-title-badge {
+  font-family: var(--hud-font-mono, monospace);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.cabin3d-title-badge .highlight {
+  color: #38bdf8;
+}
+
+.cabin3d-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+/* ─── CREW DROPDOWN SELECTOR ─── */
+.cabin3d-crew-dropdown-wrap {
+  position: relative;
+}
+
+.cabin3d-crew-dropdown-btn {
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #e2e8f0;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-family: var(--hud-font-mono, monospace);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+.cabin3d-crew-dropdown-btn:hover {
+  border-color: #38bdf8;
+  background: rgba(30, 41, 59, 0.95);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.3);
+}
+
+.cabin3d-crew-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 280px;
+  background: rgba(10, 16, 26, 0.96);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 20px rgba(56, 189, 248, 0.2);
+  backdrop-filter: blur(16px);
+  padding: 6px 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+.cabin3d-crew-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cabin3d-crew-item:last-child {
+  border-bottom: none;
+}
+
+.cabin3d-crew-item:hover {
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.cabin3d-crew-item.active {
+  background: rgba(56, 189, 248, 0.2);
+  border-left: 3px solid #38bdf8;
+}
+
+.cabin3d-crew-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cabin3d-crew-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.cabin3d-crew-role {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: var(--hud-font-mono, monospace);
+}
+
+.cabin3d-shift-btn {
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+  font-size: 10px;
+  font-family: var(--hud-font-mono, monospace);
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: all 0.15s ease;
+}
+
+.cabin3d-shift-btn:hover {
+  background: #38bdf8;
+  color: #030712;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+}
+
+.cabin3d-shift-btn.eva {
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.cabin3d-shift-btn.eva:hover {
+  background: #f59e0b;
+  color: #030712;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+}
+
+.cabin3d-btn-replay {
+  background: rgba(10, 16, 26, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #cbd5e1;
+  padding: 7px 14px;
+  border-radius: 4px;
+  font-family: var(--hud-font-mono, monospace);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.cabin3d-btn-replay:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #f8fafc;
+  color: #ffffff;
+}
+
+/* ─── RIGHT VERTICAL STEP DIAMOND BAR ─── */
+.cabin3d-diamond-bar {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+  z-index: 30;
+  pointer-events: auto;
+}
+
+.cabin3d-diamond-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  outline: none;
+}
+
+.cabin3d-diamond-label {
+  font-family: var(--hud-font-sans, sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: #e0f2fe;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+  opacity: 0;
+  transform: translateX(6px);
+  transition: all 0.2s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.cabin3d-diamond-item.active .cabin3d-diamond-label,
+.cabin3d-diamond-item:hover .cabin3d-diamond-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.cabin3d-diamond-shape {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(56, 189, 248, 0.5);
+  transform: rotate(45deg);
+  transition: all 0.25s ease;
+  box-sizing: border-box;
+}
+
+.cabin3d-diamond-item:hover .cabin3d-diamond-shape {
+  border-color: #38bdf8;
+  transform: rotate(45deg) scale(1.2);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+
+.cabin3d-diamond-item.active .cabin3d-diamond-shape {
+  background: #38bdf8;
+  border-color: #38bdf8;
+  transform: rotate(45deg) scale(1.35);
+  box-shadow: 0 0 14px #38bdf8, 0 0 24px rgba(56, 189, 248, 0.8);
+}
+
+/* ─── BOTTOM LEFT TOUR INFO CARD ─── */
+.cabin3d-info-card {
+  position: absolute;
+  bottom: 34px;
+  left: 24px;
+  width: 320px;
+  max-width: calc(100vw - 48px);
+  background: rgba(8, 14, 22, 0.82);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  clip-path: polygon(0 12px, 12px 0, 100% 0, 100% 100%, 0 100%);
+  padding: 16px 20px;
+  box-sizing: border-box;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+  z-index: 30;
+  pointer-events: auto;
+  transition: all 0.3s ease;
+}
+
+.cabin3d-info-step {
+  font-family: var(--hud-font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #38bdf8;
+  margin-bottom: 4px;
+}
+
+.cabin3d-info-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 8px 0;
+  letter-spacing: 0.02em;
+}
+
+.cabin3d-info-desc {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #cbd5e1;
+  margin: 0;
+}
+
+/* ─── BOTTOM CENTER TOUR SCROLL CUE ─── */
+.cabin3d-scroll-cue {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.cabin3d-scroll-triad {
+  font-family: var(--hud-font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: #38bdf8;
+  text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+}
+
+.cabin3d-scroll-prompt {
+  font-family: var(--hud-font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: floatBounce 2s infinite ease-in-out;
+}
+
+@keyframes floatBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+/* ─── BOTTOM CREDITS TICKER ─── */
+.cabin3d-credits {
+  position: absolute;
+  bottom: 6px;
+  left: 20px;
+  right: 20px;
+  font-family: var(--hud-font-mono, monospace);
+  font-size: 9.5px;
+  color: #64748b;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.cabin3d-credits a {
+  color: #38bdf8;
+  text-decoration: none;
+}
+
+/* ─── FIRST PERSON HELMET VISOR HUD OVERLAY ─── */
+.cabin3d-helmet-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 25;
+  pointer-events: none;
+}
+
+.cabin3d-visor-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ─── 3D ASTRONAUT FLOATING LABELS ─── */
+.cabin3d-astronaut-tag {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  background: rgba(10, 16, 26, 0.88);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  padding: 4px 10px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--hud-font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  color: #f8fafc;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 10px rgba(56, 189, 248, 0.3);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+  z-index: 20;
+}
+
+.cabin3d-astronaut-tag:hover {
+  transform: translate(-50%, -110%) scale(1.08);
+  border-color: #38bdf8;
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+}
+
+.cabin3d-astronaut-tag.off-nominal {
+  border-color: #ef4444;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.6);
+  animation: pulseAlertTag 1.5s infinite;
+}
+
+@keyframes pulseAlertTag {
+  0%, 100% { border-color: #ef4444; }
+  50% { border-color: #f87171; box-shadow: 0 0 22px rgba(239, 68, 68, 0.9); }
+}
+
+.cabin3d-tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.cabin3d-tag-dot.alert {
+  background: #ef4444;
+}
+
+.cabin3d-tag-heart {
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
