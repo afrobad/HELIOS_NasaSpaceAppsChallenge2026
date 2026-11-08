@@ -16,13 +16,15 @@
 
 ---
 
-[🚀 Quick Start](#-quick-start) • [🌌 The Challenge](#-the-challenge) • [🧠 Helix-Ai Analyst](#-helix-ai-analyst) • [🛸 Key Subsystems](#-key-subsystems) • [🧬 NASA OSDR Grounding](#-nasa-osdr-data-grounding) • [📐 System Architecture](#-system-architecture) • [📄 License](#-license)
+[Quick Start](#quick-start) • [The Challenge](#the-challenge) • [Helix-Ai Analyst](#helix-ai-analyst) • [Key Subsystems](#key-subsystems--features) • [NASA OSDR Grounding](#nasa-osdr-data-grounding) • [System Architecture](#system-architecture) • [License](#license--nasa-space-apps-notice)
 
 ---
 
 </div>
 
-## 🌌 The Challenge
+<a id="the-challenge"></a>
+
+## <img src="assets/icons/crosshair.svg" width="22" height="22" align="center"> &nbsp; The Deep-Space Challenge
 
 During deep-space exploratory voyages — such as the Artemis Moon-to-Mars missions — astronauts travel millions of kilometers away from Earth. Under these conditions:
 
@@ -32,13 +34,17 @@ During deep-space exploratory voyages — such as the Artemis Moon-to-Mars missi
 
 ---
 
-## 💡 The HELIOS Solution
+<a id="the-helios-solution"></a>
+
+## <img src="assets/icons/brain.svg" width="22" height="22" align="center"> &nbsp; The HELIOS Solution
 
 **H.E.L.I.O.S.** (Health Evaluation Logistic Intelligent Onboard System) acts as an autonomous digital medical officer. Powered by the on-board **Helix-Ai Analyst**, it processes real-time multimodal sensor streams, compares them against crew-specific NASA OSDR baseline distributions, renders real-time 3D anatomical twins, and speaks actionable clinical guidance directly into crew headsets and suit visors.
 
 ---
 
-## 🛸 Key Subsystems & Features
+<a id="key-subsystems--features"></a>
+
+## <img src="assets/icons/layers.svg" width="22" height="22" align="center"> &nbsp; Key Subsystems & Features
 
 ### 1. Unified Spacecraft Flight Command Deck (`Dashboard`)
 - **10 Hz Real-Time Biometric Stream**: Continuously monitors heart rate, SpO₂, core body temperature, heart rate variability (HRV RMSSD), blood pressure, and cabin life-support telemetry.
@@ -47,7 +53,7 @@ During deep-space exploratory voyages — such as the Artemis Moon-to-Mars missi
 - **Crew Manifest & Triage Sentry**: Live status cards for all 4 crew members (Commander Haley, Pilot Chris, Dr. Sian, Specialist Leo) with instant clinical severity indicators.
 
 ### 2. Beautiful "SOLVED // ALL NOMINAL" Situation Normalization
-- When an emergency scenario is active (e.g., CO₂ scrubber breakthrough, depressurization, solar particle storm), a prominent **SOLVED** action button appears directly on the emergency directive banner.
+- When an emergency scenario is active (e.g., CO₂ scrubber breakthrough, cabin depressurization, solar particle storm), a prominent **SOLVED** action button appears directly on the emergency directive banner.
 - **One-Click Normalization**: Clicking **SOLVED** immediately resets all 4 crew members' vital signs to nominal flight baseline, sanitizes in-flight packets, silences klaxons, triggers a harmonic nominal chime, and broadcasts speech confirmation across all views and open windows.
 
 ### 3. Interactive 3D Holographic Bio-Twin (`3D Scanner`)
@@ -80,7 +86,9 @@ During deep-space exploratory voyages — such as the Artemis Moon-to-Mars missi
 
 ---
 
-## 🧠 Helix-Ai Analyst
+<a id="helix-ai-analyst"></a>
+
+## <img src="assets/icons/activity.svg" width="22" height="22" align="center"> &nbsp; Helix-Ai Analyst
 
 The **Helix-Ai Analyst** is the autonomous clinical engine embedded into HELIOS:
 
@@ -90,7 +98,9 @@ The **Helix-Ai Analyst** is the autonomous clinical engine embedded into HELIOS:
 
 ---
 
-## 🧬 NASA OSDR Data Grounding
+<a id="nasa-osdr-data-grounding"></a>
+
+## <img src="assets/icons/book-open.svg" width="22" height="22" align="center"> &nbsp; NASA OSDR Data Grounding
 
 HELIOS grounds all baseline thresholds, biomarker ranges, and clinical indices in genuine NASA scientific datasets:
 
@@ -103,7 +113,9 @@ HELIOS grounds all baseline thresholds, biomarker ranges, and clinical indices i
 
 ---
 
-## 📐 System Architecture
+<a id="system-architecture"></a>
+
+## <img src="assets/icons/orbit.svg" width="22" height="22" align="center"> &nbsp; System Architecture
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -127,7 +139,9 @@ HELIOS grounds all baseline thresholds, biomarker ranges, and clinical indices i
 
 ---
 
-## 🚀 Quick Start
+<a id="quick-start"></a>
+
+## <img src="assets/icons/terminal.svg" width="22" height="22" align="center"> &nbsp; Quick Start & Deployment
 
 ### Prerequisites
 - **Python**: 3.11 or newer
@@ -175,7 +189,9 @@ Open your browser at **`http://localhost:3000`** to experience the full flight c
 
 ---
 
-## 📂 Project Structure
+<a id="project-structure"></a>
+
+## <img src="assets/icons/folder.svg" width="22" height="22" align="center"> &nbsp; Project Repository Structure
 
 ```text
 ├── backend/
@@ -197,11 +213,14 @@ Open your browser at **`http://localhost:3000`** to experience the full flight c
 ├── documentation/               # Comprehensive system architecture & challenge guides
 ├── trash/                       # Safely archived temporary notes, test scripts & captures
 ├── LICENSE                      # MIT Open Science License with NASA Space Apps notice
+├── SECURITY.md                  # Comprehensive security audit, OWASP matrix & standards
 └── README.md                    # Project master documentation
 ```
 
 ---
 
-## 📄 License & NASA Space Apps Notice
+<a id="license--nasa-space-apps-notice"></a>
+
+## <img src="assets/icons/file-text.svg" width="22" height="22" align="center"> &nbsp; License & NASA Space Apps Notice
 
 This software is released under the **MIT License** with open-science provisions for the **NASA International Space Apps Challenge 2026**. See the complete [`LICENSE`](LICENSE) file for attribution, NASA OSDR terms, and non-clinical research prototype notices.

@@ -935,8 +935,9 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#94a3b8', fontFamily: 'monospace' }}>
               {activeClinical.isAbnormal ? (
-                <span style={{ color: activeClinical.severity === 'CRITICAL' ? '#f87171' : '#fbbf24', fontWeight: 700 }}>
-                  ⚠️ PHYSIOLOGICAL STRAIN FLAGGED
+                <span style={{ color: activeClinical.severity === 'CRITICAL' ? '#f87171' : '#fbbf24', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <AlertTriangle size={11} />
+                  <span>PHYSIOLOGICAL STRAIN FLAGGED</span>
                 </span>
               ) : (
                 <span>DRAG TO ROTATE 360°</span>
