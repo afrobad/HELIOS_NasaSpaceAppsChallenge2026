@@ -10,6 +10,13 @@
 
 ---
 
+## 🎙️ 28-Second Speech (Single Copy-Paste Paragraph)
+*Use this complete 68-word paragraph for ElevenLabs / TTS voiceover generator:*
+
+> "We are Team Aero Vitals, and we built HELIOS—real-time health monitoring software for astronauts in deep space. On Mars, a twenty-minute comm delay means Earth doctors cannot save an astronaut during acute radiation or hypoxia. Powered by real NASA Open Science data, HELIOS analyzes live vitals at ten hertz, triggers predictive clinical countermeasures, and guides astronauts offline inside their Suit HUD. Safeguarding humanity’s journey to the Red Planet, and extreme medicine on Earth. This is HELIOS."
+
+---
+
 ## ⏱️ Second-by-Second Script & Visual Production Matrix
 
 | Time Window | NASA Rubric Pillar | Spoken Voiceover Narration | Exact On-Screen Visual & UI Source | On-Screen Graphic / Text Overlay |
