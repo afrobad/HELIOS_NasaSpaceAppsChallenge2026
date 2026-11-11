@@ -10,39 +10,39 @@
 
 ---
 
-## 🎙️ Global Winner Pitch Speech (Timestamped Format)
-*Exact cadence matching NASA Space Apps Global Winner 30-second video structure:*
+## 🎙️ Official 30-Second Competition Pitch (Single Copy-Paste Paragraph)
+*Use this exact text for ElevenLabs / TTS voiceover generator or live delivery (Calibrated to precisely 29.5 – 30.0 seconds):*
+
+> "We are Team Aero Vitals, passionate innovators answering the NASA Space Apps Challenge with HELIOS—an autonomous health intelligence platform for deep space. HELIOS streams live ECG biometrics, visualizes physiological strain on a 3D Holographic Bio-Twin, and deploys an offline AI analyst. When Earth doctors are twenty minutes away, it diagnoses emergencies in milliseconds, projecting lifesaving countermeasures straight into the astronaut's Spacesuit HUD. Empowering crews to Mars, and remote critical care on Earth. HELIOS: Protecting every heartbeat, from Earth’s orbit to humanity’s first footprint on Mars."
+
+---
+
+## ⏱️ Second-by-Second Execution & Visual Choreography (Exactly 30.0s Cutoff)
 
 ```text
-0:00 We are Team Aero Vitals, passionate innovators dedicated to safeguarding human life beyond Earth, answering the NASA Space Apps Challenge with HELIOS.
+0:00 We are Team Aero Vitals, passionate innovators answering the NASA Space Apps Challenge with HELIOS—an autonomous health intelligence platform for deep space.
 
-0:08 Because on deep-space missions to Mars, a twenty-minute comm delay leaves astronauts without Earth doctors, so we built this autonomous clinical sentry.
+0:08 HELIOS streams live ECG biometrics, visualizes physiological strain on a 3D Holographic Bio-Twin, and deploys an offline AI analyst.
 
-0:16 Featuring live ten-hertz ECG biometrics, 3D holographic organ twins, and an in-suit AR HUD, all using real data from NASA.
+0:15 When Earth doctors are twenty minutes away, it diagnoses emergencies in milliseconds, projecting lifesaving countermeasures straight into the astronaut's Spacesuit HUD.
 
-0:23 We believe this mission will protect our pioneers to Mars, and critical care on Earth.
+0:22 Empowering crews to Mars, and remote critical care on Earth.
 
-0:26 [Music]
+0:26 HELIOS: Protecting every heartbeat, from Earth’s orbit to humanity’s first footprint on Mars.
+
+0:29.5 [Music chime resolves cleanly to black]
 ```
 
 ---
 
-## 📜 Full Continuous Speech (Single Copy-Paste Paragraph)
-*Use this complete 76-word paragraph for ElevenLabs / TTS voiceover generators:*
-
-> "We are Team Aero Vitals, passionate innovators dedicated to safeguarding human life beyond Earth, answering the NASA Space Apps Challenge with HELIOS. Because on deep-space missions to Mars, a twenty-minute comm delay leaves astronauts without Earth doctors, so we built this autonomous clinical sentry. Featuring live ten-hertz ECG biometrics, 3D holographic organ twins, and an in-suit AR HUD, all using real data from NASA. We believe this mission will protect our pioneers to Mars, and critical care on Earth."
-
----
-
-## ⏱️ Second-by-Second Execution & Visual Choreography (ISS at the End)
-
-| Timestamp | Script Segment | Spoken Voiceover Narration | Visual on Screen (ISS Scene at the Finale) |
+| Time Window | Script Segment | Spoken Voiceover Narration | Visual on Screen (ISS Scene at the Finale) |
 | :--- | :--- | :--- | :--- |
-| **0:00 – 0:08**<br>*(8 sec)* | **TEAM & CHALLENGE** | *"We are Team **Aero Vitals**, passionate innovators dedicated to safeguarding human life beyond Earth, answering the **NASA Space Apps Challenge** with **HELIOS**."* | **Main Mission Cockpit (`/`):** Fast cinematic zoom into the high-tech HELIOS Clinical Console showing active crew status and team branding. |
-| **0:08 – 0:16**<br>*(8 sec)* | **PROBLEM & SOLUTION** | *"Because on deep-space missions to Mars, a **twenty-minute comm delay** leaves astronauts without Earth doctors, so we built this **autonomous clinical sentry**."* | **Earth MCC Console (`/mcc`):** Flash the red **+22 Min Mars Comm Delay** alert drawer showing unassisted astronaut distress. |
-| **0:16 – 0:23**<br>*(7 sec)* | **CORE FEATURES & DATA** | *"Featuring live **ten-hertz ECG biometrics**, **3D holographic organ twins**, and an **in-suit AR HUD**, all using **real data from NASA**."* | **Split-Screen UI:** Dynamic cuts between the pulsing **10 Hz Lead-II ECG waveform**, **3D Bio-Twin** (`/scanner`), and **Spacesuit AR HUD** (`/suit-hud`). |
-| **0:23 – 0:26**<br>*(3 sec)* | **IMPACT & VISION** | *"We believe this mission will **protect our pioneers to Mars**, and **critical care on Earth**."* | **🌟 3D ISS Station Climax (`/iss`):** Breathtaking photorealistic 3D ISS Station gliding over the blue Earth horizon, cross-fading to Mars & Earth Dual-Use. |
-| **0:26 – 0:28**<br>*(2 sec)* | **OUTRO** | *[Music fades out cleanly with telemetry chime]* | Glassmorphic End Card with GitHub URL & NASA Space Apps Challenge 2026 Badge. |
+| **0:00 – 0:08**<br>*(8 sec)* | **TEAM & CHALLENGE** | *"We are Team **Aero Vitals**, passionate innovators answering the **NASA Space Apps Challenge** with **HELIOS**—an autonomous health intelligence platform for deep space."* | **Main Mission Cockpit (`/`):** Fast cinematic zoom into the high-tech HELIOS Clinical Console showing active crew status and team branding. |
+| **0:08 – 0:15**<br>*(7 sec)* | **FEATURE 1 & 2**<br>*(Telemetry & Bio-Twin)* | *"HELIOS streams live **ECG biometrics**, visualizes physiological strain on a **3D Holographic Bio-Twin**, and deploys an **offline AI analyst**."* | **Main Console (`/`) & 3D Scanner (`/scanner`):** Screen capture of real-time Lead-II ECG canvas pulsing at 10 Hz, transitioning to the glowing 3D anatomical Bio-Twin. |
+| **0:15 – 0:22**<br>*(7 sec)* | **FEATURE 3 & 4**<br>*(Comm Delay & Suit HUD)* | *"When Earth doctors are **twenty minutes away**, it diagnoses emergencies in **milliseconds**, projecting lifesaving countermeasures straight into the astronaut's **Spacesuit HUD**."* | **Earth MCC (`/mcc`) to Suit HUD (`/suit-hud`):** Flash the red **+22 Min Mars Light Delay** badge, cutting instantly into the **Astronaut Visor HUD** showing the emergency oxygen checklist. |
+| **0:22 – 0:26**<br>*(4 sec)* | **DUAL-USE IMPACT** | *"Empowering crews to **Mars**, and **remote critical care on Earth**."* | **Mars Outpost to Earth Dual-Use:** Transition from the Mars base surface (`/suit-hud`) to the Firefighter Tactical HUD & rural ICU schematic (`SHOT_13A`/`SHOT_13B`). |
+| **0:26 – 0:29.5**<br>*(3.5 sec)* | **🌟 GRAND FINALE HOOK**<br>*(3D ISS Scene)* | *"**HELIOS: Protecting every heartbeat, from Earth’s orbit to humanity’s first footprint on Mars.**"* | **3D ISS Orbital Station (`/iss`):** Majestic photorealistic 3D ISS Station gliding over the blue Earth horizon, ending with the glowing team emblem and glassmorphic card. |
+| **0:29.5 – 0:30**<br>*(0.5 sec)* | **OUTRO** | *[Telemetry chime resolves to black before 30.0s]* | Clean dark title card with GitHub URL & NASA Space Apps Challenge 2026 badge. |
 
 ---
 
