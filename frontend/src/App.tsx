@@ -492,7 +492,7 @@ export function App() {
   const lastSpokenAlertRef = useRef<string>('');
 
   const playAiSurgeonAlert = useCallback((alert: AlertPayload | null) => {
-    if (isTourActive) return;
+    if (isTourActive || audioService.getTourMode()) return;
     if (!alert || !alert.speech_text || alert.severity === 'NOMINAL') {
       audioService.stopSpeaking();
       lastSpokenAlertRef.current = '';
@@ -571,7 +571,7 @@ export function App() {
           audioService.initAudioContext();
           audioService.setEngaged(true);
           setLatestAlert(alert);
-          if (activeViewRef.current === 'SUIT_HUD' || activeViewRef.current === 'CABIN_3D') {
+          if (!isTourActive && !audioService.getTourMode() && (activeViewRef.current === 'SUIT_HUD' || activeViewRef.current === 'CABIN_3D')) {
             lastSpokenAlertRef.current = '';
             playAiSurgeonAlert(alert);
           }
@@ -1289,6 +1289,7 @@ export function App() {
                   telemetryMap={mccTelemetryMap}
                   onOpenTriage={handleOpenMccTelemetry}
                   onStartTour={() => setIsTourActive(true)}
+                  isTourActive={isTourActive}
                   onSolveSituation={handleSolveSituation}
                 />
               </div>
@@ -1353,6 +1354,7 @@ export function App() {
                   telemetryMap={mccTelemetryMap}
                   onOpenTriage={handleOpenMccTelemetry}
                   onStartTour={() => setIsTourActive(true)}
+                  isTourActive={isTourActive}
                   onSolveSituation={handleSolveSituation}
                 />
               </div>

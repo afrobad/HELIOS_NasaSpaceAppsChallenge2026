@@ -134,31 +134,43 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
 
   // Active telemetry packet
   const activeTelemetry: TelemetryPacket = useMemo(() => {
-    return (
-      telemetryMap[selectedAstronautId] || {
-        timestamp: new Date().toISOString(),
-        tick: 0,
-        astronaut_id: selectedAstronautId,
-        astronaut_name: activeCrew.name,
-        mission_state: 'REST',
-        heart_rate: 62,
-        hrv_rmssd: 68,
-        spo2: 98.4,
-        core_temp: 36.6,
-        sleep_score: 92,
-        cabin_co2: 1.82,
-        potassium: 4.4,
-        hematocrit: 42.0,
-        wbc_count: 6.8,
-        platelet_count: 240,
-        crp: 0.8,
-        computed_qtc: 405,
-        scenario_phase: currentScenario,
-        z_score_hr: 0.1,
-        z_score_hrv: 0.1,
-        evaluated_severity: 'NOMINAL',
-      }
-    );
+    const raw = telemetryMap[selectedAstronautId];
+    const isScenElevated = Boolean(currentScenario && currentScenario !== 'NOMINAL_CRUISE');
+    const isRadScen = isScenElevated && (currentScenario.includes('RADIATION') || currentScenario.includes('SOLAR'));
+
+    if (raw) {
+      return {
+        ...raw,
+        scenario_phase: isScenElevated ? currentScenario : (raw.scenario_phase || currentScenario),
+        radiation_flux: isRadScen ? Math.max(raw.radiation_flux ?? 0, 85.0) : raw.radiation_flux,
+        radiation_dose_gy: isRadScen ? Math.max((raw as any).radiation_dose_gy ?? 0, 0.75) : (raw as any).radiation_dose_gy,
+      };
+    }
+
+    return {
+      timestamp: new Date().toISOString(),
+      tick: 0,
+      astronaut_id: selectedAstronautId,
+      astronaut_name: activeCrew.name,
+      mission_state: 'REST',
+      heart_rate: 62,
+      hrv_rmssd: 68,
+      spo2: 98.4,
+      core_temp: 36.6,
+      sleep_score: 92,
+      cabin_co2: 1.82,
+      potassium: 4.4,
+      hematocrit: 42.0,
+      wbc_count: 6.8,
+      platelet_count: 240,
+      crp: 0.8,
+      computed_qtc: 405,
+      scenario_phase: currentScenario,
+      radiation_flux: isRadScen ? 85.0 : 0.04,
+      z_score_hr: 0.1,
+      z_score_hrv: 0.1,
+      evaluated_severity: 'NOMINAL',
+    };
   }, [telemetryMap, selectedAstronautId, activeCrew.name, currentScenario]);
 
   // Clinical Summary for Active Astronaut
@@ -961,6 +973,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               astronautRole={activeCrew.role}
               crewNo={activeCrew.crewNo}
               telemetry={activeTelemetry}
+              currentScenario={currentScenario}
               themeMode={scannerTheme}
               orbitalPosition={orbitalPosition}
               onSelectSubsystem={(sub) => setActiveSubsystem(sub)}

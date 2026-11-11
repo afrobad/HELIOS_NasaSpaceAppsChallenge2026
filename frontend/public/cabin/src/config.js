@@ -32,9 +32,8 @@ export const CONFIG = {
   /** Used only if manifest.json is missing. */
   fallbackFiles: [
     'animated_floating_astronaut_in_space_suit_loop.glb', 'earth.glb', 'iss.glb',
-    'inside_spaceship.glb',
     'monitor__computer__realistic_computer_monitor.glb', 'old_nasa_style_computer_console.glb', 'sci-fi_computer_desk_console.glb',
-    'gps_satellite.glb',
+    'space_ship_interior.glb',
   ],
   /**
    * Auto-classification rules (first match wins). Override any slot by name here:

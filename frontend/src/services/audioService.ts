@@ -93,8 +93,10 @@ class AudioService {
 
   public setTourMode(active: boolean): void {
     this.isTourModeActive = active;
-    if (active) {
-      this.interrupt();
+    this.speechQueue = [];
+    this.stopSpeaking();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch {}
     }
   }
 
@@ -778,7 +780,6 @@ class AudioService {
   }
 
   public stopSpeaking(): void {
-    if (this.isTourModeActive) return;
     if (this.currentAbortController) {
       this.currentAbortController.abort();
       this.currentAbortController = null;

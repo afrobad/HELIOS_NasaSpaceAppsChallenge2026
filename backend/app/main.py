@@ -115,12 +115,14 @@ async def add_security_headers(request, call_next):
     response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=(), payment=()"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
         "font-src 'self' https://fonts.gstatic.com data:; "
         "img-src 'self' data: https: blob:; "
         "media-src 'self' blob: data:; "
-        "connect-src 'self' ws: wss: http: https:; "
+        "connect-src 'self' ws: wss: http: https: https://cdn.jsdelivr.net; "
+        "worker-src 'self' blob: data:; "
+        "child-src 'self' blob:; "
         + _FRAME_ANCESTORS +
         " object-src 'none';"
         " base-uri 'self';"
@@ -560,7 +562,7 @@ FRONTEND_DIST = os.path.join(
 
 if os.path.exists(FRONTEND_DIST):
     # Mount all static asset subdirectories with native HTTP Range & streaming support
-    for sub in ["assets", "audio", "crew", "suit-hud", "videos", "space"]:
+    for sub in ["assets", "audio", "cabin", "crew", "suit-hud", "videos", "space"]:
         sub_dir = os.path.join(FRONTEND_DIST, sub)
         if os.path.exists(sub_dir):
             app.mount(f"/{sub}", StaticFiles(directory=sub_dir), name=f"static_{sub}")

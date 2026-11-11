@@ -4728,6 +4728,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               astronautRole={selCrew.role}
               crewNo={selCrew.crewNo}
               telemetry={telemetryMap[selCrew.id]}
+              currentScenario={currentScenario}
               themeMode="CYAN"
               onSelectSubsystem={(sub) => {
                 if (sub === 'CARDIAC') setActiveProcedureId('M-204');

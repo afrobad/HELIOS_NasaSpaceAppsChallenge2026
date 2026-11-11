@@ -34,6 +34,19 @@
     <ul class="ld-log" id="ld-log"></ul>
     <div class="ld-err" id="ld-err"></div>
   </div>
+  <script>
+    // Universal boot failsafe: never let user remain stuck on loader on slow connections or CDN delays
+    window._heliosFailsafeTimer = setTimeout(function() {
+      console.warn('[HELIOS] Cabin failsafe timeout reached: dismissing loader overlay');
+      document.body.classList.remove('booting');
+      var el = document.getElementById('loader');
+      if (el) {
+        el.style.opacity = '0';
+        el.style.pointerEvents = 'none';
+        setTimeout(function() { el.style.display = 'none'; }, 800);
+      }
+    }, 4500);
+  </script>
 
   <!-- ============ TOP BAR ============ -->
   <header id="topbar">

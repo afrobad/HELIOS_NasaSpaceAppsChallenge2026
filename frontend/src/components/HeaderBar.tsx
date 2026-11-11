@@ -212,7 +212,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     tone: 'klaxon' | 'chime' | 'beep' | 'none' = 'chime',
     config: { severity?: 'CRITICAL' | 'WARNING' | 'INFO' | 'NOMINAL'; rate?: number; volume?: number } = {}
   ) => {
-    if (isTourActive) return;
+    if (isTourActive || audioService.getTourMode()) return;
     const cleanText = text.trim();
     if (!cleanText) return;
     const sev = config.severity || 'NOMINAL';
@@ -322,7 +322,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
   // React to incoming WebSocket alerts or scenario transitions
   useEffect(() => {
-    if (isTourActive) return;
+    if (isTourActive || audioService.getTourMode()) return;
 
     const isNominal =
       (!latestAlert || latestAlert.severity === 'NOMINAL') &&

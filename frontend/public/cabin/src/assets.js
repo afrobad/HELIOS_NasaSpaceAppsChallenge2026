@@ -2,11 +2,10 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CONFIG } from './config.js';
 
-const SLOTS = ['iss', 'earth', 'astronaut', 'monitor', 'console', 'nasaConsole', 'satellite', 'corridorModel'];
+const SLOTS = ['iss', 'earth', 'astronaut', 'monitor', 'console', 'nasaConsole'];
 export const SLOT_LABEL = {
   iss: 'Station exterior', earth: 'Planet', astronaut: 'Crew (animated)',
-  monitor: 'Wall displays', console: 'Desk consoles', nasaConsole: 'NASA Computer Console', satellite: 'GPS Satellite',
-  corridorModel: 'Inside spaceship corridor',
+  monitor: 'Wall displays', console: 'Desk consoles', nasaConsole: 'NASA Computer Console',
 };
 
 async function listFiles() {
@@ -77,10 +76,10 @@ export async function loadAssets(onProgress, onLog) {
         const timer = setTimeout(() => {
           if (!done) {
             done = true;
-            console.warn(`[HELIOS] Model load timeout (30s) for ${slot}: ${file}`);
+            console.warn(`[HELIOS] Model load timeout (4s fallback) for ${slot}: ${file}`);
             rej(new Error(`Timeout loading ${file}`));
           }
-        }, 30000);
+        }, 4000);
         loader.load(
           CONFIG.modelDir + encodeURIComponent(file),
           (data) => {

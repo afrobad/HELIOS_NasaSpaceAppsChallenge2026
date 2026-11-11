@@ -51,6 +51,7 @@ export interface HolographicBodyScannerProps {
   astronautRole: string;
   crewNo: string;
   telemetry?: TelemetryPacket;
+  currentScenario?: string;
   themeMode?: 'CYAN' | 'THERMAL' | 'AMBER' | 'HEATMAP' | 'AEROSPACE';
   orbitalPosition?: DistancePreset;
   onSelectSubsystem?: (subsystem: 'OCULAR' | 'CARDIAC' | 'RENAL' | 'SKELETAL') => void;
@@ -110,6 +111,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   astronautRole: _astronautRole,
   crewNo,
   telemetry,
+  currentScenario,
   themeMode: initialTheme = 'CYAN',
   orbitalPosition = 'LEO',
   onSelectSubsystem,
@@ -171,17 +173,15 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
 
   // Active Solar / Cosmic Radiation Status Detection (Gated Strictly to True Radiation Storm Events)
   const storedScenario = typeof window !== 'undefined' ? localStorage.getItem('helios_scenario') : null;
+  const activeScenarioKey = currentScenario || telemetry?.scenario_phase || storedScenario || 'NOMINAL_CRUISE';
   const isRadiationScenario =
-    telemetry?.scenario_phase === 'SCENARIO_3_SOLAR_RADIATION_STORM' ||
-    telemetry?.scenario_phase === 'SCENARIO_8_SOLAR_RADIATION_STORM' ||
-    telemetry?.scenario_phase === 'SCENARIO_13_RADIATION_MARROW_EXHAUSTION' ||
-    telemetry?.scenario_phase === 'SOLAR_STORM' ||
-    telemetry?.scenario_phase === 'SOLAR_RADIATION_STORM' ||
-    storedScenario === 'SCENARIO_3_SOLAR_RADIATION_STORM' ||
-    storedScenario === 'SCENARIO_8_SOLAR_RADIATION_STORM' ||
-    storedScenario === 'SCENARIO_13_RADIATION_MARROW_EXHAUSTION' ||
-    storedScenario === 'SOLAR_STORM' ||
-    storedScenario === 'SOLAR_RADIATION_STORM';
+    activeScenarioKey.includes('RADIATION') ||
+    activeScenarioKey.includes('SOLAR') ||
+    activeScenarioKey === 'SCENARIO_3_SOLAR_RADIATION_STORM' ||
+    activeScenarioKey === 'SCENARIO_8_SOLAR_RADIATION_STORM' ||
+    activeScenarioKey === 'SCENARIO_13_RADIATION_MARROW_EXHAUSTION' ||
+    activeScenarioKey === 'SOLAR_STORM' ||
+    activeScenarioKey === 'SOLAR_RADIATION_STORM';
 
   const isRadiationActive = isRadiationScenario || (radFlux >= 15.0) || (radDose >= 0.50);
   const isRadiationCritical = isRadiationScenario || (radFlux >= 50.0) || (radDose >= 0.70);
@@ -502,24 +502,28 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   // 6 Primary Anatomical Organ Systems for Direct Interactive Human Body Inspection
   const anatomicalParts = useMemo(() => {
     // 1. Brain & Ocular (Cranial)
-    const isBrainCrit = ocularSeverity === 'CRITICAL';
+    const isBrainCrit = ocularSeverity === 'CRITICAL' || isRadiationCritical;
     const isBrainWatch = !isBrainCrit && (ocularSeverity === 'WARNING' || co2 > 3.4 || hr > 115 || isRadiationActive);
     const brainStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = isBrainCrit ? 'CRITICAL' : isBrainWatch ? 'WATCH' : 'NOMINAL';
     const brainColor = isBrainCrit ? '#ef4444' : isBrainWatch ? '#f59e0b' : '#00e5a3';
 
     // 2. Heart & Cardiac (Thoracic)
-    const heartStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = cardiacSeverity === 'CRITICAL' ? 'CRITICAL' : (cardiacSeverity === 'WARNING' || isRadiationActive) ? 'WATCH' : 'NOMINAL';
-    const heartColor = cardiacSeverity === 'CRITICAL' ? '#ef4444' : (cardiacSeverity === 'WARNING' || isRadiationActive) ? '#f59e0b' : '#00e5a3';
+    const isHeartCrit = cardiacSeverity === 'CRITICAL' || isRadiationCritical;
+    const isHeartWatch = !isHeartCrit && (cardiacSeverity === 'WARNING' || isRadiationActive);
+    const heartStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = isHeartCrit ? 'CRITICAL' : isHeartWatch ? 'WATCH' : 'NOMINAL';
+    const heartColor = isHeartCrit ? '#ef4444' : isHeartWatch ? '#f59e0b' : '#00e5a3';
 
     // 3. Lungs & Pulmonary (Pulmonary)
-    const isLungsCrit = spo2 < 90.0 || co2 > 4.5;
+    const isLungsCrit = spo2 < 90.0 || co2 > 4.5 || isRadiationCritical;
     const isLungsWatch = !isLungsCrit && (spo2 < 94.0 || co2 > 3.2 || isRadiationActive);
     const lungsStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = isLungsCrit ? 'CRITICAL' : isLungsWatch ? 'WATCH' : 'NOMINAL';
     const lungsColor = isLungsCrit ? '#ef4444' : isLungsWatch ? '#f59e0b' : '#00e5a3';
 
     // 4. Kidneys & Renal (Abdominal)
-    const renalStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = renalSeverity === 'CRITICAL' ? 'CRITICAL' : (renalSeverity === 'WARNING' || isRadiationActive) ? 'WATCH' : 'NOMINAL';
-    const renalColor = renalSeverity === 'CRITICAL' ? '#ef4444' : (renalSeverity === 'WARNING' || isRadiationActive) ? '#f59e0b' : '#00e5a3';
+    const isRenalCritDirect = renalSeverity === 'CRITICAL' || isRadiationCritical;
+    const isRenalWatchDirect = !isRenalCritDirect && (renalSeverity === 'WARNING' || isRadiationActive);
+    const renalStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = isRenalCritDirect ? 'CRITICAL' : isRenalWatchDirect ? 'WATCH' : 'NOMINAL';
+    const renalColor = isRenalCritDirect ? '#ef4444' : isRenalWatchDirect ? '#f59e0b' : '#00e5a3';
 
     // 5. Vascular & Circulation (Circulatory)
     const isVascCrit = trm >= 2.2 || hct >= 53.0 || isRadiationCritical;
@@ -697,7 +701,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         subsystemId: 'SKELETAL' as const,
       },
     ];
-  }, [orbitalPosition, hr, spo2, hct, k, co2, temp, radFlux, radDose, trm, bmd, telemetry, isOcularAlert, clinical, ocularSeverity, cardiacSeverity, renalSeverity, skeletalSeverity, isCardiacCritical, isCardiacWarning, isRenalAlert, isRenalCritical, isSkeletalAlert, isRadiationActive, isRadiationCritical]);
+  }, [orbitalPosition, hr, spo2, hct, k, co2, temp, radFlux, radDose, trm, bmd, telemetry, isOcularAlert, clinical, ocularSeverity, cardiacSeverity, renalSeverity, skeletalSeverity, isCardiacCritical, isCardiacWarning, isRenalAlert, isRenalCritical, isSkeletalAlert, isRadiationActive, isRadiationCritical, currentScenario]);
 
   const activeDisplayTargets = anatomicalParts;
   const activeDisplayTargetsRef = useRef(activeDisplayTargets);

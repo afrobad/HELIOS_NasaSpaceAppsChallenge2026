@@ -546,11 +546,21 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
   }, []);
 
   // End Tour & Return smoothly to Main Dashboard
-  const handleEndTour = useCallback(() => {
+  const handleEndTour = useCallback((e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     stopCurrentSpeech();
     dispatchCabinStopRef.current('close_modals');
     executedStepRef.current = -1;
     audioService.setTourMode(false);
+    audioService.stopSpeaking();
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch { }
+    }
     onTriggerScenario('NOMINAL_CRUISE');
     onSelectView('HUD');
     onEndTour();
@@ -602,7 +612,8 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
 
     const currentToken = stepTokenRef.current;
     let hasEnded = false;
-    let activeChannel: 'NONE' | 'STATIC' | 'SYNTH' | 'WEBSPEECH' = 'NONE';
+    let fallbackToSynthTriggered = false;
+    let fallbackToWebSpeechTriggered = false;
 
     // Finish step safely (guaranteed only once per step, never duplicates)
     const completeStep = (delay = 700) => {
@@ -629,10 +640,11 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
       }, delay);
     };
 
-    // Tertiary Fallback: Web Speech API (runs strictly when audio element & backend fail)
+    // Tertiary Fallback: Web Speech API (runs strictly once when audio element & backend fail)
     const speakFallbackWebSpeech = () => {
-      if (hasEnded || currentToken !== stepTokenRef.current || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-      activeChannel = 'WEBSPEECH';
+      if (hasEnded || currentToken !== stepTokenRef.current || fallbackToWebSpeechTriggered) return;
+      fallbackToWebSpeechTriggered = true;
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
       // Ensure any audio element is completely torn down
       if (currentAudioRef.current) {
@@ -644,6 +656,10 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
           currentAudioRef.current.src = '';
         } catch { }
         currentAudioRef.current = null;
+      }
+      if (currentAbortRef.current) {
+        try { currentAbortRef.current.abort(); } catch { }
+        currentAbortRef.current = null;
       }
 
       try {
@@ -698,10 +714,21 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
       }
     };
 
-    // Secondary Fallback: Backend Neural API
+    // Secondary Fallback: Backend Neural API (runs strictly once when static MP3 fails)
     const speakBackendNeural = () => {
-      if (hasEnded || currentToken !== stepTokenRef.current) return;
-      activeChannel = 'SYNTH';
+      if (hasEnded || currentToken !== stepTokenRef.current || fallbackToSynthTriggered) return;
+      fallbackToSynthTriggered = true;
+
+      if (currentAudioRef.current) {
+        try {
+          currentAudioRef.current.pause();
+          currentAudioRef.current.onended = null;
+          currentAudioRef.current.ontimeupdate = null;
+          currentAudioRef.current.onerror = null;
+          currentAudioRef.current.src = '';
+        } catch { }
+        currentAudioRef.current = null;
+      }
 
       const abortController = new AbortController();
       currentAbortRef.current = abortController;
@@ -741,8 +768,8 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
             speakFallbackWebSpeech();
           };
 
-          dynamicAudio.play().catch(() => {
-            if (currentToken === stepTokenRef.current) {
+          dynamicAudio.play().catch((err) => {
+            if (currentToken === stepTokenRef.current && err?.name !== 'AbortError') {
               speakFallbackWebSpeech();
             }
           });
@@ -755,7 +782,6 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
     };
 
     // Primary: Instant Static MP3 Audio
-    activeChannel = 'STATIC';
     const staticUrl = `/audio/tour/step_${stepIdx}.mp3`;
     const audio = new Audio();
     audio.src = staticUrl;
@@ -776,25 +802,13 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
     };
 
     audio.onerror = () => {
-      if (currentToken !== stepTokenRef.current) return;
-      // Static MP3 failed to load/decode; stop audio element and transition to backend
-      audio.onended = null;
-      audio.onerror = null;
-      audio.ontimeupdate = null;
-      audio.src = '';
-      currentAudioRef.current = null;
+      if (currentToken !== stepTokenRef.current || hasEnded) return;
       speakBackendNeural();
     };
 
     audio.play().catch((playErr) => {
-      if (currentToken !== stepTokenRef.current) return;
+      if (currentToken !== stepTokenRef.current || hasEnded) return;
       if (playErr && playErr.name === 'AbortError') return;
-      // Autoplay or playback error; stop audio element and fallback
-      audio.onended = null;
-      audio.onerror = null;
-      audio.ontimeupdate = null;
-      audio.src = '';
-      currentAudioRef.current = null;
       speakBackendNeural();
     });
   }, [stopCurrentSpeech]);
@@ -1075,9 +1089,14 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
               </span>
               <button
                 type="button"
-                onClick={handleEndTour}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleEndTour(e);
+                }}
                 className="helios-tour-btn helios-tour-btn--danger"
                 title="Exit Interactive Tour"
+                style={{ pointerEvents: 'auto', cursor: 'pointer', zIndex: 100030 }}
               >
                 <X size={13} />
                 <span>End Tour</span>
