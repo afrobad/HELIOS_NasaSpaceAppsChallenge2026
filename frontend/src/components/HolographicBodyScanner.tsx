@@ -169,23 +169,40 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   const arf = telemetry?.computed_arf ?? 0.0;
   const bmd = (telemetry as any)?.bmd_index ?? 94.5;
 
+  // Active Solar / Cosmic Radiation Status Detection (Gated Strictly to True Radiation Storm Events)
+  const storedScenario = typeof window !== 'undefined' ? localStorage.getItem('helios_scenario') : null;
+  const isRadiationScenario =
+    telemetry?.scenario_phase === 'SCENARIO_3_SOLAR_RADIATION_STORM' ||
+    telemetry?.scenario_phase === 'SCENARIO_8_SOLAR_RADIATION_STORM' ||
+    telemetry?.scenario_phase === 'SCENARIO_13_RADIATION_MARROW_EXHAUSTION' ||
+    telemetry?.scenario_phase === 'SOLAR_STORM' ||
+    telemetry?.scenario_phase === 'SOLAR_RADIATION_STORM' ||
+    storedScenario === 'SCENARIO_3_SOLAR_RADIATION_STORM' ||
+    storedScenario === 'SCENARIO_8_SOLAR_RADIATION_STORM' ||
+    storedScenario === 'SCENARIO_13_RADIATION_MARROW_EXHAUSTION' ||
+    storedScenario === 'SOLAR_STORM' ||
+    storedScenario === 'SOLAR_RADIATION_STORM';
+
+  const isRadiationActive = isRadiationScenario || (radFlux >= 15.0) || (radDose >= 0.50);
+  const isRadiationCritical = isRadiationScenario || (radFlux >= 50.0) || (radDose >= 0.70);
+
   // Global Bio-Twin Severity
   const isCriticalAlert = telemetry?.evaluated_severity === 'CRITICAL' ||
     clinical.severity === 'CRITICAL' ||
     spo2 < 90.0 ||
-    hr > 115 ||
-    (telemetry?.potassium !== undefined && telemetry.potassium < 3.20) ||
-    radFlux > 10.0;
+    hr > 120 ||
+    (telemetry?.potassium !== undefined && telemetry.potassium < 3.10) ||
+    isRadiationCritical;
 
   const isWarningAlert = !isCriticalAlert && (
     telemetry?.evaluated_severity === 'WARNING' ||
     clinical.severity === 'WARNING' ||
-    clinical.isAbnormal ||
-    hr > 88 ||
-    spo2 < 96.5 ||
-    co2 > 2.8 ||
-    hct > 51.0 ||
-    trm > 1.40 ||
+    isRadiationActive ||
+    hr > 105 ||
+    spo2 < 94.0 ||
+    co2 > 3.4 ||
+    hct > 52.0 ||
+    trm > 1.80 ||
     (telemetry?.potassium !== undefined && (telemetry.potassium < 3.40 || telemetry.potassium > 5.2))
   );
 
@@ -193,30 +210,46 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
 
   // Subsystem Specific Severities
   // 1. Cardiac
-  const isCardiacCritical = isCriticalAlert && (primaryBioId === 'hr' || primaryBioId === 'arf' || primaryBioId === 'spo2' || hr > 105 || qtc > 465 || arf > 1.0 || spo2 < 90.0);
-  const isCardiacWarning = isWarningAlert && (primaryBioId === 'hr' || primaryBioId === 'arf' || (primaryBioId === 'hct' && primaryBioTier !== 'NOMINAL') || hr > 85 || qtc > 440 || trm > 1.40);
+  const isCardiacCritical = isCriticalAlert && (primaryBioId === 'hr' || primaryBioId === 'arf' || primaryBioId === 'spo2' || hr > 110 || qtc > 470 || arf > 1.2 || spo2 < 90.0);
+  const isCardiacWarning = !isCardiacCritical && (
+    isRadiationActive ||
+    isWarningAlert ||
+    primaryBioId === 'hr' ||
+    primaryBioId === 'arf' ||
+    hr > 95 ||
+    qtc > 445
+  );
   const cardiacSeverity: 'CRITICAL' | 'WARNING' | 'NOMINAL' = isCardiacCritical ? 'CRITICAL' : isCardiacWarning ? 'WARNING' : 'NOMINAL';
 
   // 2. Renal & Cortical Perfusion (Fluid Shift & Hemoconcentration)
   const isRenalCritical = (telemetry?.potassium !== undefined && telemetry.potassium < 3.20) || (primaryBioId === 'hct' && primaryBioTier === 'CRITICAL');
   const isRenalAlert = isRenalCritical ||
+    isRadiationActive ||
     (isWarningAlert && (
       (telemetry?.potassium !== undefined && (telemetry.potassium < 3.40 || telemetry.potassium > 5.2)) ||
       (primaryBioId === 'hct' && primaryBioTier !== 'NOMINAL') ||
-      hct > 51.0
-    )) ||
-    (clinical.isAbnormal && primaryBioTier !== 'NOMINAL' && primaryBioId === 'hct') ||
-    telemetry?.scenario_phase === 'SCENARIO_14_NEPHROLITHIASIS' ||
-    telemetry?.scenario_phase === 'SCENARIO_15_INTRAVASCULAR_DEHYDRATION';
+      hct > 51.0 ||
+      telemetry?.scenario_phase === 'SCENARIO_14_NEPHROLITHIASIS' ||
+      telemetry?.scenario_phase === 'SCENARIO_15_INTRAVASCULAR_DEHYDRATION'
+    ));
   const renalSeverity: 'CRITICAL' | 'WARNING' | 'NOMINAL' = isRenalCritical ? 'CRITICAL' : isRenalAlert ? 'WARNING' : 'NOMINAL';
 
-  // 3. Cranial & Neuro-Ocular (SANS)
-  const isOcularAlert = telemetry?.scenario_phase === 'SCENARIO_17_SPACE_VISION_SANS' || co2 > 3.2 || primaryBioId === 'co2';
+  // 3. Cranial & Neuro-Ocular (SANS & Radiation Phosphenes)
+  const isOcularAlert = isRadiationActive || (isWarningAlert && (
+    telemetry?.scenario_phase === 'SCENARIO_17_SPACE_VISION_SANS' ||
+    co2 > 3.2 ||
+    primaryBioId === 'co2'
+  ));
   const ocularSeverity: 'CRITICAL' | 'WARNING' | 'NOMINAL' = isOcularAlert ? 'WARNING' : 'NOMINAL';
 
-  // 4. Musculoskeletal & Deconditioning
-  const isSkeletalAlert = telemetry?.scenario_phase === 'SCENARIO_8_CARDIOVASCULAR_DECONDITIONING' || bmd < 90.0 || (primaryBioId === 'hct' && trm > 1.4);
-  const skeletalSeverity: 'CRITICAL' | 'WARNING' | 'NOMINAL' = bmd < 85.0 ? 'CRITICAL' : isSkeletalAlert ? 'WARNING' : 'NOMINAL';
+  // 4. Musculoskeletal & Deconditioning (Bone Marrow Suppression Under Radiation)
+  const isSkeletalCrit = bmd < 85.0 || isRadiationCritical;
+  const isSkeletalAlert = isSkeletalCrit || isRadiationActive || (isWarningAlert && (
+    telemetry?.scenario_phase === 'SCENARIO_8_CARDIOVASCULAR_DECONDITIONING' ||
+    bmd < 90.0 ||
+    (primaryBioId === 'hct' && trm > 1.4)
+  ));
+  const skeletalSeverity: 'CRITICAL' | 'WARNING' | 'NOMINAL' = isSkeletalCrit ? 'CRITICAL' : isSkeletalAlert ? 'WARNING' : 'NOMINAL';
 
   // Synchronous refs for WebGL 60 FPS animation loop
   const hrRef = useRef(hr);
@@ -288,15 +321,21 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
       pos: [0, 1.32 * MESH_SCALE, 0.14 * MESH_SCALE],
       scanTargetY: 1.32 * MESH_SCALE,
       severity: ocularSeverity,
-      metric: isOcularAlert
-        ? 'ONSD 6.8 mm · Retinal Engorgement'
-        : 'ONSD 5.2 mm · Retinal Microaneurysm 0',
-      detail: isOcularAlert
-        ? 'Cephalad venous congestion exceeding nominal ICP thresholds.'
-        : 'Nominal intracranial ICP dynamics; optic sheath margins sharp.',
-      protocol: isOcularAlert
-        ? 'Deploy LBNP countermeasure suit; scheduled funduscopic OCT.'
-        : 'Funduscopic OCT imaging q48h (NASA SANS Protocol B).',
+      metric: isRadiationActive
+        ? `Rad Flux ${radFlux.toFixed(1)} mGy/h · Phosphenes`
+        : isOcularAlert
+          ? 'ONSD 6.8 mm · Retinal Engorgement'
+          : 'ONSD 5.2 mm · Retinal Microaneurysm 0',
+      detail: isRadiationActive
+        ? 'Solar proton event crossing cranial cavity; retinal Cerenkov phosphene flashes and visual pathway oxidative stress.'
+        : isOcularAlert
+          ? 'Cephalad venous congestion exceeding nominal ICP thresholds.'
+          : 'Nominal intracranial ICP dynamics; optic sheath margins sharp.',
+      protocol: isRadiationActive
+        ? 'Relocate to water-shielded storm shelter; avoid spacecraft viewport exposure.'
+        : isOcularAlert
+          ? 'Deploy LBNP countermeasure suit; scheduled funduscopic OCT.'
+          : 'Funduscopic OCT imaging q48h (NASA SANS Protocol B).',
     },
     {
       id: 'CARDIAC',
@@ -308,29 +347,35 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
       pos: [-0.08 * MESH_SCALE, 0.72 * MESH_SCALE, 0.16 * MESH_SCALE],
       scanTargetY: 0.72 * MESH_SCALE,
       severity: cardiacSeverity,
-      metric: isCardiacCritical
-        ? `HR ${Math.round(hr)} bpm · QTc ${qtc}ms · ARF ${arf.toFixed(2)}`
-        : primaryBioId === 'hct' || trm > 1.40
-          ? `HR ${Math.round(hr)} bpm · TRM ${trm.toFixed(2)} · Viscous`
-          : isCardiacWarning
-            ? `HR ${Math.round(hr)} bpm · QTc ${qtc}ms · Strain`
-            : `HR ${Math.round(hr)} bpm · QTc ${qtc}ms · Stable`,
-      detail: isCardiacCritical
-        ? (k < 3.5
-          ? `Compensatory sinus tachycardia secondary to severe hypokalemia.`
-          : `Critical cardiovascular strain under active mission scenario.`)
-        : primaryBioId === 'hct'
-          ? `Intravascular hemoconcentration elevating afterload.`
-          : isCardiacWarning
-            ? `Elevated cardiovascular workload; chronotropic adaptation.`
-            : 'Resting sinus rhythm; nominal microgravity cardiac output.',
-      protocol: isCardiacCritical
-        ? 'Administer oral KCl electrolyte pack (20-40 mEq); suspend EVA.'
-        : primaryBioId === 'hct'
-          ? 'Scheduled oral hydration protocol; monitor central venous pressure.'
-          : isCardiacWarning
-            ? 'Continuous 12-lead vectorcardiography; titrate workload.'
-            : 'Maintain nominal telemetry logging; routine submaximal cycle.',
+      metric: isRadiationActive
+        ? `HR ${Math.round(hr)} bpm · SPE Tachy · Strain`
+        : isCardiacCritical
+          ? `HR ${Math.round(hr)} bpm · QTc ${qtc}ms · ARF ${arf.toFixed(2)}`
+          : primaryBioId === 'hct' || trm > 1.40
+            ? `HR ${Math.round(hr)} bpm · TRM ${trm.toFixed(2)} · Viscous`
+            : isCardiacWarning
+              ? `HR ${Math.round(hr)} bpm · QTc ${qtc}ms · Strain`
+              : `HR ${Math.round(hr)} bpm · QTc ${qtc}ms · Stable`,
+      detail: isRadiationActive
+        ? 'Compensatory sinus tachycardia secondary to cosmic radiation storm alert; heightened autonomic stress response.'
+        : isCardiacCritical
+          ? (k < 3.5
+            ? `Compensatory sinus tachycardia secondary to severe hypokalemia.`
+            : `Critical cardiovascular strain under active mission scenario.`)
+          : primaryBioId === 'hct'
+            ? `Intravascular hemoconcentration elevating afterload.`
+            : isCardiacWarning
+              ? `Elevated cardiovascular workload; chronotropic adaptation.`
+              : 'Resting sinus rhythm; nominal microgravity cardiac output.',
+      protocol: isRadiationActive
+        ? 'Monitor continuous Lead II telemetry; maintain calm seated posture inside storm shelter.'
+        : isCardiacCritical
+          ? 'Administer oral KCl electrolyte pack (20-40 mEq); suspend EVA.'
+          : primaryBioId === 'hct'
+            ? 'Scheduled oral hydration protocol; monitor central venous pressure.'
+            : isCardiacWarning
+              ? 'Continuous 12-lead vectorcardiography; titrate workload.'
+              : 'Maintain nominal telemetry logging; routine submaximal cycle.',
     },
     {
       id: 'RENAL',
@@ -342,23 +387,29 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
       pos: [-0.14 * MESH_SCALE, 0.18 * MESH_SCALE, 0.12 * MESH_SCALE],
       scanTargetY: 0.18 * MESH_SCALE,
       severity: renalSeverity,
-      metric: isRenalCritical
-        ? `K+ ${k.toFixed(2)} mmol/L · Urine Osm 920 mOsm`
+      metric: isRadiationActive
+        ? `Rad Dose ${(radDose || 0.75).toFixed(2)} Gy · Radioprotection`
+        : isRenalCritical
+          ? `K+ ${k.toFixed(2)} mmol/L · Urine Osm 920 mOsm`
+          : (isRenalAlert && (primaryBioId === 'hct' || hct > 48.0))
+            ? `Hct ${hct.toFixed(1)}% · Prerenal Shift`
+            : isRenalAlert
+              ? `K+ ${k.toFixed(2)} mmol/L · Osm 810 mOsm`
+              : `K+ ${k.toFixed(2)} mmol/L · Urine Osm 450 mOsm`,
+      detail: isRadiationActive
+        ? 'Elevated cellular turnover and free radical metabolic load; ensure optimal renal clearance and radioprotective electrolyte support.'
         : (isRenalAlert && (primaryBioId === 'hct' || hct > 48.0))
-          ? `Hct ${hct.toFixed(1)}% · Prerenal Shift`
+          ? `Intravascular plasma volume contraction with hemoconcentration.`
           : isRenalAlert
-            ? `K+ ${k.toFixed(2)} mmol/L · Osm 810 mOsm`
-            : `K+ ${k.toFixed(2)} mmol/L · Urine Osm 450 mOsm`,
-      detail: (isRenalAlert && (primaryBioId === 'hct' || hct > 48.0))
-        ? `Intravascular plasma volume contraction with hemoconcentration.`
-        : isRenalAlert
-          ? 'Prerenal azotemia secondary to microgravity fluid loss.'
-          : 'Nominal bilateral cortical filtration; fluid balance stable.',
-      protocol: primaryBioId === 'hct' || hct > 48.0
-        ? 'Administer 1000 mL chilled electrolyte pack; re-evaluate q2h.'
-        : isRenalAlert
-          ? 'Administer 750 mL chilled electrolyte oral hydration.'
-          : 'Routine fluid balance protocol (2.5 L/day target).',
+            ? 'Prerenal azotemia secondary to microgravity fluid loss.'
+            : 'Nominal bilateral cortical filtration; fluid balance stable.',
+      protocol: isRadiationActive
+        ? 'Oral radioprotective hydration protocol (2.5 L/day); monitor fluid output and electrolytes.'
+        : primaryBioId === 'hct' || hct > 48.0
+          ? 'Administer 1000 mL chilled electrolyte pack; re-evaluate q2h.'
+          : isRenalAlert
+            ? 'Administer 750 mL chilled electrolyte oral hydration.'
+            : 'Routine fluid balance protocol (2.5 L/day target).',
     },
     {
       id: 'SKELETAL',
@@ -370,17 +421,27 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
       pos: [0.12 * MESH_SCALE, -0.62 * MESH_SCALE, 0.12 * MESH_SCALE],
       scanTargetY: -0.62 * MESH_SCALE,
       severity: skeletalSeverity,
-      metric: isSkeletalAlert
-        ? `BMD Loss Alert · Index ${bmd.toFixed(1)}%`
-        : `BMD Index ${bmd.toFixed(1)}% · ARED 11.8 MJ`,
-      detail: isSkeletalAlert
-        ? 'Trabecular deconditioning under zero-G musculoskeletal unloading.'
-        : 'Resistive countermeasure maintaining trabecular load profile.',
-      protocol: isSkeletalAlert
-        ? 'Increase ARED resistive loading to 180 kN; add dietary D3.'
-        : 'Maintain ARED resistive deadlift & squat cycles (150 kN).',
+      metric: isRadiationCritical
+        ? `Rad Flux ${radFlux.toFixed(1)} mGy/h · Marrow Crit`
+        : isRadiationActive
+          ? `Dose ${(radDose || 0.75).toFixed(2)} Gy · Marrow Strain`
+          : isSkeletalAlert
+            ? `BMD Loss Alert · Index ${bmd.toFixed(1)}%`
+            : `BMD Index ${bmd.toFixed(1)}% · ARED 11.8 MJ`,
+      detail: isRadiationCritical
+        ? 'Acute solar particle event (85 mGy/h). High-energy proton penetration induces severe hematopoietic bone marrow suppression and acute lymphopenia.'
+        : isRadiationActive
+          ? 'Elevated cosmic ionizing flux exposure with trabecular bone marrow radiosensitivity.'
+          : isSkeletalAlert
+            ? 'Trabecular deconditioning under zero-G musculoskeletal unloading.'
+            : 'Resistive countermeasure maintaining trabecular load profile.',
+      protocol: isRadiationActive
+        ? 'Direct crew to water-shielded storm shelter immediately; monitor dosimeter badges; pause physical EVA.'
+        : isSkeletalAlert
+          ? 'Increase ARED resistive loading to 180 kN; add dietary D3.'
+          : 'Maintain ARED resistive deadlift & squat cycles (150 kN).',
     },
-  ], [cardiacSeverity, renalSeverity, ocularSeverity, skeletalSeverity, hr, spo2, hct, k, trm, qtc, arf, bmd, telemetry, isCardiacCritical, isCardiacWarning, isRenalAlert, isRenalCritical, isOcularAlert, isSkeletalAlert, clinical]);
+  ], [cardiacSeverity, renalSeverity, ocularSeverity, skeletalSeverity, hr, spo2, hct, k, trm, qtc, arf, bmd, telemetry, isCardiacCritical, isCardiacWarning, isRenalAlert, isRenalCritical, isOcularAlert, isSkeletalAlert, isRadiationActive, isRadiationCritical, radFlux, radDose, clinical]);
 
   // Interactive EVA Spacesuit Subsystems & Real-Time Specifications
   const suitSubsystems = useMemo(() => [
@@ -441,34 +502,36 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   // 6 Primary Anatomical Organ Systems for Direct Interactive Human Body Inspection
   const anatomicalParts = useMemo(() => {
     // 1. Brain & Ocular (Cranial)
-    const isBrainCrit = ocularSeverity === 'CRITICAL' || isOcularAlert;
-    const isBrainWatch = !isBrainCrit && (primaryBioId === 'co2' || co2 > 2.8 || hr > 105);
+    const isBrainCrit = ocularSeverity === 'CRITICAL';
+    const isBrainWatch = !isBrainCrit && (ocularSeverity === 'WARNING' || co2 > 3.4 || hr > 115 || isRadiationActive);
     const brainStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = isBrainCrit ? 'CRITICAL' : isBrainWatch ? 'WATCH' : 'NOMINAL';
     const brainColor = isBrainCrit ? '#ef4444' : isBrainWatch ? '#f59e0b' : '#00e5a3';
 
     // 2. Heart & Cardiac (Thoracic)
-    const heartStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = cardiacSeverity === 'CRITICAL' ? 'CRITICAL' : cardiacSeverity === 'WARNING' ? 'WATCH' : 'NOMINAL';
-    const heartColor = cardiacSeverity === 'CRITICAL' ? '#ef4444' : cardiacSeverity === 'WARNING' ? '#f59e0b' : '#00e5a3';
+    const heartStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = cardiacSeverity === 'CRITICAL' ? 'CRITICAL' : (cardiacSeverity === 'WARNING' || isRadiationActive) ? 'WATCH' : 'NOMINAL';
+    const heartColor = cardiacSeverity === 'CRITICAL' ? '#ef4444' : (cardiacSeverity === 'WARNING' || isRadiationActive) ? '#f59e0b' : '#00e5a3';
 
     // 3. Lungs & Pulmonary (Pulmonary)
-    const isLungsCrit = spo2 < 90.0 || co2 > 4.0;
-    const isLungsWatch = !isLungsCrit && (spo2 < 96.0 || co2 > 2.8);
+    const isLungsCrit = spo2 < 90.0 || co2 > 4.5;
+    const isLungsWatch = !isLungsCrit && (spo2 < 94.0 || co2 > 3.2 || isRadiationActive);
     const lungsStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = isLungsCrit ? 'CRITICAL' : isLungsWatch ? 'WATCH' : 'NOMINAL';
     const lungsColor = isLungsCrit ? '#ef4444' : isLungsWatch ? '#f59e0b' : '#00e5a3';
 
     // 4. Kidneys & Renal (Abdominal)
-    const renalStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = renalSeverity === 'CRITICAL' ? 'CRITICAL' : renalSeverity === 'WARNING' ? 'WATCH' : 'NOMINAL';
-    const renalColor = renalSeverity === 'CRITICAL' ? '#ef4444' : renalSeverity === 'WARNING' ? '#f59e0b' : '#00e5a3';
+    const renalStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = renalSeverity === 'CRITICAL' ? 'CRITICAL' : (renalSeverity === 'WARNING' || isRadiationActive) ? 'WATCH' : 'NOMINAL';
+    const renalColor = renalSeverity === 'CRITICAL' ? '#ef4444' : (renalSeverity === 'WARNING' || isRadiationActive) ? '#f59e0b' : '#00e5a3';
 
     // 5. Vascular & Circulation (Circulatory)
-    const isVascCrit = trm >= 2.2 || hct >= 53.0;
-    const isVascWatch = !isVascCrit && (trm >= 1.40 || hct >= 50.0);
+    const isVascCrit = trm >= 2.2 || hct >= 53.0 || isRadiationCritical;
+    const isVascWatch = !isVascCrit && ((trm >= 1.60 || hct >= 51.5) || isRadiationActive);
     const vascStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = isVascCrit ? 'CRITICAL' : isVascWatch ? 'WATCH' : 'NOMINAL';
     const vascColor = isVascCrit ? '#ef4444' : isVascWatch ? '#f59e0b' : '#00e5a3';
 
     // 6. Skeletal & Spine (Femoral)
-    const skeletalStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = skeletalSeverity === 'CRITICAL' ? 'CRITICAL' : skeletalSeverity === 'WARNING' ? 'WATCH' : 'NOMINAL';
-    const skeletalColor = skeletalSeverity === 'CRITICAL' ? '#ef4444' : skeletalSeverity === 'WARNING' ? '#f59e0b' : '#00e5a3';
+    const isSkeletalCritDirect = skeletalSeverity === 'CRITICAL' || isRadiationCritical;
+    const isSkeletalWatchDirect = !isSkeletalCritDirect && (skeletalSeverity === 'WARNING' || isRadiationActive);
+    const skeletalStatus: 'NOMINAL' | 'WATCH' | 'CRITICAL' = isSkeletalCritDirect ? 'CRITICAL' : isSkeletalWatchDirect ? 'WATCH' : 'NOMINAL';
+    const skeletalColor = isSkeletalCritDirect ? '#ef4444' : isSkeletalWatchDirect ? '#f59e0b' : '#00e5a3';
 
     return [
       {
@@ -482,14 +545,18 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         scanTargetY: 1.30 * 0.82,
         status: brainStatus,
         color: brainColor,
-        metric: isOcularAlert ? 'ONSD 6.8 mm · High ICP' : 'ONSD 5.2 mm · ICP 11',
+        metric: isRadiationActive ? `Flux ${radFlux.toFixed(1)} · Phosphenes` : isOcularAlert ? 'ONSD 6.8 mm · High ICP' : 'ONSD 5.2 mm · ICP 11',
         functionSummary: 'Coordinates cognitive operations, autonomic cardiopulmonary regulation, neurovestibular balance, and visual pathway transmission via optic nerves. In microgravity, upward cephalic fluid shift increases intracranial pressure, stressing the optic nerve sheath.',
-        healthDetail: isOcularAlert
-          ? 'Cephalad venous engorgement detected with optic nerve sheath enlargement (>5.8 mm threshold). Grade 2 Frisen papilledema risk.'
-          : 'Normal cranial perfusion and intracranial pressure. Optic disc margins sharp with zero optic sheath dilation.',
-        protocol: isOcularAlert
-          ? 'Deploy chinstrap negative-pressure suit (LBNP); scheduled funduscopic OCT scans.'
-          : 'Funduscopic OCT imaging q48h (NASA SANS Protocol B); monitor visual acuity.',
+        healthDetail: isRadiationActive
+          ? 'Cosmic ion penetration through cranial envelope. Elevated risk of retinal Cerenkov phosphene flashes and CNS oxidative strain.'
+          : isOcularAlert
+            ? 'Cephalad venous engorgement detected with optic nerve sheath enlargement (>5.8 mm threshold). Grade 2 Frisen papilledema risk.'
+            : 'Normal cranial perfusion and intracranial pressure. Optic disc margins sharp with zero optic sheath dilation.',
+        protocol: isRadiationActive
+          ? 'Direct crew to water-shielded storm module; avoid external viewports.'
+          : isOcularAlert
+            ? 'Deploy chinstrap negative-pressure suit (LBNP); scheduled funduscopic OCT scans.'
+            : 'Funduscopic OCT imaging q48h (NASA SANS Protocol B); monitor visual acuity.',
         subsystemId: 'OCULAR' as const,
       },
       {
@@ -503,16 +570,20 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         scanTargetY: 0.72 * 0.82,
         status: heartStatus,
         color: heartColor,
-        metric: isCardiacCritical ? `HR ${Math.round(hr)} bpm · Crit` : `HR ${Math.round(hr)} bpm · NSR`,
+        metric: isRadiationActive ? `HR ${Math.round(hr)} bpm · SPE Stress` : isCardiacCritical ? `HR ${Math.round(hr)} bpm · Crit` : `HR ${Math.round(hr)} bpm · NSR`,
         functionSummary: 'Drives systemic blood circulation, regulates arterial blood pressure via baroreceptors, and delivers oxygen to tissues. Microgravity removes hydrostatic blood pooling in legs, reducing cardiac volume and predisposing to ventricular remodeling and arrhythmias.',
-        healthDetail: isCardiacCritical
-          ? `Acute cardiovascular strain detected with compensatory tachycardia (HR ${Math.round(hr)} bpm) and QTc prolongation (${qtc}ms).`
-          : isCardiacWarning
-            ? `Mild compensatory chronotropic workload. Myocardial conduction under close sentry monitoring.`
-            : 'Normal resting sinus rhythm with stable stroke volume and nominal microgravity myocardial compliance.',
-        protocol: isCardiacCritical
-          ? 'Administer oral potassium electrolyte pouch (20-40 mEq); pause strenuous EVA work; attach continuous ECG.'
-          : 'Maintain nominal telemetry logging; scheduled submaximal aerobic cycle exercise.',
+        healthDetail: isRadiationActive
+          ? `Compensatory sinus tachycardia (HR ${Math.round(hr)} bpm) under active solar radiation storm alert; heightened autonomic and sympathetic stress response.`
+          : isCardiacCritical
+            ? `Acute cardiovascular strain detected with compensatory tachycardia (HR ${Math.round(hr)} bpm) and QTc prolongation (${qtc}ms).`
+            : isCardiacWarning
+              ? `Mild compensatory chronotropic workload. Myocardial conduction under close sentry monitoring.`
+              : 'Normal resting sinus rhythm with stable stroke volume and nominal microgravity myocardial compliance.',
+        protocol: isRadiationActive
+          ? 'Continuous Lead II ECG telemetry logging; crew seated in shielded storm compartment.'
+          : isCardiacCritical
+            ? 'Administer oral potassium electrolyte pouch (20-40 mEq); pause strenuous EVA work; attach continuous ECG.'
+            : 'Maintain nominal telemetry logging; scheduled submaximal aerobic cycle exercise.',
         subsystemId: 'CARDIAC' as const,
       },
       {
@@ -526,16 +597,20 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         scanTargetY: 0.18 * 0.82,
         status: renalStatus,
         color: renalColor,
-        metric: isRenalCritical ? `K+ ${k.toFixed(1)} · Critical` : `K+ ${k.toFixed(2)} mmol/L`,
+        metric: isRadiationActive ? `Dose ${(radDose || 0.75).toFixed(2)} Gy · Rad Shift` : isRenalCritical ? `K+ ${k.toFixed(1)} · Critical` : `K+ ${k.toFixed(2)} mmol/L`,
         functionSummary: 'Filters blood, regulates total body fluid balance, controls potassium/sodium ion concentrations, and secretes renin. Microgravity induces acute cephalic fluid shift, prompting rapid diuresis, potassium excretion, and calcium precipitation.',
-        healthDetail: isRenalCritical
-          ? `Critical hypokalemia (K+ ${k.toFixed(2)} mmol/L) or acute fluid contraction compromising renal cortical perfusion.`
+        healthDetail: isRadiationActive
+          ? 'Accelerated renal clearance of radiation cellular breakdown products; radioprotective electrolyte maintenance required.'
+          : isRenalCritical
+            ? `Critical hypokalemia (K+ ${k.toFixed(2)} mmol/L) or acute fluid contraction compromising renal cortical perfusion.`
+            : isRenalAlert
+              ? `Mild electrolyte shift and elevated urine concentration. Early pre-renal dehydration risk.`
+              : 'Bilateral cortical glomerular filtration nominal. Electrolyte balance and fluid balance stable.',
+        protocol: isRadiationActive
+          ? 'Initiate oral hydration and radioprotective electrolyte protocol (2.5 L/day target).'
           : isRenalAlert
-            ? `Mild electrolyte shift and elevated urine concentration. Early pre-renal dehydration risk.`
-            : 'Bilateral cortical glomerular filtration nominal. Electrolyte balance and fluid balance stable.',
-        protocol: isRenalAlert
-          ? 'Administer 750–1000 mL chilled electrolyte oral hydration; assess urine specific gravity.'
-          : 'Routine fluid balance protocol (2.5 L/24h consumption target); monitor electrolyte panel.',
+            ? 'Administer 750–1000 mL chilled electrolyte oral hydration; assess urine specific gravity.'
+            : 'Routine fluid balance protocol (2.5 L/24h consumption target); monitor electrolyte panel.',
         subsystemId: 'RENAL' as const,
       },
       {
@@ -549,16 +624,20 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         scanTargetY: 0.80 * 0.82,
         status: lungsStatus,
         color: lungsColor,
-        metric: isLungsCrit ? `SpO₂ ${spo2.toFixed(1)}% · Low` : `SpO₂ ${spo2.toFixed(1)}% · Nom`,
+        metric: isRadiationCritical ? `Flux ${radFlux.toFixed(1)} mGy/h · SPE Alert` : isRadiationActive ? `Flux ${radFlux.toFixed(1)} mGy/h · Watch` : isLungsCrit ? `SpO₂ ${spo2.toFixed(1)}% · Low` : `SpO₂ ${spo2.toFixed(1)}% · Nom`,
         functionSummary: 'Facilitates alveolar gas diffusion, oxygenating arterial blood and removing metabolic carbon dioxide. In closed spacecraft habitats, lack of gravity eliminates natural air convection, creating dead-space pockets of exhaled CO₂ and risk of hypoxia.',
-        healthDetail: isLungsCrit
-          ? `Arterial hypoxemia detected (SpO₂ ${spo2.toFixed(1)}%). Alveolar-arterial oxygen gradient compromised.`
-          : isLungsWatch
-            ? `Mild hypercapnic workload secondary to ambient spacecraft CO₂ (${co2.toFixed(1)} mmHg).`
-            : 'Alveolar gas exchange nominal; pulmonary parenchyma fully expanded with clear bilateral breath sounds.',
-        protocol: isLungsCrit
-          ? 'Initiate emergency mask supplemental oxygen; verify ECLSS CO₂ scrubber air circulation.'
-          : 'Monitor cabin scrubbing rates; maintain atmospheric partial pressure O₂ > 21.0 kPa.',
+        healthDetail: isRadiationActive
+          ? 'Ionizing radiation flux traversing thoracic parenchymal space. Solar proton event induces microvascular pulmonary oxidative stress.'
+          : isLungsCrit
+            ? `Arterial hypoxemia detected (SpO₂ ${spo2.toFixed(1)}%). Alveolar-arterial oxygen gradient compromised.`
+            : isLungsWatch
+              ? `Mild hypercapnic workload secondary to ambient spacecraft CO₂ (${co2.toFixed(1)} mmHg).`
+              : 'Alveolar gas exchange nominal; pulmonary parenchyma fully expanded with clear bilateral breath sounds.',
+        protocol: isRadiationActive
+          ? 'Immediate storm shelter ingress; verify life support cabin air particulate filtration.'
+          : isLungsCrit
+            ? 'Initiate emergency mask supplemental oxygen; verify ECLSS CO₂ scrubber air circulation.'
+            : 'Monitor cabin scrubbing rates; maintain atmospheric partial pressure O₂ > 21.0 kPa.',
         subsystemId: 'CARDIAC' as const,
       },
       {
@@ -572,16 +651,22 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         scanTargetY: 0.40 * 0.82,
         status: vascStatus,
         color: vascColor,
-        metric: isVascCrit ? `Hct ${hct.toFixed(1)}% · Viscous` : `Hct ${hct.toFixed(1)}% · Nom`,
+        metric: isRadiationCritical ? `Rad Flux ${radFlux.toFixed(1)} mGy/h · CRIT` : isRadiationActive ? `Lymph ${telemetry?.lymphocyte_count ?? 0.85} · Rad Alert` : isVascCrit ? `Hct ${hct.toFixed(1)}% · Viscous` : `Hct ${hct.toFixed(1)}% · Nom`,
         functionSummary: 'Maintains systemic arterial compliance, peripheral vascular resistance, and venous return. Microgravity plasma volume loss increases hematocrit and whole blood viscosity, elevating venous stasis and jugular thrombosis risk.',
-        healthDetail: isVascCrit
-          ? `Significant hemoconcentration (Hct ${hct.toFixed(1)}%) with elevated thrombosis risk marker (TRM ${trm.toFixed(2)}).`
+        healthDetail: isRadiationCritical
+          ? `Critical solar proton flux (${radFlux.toFixed(1)} mGy/h) inducing rapid lymphocyte depletion and systemic vascular endothelium irradiation.`
+          : isRadiationActive
+            ? 'Solar proton event elevating systemic vascular oxidative stress and immune cytokine signaling.'
+            : isVascCrit
+              ? `Significant hemoconcentration (Hct ${hct.toFixed(1)}%) with elevated thrombosis risk marker (TRM ${trm.toFixed(2)}).`
+              : isVascWatch
+                ? `Mild hemoconcentration secondary to reduced plasma volume. Peripheral resistance slightly elevated.`
+                : 'Intravascular plasma volume and peripheral arterial compliance within safe baseline limits.',
+        protocol: isRadiationActive
+          ? 'Water-shielded storm shelter ingress immediately; serial lymphocyte and CBC tracking.'
           : isVascWatch
-            ? `Mild hemoconcentration secondary to reduced plasma volume. Peripheral resistance slightly elevated.`
-            : 'Intravascular plasma volume and peripheral arterial compliance within safe baseline limits.',
-        protocol: isVascWatch
-          ? 'Bilateral internal jugular vein (IJV) compression ultrasound; oral rehydration protocol; avoid static posture.'
-          : 'Maintain scheduled resistive exercise; routine daily hydration protocol.',
+            ? 'Bilateral internal jugular vein (IJV) compression ultrasound; oral rehydration protocol; avoid static posture.'
+            : 'Maintain scheduled resistive exercise; routine daily hydration protocol.',
         subsystemId: 'RENAL' as const,
       },
       {
@@ -595,18 +680,24 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         scanTargetY: -0.65 * 0.82,
         status: skeletalStatus,
         color: skeletalColor,
-        metric: isSkeletalAlert ? `BMD ${bmd.toFixed(1)}% · Alert` : `BMD ${bmd.toFixed(1)}% · Nom`,
+        metric: isRadiationCritical ? `Dose ${(radDose || 0.75).toFixed(2)} Gy · Marrow Crit` : isRadiationActive ? `Flux ${radFlux.toFixed(1)} · Marrow Alert` : isSkeletalAlert ? `BMD ${bmd.toFixed(1)}% · Alert` : `BMD ${bmd.toFixed(1)}% · Nom`,
         functionSummary: 'Provides structural frame, protects vital organs, and serves as the mineral reservoir for calcium and phosphate. In microgravity, unweighted bones lose mineral density at 1–1.5% per month, with spinal disc expansion causing lumbar pain.',
-        healthDetail: isSkeletalAlert
-          ? `Elevated trabecular demineralization and bone resorption flux. Axial spinal elongation noted.`
-          : 'Bone mineral density (BMD Index) within acceptable spaceflight thresholds. Cortical matrix intact.',
-        protocol: isSkeletalAlert
-          ? 'Increase ARED resistive squat/deadlift loading to 180 kN; add dietary vitamin D3 supplementation.'
-          : 'Maintain standard daily ARED resistive deadlift & squat cycles (150 kN load target).',
+        healthDetail: isRadiationCritical
+          ? `Severe ionizing radiation penetration of pelvic and femoral bone marrow. Acute hematopoietic suppression risk (absorbed dose ${(radDose || 0.75).toFixed(2)} Gy).`
+          : isRadiationActive
+            ? 'Elevated bone marrow radiation exposure secondary to cosmic solar proton flux.'
+            : isSkeletalAlert
+              ? `Elevated trabecular demineralization and bone resorption flux. Axial spinal elongation noted.`
+              : 'Bone mineral density (BMD Index) within acceptable spaceflight thresholds. Cortical matrix intact.',
+        protocol: isRadiationActive
+          ? 'Relocate to water-shielded storm shelter; cease physical exertion; monitor leukocyte count.'
+          : isSkeletalAlert
+            ? 'Increase ARED resistive squat/deadlift loading to 180 kN; add dietary vitamin D3 supplementation.'
+            : 'Maintain standard daily ARED resistive deadlift & squat cycles (150 kN load target).',
         subsystemId: 'SKELETAL' as const,
       },
     ];
-  }, [orbitalPosition, hr, spo2, hct, k, co2, temp, radFlux, radDose, trm, bmd, telemetry, isOcularAlert, clinical, ocularSeverity, cardiacSeverity, renalSeverity, skeletalSeverity, isCardiacCritical, isCardiacWarning, isRenalAlert, isRenalCritical, isSkeletalAlert]);
+  }, [orbitalPosition, hr, spo2, hct, k, co2, temp, radFlux, radDose, trm, bmd, telemetry, isOcularAlert, clinical, ocularSeverity, cardiacSeverity, renalSeverity, skeletalSeverity, isCardiacCritical, isCardiacWarning, isRenalAlert, isRenalCritical, isSkeletalAlert, isRadiationActive, isRadiationCritical]);
 
   const activeDisplayTargets = anatomicalParts;
   const activeDisplayTargetsRef = useRef(activeDisplayTargets);
@@ -1762,7 +1853,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         scanGroup.position.y = currentScanY;
         const contour = getBodyContourRadii(currentScanY);
         sliceContourLine.scale.set(contour.rx * 1.08, 1, contour.rz * 1.08);
-        scanSheetMat.opacity = 0.20 + 0.08 * Math.sin(elapsed * 4.0);
+        scanSheetMat.opacity = 0.20;
 
         if (elevationDomRef.current) {
           elevationDomRef.current.textContent = `${currentScanY >= 0 ? '+' : ''}${currentScanY.toFixed(2)} m`;
@@ -1828,26 +1919,20 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         if (entry) {
           (entry.node.material as THREE.MeshBasicMaterial).color.set(t.color);
           (entry.ring.material as THREE.MeshBasicMaterial).color.set(t.color);
-          if (t.status === 'CRITICAL') {
-            entry.ring.scale.setScalar(1.0 + 0.35 * Math.sin(elapsed * 6.0));
-          } else if (t.status === 'WATCH') {
-            entry.ring.scale.setScalar(1.0 + 0.22 * Math.sin(elapsed * 4.0));
-          } else {
-            entry.ring.scale.setScalar(1.0);
-          }
+          entry.ring.scale.setScalar(1.0);
         }
       });
 
-      // Subtle breathing pulse on the 3D contour lattice during alert states for prominent tactile feedback
+      // Rock-solid steady holographic lighting & wireframe (no automatic blinking/strobing)
       const curSev = activeSeverityRef.current;
       if (curSev === 'CRITICAL') {
-        wireMat.opacity = 0.22 + 0.12 * Math.sin(elapsed * 5.0);
-        scanLight.intensity = 2.4 + 1.0 * Math.sin(elapsed * 5.0);
+        wireMat.opacity = 0.22;
+        scanLight.intensity = 2.4;
       } else if (curSev === 'WARNING') {
-        wireMat.opacity = 0.15 + 0.08 * Math.sin(elapsed * 3.5);
-        scanLight.intensity = 2.0 + 0.7 * Math.sin(elapsed * 3.5);
+        wireMat.opacity = 0.16;
+        scanLight.intensity = 2.2;
       } else {
-        wireMat.opacity = 0.08;
+        wireMat.opacity = 0.09;
         scanLight.intensity = 2.2;
       }
 
@@ -2942,9 +3027,23 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                 <span style={{ fontSize: 10.5, fontWeight: 800, color: '#f8fafc', letterSpacing: '0.04em' }}>
                   PHYSIOLOGICAL SUBSYSTEMS
                 </span>
-                <span style={{ fontSize: 8.5, color: '#38bdf8', fontFamily: 'monospace', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#00e5a3', boxShadow: '0 0 6px #00e5a3' }} />
-                  NOMINAL
+                <span style={{
+                  fontSize: 8.5,
+                  color: isRadiationCritical || activeSeverity === 'CRITICAL' ? '#f87171' : (isRadiationActive || activeSeverity === 'WARNING') ? '#fbbf24' : '#38bdf8',
+                  fontFamily: 'monospace',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}>
+                  <span style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: '50%',
+                    background: isRadiationCritical || activeSeverity === 'CRITICAL' ? '#ef4444' : (isRadiationActive || activeSeverity === 'WARNING') ? '#f59e0b' : '#00e5a3',
+                    boxShadow: isRadiationCritical || activeSeverity === 'CRITICAL' ? '0 0 6px #ef4444' : (isRadiationActive || activeSeverity === 'WARNING') ? '0 0 6px #f59e0b' : '0 0 6px #00e5a3'
+                  }} />
+                  {isRadiationCritical ? 'SHELTER ALARM' : isRadiationActive ? 'SPE ALERT' : activeSeverity}
                 </span>
               </div>
 
@@ -3157,20 +3256,28 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                 {selectedHotspot === 'SKELETAL' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 5 }}>
                     <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>BMD INDEX</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: isSkeletalAlert ? '#f87171' : '#38bdf8' }}>{bmd.toFixed(1)}%</div>
+                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'RAD FLUX' : 'BMD INDEX'}</div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationCritical ? '#ef4444' : isRadiationActive ? '#f59e0b' : isSkeletalAlert ? '#f87171' : '#38bdf8' }}>
+                        {isRadiationActive ? `${radFlux.toFixed(1)} mGy/h` : `${bmd.toFixed(1)}%`}
+                      </div>
                     </div>
                     <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>RESORPTION</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>0.02% / wk</div>
+                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'MARROW RSI' : 'RESORPTION'}</div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationActive ? '#ef4444' : '#ffffff' }}>
+                        {isRadiationActive ? '1.25 CRIT' : '0.02% / wk'}
+                      </div>
                     </div>
                     <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>ARED TARGET</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399' }}>150 kN</div>
+                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'ABSORBED DOSE' : 'ARED TARGET'}</div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationActive ? '#f59e0b' : '#34d399' }}>
+                        {isRadiationActive ? `${(radDose || 0.75).toFixed(2)} Gy` : '150 kN'}
+                      </div>
                     </div>
                     <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>AXIAL SPINAL</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>+1.8 cm</div>
+                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'LYMPHOCYTES' : 'AXIAL SPINAL'}</div>
+                      <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationActive ? '#ef4444' : '#ffffff' }}>
+                        {isRadiationActive ? `${telemetry?.lymphocyte_count ?? 0.85} (LOW)` : '+1.8 cm'}
+                      </div>
                     </div>
                   </div>
                 )}

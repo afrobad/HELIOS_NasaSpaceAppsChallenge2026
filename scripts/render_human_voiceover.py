@@ -83,7 +83,7 @@ SSML_SCRIPTS = {
     <voice name="en-US-JennyNeural">
         <mstts:express-as style="hopeful" styledegree="1.5">
             <prosody rate="-2%" pitch="+1Hz">
-                We are Team Cosmic Plus.
+                We are Team Aero Vitals.
             </prosody>
         </mstts:express-as>
     </voice>

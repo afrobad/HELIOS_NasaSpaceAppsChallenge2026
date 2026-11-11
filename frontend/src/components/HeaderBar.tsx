@@ -48,6 +48,18 @@ const extractAdviceBody = (text: string): string => {
     .toLowerCase();
 };
 
+// Module-level persistent state across view navigation and HeaderBar remounts
+let globalWasScenarioActive: boolean = (() => {
+  try {
+    const s = localStorage.getItem('helios_scenario');
+    return Boolean(s && s !== 'NOMINAL_CRUISE');
+  } catch {
+    return false;
+  }
+})();
+let globalLastHandledAlertId: string | null = null;
+let globalLastScenario: string = 'NOMINAL_CRUISE';
+
 export const HeaderBar: React.FC<HeaderBarProps> = ({
   connected,
   marsDelay,
@@ -86,11 +98,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   // JARVIS in Header State
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isTransmitting, setIsTransmitting] = useState<boolean>(false);
-  const [activeSpeech, setActiveSpeech] = useState<string>(
-    latestAlert?.speech_text || 'All systems nominal. Sentry telemetry active.'
-  );
+  const [activeSpeech, setActiveSpeech] = useState<string>('');
   const [activeSeverity, setActiveSeverity] = useState<'CRITICAL' | 'WARNING' | 'INFO' | 'NOMINAL'>(
-    latestAlert?.severity || 'NOMINAL'
+    latestAlert?.severity && latestAlert.severity !== 'NOMINAL' ? latestAlert.severity : 'NOMINAL'
   );
   const [displayedWordCount, setDisplayedWordCount] = useState<number>(0);
   const [showEvidenceModal, setShowEvidenceModal] = useState<boolean>(false);
@@ -310,80 +320,78 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     }
   };
 
-  // React to explicit change to nominal cruise scenario
+  // React to incoming WebSocket alerts or scenario transitions
   useEffect(() => {
     if (isTourActive) return;
-    if (_currentScenario === 'NOMINAL_CRUISE' && activeSeverity !== 'NOMINAL') {
-      if (autoDismissTimerRef.current) {
-        clearTimeout(autoDismissTimerRef.current);
-        autoDismissTimerRef.current = null;
-      }
-      setActiveSeverity('NOMINAL');
-      const text = 'All systems nominal. Spaceflight cruise baseline restored.';
-      setActiveSpeech(text);
-      activeSpeechTextRef.current = text;
-      const words = text.split(/\s+/).filter(Boolean);
-      speechWordsRef.current = words;
-      setDisplayedWordCount(words.length);
-      setIsTransmitting(true);
-      setIsSpeaking(false);
-      isSpeakingRef.current = false;
-      pendingObservedAlertRef.current = null;
-      audioService.stopKlaxon();
-      audioService.stopSpeaking();
-      autoDismissTimerRef.current = setTimeout(() => {
-        setIsTransmitting(false);
-        setActiveSpeech('');
-        setDisplayedWordCount(0);
-      }, 3500);
-    }
-  }, [_currentScenario, isTourActive]);
 
-  // React to incoming WebSocket alerts or scenario changes
-  useEffect(() => {
-    if (isTourActive) return;
-    if (!latestAlert || !latestAlert.speech_text) return;
-
-    const alertText = latestAlert.speech_text.trim();
-    if (!alertText) return;
-
-    const isNominal = latestAlert.severity === 'NOMINAL' || _currentScenario === 'NOMINAL_CRUISE';
+    const isNominal =
+      (!latestAlert || latestAlert.severity === 'NOMINAL') &&
+      _currentScenario === 'NOMINAL_CRUISE';
 
     if (isNominal) {
-      // Nominal cruise state: cancel sirens, stop emergency speech, display nominal status
-      if (autoDismissTimerRef.current) {
-        clearTimeout(autoDismissTimerRef.current);
-        autoDismissTimerRef.current = null;
-      }
-      const nominalText = latestAlert.severity === 'NOMINAL'
-        ? alertText
-        : 'All systems nominal. Spaceflight cruise baseline restored.';
+      // Check if we just transitioned back from an active scenario/emergency:
+      const returnedFromScenario =
+        globalWasScenarioActive ||
+        (globalLastScenario && globalLastScenario !== 'NOMINAL_CRUISE');
 
-      setActiveSeverity('NOMINAL');
-      setActiveSpeech(nominalText);
-      activeSpeechTextRef.current = nominalText;
-      const words = nominalText.split(/\s+/).filter(Boolean);
-      speechWordsRef.current = words;
-      setDisplayedWordCount(words.length);
-      setIsTransmitting(true);
-      setIsSpeaking(false);
-      isSpeakingRef.current = false;
-      pendingObservedAlertRef.current = null;
-      audioService.stopKlaxon();
-      audioService.stopSpeaking();
+      // Update module-level tracking to nominal
+      globalLastScenario = 'NOMINAL_CRUISE';
+      globalWasScenarioActive = false;
 
-      // Automatically slide down and dismiss after 3.5 seconds
-      autoDismissTimerRef.current = setTimeout(() => {
+      // Only show the nominal cruise restored popup if returning from an active scenario:
+      if (returnedFromScenario) {
+        if (autoDismissTimerRef.current) {
+          clearTimeout(autoDismissTimerRef.current);
+          autoDismissTimerRef.current = null;
+        }
+
+        const nominalText =
+          latestAlert && latestAlert.severity === 'NOMINAL' && latestAlert.speech_text
+            ? latestAlert.speech_text.trim()
+            : 'Nominal flight cruise restored. All crew vital signs are stable and within safe limits.';
+
+        globalLastHandledAlertId = latestAlert?.id || `ALT-NOM-${Date.now()}`;
+
+        setActiveSeverity('NOMINAL');
+        setActiveSpeech(nominalText);
+        activeSpeechTextRef.current = nominalText;
+        const words = nominalText.split(/\s+/).filter(Boolean);
+        speechWordsRef.current = words;
+        setDisplayedWordCount(words.length);
+        setIsTransmitting(true);
+        setIsSpeaking(false);
+        isSpeakingRef.current = false;
+        pendingObservedAlertRef.current = null;
+        audioService.stopKlaxon();
+        audioService.stopSpeaking();
+
+        // Gracefully slide down and dismiss after 3.5 seconds
+        autoDismissTimerRef.current = setTimeout(() => {
+          setIsTransmitting(false);
+          setActiveSpeech('');
+          setDisplayedWordCount(0);
+        }, 3500);
+      } else {
+        // Tab switch or initial load while already nominal: ensure banner stays hidden
         setIsTransmitting(false);
         setActiveSpeech('');
         setDisplayedWordCount(0);
-      }, 3500);
+      }
       return;
     }
 
-    if (isTourActive) return;
+    // NON-NOMINAL: An emergency or warning scenario/alert is active
+    globalWasScenarioActive = true;
+    globalLastScenario = _currentScenario;
+
+    if (!latestAlert || !latestAlert.speech_text) return;
+    const alertText = latestAlert.speech_text.trim();
+    if (!alertText) return;
 
     // Prevent duplicate re-trigger of identical active text while speaking
+    if (latestAlert.id && latestAlert.id === globalLastHandledAlertId && isSpeakingRef.current) return;
+    globalLastHandledAlertId = latestAlert.id || null;
+
     if (alertText === activeSpeechTextRef.current && isSpeakingRef.current) return;
 
     // PREEMPT IMMEDIATELY: Stop any active speech, abort old audio, and deliver emergency directive

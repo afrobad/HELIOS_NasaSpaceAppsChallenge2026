@@ -14,9 +14,39 @@ class TelemetryRepository:
 
     def __init__(self, conn: Optional[sqlite3.Connection] = None):
         self.conn = conn or get_connection()
+        self._insert_count = 0
+
+    def _maybe_prune(self, added: int = 1) -> None:
+        """Circular buffer maintenance: prunes old telemetry to prevent disk and WAL bloat on WSL/local filesystems."""
+        self._insert_count += added
+        if self._insert_count >= 1000:
+            self._insert_count = 0
+            try:
+                cursor = self.conn.cursor()
+                # Retain the most recent 5,000 telemetry entries
+                cursor.execute("""
+                    DELETE FROM telemetry_log
+                    WHERE id < (
+                        SELECT id FROM telemetry_log
+                        ORDER BY id DESC LIMIT 1 OFFSET 5000
+                    );
+                """)
+                # Retain the most recent 500 alert entries
+                cursor.execute("""
+                    DELETE FROM proactive_alerts
+                    WHERE id < (
+                        SELECT id FROM proactive_alerts
+                        ORDER BY id DESC LIMIT 1 OFFSET 500
+                    );
+                """)
+                cursor.execute("PRAGMA wal_checkpoint(PASSIVE);")
+                self.conn.commit()
+            except Exception:
+                pass
 
     def log_telemetry(self, packet: Dict[str, Any]) -> int:
         """Inserts a single telemetry packet in sub-millisecond time with automatic recovery."""
+        self._maybe_prune(1)
         sql = """
         INSERT INTO telemetry_log (
             astronaut_id, timestamp, mission_state, heart_rate, hrv_rmssd,
@@ -78,6 +108,8 @@ class TelemetryRepository:
         """Executes a high-speed multi-row batch insert inside a single transaction."""
         if not packets:
             return 0
+
+        self._maybe_prune(len(packets))
 
         sql = """
         INSERT INTO telemetry_log (

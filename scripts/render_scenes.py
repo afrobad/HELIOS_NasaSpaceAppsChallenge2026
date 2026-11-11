@@ -1004,7 +1004,7 @@ def render_scene_17d():
         
         # Reveal Team identity
         draw.line([cx - 200, cy + 160, cx + 200, cy + 160], fill=(40, 60, 90), width=1)
-        draw.text((cx - 170, cy + 185), "TEAM COSMIC PLUS", font=get_font("quantum", 28), fill=COLOR_TEXT_WHITE)
+        draw.text((cx - 170, cy + 185), "TEAM Aero Vitals", font=get_font("quantum", 28), fill=COLOR_TEXT_WHITE)
         draw.text((cx - 210, cy + 235), "NASA SPACE APPS CHALLENGE 2026", font=get_font("mono", 16), fill=COLOR_TEXT_MUTED)
 
         encoder.write_frame(pil_to_cv2(frame_img))

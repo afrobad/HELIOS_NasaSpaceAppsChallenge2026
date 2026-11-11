@@ -20,6 +20,7 @@ import {
   WaypointMarker,
   CREW_SCENE_WAYPOINTS,
 } from './HudWidgets';
+import { computePlanetaryTime, type PlanetaryTime } from './planetaryTime';
 import { useSuitTelemetry, type SuitTelemetry, type ScrubberState } from './useSuitTelemetry';
 import { wsService } from '../../services/websocketService';
 import { audioService } from '../../services/audioService';
@@ -407,10 +408,16 @@ export function SuitHudView({
       : JSON.parse(JSON.stringify(DEFAULT_NOMINAL_TELEMETRY))
   );
 
-  // Live Mission Elapsed Time (MET) second-by-second ticker
+  // Dynamic Real-Time Planetary Clock (Earth UTC + NASA Mars24 Solar Time)
+  const [planetaryTime, setPlanetaryTime] = useState<PlanetaryTime>(() => computePlanetaryTime(new Date()));
+
+  // Live Mission Elapsed Time (MET) second-by-second ticker synchronized with real-world time
   const [metSeconds, setMetSeconds] = useState(13280); // 03:41:20 baseline
   useEffect(() => {
-    const id = setInterval(() => setMetSeconds((prev) => prev + 1), 1000);
+    const id = setInterval(() => {
+      setPlanetaryTime(computePlanetaryTime(new Date()));
+      setMetSeconds((prev) => prev + 1);
+    }, 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -944,7 +951,16 @@ export function SuitHudView({
       >
         <HudDefs />
         <FrameAccents />
-        <MissionTimeBanner evaMet={data.evaMet} commSignalPct={data.commSignalPct} />
+        <MissionTimeBanner
+          evaMet={currentMet}
+          commSignalPct={data.commSignalPct}
+          planet={planet}
+          earthUtc={planetaryTime.earthUtcString}
+          marsSolarTime={planetaryTime.marsLmstString}
+          marsSol={planetaryTime.marsSol}
+          lunarTime={planetaryTime.lunarLtcString}
+          lunarDay={planetaryTime.lunarDay}
+        />
         <SideGauge side="left" />
         <SideGauge side="right" />
         <CautionWarningMatrix data={data} />

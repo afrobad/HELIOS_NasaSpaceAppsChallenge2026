@@ -33,7 +33,7 @@ CLIPS = [
     ("sc17_a", "A heartbeat changes nearly four hundred thousand kilometers from Earth.", "+4%"),
     ("sc17_b", "HELIOS turns that change into understanding, so the crew can act before a signal becomes a crisis.", "+8%"),
     ("sc17_c", "Monitor. Understand. Act.", "+2%"),
-    ("sc17_d", "We are Team Cosmic Plus.", "+0%")
+    ("sc17_d", "We are Team Aero Vitals.", "+0%")
 ]
 
 async def generate_clips():

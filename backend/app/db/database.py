@@ -20,6 +20,7 @@ def _apply_pragmas(cursor: sqlite3.Cursor) -> None:
     # Attempt WAL mode. If filesystem rejects shared-memory mapping (e.g. WSL /mnt/c), fallback to DELETE
     try:
         cursor.execute("PRAGMA journal_mode = WAL;")
+        cursor.execute("PRAGMA wal_autocheckpoint = 500;")
     except sqlite3.OperationalError:
         try:
             cursor.execute("PRAGMA journal_mode = DELETE;")
@@ -28,8 +29,8 @@ def _apply_pragmas(cursor: sqlite3.Cursor) -> None:
 
     for pragma in [
         "PRAGMA synchronous = NORMAL;",
-        "PRAGMA busy_timeout = 30000;",
-        "PRAGMA cache_size = -64000;",
+        "PRAGMA busy_timeout = 5000;",
+        "PRAGMA cache_size = -32000;",
         "PRAGMA foreign_keys = ON;",
     ]:
         try:
@@ -38,7 +39,7 @@ def _apply_pragmas(cursor: sqlite3.Cursor) -> None:
             pass
 
     try:
-        cursor.execute("PRAGMA mmap_size = 268435456;")
+        cursor.execute("PRAGMA mmap_size = 67108864;")
     except Exception:
         pass
 
@@ -71,20 +72,9 @@ def get_connection(db_path: str = DEFAULT_DB_PATH, force_recovery: bool = False)
         return _clean_and_reopen()
 
     try:
-        conn = sqlite3.connect(db_path, timeout=30.0, check_same_thread=False)
+        conn = sqlite3.connect(db_path, timeout=5.0, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-
-        # Quick integrity verification to catch corrupted pages immediately
-        try:
-            cursor.execute("PRAGMA quick_check(1);")
-            check_row = cursor.fetchone()
-            if not check_row or check_row[0] != "ok":
-                conn.close()
-                return _clean_and_reopen()
-        except sqlite3.OperationalError:
-            pass
-
         _apply_pragmas(cursor)
         conn.commit()
         return conn
@@ -97,6 +87,13 @@ def init_database(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     conn = get_connection(db_path)
     cursor = conn.cursor()
     cursor.executescript(SCHEMA_DDL)
+
+    # Periodic WAL truncation on startup to prevent disk bloat
+    try:
+        cursor.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+    except Exception:
+        pass
+
     conn.commit()
 
     # Dynamic schema migration for laboratory biomarker columns

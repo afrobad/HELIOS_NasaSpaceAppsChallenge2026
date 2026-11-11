@@ -61,7 +61,7 @@ def create_script_docx(output_path):
     run_part.font.bold = True
     run_part.font.color.rgb = RGBColor(0x1B, 0x6C, 0x48)  # Emerald
     
-    run_meta = subtitle_p.add_run("Team: Cosmic Plus  |  System: Health Evaluation Logistic Intelligent Onboard System  |  Deliverable: Video Scenes 15, 16, 17")
+    run_meta = subtitle_p.add_run("Team: Aero Vitals  |  System: Health Evaluation Logistic Intelligent Onboard System  |  Deliverable: Video Scenes 15, 16, 17")
     run_meta.font.name = 'Segoe UI'
     run_meta.font.size = Pt(9.5)
     run_meta.font.color.rgb = RGBColor(0x60, 0x72, 0x8A)
@@ -301,7 +301,7 @@ def create_script_docx(output_path):
         "[0.8-second pause]\n\n"
         "“HELIOS turns that change into understanding, so the crew can act before a signal becomes a crisis.\n\n"
         "Monitor. Understand. Act.\n\n"
-        "We are Team Cosmic Plus.”"
+        "We are Team Aero Vitals.”"
     )
     
     add_visual_prompt(
@@ -355,10 +355,10 @@ def create_script_docx(output_path):
             "Fade completely to dark obsidian background.",
             "Reveal HELIOS logo in center.",
             "Below it, reveal project motto: MONITOR. UNDERSTAND. ACT.",
-            "Reveal team identity: TEAM COSMIC PLUS // NASA SPACE APPS CHALLENGE 2026.",
+            "Reveal team identity: TEAM Aero Vitals // NASA SPACE APPS CHALLENGE 2026.",
             "Minimal, professional, NASA-standard typography with clean hold until the final frame."
         ],
-        on_screen_text="HELIOS  |  MONITOR. UNDERSTAND. ACT.  |  TEAM COSMIC PLUS",
+        on_screen_text="HELIOS  |  MONITOR. UNDERSTAND. ACT.  |  TEAM Aero Vitals",
         visual_style="Minimalist title card, NASA aerospace typography, crisp letter-spacing."
     )
     
@@ -387,7 +387,7 @@ def create_script_docx(output_path):
     rf2.font.bold = True
     rf2.font.color.rgb = RGBColor(0x00, 0xE6, 0x76)
     
-    rf3 = fp.add_run("TEAM COSMIC PLUS\n")
+    rf3 = fp.add_run("TEAM Aero Vitals\n")
     rf3.font.name = 'Segoe UI'
     rf3.font.size = Pt(14)
     rf3.font.bold = True
@@ -437,7 +437,7 @@ def create_script_docx(output_path):
         ("Scene 17A", "3:15–3:19", "Scene_17A_03-15_03-19_Cinematic_Callback_Heartbeat.mp4", "Lead-II rhythm change & ECG audio tone"),
         ("Scene 17B", "3:19–3:24", "Scene_17B_03-19_03-24_Signal_to_Action.mp4", "Raw telemetry vs. 5-step analysis"),
         ("Scene 17C", "3:24–3:27", "Scene_17C_03-24_03-27_Resolution_Stabilization.mp4", "Stabilized rhythm & logo focus"),
-        ("Scene 17D", "3:27–3:30", "Scene_17D_03-27_03-30_Final_Title_Close.mp4", "Final title card & Team Cosmic Plus"),
+        ("Scene 17D", "3:27–3:30", "Scene_17D_03-27_03-30_Final_Title_Close.mp4", "Final title card & Team Aero Vitals"),
         ("Master Cut", "2:45–3:30", "Scenes_15_to_17_02-45_03-30_Full_Sequence.mp4", "Complete 45s continuous broadcast cut")
     ]
     

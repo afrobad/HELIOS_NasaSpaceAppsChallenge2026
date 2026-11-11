@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HELIOS Scene 13A & 13B Video Generator (1080p 60fps)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #050a12;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+      gap: 20px;
+    }
+    h1 { font-size: 20px; color: #38bdf8; letter-spacing: 0.05em; text-transform: uppercase; }
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    button {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
+      border: 1px solid #38bdf8;
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+    }
+    button:hover { background: #0284c7; transform: translateY(-1px); }
+    button.recording {
+      background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+      border-color: #f87171;
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse { from { opacity: 0.8; } to { opacity: 1; } }
+    .preview-container {
+      width: 960px;
+      height: 540px;
+      background: #000;
+      border: 2px solid rgba(56, 189, 248, 0.3);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+      position: relative;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .status-pill {
+      font-family: monospace;
+      font-size: 12px;
+      padding: 6px 14px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <h1>HELIOS // 1080p Video Generator (Shot 13A & 13B)</h1>
+  
+  <div class="controls">
+    <button id="btnSwitch13A" onclick="setMode('13A')">🎥 Preview Shot 13A (Architecture Motion)</button>
+    <button id="btnSwitch13B" onclick="setMode('13B')">🎥 Preview Shot 13B (Firefighter Tactical HUD)</button>
+    <button id="btnRecord13A" onclick="recordVideo('13A', 8000)">🔴 Record & Download Shot 13A (8s 1080p)</button>
+    <button id="btnRecord13B" onclick="recordVideo('13B', 8000)">🔴 Record & Download Shot 13B (8s 1080p)</button>
+  </div>
+
+  <div class="status-pill" id="statusLabel">Status: Ready · 1920x1080 60FPS Native Rendering</div>
+
+  <div class="preview-container">
+    <canvas id="renderCanvas" width="1920" height="1080"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('renderCanvas');
+    const ctx = canvas.getContext('2d');
+    const statusLabel = document.getElementById('statusLabel');
+
+    let currentMode = '13A';
+    let startTime = performance.now();
+    let mediaRecorder = null;
+    let recordedChunks = [];
+
+    // Preload Background Image for 13B if available
+    const bg13B = new Image();
+    bg13B.src = '/videos/SHOT_13B_FIREFIGHTER_TACTICAL_HUD.jpg';
+
+    const bg13A = new Image();
+    bg13A.src = '/videos/SHOT_13A_HELIOS_DUAL_USE_ARCHITECTURE.jpg';
+
+    function setMode(mode) {
+      currentMode = mode;
+      statusLabel.textContent = `Mode: Shot ${mode} active · 60 FPS live canvas`;
+    }
+
+    // ─── PARTICLE SYSTEMS ───
+    const embers = Array.from({ length: 45 }, () => ({
+      x: Math.random() * 1920,
+      y: Math.random() * 1080,
+      size: Math.random() * 3.5 + 1.5,
+      speedX: (Math.random() - 0.3) * 1.5,
+      speedY: -(Math.random() * 2.5 + 1.0),
+      opacity: Math.random() * 0.8 + 0.2,
+      color: Math.random() > 0.4 ? '#f97316' : '#ef4444'
+    }));
+
+    const dataPackets = Array.from({ length: 28 }, () => ({
+      progress: Math.random(),
+      speed: Math.random() * 0.003 + 0.002,
+      path: Math.floor(Math.random() * 3) // 0: Space to Core, 1: Core to Firefighter, 2: Core to Rescue
+    }));
+
+    function drawECG(ctx, x, y, width, height, time, color = '#38bdf8') {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, width, height);
+      ctx.clip();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+
+      const speed = 160;
+      for (let px = 0; px < width; px += 2) {
+        const t = (time * speed + px) % width;
+        let normY = 0.5;
+
+        // P-Q-R-S-T synthetic waveform
+        const cycle = (t % 110) / 110;
+        if (cycle > 0.20 && cycle < 0.28) {
+          normY += Math.sin((cycle - 0.20) / 0.08 * Math.PI) * 0.12; // P wave
+        } else if (cycle > 0.38 && cycle < 0.42) {
+          normY -= 0.12; // Q dip
+        } else if (cycle >= 0.42 && cycle < 0.48) {
+          normY += 0.82; // R peak
+        } else if (cycle >= 0.48 && cycle < 0.52) {
+          normY -= 0.28; // S drop
+        } else if (cycle > 0.60 && cycle < 0.74) {
+          normY += Math.sin((cycle - 0.60) / 0.14 * Math.PI) * 0.22; // T wave
+        }
+
+        const py = y + height - normY * height;
+        if (px === 0) ctx.moveTo(x + px, py);
+        else ctx.lineTo(x + px, py);
+      }
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 10;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // ─── RENDER SHOT 13A: DUAL-USE SYSTEM ARCHITECTURE ───
+    function renderShot13A(time) {
+      // 1. Background Grid & Deep Space Glow
+      ctx.fillStyle = '#030712';
+      ctx.fillRect(0, 0, 1920, 1080);
+
+      // Radial Core Glow
+      const grad = ctx.createRadialGradient(960, 540, 50, 960, 540, 750);
+      grad.addColorStop(0, 'rgba(14, 165, 233, 0.18)');
+      grad.addColorStop(0.5, 'rgba(6, 78, 118, 0.08)');
+      grad.addColorStop(1, 'rgba(3, 7, 18, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1920, 1080);
+
+      // Perspective Grid Lines
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < 1920; x += 60) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, 1080);
+        ctx.stroke();
+      }
+      for (let y = 0; y < 1080; y += 60) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(1920, y);
+        ctx.stroke();
+      }
+
+      // 2. Main Title Banner
+      ctx.textAlign = 'center';
+      ctx.font = '700 18px monospace';
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('HELIOS FLIGHT PLATFORM // NASA SPACE APPS CHALLENGE 2026', 960, 75);
+
+      ctx.font = '800 42px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('ONE ARCHITECTURE. MULTIPLE EXTREME ENVIRONMENTS.', 960, 125);
+
+      ctx.font = '500 20px monospace';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('DEEP-SPACE ARTEMIS FLIGHT COMPUTATION  ⇄  EARTH FIRST RESPONDER EDGE SENTRY', 960, 165);
+
+      // Node Coordinates
+      const nodeSpace = { x: 380, y: 540, label: 'DEEP SPACE // ARTEMIS CREW', sub: 'Orion & Lunar Habitat · Zero Cloud Sentry' };
+      const nodeCore  = { x: 960, y: 540, label: 'HELIOS OFFLINE ENGINE', sub: 'Autonomous 40ms Edge AI · Zero Cloud Node' };
+      const nodeEarth = { x: 1540, y: 440, label: 'STRUCTURAL FIREFIGHTERS', sub: 'Smoke-Diver HUD · Heat & CO Sentry' };
+      const nodeRescue= { x: 1540, y: 660, label: 'WILDERNESS SEARCH & RESCUE', sub: 'Rugged Offline Mesh · Hypothermia Triage' };
+
+      // 3. Draw Cyber Conduits
+      function drawConduit(from, to, activeTime) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo((from.x + to.x) / 2, from.y);
+        ctx.lineTo((from.x + to.x) / 2, to.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+
+        // Pulsing Data Dot
+        const p = (activeTime * 0.45) % 1.0;
+        let px, py;
+        const midX = (from.x + to.x) / 2;
+        if (p < 0.33) {
+          px = from.x + (midX - from.x) * (p / 0.33);
+          py = from.y;
+        } else if (p < 0.66) {
+          px = midX;
+          py = from.y + (to.y - from.y) * ((p - 0.33) / 0.33);
+        } else {
+          px = midX + (to.x - midX) * ((p - 0.66) / 0.34);
+          py = to.y;
+        }
+        ctx.fillStyle = '#00e5ff';
+        ctx.shadowColor = '#00e5ff';
+        ctx.shadowBlur = 14;
+        ctx.beginPath();
+        ctx.arc(px, py, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      drawConduit(nodeSpace, nodeCore, time);
+      drawConduit(nodeCore, nodeEarth, time + 0.3);
+      drawConduit(nodeCore, nodeRescue, time + 0.6);
+
+      // 4. Render Nodes
+      function drawNode(node, color, isCenter = false) {
+        ctx.save();
+        const w = isCenter ? 360 : 310;
+        const h = isCenter ? 240 : 180;
+        const x = node.x - w / 2;
+        const y = node.y - h / 2;
+
+        ctx.fillStyle = 'rgba(10, 18, 32, 0.88)';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = isCenter ? 2.5 : 1.5;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = isCenter ? 24 : 12;
+
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, 14);
+        ctx.fill();
+        ctx.stroke();
+
+        // Header Tab
+        ctx.fillStyle = color;
+        ctx.font = '800 13px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(node.label, x + 18, y + 34);
+
+        ctx.font = '500 11px sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(node.sub, x + 18, y + 54);
+
+        // Inner Divider
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + 18, y + 68);
+        ctx.lineTo(x + w - 18, y + 68);
+        ctx.stroke();
+
+        // Live Telemetry Inside Node
+        if (isCenter) {
+          ctx.font = '600 12px monospace';
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillText('• 40ms Autonomous Triage Sentry', x + 18, y + 96);
+          ctx.fillText('• Offline Helix-AI Speech Reasoning', x + 18, y + 120);
+          ctx.fillText('• 149 Biomarkers & Spaceflight Omics', x + 18, y + 144);
+          ctx.fillText('• Zero Cloud / Zero Earth Sync Needed', x + 18, y + 168);
+
+          // Latency Badge
+          ctx.fillStyle = 'rgba(0, 229, 255, 0.15)';
+          ctx.roundRect(x + 18, y + 186, w - 36, 30, 6);
+          ctx.fill();
+          ctx.fillStyle = '#00e5ff';
+          ctx.font = '700 11px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('REAL-TIME LATENCY: 38.4 ms // HARDWARE LOCAL', x + w / 2, y + 205);
+        } else if (node === nodeSpace) {
+          drawECG(ctx, x + 18, y + 78, w - 36, 45, time, '#00e5ff');
+          ctx.font = '600 11px monospace';
+          ctx.fillStyle = '#cbd5e1';
+          ctx.textAlign = 'left';
+          ctx.fillText('LEAD II ECG: 64 BPM · NSR NOMINAL', x + 18, y + 142);
+          ctx.fillText('OSD-569 / OSD-575 OMICS GROUNDED', x + 18, y + 162);
+        } else if (node === nodeEarth) {
+          ctx.font = '700 12px monospace';
+          ctx.fillStyle = '#f87171';
+          ctx.textAlign = 'left';
+          ctx.fillText('VITAL SENTRY: HR 142 BPM [TACHY]', x + 18, y + 96);
+          ctx.fillText('HEAT INDEX: 38.8°C [HEAT STRESS]', x + 18, y + 118);
+          ctx.fillStyle = '#fbbf24';
+          ctx.fillText('CO SENSOR: 42 ppm · HUD ALERT', x + 18, y + 140);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillText('COMMAND: EVACUATE STRUCTURE', x + 18, y + 162);
+        } else if (node === nodeRescue) {
+          ctx.font = '700 12px monospace';
+          ctx.fillStyle = '#34d399';
+          ctx.textAlign = 'left';
+          ctx.fillText('RUGGED TABLET MESH: ONLINE', x + 18, y + 96);
+          ctx.fillStyle = '#cbd5e1';
+          ctx.fillText('RESCUE TEAM: 4 OPERATORS SYNCED', x + 18, y + 118);
+          ctx.fillText('HYPOTHERMIA RISK: 0.04 (LOW)', x + 18, y + 140);
+          ctx.fillText('OFFLINE GPS VECTOR: 1.4 km NORTH', x + 18, y + 162);
+        }
+
+        ctx.restore();
+      }
+
+      drawNode(nodeSpace, '#00e5ff');
+      drawNode(nodeCore, '#38bdf8', true);
+      drawNode(nodeEarth, '#ef4444');
+      drawNode(nodeRescue, '#34d399');
+
+      // Bottom Bar
+      ctx.textAlign = 'center';
+      ctx.font = '600 14px monospace';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText('HELIOS DUAL-USE CIVILIAN DEFENSE & FIRST RESPONDER SAFETY // NASA HUMAN RESEARCH PROGRAM ALIGNED', 960, 1030);
+    }
+
+    // ─── RENDER SHOT 13B: FIREFIGHTER TACTICAL HUD ───
+    function renderShot13B(time) {
+      // 1. Draw Image or Atmospheric Dark Hazy Background
+      if (bg13B.complete && bg13B.naturalWidth > 0) {
+        ctx.drawImage(bg13B, 0, 0, 1920, 1080);
+      } else {
+        // Fallback Dark Fiery Smoke Environment
+        ctx.fillStyle = '#0a0503';
+        ctx.fillRect(0, 0, 1920, 1080);
+
+        const fireGlow = ctx.createRadialGradient(1500, 450, 100, 1500, 450, 800);
+        fireGlow.addColorStop(0, 'rgba(234, 88, 12, 0.45)');
+        fireGlow.addColorStop(0.5, 'rgba(180, 83, 9, 0.25)');
+        fireGlow.addColorStop(1, 'rgba(10, 5, 3, 0)');
+        ctx.fillStyle = fireGlow;
+        ctx.fillRect(0, 0, 1920, 1080);
+      }
+
+      // 2. Rising Fire Embers Particles
+      embers.forEach(e => {
+        e.y += e.speedY;
+        e.x += e.speedX + Math.sin(time + e.y * 0.01) * 0.5;
+        if (e.y < -10) { e.y = 1090; e.x = Math.random() * 1920; }
+        ctx.fillStyle = e.color;
+        ctx.globalAlpha = e.opacity;
+        ctx.shadowColor = e.color;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1.0;
+      ctx.shadowBlur = 0;
+
+      // 3. Curved Tactical Helmet Visor Rim Overlay
+      ctx.save();
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(960, 540, 920, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Vignette Darkness on Edges
+      const vig = ctx.createRadialGradient(960, 540, 550, 960, 540, 1000);
+      vig.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      vig.addColorStop(0.7, 'rgba(5, 8, 15, 0.55)');
+      vig.addColorStop(1, 'rgba(0, 0, 0, 0.88)');
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, 1920, 1080);
+      ctx.restore();
+
+      // 4. Tactical HUD Header
+      ctx.save();
+      ctx.font = '800 16px monospace';
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('HELIOS // FIRST RESPONDER HUD (OFFLINE MESH)', 120, 90);
+
+      ctx.font = '600 13px monospace';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('ENGINE 42 · CAPTAIN R. VANCE · SECTOR B-4 INTERIOR', 120, 114);
+
+      // Top Optical Compass Bar
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(760, 90);
+      ctx.lineTo(1160, 90);
+      ctx.stroke();
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '700 12px monospace';
+      ctx.textAlign = 'center';
+      const heading = (Math.round(240 + Math.sin(time * 0.8) * 4)) % 360;
+      ctx.fillText(`SW ${heading}° [BEARING TO RETREAT ROUTE]`, 960, 75);
+
+      // Compass Ticks
+      for (let i = -4; i <= 4; i++) {
+        const cx = 960 + i * 40;
+        ctx.beginPath();
+        ctx.moveTo(cx, 90);
+        ctx.lineTo(cx, i === 0 ? 104 : 96);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 5. Left Card: High-Impact Biometrics
+      ctx.save();
+      const lx = 110, ly = 160, lw = 440, lh = 380;
+      ctx.fillStyle = 'rgba(9, 14, 24, 0.82)';
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = 'rgba(239, 68, 68, 0.4)';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.roundRect(lx, ly, lw, lh, 14);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '800 15px monospace';
+      ctx.fillStyle = '#f87171';
+      ctx.fillText('FIREFIGHTER PHYSIOLOGICAL SENTRY', lx + 22, ly + 36);
+
+      // Heart Rate Box
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+      ctx.roundRect(lx + 20, ly + 56, lw - 40, 100, 8);
+      ctx.fill();
+
+      ctx.font = '800 36px monospace';
+      ctx.fillStyle = '#ef4444';
+      const hrDynamic = 142 + Math.round(Math.sin(time * 2.5) * 2);
+      ctx.fillText(`${hrDynamic} BPM`, lx + 36, ly + 106);
+
+      ctx.font = '700 13px monospace';
+      ctx.fillStyle = '#fca5a5';
+      ctx.fillText('HEAVY TACHYCARDIA // METABOLIC PEAK', lx + 36, ly + 134);
+
+      // Live Tachy ECG wave
+      drawECG(ctx, lx + 20, ly + 170, lw - 40, 55, time, '#ef4444');
+
+      // Core Temperature Bar
+      ctx.font = '700 13px monospace';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillText('CORE BODY TEMPERATURE: 38.8°C (CRITICAL)', lx + 24, ly + 256);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.roundRect(lx + 24, ly + 268, lw - 48, 14, 7);
+      ctx.fill();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.roundRect(lx + 24, ly + 268, (lw - 48) * 0.88, 14, 7);
+      ctx.fill();
+
+      // Ambient Temperature & O2
+      ctx.font = '600 13px monospace';
+      ctx.fillStyle = '#f97316';
+      ctx.fillText('TURNOUT GEAR AMBIENT: 180°C (EXTREME)', lx + 24, ly + 316);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('SCBA AIR CYLINDER: 18.2 MPa · 16 MIN LEFT', lx + 24, ly + 344);
+      ctx.restore();
+
+      // 6. Right Card: Tactical Waypoint / Exit Route
+      ctx.save();
+      const rx = 1370, ry = 160, rw = 440, rh = 340;
+      ctx.fillStyle = 'rgba(9, 14, 24, 0.82)';
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = 'rgba(56, 189, 248, 0.3)';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.roundRect(rx, ry, rw, rh, 14);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '800 15px monospace';
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('TACTICAL EXIT WAYPOINT SENTRY', rx + 22, ry + 36);
+
+      // Radar Ring & Exit Vector
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(rx + rw / 2, ry + 160, 75, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(rx + rw / 2, ry + 160, 40, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Pulsing Green Exit Beacon
+      const beaconDist = 18;
+      ctx.fillStyle = '#34d399';
+      ctx.shadowColor = '#34d399';
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(rx + rw / 2 - 38, ry + 160 + 28, 9, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.font = '800 13px monospace';
+      ctx.fillStyle = '#34d399';
+      ctx.textAlign = 'center';
+      ctx.fillText('EXIT ALPHA // 18m SOUTH-WEST', rx + rw / 2, ry + 275);
+
+      ctx.font = '600 11px monospace';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('LIDAR RANGEFINDER CLEAR · ZERO OBSTACLE', rx + rw / 2, ry + 300);
+      ctx.restore();
+
+      // 7. CENTER CRISIS FLASHING BANNER
+      ctx.save();
+      const flash = Math.sin(time * 6.0) > 0;
+      const bx = 460, by = 780, bw = 1000, bh = 140;
+
+      ctx.fillStyle = flash ? 'rgba(153, 27, 27, 0.94)' : 'rgba(127, 29, 29, 0.88)';
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = flash ? 32 : 16;
+
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 16);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.font = '900 24px monospace';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('⚠ CRITICAL PHYSIOLOGICAL ALERT // HELIOS SENTRY', 960, by + 46);
+
+      ctx.font = '800 28px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.fillStyle = '#fef08a';
+      ctx.fillText('HEAT STRESS DETECTED · COMMAND: EVACUATE STRUCTURE NOW', 960, by + 92);
+
+      ctx.font = '600 14px monospace';
+      ctx.fillStyle = '#fca5a5';
+      ctx.fillText('AUTONOMOUS THRESHOLD REACHED · RETREAT TO EXIT ALPHA (18 METERS)', 960, by + 120);
+      ctx.restore();
+    }
+
+    // ─── MAIN ANIMATION LOOP ───
+    function animate() {
+      const now = performance.now();
+      const time = (now - startTime) / 1000;
+
+      if (currentMode === '13A') {
+        renderShot13A(time);
+      } else {
+        renderShot13B(time);
+      }
+
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    // ─── 1080P VIDEO RECORDER (WEBM / MP4 DOWNLOAD) ───
+    function recordVideo(mode, durationMs = 8000) {
+      setMode(mode);
+      const btn = mode === '13A' ? document.getElementById('btnRecord13A') : document.getElementById('btnRecord13B');
+      btn.classList.add('recording');
+      btn.textContent = `🔴 Recording ${mode}...`;
+
+      recordedChunks = [];
+      const stream = canvas.captureStream(60); // 60 FPS 1080p stream
+      
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm';
+
+      mediaRecorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 16000000 // 16 Mbps Ultra-High Quality 1080p
+      });
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        btn.classList.remove('recording');
+        btn.textContent = `🔴 Record & Download Shot ${mode} (8s 1080p)`;
+        statusLabel.textContent = `✅ Shot ${mode} Video Recorded Successfully! Triggering Download...`;
+
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `HELIOS_SHOT_${mode}_PRODUCTION_1080P.webm`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
+      mediaRecorder.start();
+      setTimeout(() => {
+        mediaRecorder.stop();
+      }, durationMs);
+    }
+  </script>
+</body>
+</html>
+

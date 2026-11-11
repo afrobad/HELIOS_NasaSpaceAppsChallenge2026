@@ -21,7 +21,7 @@ CLIPS = [
     ("sc17_a", "A heartbeat changes nearly four hundred thousand kilometers from Earth.", "-2%"),
     ("sc17_b", "HELIOS turns that change into understanding, so the crew can act before a signal becomes a crisis.", "+0%"),
     ("sc17_c", "Monitor. Understand. Act.", "-4%"),
-    ("sc17_d", "We are Team Cosmic Plus.", "-1%")
+    ("sc17_d", "We are Team Aero Vitals.", "-1%")
 ]
 
 async def run():

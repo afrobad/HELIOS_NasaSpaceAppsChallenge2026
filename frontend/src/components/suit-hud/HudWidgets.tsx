@@ -246,11 +246,11 @@ export const VoiceWaveform = memo(function VoiceWaveform({
       </g>
       <g>
         <foreignObject
-          x="112"
-          y={hasDirective ? 53 : 58}
-          width="800"
-          height={hasDirective ? 36 : 28}
-          style={{ overflow: 'visible', pointerEvents: 'none' }}
+          x="270"
+          y={hasDirective ? 48 : 54}
+          width="484"
+          height={hasDirective ? 34 : 24}
+          style={{ overflow: 'hidden', pointerEvents: 'none' }}
         >
           <div className="hud-ai-status-container">
             {/* Line 1: Icon (before Surgeon label) + AI SURGEON + Status + Detail */}
@@ -321,7 +321,7 @@ export const VoiceWaveform = memo(function VoiceWaveform({
         <path
           d={
             hasDirective
-              ? 'M350,91 L360,97 L664,97 L674,91'
+              ? 'M370,82 L380,87 L644,87 L654,82'
               : 'M388,78 L396,84 L628,84 L636,78'
           }
           className={`hud-line hud-line--dim ${
@@ -767,32 +767,75 @@ export const AttitudeGyroLadder = memo(function AttitudeGyroLadder({
 export const MissionTimeBanner = memo(function MissionTimeBanner({
   evaMet = '03:41:20',
   commSignalPct = 98,
+  planet = 'Mars',
+  earthUtc = '',
+  marsSolarTime = '',
+  marsSol = 142,
+  lunarTime = '',
+  lunarDay = 14,
 }: {
   evaMet?: string;
   commSignalPct?: number;
+  planet?: string;
+  earthUtc?: string;
+  marsSolarTime?: string;
+  marsSol?: number;
+  lunarTime?: string;
+  lunarDay?: number;
 }) {
+  const isMars = planet === 'Mars';
+  const isMoon = planet === 'Moon';
+
+  const timeLabel = isMars ? 'MARS TIME' : isMoon ? 'LUNAR TIME' : 'STATION GMT';
+  const timeValue = isMars
+    ? `SOL ${marsSol} · ${(marsSolarTime || '12:22:49').replace(/\s*LMST/i, '')}`
+    : isMoon
+    ? `DAY ${lunarDay} · ${(lunarTime || earthUtc || 'SYNC').replace(/\s*(LTC|UTC)/i, '')}`
+    : ((earthUtc || 'SYNC').replace(/\s*UTC/i, ''));
+  const valueColor = isMars ? '#fed7aa' : isMoon ? '#bfdbfe' : '#effffe';
+
   return (
     <Reveal delay={0.15}>
-      {/* Top Left: Spacewalk EVA Mission Elapsed Time */}
+      {/* Top Left: Real-Time Dynamic Surface Time (Compact Stacked HUD Badge) */}
       <g>
-        <path d="M140,78 L262,78" className="hud-line hud-line--faint" />
-        <circle cx="140" cy="78" r="1.5" className="hud-fill" />
-        <text x="144" y="73" className="hud-label hud-label--sm" style={{ letterSpacing: '0.12em', opacity: 0.85 }}>
-          EVA MET
+        <path d="M140,82 L254,82" className="hud-line hud-line--faint" />
+        <circle cx="140" cy="82" r="1.5" className="hud-fill" />
+        <text
+          x="144"
+          y="69"
+          className="hud-label hud-label--sm"
+          style={{ letterSpacing: '0.12em', opacity: 0.85, fontSize: '8.5px' }}
+        >
+          {timeLabel}
         </text>
-        <text x="194" y="73" className="hud-value" style={{ fontSize: '11px', fontWeight: 700, fill: '#effffe' }}>
-          {evaMet}
+        <text
+          x="144"
+          y="79"
+          className="hud-value"
+          style={{ fontSize: '10px', fontWeight: 700, fill: valueColor, letterSpacing: '0.04em' }}
+        >
+          {timeValue}
         </text>
       </g>
 
       {/* Top Right: DSN High-Gain Telemetry Link */}
       <g>
-        <path d="M784,78 L906,78" className="hud-line hud-line--faint" />
-        <circle cx="906" cy="78" r="1.5" className="hud-fill" />
-        <text x="784" y="73" className="hud-label hud-label--sm" style={{ letterSpacing: '0.08em', opacity: 0.85 }}>
+        <path d="M784,82 L896,82" className="hud-line hud-line--faint" />
+        <circle cx="896" cy="82" r="1.5" className="hud-fill" />
+        <text
+          x="788"
+          y="69"
+          className="hud-label hud-label--sm"
+          style={{ letterSpacing: '0.08em', opacity: 0.85, fontSize: '8.5px' }}
+        >
           DSN BIT-LOCK
         </text>
-        <text x="862" y="73" className="hud-value" style={{ fontSize: '10.5px', fontWeight: 700, fill: '#38bdf8' }}>
+        <text
+          x="788"
+          y="79"
+          className="hud-value"
+          style={{ fontSize: '10px', fontWeight: 700, fill: '#38bdf8', letterSpacing: '0.04em' }}
+        >
           10 Hz · {commSignalPct}%
         </text>
       </g>

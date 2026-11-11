@@ -47,7 +47,7 @@ VO_SECTIONS = [
     },
     {
         "name": "vo_scene_17_p4",
-        "text": "We are Team Cosmic Plus.",
+        "text": "We are Team Aero Vitals.",
         "rate": "+0%",
         "pitch": "+0Hz"
     }
