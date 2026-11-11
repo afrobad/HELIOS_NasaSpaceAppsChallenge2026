@@ -31,7 +31,7 @@ export const CONFIG = {
   modelDir: 'model/',
   /** Used only if manifest.json is missing. */
   fallbackFiles: [
-    'animated_floating_astronaut_in_space_suit_loop.glb', 'earth.glb', 'iss.glb',
+    'animated_floating_astronaut_in_space_suit_loop.glb', 'iss.glb',
     'monitor__computer__realistic_computer_monitor.glb', 'old_nasa_style_computer_console.glb', 'sci-fi_computer_desk_console.glb',
     'space_ship_interior.glb',
   ],

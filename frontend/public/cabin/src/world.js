@@ -584,35 +584,51 @@ export class World {
         o.receiveShadow = true;
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         ms.forEach((m) => {
-          m.envMapIntensity = 1.05;
-          if (m.roughness !== undefined) m.roughness = THREE.MathUtils.clamp(m.roughness, 0.28, 0.50);
-          if (m.metalness !== undefined) m.metalness = THREE.MathUtils.clamp(m.metalness, 0.35, 0.75);
-          // Correct inverted texture vertical orientation on ISS modules & flags (fixes upside down NASDA, ESA, USA, Unity & flags)
+          m.envMapIntensity = 0.90;
+          const matName = (m.name || o.name || '').toLowerCase();
+
+          // 1. Solar array wings & photovoltaic cells (preserve authentic deep blue & gold grid)
+          if (matName.includes('solar') || matName.includes('panel') || matName.includes('array')) {
+            m.metalness = 0.10;
+            m.roughness = 0.30;
+            m.side = THREE.DoubleSide;
+            if (m.emissive) {
+              m.emissive.setRGB(0.01, 0.03, 0.06);
+              m.emissiveIntensity = 0.20;
+            }
+          }
+          // 2. Gold / copper MLI thermal insulation foil
+          else if (matName.includes('gold') || matName.includes('ins') || matName.includes('foil')) {
+            m.metalness = 0.85;
+            m.roughness = 0.25;
+            if (m.emissive) {
+              m.emissive.setRGB(0.12, 0.08, 0.02);
+              m.emissiveIntensity = 0.25;
+            }
+          }
+          // 3. Station pressurized modules (anodized aluminum & white beta-cloth blankets)
+          else {
+            if (m.roughness !== undefined) m.roughness = THREE.MathUtils.clamp(m.roughness, 0.45, 0.70);
+            if (m.metalness !== undefined) m.metalness = THREE.MathUtils.clamp(m.metalness, 0.08, 0.35);
+            if (m.emissive) {
+              // Minimal deep-space shadow fill so dark side isn't pitch black, without bleaching daylight colors
+              m.emissive.setRGB(0.03, 0.04, 0.06);
+              m.emissiveIntensity = 0.15;
+            }
+          }
+
+          // Ensure authentic sRGB color reproduction for all station diffuse textures
           if (m.map) {
+            m.map.colorSpace = THREE.SRGBColorSpace;
             m.map.wrapS = THREE.RepeatWrapping;
             m.map.wrapT = THREE.RepeatWrapping;
-            m.map.repeat.set(1, -1);
-            m.map.offset.set(0, 1);
             m.map.anisotropy = 16;
             m.map.minFilter = THREE.LinearMipmapLinearFilter;
             m.map.magFilter = THREE.LinearFilter;
             m.map.generateMipmaps = true;
             m.map.needsUpdate = true;
           }
-          if (m.emissive) {
-            if (m.map) m.emissiveMap = m.map;
-            if (m.emissiveMap) {
-              m.emissiveMap.wrapS = THREE.RepeatWrapping;
-              m.emissiveMap.wrapT = THREE.RepeatWrapping;
-              m.emissiveMap.repeat.set(1, -1);
-              m.emissiveMap.offset.set(0, 1);
-              m.emissiveMap.anisotropy = 16;
-              m.emissiveMap.needsUpdate = true;
-            }
-            m.emissive.setRGB(0.18, 0.20, 0.24);
-            m.emissiveIntensity = 0.35;
-            m.needsUpdate = true;
-          }
+          m.needsUpdate = true;
         });
       }
     });

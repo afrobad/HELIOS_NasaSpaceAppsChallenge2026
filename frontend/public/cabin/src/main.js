@@ -27,7 +27,7 @@ async function boot() {
     console.warn('[HELIOS] Safety loader timeout reached: forcing cabin display');
     document.body.classList.remove('booting');
     if ($('loader')) $('loader').style.display = 'none';
-  }, 12000);
+  }, 35000);
 
   const stage = $('stage');
 
