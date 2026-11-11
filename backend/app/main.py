@@ -559,9 +559,11 @@ FRONTEND_DIST = os.path.join(
 )
 
 if os.path.exists(FRONTEND_DIST):
-    assets_dir = os.path.join(FRONTEND_DIST, "assets")
-    if os.path.exists(assets_dir):
-        app.mount("/assets", StaticFiles(directory=assets_dir), name="static_assets")
+    # Mount all static asset subdirectories with native HTTP Range & streaming support
+    for sub in ["assets", "audio", "crew", "suit-hud", "videos", "space"]:
+        sub_dir = os.path.join(FRONTEND_DIST, sub)
+        if os.path.exists(sub_dir):
+            app.mount(f"/{sub}", StaticFiles(directory=sub_dir), name=f"static_{sub}")
 
     @app.get("/{full_path:path}")
     async def serve_spa_route(full_path: str):

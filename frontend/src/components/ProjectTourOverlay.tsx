@@ -373,6 +373,7 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
   const currentAbortRef = useRef<AbortController | null>(null);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const executedStepRef = useRef<number>(-1);
+  const stepTokenRef = useRef<number>(0);
 
   const onSelectViewRef = useRef(onSelectView);
   onSelectViewRef.current = onSelectView;
@@ -508,6 +509,9 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
 
   // Safely stop all speech engines (Audio element, Web Speech API, and pending fetch)
   const stopCurrentSpeech = useCallback(() => {
+    // Invalidate any in-flight promises, network fetches, or audio play attempts
+    stepTokenRef.current += 1;
+
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -519,6 +523,7 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
         currentAudioRef.current.ontimeupdate = null;
         currentAudioRef.current.onerror = null;
         currentAudioRef.current.src = '';
+        currentAudioRef.current.load();
       } catch { }
       currentAudioRef.current = null;
     }
@@ -595,11 +600,52 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
 
     stopCurrentSpeech();
 
+    const currentToken = stepTokenRef.current;
     let hasEnded = false;
+    let activeChannel: 'NONE' | 'STATIC' | 'SYNTH' | 'WEBSPEECH' = 'NONE';
 
-    // Tertiary Fallback: Web Speech API
+    // Finish step safely (guaranteed only once per step, never duplicates)
+    const completeStep = (delay = 700) => {
+      if (hasEnded || currentToken !== stepTokenRef.current) return;
+      hasEnded = true;
+      setCharProgress(text.length);
+
+      const step = TOUR_STEPS[stepIdx];
+      if (step && step.waitForCabinArrival) {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => {
+          if (currentToken === stepTokenRef.current) {
+            goToNextStepRef.current();
+          }
+        }, 22000);
+        return;
+      }
+
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        if (currentToken === stepTokenRef.current) {
+          goToNextStepRef.current();
+        }
+      }, delay);
+    };
+
+    // Tertiary Fallback: Web Speech API (runs strictly when audio element & backend fail)
     const speakFallbackWebSpeech = () => {
-      if (hasEnded || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+      if (hasEnded || currentToken !== stepTokenRef.current || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+      activeChannel = 'WEBSPEECH';
+
+      // Ensure any audio element is completely torn down
+      if (currentAudioRef.current) {
+        try {
+          currentAudioRef.current.pause();
+          currentAudioRef.current.onended = null;
+          currentAudioRef.current.ontimeupdate = null;
+          currentAudioRef.current.onerror = null;
+          currentAudioRef.current.src = '';
+        } catch { }
+        currentAudioRef.current = null;
+      }
+
       try {
         window.speechSynthesis.cancel();
         window.speechSynthesis.resume();
@@ -629,77 +675,34 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
         currentUtteranceRef.current = utterance;
 
         utterance.onboundary = (e) => {
-          if (typeof e.charIndex === 'number') {
+          if (currentToken === stepTokenRef.current && typeof e.charIndex === 'number') {
             setCharProgress(e.charIndex);
           }
         };
 
         utterance.onend = () => {
-          if (hasEnded) return;
-          hasEnded = true;
-          currentUtteranceRef.current = null;
-          setCharProgress(text.length);
-          if (timerRef.current) clearTimeout(timerRef.current);
-          timerRef.current = setTimeout(() => {
-            goToNextStepRef.current();
-          }, 700);
+          if (currentToken !== stepTokenRef.current) return;
+          completeStep(700);
         };
 
         utterance.onerror = (e: any) => {
           if (e && (e.error === 'interrupted' || e.error === 'canceled')) return;
-          if (hasEnded) return;
-          hasEnded = true;
-          currentUtteranceRef.current = null;
-          if (timerRef.current) clearTimeout(timerRef.current);
-          timerRef.current = setTimeout(() => {
-            goToNextStepRef.current();
-          }, 1200);
+          if (currentToken !== stepTokenRef.current) return;
+          completeStep(1200);
         };
 
         window.speechSynthesis.speak(utterance);
       } catch (err) {
         console.warn('SpeechSynthesis fallback error:', err);
+        completeStep(2000);
       }
     };
 
-    // Primary: Instant Static MP3 Audio
-    const staticUrl = `/audio/tour/step_${stepIdx}.mp3`;
-    const audio = new Audio();
-    audio.src = staticUrl;
-    audio.volume = 1.0;
-    audio.preload = 'auto';
-    currentAudioRef.current = audio;
+    // Secondary Fallback: Backend Neural API
+    const speakBackendNeural = () => {
+      if (hasEnded || currentToken !== stepTokenRef.current) return;
+      activeChannel = 'SYNTH';
 
-    audio.ontimeupdate = () => {
-      if (audio.duration && audio.duration > 0) {
-        const ratio = audio.currentTime / audio.duration;
-        setCharProgress(Math.min(text.length, Math.floor(ratio * text.length)));
-      }
-    };
-
-    audio.onended = () => {
-      if (hasEnded) return;
-      hasEnded = true;
-      setCharProgress(text.length);
-      const step = TOUR_STEPS[stepIdx];
-      if (step && step.waitForCabinArrival) {
-        // Wait for arrival animation to finish before proceeding to cabin deck briefs!
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(() => {
-          goToNextStepRef.current();
-        }, 22000);
-        return;
-      }
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        goToNextStepRef.current();
-      }, 700);
-    };
-
-    audio.onerror = () => {
-      if (hasEnded) return;
-      console.warn(`Static audio failed for step ${stepIdx}, trying backend synthesis...`);
-      // Secondary Fallback: Backend Neural API
       const abortController = new AbortController();
       currentAbortRef.current = abortController;
       const synthUrl = `/api/voice/synthesize?${new URLSearchParams({
@@ -714,7 +717,7 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
           return res.blob();
         })
         .then((blob) => {
-          if (hasEnded) return;
+          if (hasEnded || currentToken !== stepTokenRef.current) return;
           const blobUrl = URL.createObjectURL(blob);
           currentBlobUrlRef.current = blobUrl;
           const dynamicAudio = new Audio(blobUrl);
@@ -722,46 +725,77 @@ export const ProjectTourOverlay: React.FC<ProjectTourOverlayProps> = ({
           currentAudioRef.current = dynamicAudio;
 
           dynamicAudio.ontimeupdate = () => {
-            if (dynamicAudio.duration && dynamicAudio.duration > 0) {
+            if (currentToken === stepTokenRef.current && dynamicAudio.duration && dynamicAudio.duration > 0) {
               const ratio = dynamicAudio.currentTime / dynamicAudio.duration;
               setCharProgress(Math.min(text.length, Math.floor(ratio * text.length)));
             }
           };
 
           dynamicAudio.onended = () => {
-            if (hasEnded) return;
-            hasEnded = true;
-            setCharProgress(text.length);
-            const step = TOUR_STEPS[stepIdx];
-            if (step && step.waitForCabinArrival) {
-              if (timerRef.current) clearTimeout(timerRef.current);
-              timerRef.current = setTimeout(() => {
-                goToNextStepRef.current();
-              }, 22000);
-              return;
-            }
-            if (timerRef.current) clearTimeout(timerRef.current);
-            timerRef.current = setTimeout(() => {
-              goToNextStepRef.current();
-            }, 700);
+            if (currentToken !== stepTokenRef.current) return;
+            completeStep(700);
           };
 
           dynamicAudio.onerror = () => {
+            if (currentToken !== stepTokenRef.current) return;
             speakFallbackWebSpeech();
           };
 
-          dynamicAudio.play().catch(() => speakFallbackWebSpeech());
+          dynamicAudio.play().catch(() => {
+            if (currentToken === stepTokenRef.current) {
+              speakFallbackWebSpeech();
+            }
+          });
         })
         .catch((err) => {
-          if (err.name !== 'AbortError') {
+          if (err.name !== 'AbortError' && currentToken === stepTokenRef.current) {
             speakFallbackWebSpeech();
           }
         });
     };
 
+    // Primary: Instant Static MP3 Audio
+    activeChannel = 'STATIC';
+    const staticUrl = `/audio/tour/step_${stepIdx}.mp3`;
+    const audio = new Audio();
+    audio.src = staticUrl;
+    audio.volume = 1.0;
+    audio.preload = 'auto';
+    currentAudioRef.current = audio;
+
+    audio.ontimeupdate = () => {
+      if (currentToken === stepTokenRef.current && audio.duration && audio.duration > 0) {
+        const ratio = audio.currentTime / audio.duration;
+        setCharProgress(Math.min(text.length, Math.floor(ratio * text.length)));
+      }
+    };
+
+    audio.onended = () => {
+      if (currentToken !== stepTokenRef.current) return;
+      completeStep(700);
+    };
+
+    audio.onerror = () => {
+      if (currentToken !== stepTokenRef.current) return;
+      // Static MP3 failed to load/decode; stop audio element and transition to backend
+      audio.onended = null;
+      audio.onerror = null;
+      audio.ontimeupdate = null;
+      audio.src = '';
+      currentAudioRef.current = null;
+      speakBackendNeural();
+    };
+
     audio.play().catch((playErr) => {
-      console.warn('Audio play failed, falling back:', playErr);
-      speakFallbackWebSpeech();
+      if (currentToken !== stepTokenRef.current) return;
+      if (playErr && playErr.name === 'AbortError') return;
+      // Autoplay or playback error; stop audio element and fallback
+      audio.onended = null;
+      audio.onerror = null;
+      audio.ontimeupdate = null;
+      audio.src = '';
+      currentAudioRef.current = null;
+      speakBackendNeural();
     });
   }, [stopCurrentSpeech]);
 
