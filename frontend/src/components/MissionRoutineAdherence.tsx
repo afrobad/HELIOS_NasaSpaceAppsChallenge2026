@@ -23,6 +23,8 @@ import {
   AlertTriangle,
   ArrowRight,
 } from 'lucide-react';
+import { UniversalButton } from './common/UniversalButton';
+import { UniversalTab } from './common/UniversalTab';
 
 export interface RoutineTask {
   id: string;
@@ -86,20 +88,22 @@ const resolveCrewId = (id: string): string => {
 };
 
 const T = {
-  surface: 'rgba(10, 16, 26, 0.85)',
-  surfaceAlt: 'rgba(6, 10, 18, 0.92)',
-  surfaceCard: 'linear-gradient(135deg, rgba(14, 22, 36, 0.8) 0%, rgba(8, 14, 24, 0.9) 100%)',
-  border: 'rgba(56, 189, 248, 0.22)',
-  borderSubtle: 'rgba(255, 255, 255, 0.08)',
+  surface: 'linear-gradient(180deg, rgba(18, 26, 21, 0.95) 0%, rgba(12, 18, 15, 0.98) 100%)',
+  surfaceAlt: 'linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%)',
+  surfaceCard: 'linear-gradient(180deg, rgba(20, 28, 22, 0.95) 0%, rgba(13, 19, 15, 0.98) 100%)',
+  btnGradient: 'linear-gradient(180deg, #2a3828 0%, #1a251b 100%)',
+  btnBorder: 'rgba(161, 180, 142, 0.40)',
+  border: 'rgba(122, 148, 99, 0.18)',
+  borderSubtle: 'rgba(122, 148, 99, 0.12)',
   textPrimary: '#ffffff',
   textSecondary: '#cbd5e1',
   textMuted: '#94a3b8',
-  nominal: '#10b981',
+  nominal: '#34d399',
   warning: '#f59e0b',
   critical: '#ef4444',
-  cyan: '#38bdf8',
-  mono: "'JetBrains Mono', 'Fira Code', monospace",
-  sans: "'Inter', -apple-system, sans-serif",
+  cyan: '#a1b48e',
+  mono: "'Hubot Sans', monospace",
+  sans: "'Hubot Sans', -apple-system, BlinkMacSystemFont, sans-serif",
 };
 
 interface Props {
@@ -117,6 +121,26 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
 }) => {
   const [selectedCrewId, setSelectedCrewId] = useState<string>(() => resolveCrewId(astronautId));
   const [isSimulatedWorkout, setIsSimulatedWorkout] = useState<boolean>(false);
+  const [baselinesData, setBaselinesData] = useState<any>(null);
+  const [isLiveConnected, setIsLiveConnected] = useState<boolean>(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/baselines')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data) {
+          setBaselinesData(data);
+          setIsLiveConnected(true);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setIsLiveConnected(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (astronautId) {
@@ -134,12 +158,15 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
     (normalizedId === 'AST-03_MEDICAL' ? telemetryMap['AST-03_MEDICAL_SPECIALIST'] || telemetryMap['AST-03_SPECIALIST'] : undefined) ||
     (normalizedId === 'AST-04_ENGINEER' ? telemetryMap['AST-04_MISSION_SPECIALIST'] : undefined);
 
-  // Live physiological values bound directly to telemetry
-  const baseLiveHr = Math.round(activeTelemetry?.heart_rate ?? activeProfile.baseHr);
+  const backendCrew = baselinesData?.crew_profiles?.[normalizedId];
+  const backendRestHr = backendCrew?.baselines?.REST?.heart_rate?.mean;
+
+  // Live physiological values bound directly to telemetry or backend baselines
+  const baseLiveHr = Math.round(activeTelemetry?.heart_rate ?? (backendRestHr ?? activeProfile.baseHr));
   const liveHr = isSimulatedWorkout ? Math.max(128, baseLiveHr + 45) : baseLiveHr;
-  const liveSpo2 = activeTelemetry?.spo2 ?? 98.2;
-  const liveTemp = activeTelemetry?.core_temp ?? 36.8;
-  const liveHrv = Math.round(activeTelemetry?.hrv_rmssd ?? 65);
+  const liveSpo2 = activeTelemetry?.spo2 ?? (backendCrew?.baselines?.REST?.spo2?.mean ?? 98.2);
+  const liveTemp = activeTelemetry?.core_temp ?? (backendCrew?.baselines?.REST?.core_temp?.mean ?? 36.8);
+  const liveHrv = Math.round(activeTelemetry?.hrv_rmssd ?? (backendCrew?.baselines?.REST?.hrv_rmssd?.mean ?? 65));
   const liveK = activeTelemetry?.potassium ?? 4.40;
   const liveHct = activeTelemetry?.hematocrit ?? 43.6;
 
@@ -395,13 +422,13 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
             width: 32,
             height: 32,
             borderRadius: 8,
-            background: 'rgba(56, 189, 248, 0.15)',
-            border: '1px solid rgba(56, 189, 248, 0.35)',
+            background: 'rgba(122, 148, 99, 0.15)',
+            border: '1px solid rgba(122, 148, 99, 0.30)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}>
-            <Activity size={18} style={{ color: '#38bdf8' }} />
+            <Activity size={18} style={{ color: '#a1b48e' }} />
           </div>
           <div>
             <div style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: '0.04em', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -409,14 +436,14 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
               <span style={{
                 fontSize: 8.5,
                 fontFamily: T.mono,
-                color: '#34d399',
-                background: 'rgba(52, 211, 153, 0.14)',
-                border: '1px solid rgba(52, 211, 153, 0.3)',
+                color: isLiveConnected ? '#34d399' : '#a1b48e',
+                background: isLiveConnected ? 'rgba(52, 211, 153, 0.14)' : 'rgba(122, 148, 99, 0.14)',
+                border: `1px solid ${isLiveConnected ? 'rgba(52, 211, 153, 0.3)' : 'rgba(122, 148, 99, 0.25)'}`,
                 padding: '1.5px 6px',
                 borderRadius: 4,
                 fontWeight: 700,
               }}>
-                ● TELEMETRY LINKED
+                {isLiveConnected ? '● LIVE NASA BASELINES & TELEMETRY' : '● TELEMETRY LINKED (LOCAL FALLBACK)'}
               </span>
             </div>
             <div style={{ fontSize: 9.5, color: T.textMuted, fontFamily: T.mono, marginTop: 2 }}>
@@ -430,25 +457,13 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
           {Object.entries(CREW_PROFILES).map(([id, meta]) => {
             const isSel = normalizedId === id;
             return (
-              <button
+              <UniversalTab
                 key={id}
+                active={isSel}
+                accent="cyan"
+                size="sm"
+                pill
                 onClick={() => setSelectedCrewId(id)}
-                style={{
-                  background: isSel ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.28) 0%, rgba(2, 132, 199, 0.2) 100%)' : 'transparent',
-                  border: isSel ? `1px solid ${T.cyan}` : '1px solid transparent',
-                  borderRadius: 6,
-                  padding: '5px 12px',
-                  color: isSel ? '#ffffff' : T.textMuted,
-                  fontSize: 10.5,
-                  fontWeight: isSel ? 800 : 600,
-                  fontFamily: T.mono,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.16s ease',
-                  boxShadow: isSel ? '0 0 12px rgba(56, 189, 248, 0.3)' : 'none',
-                }}
               >
                 <span style={{
                   width: 6,
@@ -458,7 +473,7 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
                   boxShadow: isSel ? '0 0 6px #38bdf8' : 'none',
                 }} />
                 <span>{meta.roleShort} {meta.name.split(' ')[1] || meta.name}</span>
-              </button>
+              </UniversalTab>
             );
           })}
         </div>
@@ -471,7 +486,7 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
           <div style={{ fontSize: 9.5, color: T.textMuted, fontFamily: T.mono, letterSpacing: '0.04em' }}>CREW ROSTER IDENTIFIER</div>
           <div style={{ fontSize: 15, fontWeight: 800, color: '#f8fafc', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>{activeProfile.name}</span>
-            <span style={{ fontSize: 9, color: '#38bdf8', background: 'rgba(56, 189, 248, 0.16)', padding: '1px 5px', borderRadius: 3 }}>
+            <span style={{ fontSize: 9, color: '#a1b48e', background: 'rgba(122, 148, 99, 0.16)', border: '1px solid rgba(122, 148, 99, 0.25)', padding: '1px 5px', borderRadius: 3 }}>
               {activeProfile.roleShort}
             </span>
           </div>
@@ -486,11 +501,11 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
               onClick={() => setIsSimulatedWorkout(prev => !prev)}
               title="Toggle simulated exercise workout state"
               style={{
-                background: isWorkout ? 'rgba(245, 158, 11, 0.2)' : 'rgba(56, 189, 248, 0.12)',
-                border: `1px solid ${isWorkout ? T.warning : T.cyan}`,
-                color: isWorkout ? '#fde047' : '#38bdf8',
+                background: isWorkout ? 'rgba(245, 158, 11, 0.2)' : T.btnGradient,
+                border: `1px solid ${isWorkout ? T.warning : T.btnBorder}`,
+                color: isWorkout ? '#fde047' : '#ffffff',
                 borderRadius: 4,
-                padding: '2px 6px',
+                padding: '3px 8px',
                 fontSize: 8.5,
                 fontFamily: T.mono,
                 cursor: 'pointer',
@@ -601,10 +616,10 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
             </div>
             <span style={{
               fontSize: 9,
-              color: T.cyan,
+              color: '#a1b48e',
               fontFamily: T.mono,
-              background: 'rgba(56, 189, 248, 0.12)',
-              border: '1px solid rgba(56, 189, 248, 0.25)',
+              background: 'rgba(122, 148, 99, 0.15)',
+              border: '1px solid rgba(122, 148, 99, 0.25)',
               padding: '2px 8px',
               borderRadius: 4,
               fontWeight: 700,
@@ -766,8 +781,8 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
                 onClick={() => addWater(250)}
                 style={{
                   flex: 1,
-                  background: 'rgba(56, 189, 248, 0.14)',
-                  border: `1px solid ${T.cyan}`,
+                  background: T.btnGradient,
+                  border: `1px solid ${T.btnBorder}`,
                   borderRadius: 6,
                   padding: '7px 10px',
                   color: '#ffffff',
@@ -776,6 +791,7 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
                   cursor: 'pointer',
                   fontWeight: 700,
                   transition: 'all 0.15s ease',
+                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 6px rgba(0, 0, 0, 0.35)',
                 }}
               >
                 + 250 mL Water
@@ -784,8 +800,8 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
                 onClick={() => addWater(500)}
                 style={{
                   flex: 1,
-                  background: 'rgba(14, 165, 233, 0.18)',
-                  border: '1px solid #0ea5e9',
+                  background: T.btnGradient,
+                  border: `1px solid ${T.btnBorder}`,
                   borderRadius: 6,
                   padding: '7px 10px',
                   color: '#ffffff',
@@ -794,6 +810,7 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
                   cursor: 'pointer',
                   fontWeight: 700,
                   transition: 'all 0.15s ease',
+                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 6px rgba(0, 0, 0, 0.35)',
                 }}
               >
                 + 500 mL Electrolytes
@@ -867,26 +884,17 @@ export const MissionRoutineAdherence: React.FC<Props> = ({
                   <div style={{ fontSize: 9.5, color: T.textMuted, marginBottom: 12 }}>
                     Click Start. When box turns RED, click as fast as possible!
                   </div>
-                  <button
+                  <UniversalButton
+                    variant="cyan"
+                    size="md"
+                    pill
                     onClick={(e) => {
                       e.stopPropagation();
                       startPvtTest();
                     }}
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.3) 0%, rgba(2, 132, 199, 0.25) 100%)',
-                      border: `1px solid ${T.cyan}`,
-                      borderRadius: 6,
-                      padding: '8px 24px',
-                      color: '#ffffff',
-                      fontSize: 11,
-                      fontWeight: 800,
-                      fontFamily: T.mono,
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 14px rgba(56, 189, 248, 0.25)',
-                    }}
                   >
                     START PVT TEST
-                  </button>
+                  </UniversalButton>
                 </div>
               )}
 

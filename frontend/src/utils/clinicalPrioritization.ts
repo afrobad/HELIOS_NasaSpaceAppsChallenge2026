@@ -1,5 +1,5 @@
 import type { TelemetryPacket, BiomarkerCadenceInfo, StructuredClinicalReasoning } from '../types/telemetry';
-import { getAstronautOsdrProfile, type CrewBaselineAndLabProfile } from '../components/HealthTelemetryView';
+import { getAstronautOsdrProfile, type CrewBaselineAndLabProfile } from '../data/astronautProfiles';
 
 export interface BiomarkerEvaluation {
   id: string;
@@ -23,6 +23,7 @@ export interface CrewClinicalSummary {
   isAbnormal: boolean;
   severity: 'CRITICAL' | 'WARNING' | 'NOMINAL';
   primaryConcern: {
+    recommendation: string;
     title: string;
     description: string;
     category: 'RESPIRATORY' | 'CARDIAC' | 'ELECTROLYTE' | 'RADIATION' | 'SEPSIS' | 'METABOLIC' | 'WORKOUT' | 'NOMINAL';

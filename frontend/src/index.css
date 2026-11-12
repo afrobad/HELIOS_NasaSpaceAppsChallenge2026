@@ -2,6 +2,10 @@
 @import '@fontsource-variable/hubot-sans';
 @import url('https://fonts.googleapis.com/css2?family=Hubot+Sans:ital,wght@0,200..900;1,200..900&family=Orbitron:wght@700;800;900&family=Tomorrow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&display=swap');
 
+/* Helios Universal Button & Tab Design System */
+@import './components/common/UniversalButton.css';
+@import './components/common/UniversalTab.css';
+
 /* Alias 'Hubot Sans' to the bundled variable font */
 @font-face {
   font-family: 'Hubot Sans';
@@ -148,6 +152,47 @@
    AEROSPACE MISSION CONTROL HUD — MINIMAL HIGH-CONTRAST GRAY & ORANGE
    ========================================================================= */
 :root {
+  /* =========================================================================
+     AEROSPACE CONTAINER COLOR PALETTE — 10 SHADES: DARK OLIVE & SLATE GRAY
+     ========================================================================= */
+  /* Dark Olive Palette (10 Shades) */
+  --olive-50:  #f4f6f0; /* Crisp olive-tinted highlight */
+  --olive-100: #e4e9dc; /* Light sage */
+  --olive-200: #c6d2b8; /* Muted olive silver */
+  --olive-300: #a1b48e; /* Tactical soft olive */
+  --olive-400: #7a9463; /* Active badge / boundary accent */
+  --olive-500: #597343; /* Military aerospace olive */
+  --olive-600: #435832; /* Deep olive accent */
+  --olive-700: #304023; /* Active container surface highlight */
+  --olive-800: #212c18; /* Elevated container surface */
+  --olive-900: #151d0f; /* Base container background */
+  --olive-950: #0b1007; /* Deepest obsidian olive floor */
+
+  /* Aerospace Slate Gray Palette (10 Shades) */
+  --gray-50:  #f8fafc; /* Highest contrast white text */
+  --gray-100: #f1f5f9; /* Prominent telemetry values */
+  --gray-200: #e2e8f0; /* Crisp body text */
+  --gray-300: #cbd5e1; /* Secondary labels */
+  --gray-400: #94a3b8; /* Muted metadata & units */
+  --gray-500: #64748b; /* Subtle captions & dividers */
+  --gray-600: #475569; /* Structural boundaries */
+  --gray-700: #334155; /* Inner borders & card dividers */
+  --gray-800: #1e293b; /* Secondary surface */
+  --gray-900: #0f172a; /* Primary panel surface */
+  --gray-950: #060911; /* Deep obsidian background */
+
+  /* Semantic Container Tokens (Synthesized from Dark Olive & Slate Gray) */
+  --container-bg-stage: rgba(6, 10, 14, 0.96);
+  --container-bg-panel: linear-gradient(180deg, rgba(18, 26, 21, 0.95) 0%, rgba(12, 18, 15, 0.98) 100%);
+  --container-bg-card: linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%);
+  --container-bg-card-selected: linear-gradient(180deg, rgba(35, 50, 38, 0.96) 0%, rgba(24, 36, 27, 0.98) 100%);
+  --container-bg-card-hover: linear-gradient(180deg, rgba(32, 45, 34, 0.94) 0%, rgba(22, 32, 24, 0.97) 100%);
+  --container-bg-slab: linear-gradient(180deg, rgba(20, 29, 23, 0.90) 0%, rgba(14, 21, 16, 0.95) 100%);
+  --container-border-subtle: rgba(122, 148, 99, 0.16);
+  --container-border-active: rgba(161, 180, 142, 0.32);
+  --container-border-hover: rgba(122, 148, 99, 0.26);
+  --container-shadow: 0 8px 28px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
   /* Enterprise Mac-Style Surface & Geometry Tokens */
   --mac-radius-xl: 20px;
   --mac-radius-lg: 16px;
@@ -157,15 +202,15 @@
 
   /* Refined Obsidian Glass Surfaces with Specular Light Catch */
   --mac-surface-base: #060911;
-  --mac-glass-panel: rgba(11, 18, 30, 0.72);
-  --mac-glass-card: rgba(15, 23, 40, 0.65);
-  --mac-glass-card-hover: rgba(22, 33, 56, 0.8);
-  --mac-glass-border: rgba(255, 255, 255, 0.08);
-  --mac-glass-border-subtle: rgba(255, 255, 255, 0.05);
-  --mac-glass-border-focus: rgba(56, 189, 248, 0.45);
-  --mac-specular-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  --mac-ambient-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
-  --mac-card-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --mac-glass-panel: rgba(18, 26, 21, 0.88);
+  --mac-glass-card: rgba(24, 34, 27, 0.82);
+  --mac-glass-card-hover: rgba(32, 45, 35, 0.9);
+  --mac-glass-border: rgba(122, 148, 99, 0.18);
+  --mac-glass-border-subtle: rgba(122, 148, 99, 0.10);
+  --mac-glass-border-focus: rgba(161, 180, 142, 0.45);
+  --mac-specular-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --mac-ambient-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+  --mac-card-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 
   /* Harmonious Color Grading */
   --mac-accent-cyan: #38bdf8;
@@ -177,15 +222,15 @@
   --mac-accent-rose: #f43f5e;
   --mac-accent-rose-subtle: rgba(244, 63, 94, 0.12);
 
-  /* Legacy Minimal Fallbacks */
-  --hud-bg-space: #060911;
-  --hud-bg-panel: rgba(12, 19, 32, 0.75);
-  --hud-bg-card: rgba(16, 25, 42, 0.65);
-  --hud-bg-card-hover: rgba(24, 37, 62, 0.8);
-  --hud-bg-card-active: rgba(30, 47, 78, 0.9);
-  --hud-bg-input: #090e1a;
-  --hud-border: rgba(255, 255, 255, 0.09);
-  --hud-border-subtle: rgba(255, 255, 255, 0.05);
+  /* 60-30-10 Container Palette: Unified Dark Olive & Slate Surfaces */
+  --hud-bg-space: #060911; /* 60% Space Floor */
+  --hud-bg-panel: linear-gradient(180deg, rgba(18, 26, 21, 0.95) 0%, rgba(12, 18, 15, 0.98) 100%); /* 30% Secondary Surface */
+  --hud-bg-card: linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%);
+  --hud-bg-card-hover: linear-gradient(180deg, rgba(32, 45, 34, 0.94) 0%, rgba(22, 32, 24, 0.97) 100%);
+  --hud-bg-card-active: linear-gradient(180deg, rgba(35, 50, 38, 0.96) 0%, rgba(24, 36, 27, 0.98) 100%);
+  --hud-bg-input: #151d0f;
+  --hud-border: rgba(122, 148, 99, 0.18);
+  --hud-border-subtle: rgba(122, 148, 99, 0.10);
 
   /* Status Palette */
   --hud-orange: #f59e0b;
@@ -611,8 +656,9 @@ body, button, input, select, textarea, p, h1, h2, h3, h4, h5, h6, label, span {
   position: relative;
 }
 
-.hud-tooltip-trigger:hover {
-  z-index: 120;
+.hud-tooltip-trigger:hover,
+.hud-tooltip-trigger.is-hovered {
+  z-index: 1000;
 }
 
 .hud-tooltip {
@@ -620,46 +666,85 @@ body, button, input, select, textarea, p, h1, h2, h3, h4, h5, h6, label, span {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  z-index: 120;
-  background: rgba(12, 12, 12, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 4px;
-  padding: 3px 8px;
-  font-size: 9px;
-  font-weight: 500;
-  color: #f1f5f9;
-  font-family: var(--hud-font-sans, 'Tomorrow', sans-serif);
+  z-index: 1000;
+  background: rgba(10, 16, 26, 0.98);
+  border: 1px solid rgba(56, 189, 248, 0.40);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #f8fafc;
+  font-family: var(--hud-font-sans, system-ui, sans-serif);
   white-space: nowrap;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.88);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: opacity 0.14s ease, transform 0.14s ease, visibility 0s 0.14s;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85), 0 0 10px rgba(56, 189, 248, 0.18);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s 0.12s;
   transform: translateY(2px);
 }
 
-.hud-tooltip-trigger:hover .hud-tooltip {
+.hud-tooltip-trigger:hover .hud-tooltip,
+.hud-tooltip-trigger.is-hovered .hud-tooltip,
+.hud-tooltip-trigger:focus-within .hud-tooltip {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
-  transition: opacity 0.18s ease 0.25s, transform 0.18s ease 0.25s, visibility 0s 0.25s;
+  transition: opacity 0.15s ease 0.05s, transform 0.15s ease 0.05s, visibility 0s 0.05s;
 }
 
-/* Modifiers for positioning */
+/* Modifiers for positioning with little pointer triangles */
 .hud-tooltip-down {
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
 }
 
+.hud-tooltip-down::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 12px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid rgba(56, 189, 248, 0.6);
+}
+
 .hud-tooltip-down-right {
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   right: 0;
   left: auto;
 }
 
+.hud-tooltip-down-right::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: 12px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid rgba(56, 189, 248, 0.6);
+}
+
 .hud-tooltip-up {
-  bottom: calc(100% + 4px);
+  bottom: calc(100% + 6px);
   left: 0;
   transform: translateY(-2px);
+}
+
+.hud-tooltip-up::before {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 12px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid rgba(56, 189, 248, 0.6);
 }
 
 .hud-tooltip-trigger:hover .hud-tooltip-up {
@@ -667,10 +752,22 @@ body, button, input, select, textarea, p, h1, h2, h3, h4, h5, h6, label, span {
 }
 
 .hud-tooltip-up-right {
-  bottom: calc(100% + 4px);
+  bottom: calc(100% + 6px);
   right: 0;
   left: auto;
   transform: translateY(-2px);
+}
+
+.hud-tooltip-up-right::before {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  right: 12px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid rgba(56, 189, 248, 0.6);
 }
 
 .hud-tooltip-trigger:hover .hud-tooltip-up-right {
@@ -678,9 +775,22 @@ body, button, input, select, textarea, p, h1, h2, h3, h4, h5, h6, label, span {
 }
 
 .hud-tooltip-center {
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 50%;
   transform: translate(-50%, 2px);
+}
+
+.hud-tooltip-center::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid rgba(56, 189, 248, 0.6);
 }
 
 .hud-tooltip-trigger:hover .hud-tooltip-center {
@@ -688,9 +798,22 @@ body, button, input, select, textarea, p, h1, h2, h3, h4, h5, h6, label, span {
 }
 
 .hud-tooltip-up-center {
-  bottom: calc(100% + 4px);
+  bottom: calc(100% + 6px);
   left: 50%;
   transform: translate(-50%, -2px);
+}
+
+.hud-tooltip-up-center::before {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid rgba(56, 189, 248, 0.6);
 }
 
 .hud-tooltip-trigger:hover .hud-tooltip-up-center {
@@ -917,6 +1040,74 @@ body.embed-mode .helios-right-flank {
 
 body.embed-mode::-webkit-scrollbar {
   display: none !important;
+}
+
+/* =========================================================================
+   HELIOS MODERN MINIMAL AEROSPACE RANGE SLIDER (NASA-STD-3001)
+   ========================================================================= */
+.helios-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.helios-slider:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* WebKit Slider Thumb */
+.helios-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #0284c7;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5), 0 0 6px rgba(2, 132, 199, 0.45);
+  cursor: grab;
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.12s ease;
+}
+
+.helios-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 10px rgba(14, 165, 233, 0.7);
+  border-color: #0ea5e9;
+}
+
+.helios-slider:active::-webkit-slider-thumb {
+  cursor: grabbing;
+  transform: scale(0.95);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 12px rgba(56, 189, 248, 0.9);
+}
+
+/* Firefox Slider Thumb & Track */
+.helios-slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #0284c7;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5), 0 0 6px rgba(2, 132, 199, 0.45);
+  cursor: grab;
+  transition: transform 0.12s ease;
+}
+
+.helios-slider::-moz-range-track {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
 }
 
 

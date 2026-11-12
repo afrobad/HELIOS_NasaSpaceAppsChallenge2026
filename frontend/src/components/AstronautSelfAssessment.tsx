@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Plus } from 'lucide-react';
 import type { TelemetryPacket } from '../types/telemetry';
 import { downloadDailyCheckInPdf } from '../services/pdfReportService';
+import { UniversalButton } from './common/UniversalButton';
+import { UniversalTab } from './common/UniversalTab';
+import { HeliosSlider } from './common/HeliosSlider';
 
 export interface SelfAssessmentEntry {
   id?: number;
@@ -38,27 +42,31 @@ const DISCOMFORT_ZONES = [
 ];
 
 const T = {
-  bg: '#06080a',
-  surface: '#0b0e12',
-  surfaceAlt: '#0e1318',
-  border: '#1a232e',
-  borderSubtle: '#141c24',
+  bg: '#060911',
+  surface: 'linear-gradient(180deg, rgba(18, 26, 21, 0.95) 0%, rgba(12, 18, 15, 0.98) 100%)',
+  surfaceAlt: 'linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%)',
+  surfaceRecessed: 'rgba(11, 16, 13, 0.85)',
+  btnGradient: 'linear-gradient(180deg, #2a3828 0%, #1a251b 100%)',
+  btnSecondary: 'linear-gradient(180deg, rgba(26, 36, 28, 0.85) 0%, rgba(18, 26, 20, 0.90) 100%)',
+  btnBorder: 'rgba(161, 180, 142, 0.40)',
+  border: 'rgba(122, 148, 99, 0.18)',
+  borderSubtle: 'rgba(122, 148, 99, 0.12)',
   textPrimary: '#ffffff',
-  textSecondary: '#94a3b8',
-  textMuted: '#64748b',
-  nominal: '#10b981',
-  nominalBorder: 'rgba(16, 185, 129, 0.4)',
-  nominalBg: 'rgba(16, 185, 129, 0.08)',
+  textSecondary: '#cbd5e1',
+  textMuted: '#94a3b8',
+  nominal: '#34d399',
+  nominalBorder: 'rgba(52, 211, 153, 0.35)',
+  nominalBg: 'rgba(16, 44, 26, 0.82)',
   warning: '#f59e0b',
-  warningBorder: 'rgba(245, 158, 11, 0.4)',
-  warningBg: 'rgba(245, 158, 11, 0.08)',
+  warningBorder: 'rgba(245, 158, 11, 0.35)',
+  warningBg: 'rgba(58, 38, 14, 0.88)',
   critical: '#ef4444',
-  criticalBorder: 'rgba(239, 68, 68, 0.4)',
-  criticalBg: 'rgba(239, 68, 68, 0.08)',
-  cyan: '#38bdf8',
-  cyanBorder: 'rgba(56, 189, 248, 0.4)',
-  mono: "'JetBrains Mono', 'Fira Code', monospace",
-  sans: "'Inter', -apple-system, sans-serif",
+  criticalBorder: 'rgba(239, 68, 68, 0.35)',
+  criticalBg: 'rgba(64, 18, 26, 0.88)',
+  cyan: '#a1b48e',
+  cyanBorder: 'rgba(161, 180, 142, 0.35)',
+  mono: "'Hubot Sans', monospace",
+  sans: "'Hubot Sans', -apple-system, BlinkMacSystemFont, sans-serif",
 };
 
 interface Props {
@@ -72,7 +80,6 @@ export const AstronautSelfAssessment: React.FC<Props> = ({
   initialAstronautId = 'AST-01_COMMANDER',
   telemetryMap = {},
   currentScenario = 'NOMINAL',
-  onClose,
 }) => {
   const [selectedCrewId, setSelectedCrewId] = useState(initialAstronautId);
   const [activeStep, setActiveStep] = useState<'SLEEP' | 'FATIGUE_MOOD' | 'DISCOMFORT' | 'MANUAL_VITALS' | 'HISTORY'>('SLEEP');
@@ -479,13 +486,13 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
         reported_temp: entry.reported_temp,
         notes: entry.notes,
         provenance: 'USER_REPORTED_MANUAL',
-        telemetry_snapshot: telemetry ? {
-          ecg_rhythm: (telemetry as any).ecg_lead_ii_rhythm || (telemetry as any).ecg_classification || 'Normal Sinus Rhythm',
-          qtc_ms: (telemetry as any).qtc_interval_ms || (telemetry as any).qtc_interval || 410,
-          cabin_co2: (telemetry as any).cabin_co2_pct || 0.35,
-          cabin_press: (telemetry as any).cabin_pressure_kpa || 101.3,
-          potassium: (telemetry as any).blood_potassium || (telemetry as any).potassium || 4.2,
-          hematocrit: (telemetry as any).hematocrit_pct || 43.5,
+        telemetry_snapshot: telemetryMap ? {
+          ecg_rhythm: (telemetryMap as any).ecg_lead_ii_rhythm || (telemetryMap as any).ecg_classification || 'Normal Sinus Rhythm',
+          qtc_ms: (telemetryMap as any).qtc_interval_ms || (telemetryMap as any).qtc_interval || 410,
+          cabin_co2: (telemetryMap as any).cabin_co2_pct || 0.35,
+          cabin_press: (telemetryMap as any).cabin_pressure_kpa || 101.3,
+          potassium: (telemetryMap as any).blood_potassium || (telemetryMap as any).potassium || 4.2,
+          hematocrit: (telemetryMap as any).hematocrit_pct || 43.5,
         } : undefined,
       });
 
@@ -517,7 +524,7 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
         fontFamily: T.sans,
       }}
     >
-      {/* Top Header */}
+      {/* Top Header — Crisp Purpose & NASA Standard Badge */}
       <div
         style={{
           display: 'flex',
@@ -527,7 +534,8 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
           border: `1px solid ${T.border}`,
           borderRadius: 8,
           padding: '12px 18px',
-          marginBottom: 16,
+          marginBottom: 14,
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
         }}
       >
         <div>
@@ -535,33 +543,33 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
             <span
               style={{
                 display: 'inline-block',
-                width: 8,
-                height: 8,
+                width: 6,
+                height: 6,
                 borderRadius: '50%',
-                backgroundColor: T.cyan,
-                boxShadow: `0 0 8px ${T.cyan}`,
+                backgroundColor: '#10b981',
               }}
             />
-            <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.05em' }}>
-              ASTRONAUT DAILY SELF-ASSESSMENT & SUBJECTIVE HEALTH LOG
+            <span style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: '0.02em', color: '#ffffff' }}>
+              Clinical Readiness Self-Check
             </span>
             <span
               style={{
-                fontSize: 9,
-                fontWeight: 700,
-                color: T.cyan,
-                background: 'rgba(56, 189, 248, 0.1)',
-                border: `1px solid ${T.cyanBorder}`,
-                borderRadius: 4,
-                padding: '2px 8px',
+                fontSize: 9.5,
+                fontWeight: 600,
+                color: '#94a3b8',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: 9999,
+                padding: '1.5px 7px',
                 fontFamily: T.mono,
+                letterSpacing: '0.04em',
               }}
             >
-              CREW CHECK-IN
+              NASA-STD-3001
             </span>
           </div>
-          <div style={{ fontSize: 10, color: T.textMuted, marginTop: 4 }}>
-            Daily subjective symptom assessment, sleep tracking, and clinical self-evaluation.
+          <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 2, letterSpacing: '0.01em' }}>
+            Daily fatigue, sleep quality, and operational vigilance check-in
           </div>
         </div>
 
@@ -571,31 +579,24 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
             const isSel = crew.id === selectedCrewId;
             const crewTelem = telemetryMap[crew.id];
             return (
-              <button
+              <UniversalTab
                 key={crew.id}
+                active={isSel}
+                accent="cyan"
+                size="sm"
+                pill
                 onClick={() => setSelectedCrewId(crew.id)}
-                style={{
-                  background: isSel ? 'rgba(56, 189, 248, 0.25)' : '#090c0f',
-                  border: isSel ? `1px solid ${T.cyan}` : `1px solid ${T.borderSubtle}`,
-                  borderRadius: 4,
-                  padding: '5px 10px',
-                  fontSize: 10,
-                  fontWeight: isSel ? 700 : 500,
-                  color: isSel ? '#ffffff' : T.textSecondary,
-                  cursor: 'pointer',
-                  fontFamily: T.mono,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
               >
                 <span>{crew.name}</span>
                 {crewTelem && (
-                  <span style={{ fontSize: 9, color: isSel ? '#38bdf8' : T.textMuted }}>
-                    {Math.round(crewTelem.heart_rate)} bpm
+                  <span style={{ fontSize: 9, fontFamily: T.mono }}>
+                    <strong style={{ color: isSel ? '#38bdf8' : '#cbd5e1', fontWeight: 700 }}>
+                      {Math.round(crewTelem.heart_rate)}
+                    </strong>
+                    <span style={{ color: '#64748b', fontSize: 8.5, marginLeft: 2 }}>bpm</span>
                   </span>
                 )}
-              </button>
+              </UniversalTab>
             );
           })}
         </div>
@@ -607,10 +608,10 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
         return (
           <div
             style={{
-              background: 'rgba(10, 16, 26, 0.85)',
-              border: '1px solid rgba(56, 189, 248, 0.25)',
+              background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(8, 14, 26, 0.95) 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
               borderRadius: 6,
-              padding: '8px 14px',
+              padding: '7px 14px',
               marginBottom: 14,
               display: 'flex',
               alignItems: 'center',
@@ -618,43 +619,81 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
               fontSize: 11,
               fontFamily: T.mono,
               flexWrap: 'wrap',
-              gap: 8,
+              gap: 12,
+              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <span style={{ color: T.cyan, fontWeight: 700 }}>
-                ● LIVE BIOMETRIC FEED ({activeCrewMeta.name}):
-              </span>
-              <span>
-                HR: <strong style={{ color: '#ffffff' }}>{live && live.heart_rate ? `${Math.round(live.heart_rate)} bpm` : '60 bpm'}</strong>
-              </span>
-              <span>
-                BP: <strong style={{ color: '#ffffff' }}>{live && (live as any).blood_pressure_sys ? `${Math.round((live as any).blood_pressure_sys)}/${Math.round((live as any).blood_pressure_dia || 76)}` : '116/76'}</strong>
-              </span>
-              <span>
-                SpO₂: <strong style={{ color: '#34d399' }}>{live && live.spo2 !== undefined && live.spo2 !== null ? `${Number(live.spo2).toFixed(1)}%` : '98.3%'}</strong>
-              </span>
-              <span>
-                Temp: <strong style={{ color: '#ffffff' }}>{live ? `${Number((live as any).core_temp ?? (live as any).core_temp_c ?? 36.7).toFixed(1)}°C` : '36.7°C'}</strong>
-              </span>
-              <span>
-                HRV (RMSSD): <strong style={{ color: T.cyan }}>{live && live.hrv_rmssd !== undefined && live.hrv_rmssd !== null ? `${Math.round(live.hrv_rmssd)} ms` : '64 ms'}</strong>
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10b981' }} />
+                <span style={{ color: '#cbd5e1', fontWeight: 600, fontSize: 11 }}>
+                  Live Telemetry <span style={{ color: '#64748b' }}>({activeCrewMeta.name})</span>
+                </span>
+              </div>
+
+              {/* HR */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ color: '#64748b', fontSize: 10, letterSpacing: '0.04em' }}>hr</span>
+                <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 12, fontFamily: T.mono }}>
+                  {live && live.heart_rate ? Math.round(live.heart_rate) : 60}
+                </span>
+                <span style={{ color: '#64748b', fontSize: 9 }}>bpm</span>
+              </div>
+
+              {/* BP */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ color: '#64748b', fontSize: 10, letterSpacing: '0.04em' }}>bp</span>
+                <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 12, fontFamily: T.mono }}>
+                  {live && (live as any).blood_pressure_sys
+                    ? `${Math.round((live as any).blood_pressure_sys)}/${Math.round((live as any).blood_pressure_dia || 76)}`
+                    : '116/76'}
+                </span>
+                <span style={{ color: '#64748b', fontSize: 9 }}>mmHg</span>
+              </div>
+
+              {/* SpO2 */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ color: '#64748b', fontSize: 10, letterSpacing: '0.04em' }}>spo₂</span>
+                <span style={{ color: '#34d399', fontWeight: 800, fontSize: 12, fontFamily: T.mono }}>
+                  {live && live.spo2 !== undefined && live.spo2 !== null ? Number(live.spo2).toFixed(1) : '98.3'}
+                </span>
+                <span style={{ color: '#64748b', fontSize: 9 }}>%</span>
+              </div>
+
+              {/* Temp */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ color: '#64748b', fontSize: 10, letterSpacing: '0.04em' }}>temp</span>
+                <span style={{ color: '#f8fafc', fontWeight: 800, fontSize: 12, fontFamily: T.mono }}>
+                  {live ? Number((live as any).core_temp ?? (live as any).core_temp_c ?? 36.7).toFixed(1) : '36.7'}
+                </span>
+                <span style={{ color: '#64748b', fontSize: 9 }}>°C</span>
+              </div>
+
+              {/* HRV */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ color: '#64748b', fontSize: 10, letterSpacing: '0.04em' }}>hrv</span>
+                <span style={{ color: '#38bdf8', fontWeight: 800, fontSize: 12, fontFamily: T.mono }}>
+                  {live && live.hrv_rmssd !== undefined && live.hrv_rmssd !== null ? Math.round(live.hrv_rmssd) : 64}
+                </span>
+                <span style={{ color: '#64748b', fontSize: 9 }}>ms</span>
+              </div>
             </div>
 
             {currentScenario && currentScenario !== 'NOMINAL' && currentScenario !== 'NOMINAL_CRUISE' && (
               <span
                 style={{
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  background: 'rgba(239, 68, 68, 0.10)',
+                  border: '1px solid rgba(239, 68, 68, 0.28)',
                   color: '#fca5a5',
-                  padding: '2px 8px',
-                  borderRadius: 4,
+                  padding: '2px 9px',
+                  borderRadius: 9999,
                   fontSize: 10,
-                  fontWeight: 700,
+                  fontWeight: 600,
+                  fontFamily: T.mono,
+                  letterSpacing: '0.02em',
                 }}
               >
-                ACTIVE FLIGHT SCENARIO: {currentScenario}
+                Scenario · {currentScenario.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}
               </span>
             )}
           </div>
@@ -665,32 +704,23 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         {[
           { id: 'SLEEP', label: '1. Sleep & Recovery' },
-          { id: 'FATIGUE_MOOD', label: '2. Fatigue, Mood & NASA-TLX' },
+          { id: 'FATIGUE_MOOD', label: '2. Fatigue & NASA-TLX' },
           { id: 'DISCOMFORT', label: '3. Pain & Discomfort Map' },
-          { id: 'MANUAL_VITALS', label: '4. Manual Biometrics (Optional)' },
-          { id: 'HISTORY', label: `5. Longitudinal History (${historyRecords.length})` },
+          { id: 'MANUAL_VITALS', label: '4. Biometric Snapshot' },
+          { id: 'HISTORY', label: `5. Clinical History (${historyRecords.length})` },
         ].map((tab) => {
           const isAct = activeStep === tab.id;
           return (
-            <button
+            <UniversalTab
               key={tab.id}
+              active={isAct}
+              accent="cyan"
+              size="md"
+              style={{ flex: 1 }}
               onClick={() => setActiveStep(tab.id as any)}
-              style={{
-                flex: 1,
-                background: isAct ? 'rgba(56, 189, 248, 0.18)' : T.surface,
-                border: isAct ? `1px solid ${T.cyan}` : `1px solid ${T.border}`,
-                borderRadius: 6,
-                padding: '8px 12px',
-                fontSize: 11,
-                fontWeight: isAct ? 700 : 500,
-                color: isAct ? '#ffffff' : T.textSecondary,
-                cursor: 'pointer',
-                textAlign: 'center',
-                transition: 'all 0.12s ease',
-              }}
             >
               {tab.label}
-            </button>
+            </UniversalTab>
           );
         })}
       </div>
@@ -703,64 +733,51 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
             Sleep Duration & Subjective Rest Quality · {activeCrewMeta.name}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            <div>
-              <label style={{ fontSize: 11, color: T.textSecondary, display: 'block', marginBottom: 6 }}>
-                Sleep Duration (Hours): <strong style={{ color: T.cyan, fontFamily: T.mono }}>{sleepHours} hrs</strong>
-              </label>
-              <input
-                type="range"
-                min="3.0"
-                max="10.0"
-                step="0.1"
-                value={sleepHours}
-                onChange={(e) => setSleepHours(Number(e.target.value))}
-                style={{ width: '100%', accentColor: T.cyan }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: T.textMuted, marginTop: 4 }}>
-                <span>3.0h (Severe Deficit)</span>
-                <span>6.5h (Flight Rule Min)</span>
-                <span>8.5h (Optimal)</span>
-                <span>10.0h</span>
-              </div>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+            <HeliosSlider
+              label="Sleep Duration"
+              value={sleepHours}
+              min={3.0}
+              max={10.0}
+              step={0.1}
+              unit="hrs"
+              formatValue={(val) => val.toFixed(1)}
+              onChange={setSleepHours}
+              ticks={[
+                { label: '3h Deficit', value: 3.0 },
+                { label: '6.5h Min', value: 6.5 },
+                { label: '8.5h Target', value: 8.5 },
+                { label: '10h Max', value: 10.0 },
+              ]}
+              color="cyan"
+            />
 
-            <div>
-              <label style={{ fontSize: 11, color: T.textSecondary, display: 'block', marginBottom: 6 }}>
-                Subjective Sleep Restfulness: <strong style={{ color: T.cyan, fontFamily: T.mono }}>{sleepQuality} / 10</strong>
-              </label>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={sleepQuality}
-                onChange={(e) => setSleepQuality(Number(e.target.value))}
-                style={{ width: '100%', accentColor: T.cyan }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: T.textMuted, marginTop: 4 }}>
-                <span>1 (Fitful / Disturbed)</span>
-                <span>5 (Adequate)</span>
-                <span>10 (Fully Restored)</span>
-              </div>
-            </div>
+            <HeliosSlider
+              label="Restfulness Score"
+              value={sleepQuality}
+              min={1}
+              max={10}
+              step={1}
+              unit="/ 10"
+              onChange={setSleepQuality}
+              ticks={[
+                { label: '1 Poor', value: 1 },
+                { label: '5 Moderate', value: 5 },
+                { label: '10 Restored', value: 10 },
+              ]}
+              color="cyan"
+            />
           </div>
 
           <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
-            <button
+            <UniversalButton
+              variant="cyan"
+              size="md"
+              pill
               onClick={() => setActiveStep('FATIGUE_MOOD')}
-              style={{
-                background: 'rgba(56, 189, 248, 0.25)',
-                border: `1px solid ${T.cyan}`,
-                borderRadius: 4,
-                padding: '8px 20px',
-                color: '#ffffff',
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
             >
               Next: Fatigue & Workload →
-            </button>
+            </UniversalButton>
           </div>
         </div>
       )}
@@ -771,66 +788,73 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
             Cognitive Workload & Psychological Stress Index
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-            <div>
-              <label style={{ fontSize: 11, color: T.textSecondary, display: 'block', marginBottom: 6 }}>
-                Perceived Fatigue (VAS): <strong style={{ color: fatigueScore > 6 ? T.warning : T.nominal }}>{fatigueScore} / 10</strong>
-              </label>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={fatigueScore}
-                onChange={(e) => setFatigueScore(Number(e.target.value))}
-                style={{ width: '100%', accentColor: fatigueScore > 6 ? T.warning : T.nominal }}
-              />
-              <div style={{ fontSize: 9, color: T.textMuted, marginTop: 4 }}>1 = Energetic, 10 = Exhausted</div>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+            <HeliosSlider
+              label="Fatigue (VAS)"
+              value={fatigueScore}
+              min={1}
+              max={10}
+              step={1}
+              unit="/ 10"
+              onChange={setFatigueScore}
+              ticks={[
+                { label: '1 Energetic', value: 1 },
+                { label: '5 Moderate', value: 5 },
+                { label: '10 Exhausted', value: 10 },
+              ]}
+              color={fatigueScore > 6 ? 'red' : 'cyan'}
+            />
 
-            <div>
-              <label style={{ fontSize: 11, color: T.textSecondary, display: 'block', marginBottom: 6 }}>
-                Emotional Mood Balance: <strong style={{ color: T.nominal }}>{moodScore} / 10</strong>
-              </label>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={moodScore}
-                onChange={(e) => setMoodScore(Number(e.target.value))}
-                style={{ width: '100%', accentColor: T.nominal }}
-              />
-              <div style={{ fontSize: 9, color: T.textMuted, marginTop: 4 }}>1 = Anxious / Strained, 10 = Resilient</div>
-            </div>
+            <HeliosSlider
+              label="Mood Resilience"
+              value={moodScore}
+              min={1}
+              max={10}
+              step={1}
+              unit="/ 10"
+              onChange={setMoodScore}
+              ticks={[
+                { label: '1 Strained', value: 1 },
+                { label: '5 Stable', value: 5 },
+                { label: '10 Resilient', value: 10 },
+              ]}
+              color="emerald"
+            />
 
-            <div>
-              <label style={{ fontSize: 11, color: T.textSecondary, display: 'block', marginBottom: 6 }}>
-                NASA-TLX Perceived Workload: <strong style={{ color: cognitiveWorkload > 7 ? T.warning : T.cyan }}>{cognitiveWorkload} / 10</strong>
-              </label>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={cognitiveWorkload}
-                onChange={(e) => setCognitiveWorkload(Number(e.target.value))}
-                style={{ width: '100%', accentColor: T.cyan }}
-              />
-              <div style={{ fontSize: 9, color: T.textMuted, marginTop: 4 }}>Mental demand and operational pacing</div>
-            </div>
+            <HeliosSlider
+              label="NASA-TLX Workload"
+              value={cognitiveWorkload}
+              min={1}
+              max={10}
+              step={1}
+              unit="/ 10"
+              onChange={setCognitiveWorkload}
+              ticks={[
+                { label: '1 Low Demand', value: 1 },
+                { label: '5 Nominal', value: 5 },
+                { label: '10 Saturated', value: 10 },
+              ]}
+              color={cognitiveWorkload > 7 ? 'amber' : 'cyan'}
+            />
           </div>
 
-          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between' }}>
-            <button
+          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <UniversalButton
+              variant="neutral"
+              size="sm"
+              pill
               onClick={() => setActiveStep('SLEEP')}
-              style={{ background: '#090c0f', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 16px', color: T.textSecondary, cursor: 'pointer', fontSize: 11 }}
             >
               ← Back: Sleep
-            </button>
-            <button
+            </UniversalButton>
+            <UniversalButton
+              variant="cyan"
+              size="md"
+              pill
               onClick={() => setActiveStep('DISCOMFORT')}
-              style={{ background: 'rgba(56, 189, 248, 0.25)', border: `1px solid ${T.cyan}`, borderRadius: 4, padding: '8px 20px', color: '#ffffff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
             >
               Next: Pain & Discomfort Map →
-            </button>
+            </UniversalButton>
           </div>
         </div>
       )}
@@ -875,19 +899,23 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
             })}
           </div>
 
-          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between' }}>
-            <button
+          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <UniversalButton
+              variant="neutral"
+              size="sm"
+              pill
               onClick={() => setActiveStep('FATIGUE_MOOD')}
-              style={{ background: '#090c0f', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 16px', color: T.textSecondary, cursor: 'pointer', fontSize: 11 }}
             >
               ← Back: Fatigue & Mood
-            </button>
-            <button
+            </UniversalButton>
+            <UniversalButton
+              variant="cyan"
+              size="md"
+              pill
               onClick={() => setActiveStep('MANUAL_VITALS')}
-              style={{ background: 'rgba(56, 189, 248, 0.25)', border: `1px solid ${T.cyan}`, borderRadius: 4, padding: '8px 20px', color: '#ffffff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
             >
-              Next: Manual Biometrics →
-            </button>
+              Next: Biometric Snapshot →
+            </UniversalButton>
           </div>
         </div>
       )}
@@ -896,10 +924,10 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
       {activeStep === 'MANUAL_VITALS' && (
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
-            Optional Manually-Entered Biometrics (Point-of-Care Check)
+            Point-of-Care Biometric Snapshot (Spot-Check Measurements)
           </div>
           <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 14 }}>
-            Enter spot-check measurements from cuff, thermometer, or finger stick. Leave blank to skip.
+            Enter spot-check measurements from cuff, thermometer, or finger stick. Leave blank to retain live telemetry baselines.
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 16 }}>
@@ -910,7 +938,7 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
                 placeholder="e.g. 62"
                 value={reportedHr}
                 onChange={(e) => setReportedHr(e.target.value)}
-                style={{ width: '100%', background: '#090c0f', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '6px 8px', color: T.textPrimary, fontFamily: T.mono, fontSize: 11 }}
+                style={{ width: '100%', background: T.surfaceRecessed, border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '6px 8px', color: T.textPrimary, fontFamily: T.mono, fontSize: 11 }}
               />
             </div>
             <div>
@@ -920,7 +948,7 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
                 placeholder="e.g. 116"
                 value={reportedBpSys}
                 onChange={(e) => setReportedBpSys(e.target.value)}
-                style={{ width: '100%', background: '#090c0f', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '6px 8px', color: T.textPrimary, fontFamily: T.mono, fontSize: 11 }}
+                style={{ width: '100%', background: T.surfaceRecessed, border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '6px 8px', color: T.textPrimary, fontFamily: T.mono, fontSize: 11 }}
               />
             </div>
             <div>
@@ -930,7 +958,7 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
                 placeholder="e.g. 76"
                 value={reportedBpDia}
                 onChange={(e) => setReportedBpDia(e.target.value)}
-                style={{ width: '100%', background: '#090c0f', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '6px 8px', color: T.textPrimary, fontFamily: T.mono, fontSize: 11 }}
+                style={{ width: '100%', background: T.surfaceRecessed, border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '6px 8px', color: T.textPrimary, fontFamily: T.mono, fontSize: 11 }}
               />
             </div>
             <div>
@@ -940,7 +968,7 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
                 placeholder="e.g. 98.4"
                 value={reportedSpo2}
                 onChange={(e) => setReportedSpo2(e.target.value)}
-                style={{ width: '100%', background: '#090c0f', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '6px 8px', color: T.textPrimary, fontFamily: T.mono, fontSize: 11 }}
+                style={{ width: '100%', background: T.surfaceRecessed, border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '6px 8px', color: T.textPrimary, fontFamily: T.mono, fontSize: 11 }}
               />
             </div>
             <div>
@@ -950,7 +978,7 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
                 placeholder="e.g. 36.7"
                 value={reportedTemp}
                 onChange={(e) => setReportedTemp(e.target.value)}
-                style={{ width: '100%', background: '#090c0f', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '6px 8px', color: T.textPrimary, fontFamily: T.mono, fontSize: 11 }}
+                style={{ width: '100%', background: T.surfaceRecessed, border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '6px 8px', color: T.textPrimary, fontFamily: T.mono, fontSize: 11 }}
               />
             </div>
           </div>
@@ -962,35 +990,29 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
               placeholder="Add any specific observations or comments on mission environment..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              style={{ width: '100%', background: '#090c0f', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px', color: T.textPrimary, fontSize: 11, outline: 'none' }}
+              style={{ width: '100%', background: T.surfaceRecessed, border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 10px', color: T.textPrimary, fontSize: 11, outline: 'none' }}
             />
           </div>
 
           <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button
+            <UniversalButton
+              variant="neutral"
+              size="sm"
+              pill
               onClick={() => setActiveStep('DISCOMFORT')}
-              style={{ background: '#090c0f', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '8px 16px', color: T.textSecondary, cursor: 'pointer', fontSize: 11 }}
             >
               ← Back: Pain Map
-            </button>
+            </UniversalButton>
 
-            <button
-              onClick={handleSubmit}
+            <UniversalButton
+              variant={submitSuccess ? 'emerald' : 'cyan'}
+              size="md"
+              pill
               disabled={isSubmitting}
-              style={{
-                background: submitSuccess ? T.nominal : 'rgba(56, 189, 248, 0.35)',
-                border: `1px solid ${submitSuccess ? T.nominalBorder : T.cyan}`,
-                borderRadius: 4,
-                padding: '10px 28px',
-                color: '#ffffff',
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: '0.05em',
-                cursor: 'pointer',
-              }}
+              onClick={handleSubmit}
             >
-              {isSubmitting ? 'SAVING TO SQLITE...' : submitSuccess ? '✓ CHECK-IN RECORDED' : 'SUBMIT DAILY CHECK-IN'}
-            </button>
+              {isSubmitting ? 'SAVING TO SQLITE...' : submitSuccess ? '✓ CHECK-IN RECORDED' : 'SUBMIT DAILY CLINICAL CHECK-IN'}
+            </UniversalButton>
           </div>
         </div>
       )}
@@ -1024,69 +1046,67 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em' }}>
-                Longitudinal Self-Assessment Records · {activeCrewMeta.name}
+              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.04em', color: '#ffffff' }}>
+                Longitudinal Clinical Records · {activeCrewMeta.name}
               </div>
-              <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>
-                Clinical record logs and historical assessment sessions
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                {historyRecords.length} historical sessions recorded · Continuous telemetry logs
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 10, color: T.cyan, fontFamily: T.mono, background: 'rgba(56, 189, 248, 0.1)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(56, 189, 248, 0.25)' }}>
-                {historyRecords.length} SESSIONS RECORDED
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button
-                onClick={handleClearHistory}
-                title="Erase check-in records for this crew member from SQLite and browser"
-                style={{
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                  borderRadius: 4,
-                  padding: '4px 8px',
-                  color: '#f87171',
-                  fontSize: 10,
-                  fontFamily: T.mono,
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
-              >
-                CLEAR LOGS
-              </button>
-              <button
+                type="button"
                 onClick={handleResetBaselines}
                 title="Restore default nominal NASA mission baseline records"
                 style={{
-                  background: 'rgba(148, 163, 184, 0.12)',
-                  border: '1px solid rgba(148, 163, 184, 0.3)',
-                  borderRadius: 4,
-                  padding: '4px 8px',
-                  color: '#cbd5e1',
-                  fontSize: 10,
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '4px 6px',
+                  color: '#64748b',
+                  fontSize: 11,
                   fontFamily: T.mono,
                   cursor: 'pointer',
                   fontWeight: 600,
+                  transition: 'color 0.15s ease',
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#cbd5e1')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
               >
-                RESET BASELINE
+                Reset Baselines
               </button>
+              <span style={{ color: 'rgba(255, 255, 255, 0.15)', fontSize: 11 }}>|</span>
               <button
-                onClick={() => setActiveStep('SLEEP')}
+                type="button"
+                onClick={handleClearHistory}
+                title="Erase check-in records for this crew member from SQLite and browser"
                 style={{
-                  background: 'rgba(56, 189, 248, 0.18)',
-                  border: `1px solid ${T.cyan}`,
-                  borderRadius: 4,
-                  padding: '4px 10px',
-                  color: '#ffffff',
-                  fontSize: 10,
+                  background: 'transparent',
+                  border: 'none',
+                  padding: '4px 6px',
+                  color: '#64748b',
+                  fontSize: 11,
                   fontFamily: T.mono,
                   cursor: 'pointer',
                   fontWeight: 600,
+                  transition: 'color 0.15s ease',
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#f87171')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
               >
-                + NEW CHECK-IN
+                Clear Logs
               </button>
+              <UniversalButton
+                variant="cyan"
+                size="sm"
+                pill
+                icon={<Plus size={12} strokeWidth={2.5} />}
+                iconPosition="left"
+                onClick={() => setActiveStep('SLEEP')}
+              >
+                NEW CHECK-IN
+              </UniversalButton>
             </div>
           </div>
 
@@ -1136,22 +1156,14 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
                 All records have been cleared. You can start a new check-in or load the calibrated NASA nominal baseline timeline.
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                <button
+                <UniversalButton
+                  variant="cyan"
+                  size="sm"
+                  pill
                   onClick={() => setActiveStep('SLEEP')}
-                  style={{
-                    background: 'rgba(56, 189, 248, 0.2)',
-                    border: `1px solid ${T.cyan}`,
-                    borderRadius: 4,
-                    padding: '6px 14px',
-                    color: '#ffffff',
-                    fontSize: 10,
-                    fontFamily: T.mono,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
                 >
                   START NEW CHECK-IN
-                </button>
+                </UniversalButton>
                 <button
                   onClick={handleResetBaselines}
                   style={{
@@ -1244,7 +1256,10 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
                       )}
                     </div>
 
-                    <button
+                    <UniversalButton
+                      variant="cyan"
+                      size="xs"
+                      pill
                       onClick={(e) => {
                         e.stopPropagation();
                         downloadDailyCheckInPdf({
@@ -1272,25 +1287,10 @@ const getBaselineHistoricalSessions = (astId: string): SelfAssessmentEntry[] => 
                         });
                         setPdfDownloadedNotice(`✓ Downloaded PDF Report for ${rec.timestamp ? new Date(rec.timestamp).toLocaleDateString() : 'Session'}`);
                       }}
-                      style={{
-                        background: 'rgba(56, 189, 248, 0.12)',
-                        border: '1px solid rgba(56, 189, 248, 0.35)',
-                        borderRadius: 4,
-                        padding: '6px 10px',
-                        color: '#38bdf8',
-                        fontSize: 9,
-                        fontFamily: T.mono,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
                       title="Download NASA Flight Clinical Record (PDF 1.4)"
                     >
                       📄 DOWNLOAD PDF
-                    </button>
+                    </UniversalButton>
                   </div>
                 );
               })}

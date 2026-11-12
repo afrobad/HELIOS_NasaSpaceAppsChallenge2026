@@ -118,24 +118,26 @@ export const CabinEnvironmentalBar: React.FC<CabinEnvironmentalBarProps> = ({
     <div
       style={{
         width: '100%',
+        position: 'relative',
+        zIndex: 40,
         background: hazardStatus.severity === 'CRITICAL'
           ? 'linear-gradient(180deg, #1f1518 0%, #120e10 100%)'
           : hazardStatus.severity === 'WARNING'
           ? 'linear-gradient(180deg, #1c1913 0%, #12100a 100%)'
-          : 'linear-gradient(180deg, #181d22 0%, #0f1316 100%)',
+          : 'linear-gradient(180deg, rgba(14, 20, 28, 0.95) 0%, rgba(9, 13, 18, 0.98) 100%)',
         border: hazardStatus.severity === 'CRITICAL'
           ? '1px solid rgba(239, 68, 68, 0.45)'
           : hazardStatus.severity === 'WARNING'
           ? '1px solid rgba(245, 158, 11, 0.40)'
-          : '1px solid #283548',
-        borderRadius: 6,
+          : '1px solid rgba(56, 189, 248, 0.16)',
+        borderRadius: 8,
         boxShadow: hazardStatus.severity === 'CRITICAL'
           ? '0 4px 20px rgba(239, 68, 68, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
           : hazardStatus.severity === 'WARNING'
           ? '0 4px 20px rgba(245, 158, 11, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
-          : '0 2px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+          : '0 4px 16px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
         boxSizing: 'border-box',
-        overflow: 'hidden',
+        overflow: 'visible',
       }}
     >
       <div

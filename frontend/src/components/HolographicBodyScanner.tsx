@@ -3,20 +3,14 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { TelemetryPacket, DistancePreset } from '../types/telemetry';
-import { DISTANCES, fmtTime } from '../types/telemetry';
 import { evaluateCrewClinicalSummary } from '../utils/clinicalPrioritization';
 import {
   User,
   Shield,
   Columns2,
   Maximize2,
-  Play,
-  Pause,
-  Zap,
   Crosshair,
-  Radio,
   CheckCircle2,
-  AlertTriangle,
   X,
   Flame,
   Sun,
@@ -26,24 +20,24 @@ import {
   Wind,
   Bone,
   Droplets,
-  Eye,
-  Info,
+  ChevronDown,
+  Gauge,
+  Thermometer,
+  Navigation,
   Layers,
+  Eye,
 } from 'lucide-react';
 import {
-  HUMAN_VERTICES,
-  HUMAN_TRI_INDICES,
-  HUMAN_LINE_INDICES,
-} from '../data/humanMeshGeometry';
-import {
-  generateStardustPointCloud,
-  getVascularLineSegments,
-  getVascularPoints,
-  getHeartPoints,
-  getSkeletonLineSegments,
-  getSkeletonPoints,
-  getBrainNeuralNetwork,
-} from '../data/vascularGeometry';
+  ASTRODOC_TOTAL_POINTS,
+  ASTRODOC_BODY_RIG,
+  ASTRODOC_VIEWBOX,
+  ASTRODOC_VERTEX_SHADER,
+  ASTRODOC_FRAGMENT_SHADER,
+  generateProceduralAstroDocBody,
+  loadAstroDocBodyBin,
+  projectAstroDocPoint,
+  computeAstroDocFigRect,
+} from '../data/astroDocBody';
 
 export interface HolographicBodyScannerProps {
   astronautId: string;
@@ -64,7 +58,7 @@ export function normalizeTheme(mode?: string): 'CYAN' | 'THERMAL' | 'AMBER' {
 }
 
 interface Hotspot {
-  id: 'OCULAR' | 'CARDIAC' | 'RENAL' | 'SKELETAL';
+  id: string;
   label: string;
   subsystemName: string;
   elevationTag: string;
@@ -107,9 +101,7 @@ function getBodyContourRadii(y: number): { rx: number; rz: number } {
 
 export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   astronautId,
-  astronautName,
   astronautRole: _astronautRole,
-  crewNo,
   telemetry,
   currentScenario,
   themeMode: initialTheme = 'CYAN',
@@ -117,17 +109,47 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   onSelectSubsystem,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
-  const [selectedHotspot, setSelectedHotspot] = useState<'OCULAR' | 'CARDIAC' | 'RENAL' | 'SKELETAL'>('CARDIAC');
+  const [selectedHotspot, setSelectedHotspot] = useState<string>('CARDIAC');
   const [autoRotate, setAutoRotate] = useState(true);
   const [colorTheme, setColorTheme] = useState<'CYAN' | 'THERMAL' | 'AMBER'>(() => normalizeTheme(initialTheme));
   const [laserMode, setLaserMode] = useState<'SWEEP' | 'LOCK_ORGAN' | 'OFF'>('SWEEP');
   const [modelType, setModelType] = useState<'HUMAN' | 'SUIT'>('HUMAN');
   const [viewMode, setViewMode] = useState<'SPLIT' | 'FULL'>('SPLIT');
-  const [selectedSuitSubsystem, setSelectedSuitSubsystem] = useState<'VISOR' | 'PLSS' | 'DCM' | 'SAFER' | 'TMG'>('PLSS');
+  const [selectedSuitSubsystem, setSelectedSuitSubsystem] = useState<string>('PLSS');
   const inspectionMode = 'ANATOMY';
-  const [selectedOrganId, setSelectedOrganId] = useState<'BRAIN' | 'HEART' | 'LUNGS' | 'KIDNEYS' | 'VASCULAR' | 'SKELETAL'>('HEART');
+  const [selectedOrganId, setSelectedOrganId] = useState<string>('HEART');
   const [showOrganModal, setShowOrganModal] = useState(false);
-  const [showBadges, setShowBadges] = useState(true);
+  const [showBadges] = useState(true);
+
+  // Dropdown states for Model and Theme selectors
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
+  const themeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click or Escape key
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
+        setIsModelDropdownOpen(false);
+      }
+      if (themeDropdownRef.current && !themeDropdownRef.current.contains(e.target as Node)) {
+        setIsThemeDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsModelDropdownOpen(false);
+        setIsThemeDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Sync prop changes
   useEffect(() => {
@@ -143,7 +165,9 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   const azimuthDomRef = useRef<HTMLSpanElement>(null);
   const elevationRulerChevronRef = useRef<HTMLDivElement>(null);
 
-  // SVG lines and hotspot target ring DOM references for 60 FPS lag-free tracking
+  // SVG lines, 300x660 figure overlay, and hotspot target ring DOM references for 60 FPS lag-free tracking
+  const figSvgRef = useRef<SVGSVGElement | null>(null);
+  const scanLineSvgRef = useRef<SVGLineElement | null>(null);
   const lineRefs = useRef<Record<string, SVGLineElement | null>>({});
   const ringRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const badgeRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -158,7 +182,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   const primaryBioId = primaryBiomarker?.id;
   const primaryBioTier = primaryBiomarker?.tier;
 
-  const hr = telemetry?.heart_rate ?? 64;
+  const hr = telemetry?.heart_rate ?? 62;
   const spo2 = telemetry?.spo2 ?? 98.6;
   const hct = telemetry?.hematocrit ?? 42.0;
   const k = telemetry?.potassium ?? 4.4;
@@ -235,12 +259,13 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   const renalSeverity: 'CRITICAL' | 'WARNING' | 'NOMINAL' = isRenalCritical ? 'CRITICAL' : isRenalAlert ? 'WARNING' : 'NOMINAL';
 
   // 3. Cranial & Neuro-Ocular (SANS & Radiation Phosphenes)
-  const isOcularAlert = isRadiationActive || (isWarningAlert && (
+  const isOcularCritical = (isCriticalAlert && (co2 > 4.5 || primaryBioId === 'co2')) || isRadiationCritical;
+  const isOcularAlert = isOcularCritical || isRadiationActive || (isWarningAlert && (
     telemetry?.scenario_phase === 'SCENARIO_17_SPACE_VISION_SANS' ||
     co2 > 3.2 ||
     primaryBioId === 'co2'
   ));
-  const ocularSeverity: 'CRITICAL' | 'WARNING' | 'NOMINAL' = isOcularAlert ? 'WARNING' : 'NOMINAL';
+  const ocularSeverity: 'CRITICAL' | 'WARNING' | 'NOMINAL' = isOcularCritical ? 'CRITICAL' : isOcularAlert ? 'WARNING' : 'NOMINAL';
 
   // 4. Musculoskeletal & Deconditioning (Bone Marrow Suppression Under Radiation)
   const isSkeletalCrit = bmd < 85.0 || isRadiationCritical;
@@ -258,6 +283,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   const showBadgesRef = useRef(showBadges);
   const modelTypeRef = useRef(modelType);
   const selectedHotspotRef = useRef(selectedHotspot);
+  const selectedOrganIdRef = useRef(selectedOrganId);
   const onSelectSubsystemRef = useRef(onSelectSubsystem);
   const controlsRef = useRef<OrbitControls | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -268,7 +294,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   const targetControlsTargetRef = useRef<{ x: number; y: number; z: number } | null>(null);
   const updateMaterialsRef = useRef<((theme: string, severity: 'CRITICAL' | 'WARNING' | 'NOMINAL') => void) | null>(null);
   const switchModelRef = useRef<((type: 'HUMAN' | 'SUIT') => void) | null>(null);
-  const focusSuitSubsystemRef = useRef<((id: 'VISOR' | 'PLSS' | 'DCM' | 'SAFER' | 'TMG') => void) | null>(null);
+  const focusSuitSubsystemRef = useRef<((id: string) => void) | null>(null);
   const activeSeverityRef = useRef(activeSeverity);
 
   useEffect(() => {
@@ -282,7 +308,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   useEffect(() => {
     autoRotateRef.current = autoRotate;
     if (controlsRef.current) {
-      controlsRef.current.autoRotate = autoRotate;
+      controlsRef.current.autoRotate = modelTypeRef.current === 'SUIT' && autoRotate;
     }
   }, [autoRotate]);
 
@@ -297,6 +323,10 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
   useEffect(() => {
     selectedHotspotRef.current = selectedHotspot;
   }, [selectedHotspot]);
+
+  useEffect(() => {
+    selectedOrganIdRef.current = selectedOrganId;
+  }, [selectedOrganId]);
 
   useEffect(() => {
     onSelectSubsystemRef.current = onSelectSubsystem;
@@ -443,59 +473,264 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     },
   ], [cardiacSeverity, renalSeverity, ocularSeverity, skeletalSeverity, hr, spo2, hct, k, trm, qtc, arf, bmd, telemetry, isCardiacCritical, isCardiacWarning, isRenalAlert, isRenalCritical, isOcularAlert, isSkeletalAlert, isRadiationActive, isRadiationCritical, radFlux, radDose, clinical]);
 
-  // Interactive EVA Spacesuit Subsystems & Real-Time Specifications
-  const suitSubsystems = useMemo(() => [
+  // ─── AUTHENTIC NASA xEMU / ARTEMIS EVA SUIT TELEMETRY (DYNAMIC & SYNCED) ───
+  const isDecomp = activeScenarioKey?.includes('DECOMPRESSION') || activeScenarioKey?.includes('HYPOXIA') || spo2 < 90.0;
+  const isScrubberFault = activeScenarioKey?.includes('CO2_SCRUBBER') || co2 > 2.8;
+  const isWorkout = telemetry?.mission_state === 'WORKOUT';
+
+  // Suit internal pure O2 pressure (4.3 psi / 29.6 kPa nominal)
+  const suitPressurePsi = isDecomp ? 2.8 : 4.3;
+  const suitPressureKpa = (suitPressurePsi * 6.89476).toFixed(1);
+
+  // PLSS Primary Oxygen Reserve (%) & Tank Pressure
+  const o2Reserve = isDecomp ? 64 : isWorkout ? 82 : Math.max(76, Math.min(99, Math.round(98 - ((telemetry?.tick || 0) % 200) * 0.05)));
+  const o2TankPressureMpa = (27.6 * (o2Reserve / 100)).toFixed(1);
+  const o2TteMinutes = Math.round((o2Reserve / 100) * 480);
+  const o2TteHours = Math.floor(o2TteMinutes / 60);
+  const o2TteRemMins = o2TteMinutes % 60;
+
+  // Helmet Partial Pressure CO2 (mmHg)
+  const ppCo2 = isScrubberFault ? Number(Math.max(3.8, co2).toFixed(1)) : 0.2;
+  const co2ScrubberState: 'OPTIMAL' | 'DEGRADED' | 'CRITICAL' = isScrubberFault ? 'CRITICAL' : co2 > 2.2 ? 'DEGRADED' : 'OPTIMAL';
+
+  // LCVG (Liquid Cooling & Ventilation Garment) Temperature & Sublimator
+  const lcvgTemp = Math.round((18.2 + ((temp || 36.7) - 36.7) * 0.5) * 10) / 10;
+  const sublimatorRate = isWorkout ? 1.6 : 1.2;
+
+  // EMU Battery Status (28V DC Silver-Zinc)
+  const batteryPct = Math.max(68, Math.min(96, Math.round(88 - ((telemetry?.tick || 0) % 300) * 0.04)));
+  const batteryVolts = (27.8 + (batteryPct / 100) * 0.8).toFixed(1);
+
+  // SAFER Rescue RCS (Cold-gas GN2)
+  const saferPressureMpa = 20.7;
+  const saferThrustersArmed = 24;
+  const saferDeltaV = '3.05 m/s';
+
+  // 6 Primary EVA Spacesuit Subsystems for 3D Holographic Model Callouts
+  const suitParts = useMemo(() => [
     {
-      id: 'VISOR' as const,
-      label: 'VISOR / HUD',
-      name: 'Extravehicular Visor Assembly (EVVA)',
-      spec: 'Gold vapor-deposited polycarbonate shielding 100% solar UV & IR. Optical grade anti-fog matrix.',
-      telemetry: 'Tint: 94% · CO₂ Sentry: Nominal · Retinal Projection: Calibrated',
-      status: 'ACTIVE',
-      color: '#fbbf24',
-      targetY: 0.85,
+      id: 'SUIT_VISOR',
+      title: 'Helmet & Visor',
+      subsystemName: 'Extravehicular Visor Assembly',
+      region: 'CRANIAL (+0.82m)',
+      elevationTag: '+0.82m Helmet',
+      side: 'LEFT' as const,
+      pos: [0, 0.82, 0.22] as [number, number, number],
+      scanTargetY: 0.82,
+      status: (co2ScrubberState === 'CRITICAL' ? 'CRITICAL' : isScrubberFault ? 'WATCH' : 'NOMINAL') as 'NOMINAL' | 'WATCH' | 'CRITICAL',
+      color: isScrubberFault ? '#fbbf24' : '#34d399',
+      primaryValue: '94% Tint',
+      unitLabel: `ppCO₂: ${ppCo2} mmHg`,
+      metric: `ppCO₂ ${ppCo2} mmHg · HUD Calibrated`,
+      functionSummary: 'Gold vapor-deposited polycarbonate shielding 100% solar UV & IR. Dual optical anti-fog matrix with integrated heads-up retinal projection microdisplay.',
+      healthDetail: isScrubberFault
+        ? 'Elevated helmet deadspace CO₂ buildup (>2.5 mmHg). Check amine scrubber cartridge circulation.'
+        : 'Visor seal pressure intact. Optical anti-fog heater nominal. HUD microdisplay locked at 60 Hz.',
+      protocol: isScrubberFault
+        ? 'Engage manual purge valve for 3 seconds; verify Metox / amine scrubber bypass.'
+        : 'Routine hourly visor seal inspection and sun-shield tint adjustment.',
+      subsystemId: 'VISOR',
     },
     {
-      id: 'PLSS' as const,
-      label: 'PLSS BACKPACK',
-      name: 'Portable Life Support System',
-      spec: 'Dual 27.6 MPa O₂ tanks, regenerable amine CO₂ scrubbers, sublimator ice evaporator loop.',
-      telemetry: 'Primary O₂: 98.4% · Scrubbed CO₂: 0.2 mmHg · Sublimator: 1.2 L/h nominal',
-      status: 'OPTIMAL',
-      color: '#00e5ff',
-      targetY: 0.40,
+      id: 'SUIT_DCM',
+      title: 'DCM Chest Module',
+      subsystemName: 'Display & Control Module',
+      region: 'THORACIC (+0.32m)',
+      elevationTag: '+0.32m Chest',
+      side: 'LEFT' as const,
+      pos: [0, 0.32, 0.28] as [number, number, number],
+      scanTargetY: 0.32,
+      status: (isDecomp ? 'CRITICAL' : 'NOMINAL') as 'NOMINAL' | 'WATCH' | 'CRITICAL',
+      color: isDecomp ? '#f87171' : '#38bdf8',
+      primaryValue: `${suitPressurePsi.toFixed(1)} psi`,
+      unitLabel: `${suitPressureKpa} kPa · Pure O₂`,
+      metric: `Pressure ${suitPressurePsi.toFixed(1)} psi · Auto Regulator`,
+      functionSummary: 'Chest-mounted operational command interface: regulates internal pure O₂ suit pressure (4.3 psi nominal), primary/secondary O₂ actuators, and emergency cabin umbilical purge.',
+      healthDetail: isDecomp
+        ? 'SUIT PRESSURE LOSS DETECTED (<3.0 psi). Automated O2 makeup valve open at maximum flow rate (6.8 kg/h).'
+        : 'Suit pressure regulation nominal at 4.3 psi (29.6 kPa). Automated makeup valve operating in closed-loop servo mode.',
+      protocol: isDecomp
+        ? 'EMERGENCY: Abort EVA immediately; ingress airlock within 12 minutes; engage secondary oxygen pack (SOP).'
+        : 'Monitor pressure decay delta q15m (normal allowable leak rate <0.02 kPa/min).',
+      subsystemId: 'DCM',
     },
     {
-      id: 'DCM' as const,
-      label: 'DCM CHEST MODULE',
-      name: 'Display & Control Module',
-      spec: 'Chest-mounted operational controls: suit pressure regulator, primary/secondary oxygen actuator.',
-      telemetry: 'Pressure: 29.6 kPa (4.3 psi pure O₂) · Comm: S-Band Primary Online',
-      status: 'NOMINAL',
-      color: '#38bdf8',
-      targetY: 0.18,
+      id: 'SUIT_LCVG',
+      title: 'LCVG Thermal Suit',
+      subsystemName: 'Liquid Cooling & Ventilation',
+      region: 'ABDOMINAL (-0.15m)',
+      elevationTag: '-0.15m Coolant',
+      side: 'LEFT' as const,
+      pos: [-0.22, -0.15, 0.16] as [number, number, number],
+      scanTargetY: -0.15,
+      status: (temp > 37.5 ? 'WATCH' : 'NOMINAL') as 'NOMINAL' | 'WATCH' | 'CRITICAL',
+      color: temp > 37.5 ? '#fbbf24' : '#34d399',
+      primaryValue: `${lcvgTemp.toFixed(1)} °C`,
+      unitLabel: 'Loop 1.8 L/m Nom',
+      metric: `Loop ${lcvgTemp.toFixed(1)} °C · Flow 1.8 L/min`,
+      functionSummary: 'Knitted nylon/spandex undergarment embedded with 91 meters of flexible water tubing. Absorbs metabolic heat from crew during high-workload spacewalks and circulates to PLSS ice sublimator.',
+      healthDetail: temp > 37.5
+        ? 'Crew thermal load elevated from high EVA metabolic exertion. Sublimator ice melt rate elevated.'
+        : 'Thermal balance in equilibrium. Liquid cooling garment inlet temperature at 18.2°C; core body temperature stable.',
+      protocol: temp > 37.5
+        ? 'Adjust DCM comfort cooling valve to MAX; slow physical translation cadence.'
+        : 'Maintain cooling valve at Comfort Position 2 (18.0°C).',
+      subsystemId: 'LCVG',
     },
     {
-      id: 'SAFER' as const,
-      label: 'SAFER RCS',
-      name: 'Simplified Aid for EVA Rescue',
-      spec: 'Self-rescue cold-gas nitrogen thruster pack with 24 nozzles delivering 3.05 m/s delta-V.',
-      telemetry: 'GN₂ Pressure: 20.7 MPa · 24 Nozzles Armed · Flight Controller Ready',
-      status: 'ARMED',
+      id: 'SUIT_PLSS',
+      title: 'PLSS Life Support',
+      subsystemName: 'Portable Life Support System',
+      region: 'DORSAL (+0.45m)',
+      elevationTag: '+0.45m Backpack',
+      side: 'RIGHT' as const,
+      pos: [-0.18, 0.45, -0.28] as [number, number, number],
+      scanTargetY: 0.45,
+      status: (isDecomp || isScrubberFault ? 'CRITICAL' : 'OPTIMAL') as 'NOMINAL' | 'WATCH' | 'CRITICAL',
+      color: isDecomp || isScrubberFault ? '#f87171' : '#00e5ff',
+      primaryValue: `${o2Reserve}% O₂`,
+      unitLabel: `TTE: ${o2TteHours}h ${o2TteRemMins}m`,
+      metric: `O₂ ${o2Reserve}% · TTE ${o2TteHours}h ${o2TteRemMins}m`,
+      functionSummary: 'Backpack module containing dual 27.6 MPa primary oxygen tanks, regenerable amine CO₂ scrubber cartridges, water ice sublimator, and 28V DC silver-zinc power bus.',
+      healthDetail: isDecomp
+        ? 'Primary O2 depletion rate accelerated due to suit pressure compensation. SOP reserve auto-armed.'
+        : 'Dual O₂ tanks nominal at 27.6 MPa. Sublimator ice loop active at 1.2 L/h. Battery bus nominal at 28.4 V DC.',
+      protocol: isDecomp
+        ? 'Abort EVA. Ingress airlock. Verify hatch seal and initiate rapid repressurization.'
+        : 'Standard PLSS consumables check every 30 minutes; report O₂ psi and battery amp-hours to Flight.',
+      subsystemId: 'PLSS',
+    },
+    {
+      id: 'SUIT_SAFER',
+      title: 'SAFER RCS System',
+      subsystemName: 'Simplified Aid for EVA Rescue',
+      region: 'LUMBAR (+0.02m)',
+      elevationTag: '+0.02m Waist',
+      side: 'RIGHT' as const,
+      pos: [0.22, 0.02, -0.20] as [number, number, number],
+      scanTargetY: 0.02,
+      status: 'ARMED' as 'NOMINAL' | 'WATCH' | 'CRITICAL',
       color: '#00e5a3',
-      targetY: -0.10,
+      primaryValue: `${saferPressureMpa} MPa`,
+      unitLabel: `24 Thrusters · ΔV 3.0m/s`,
+      metric: `GN₂ ${saferPressureMpa} MPa · 24 Thrusters Armed`,
+      functionSummary: 'Self-rescue cold-gas nitrogen propulsion pack mounted beneath the PLSS. Equipped with 24 cold-gas thrusters producing 3.05 m/s delta-V for crew self-recovery in the event of tether separation.',
+      healthDetail: 'Nitrogen bottle pressure locked at 20.7 MPa (3,000 psi). Automatic attitude hold (AAH) sensor suite calibrated. Hand controller stowed and armed.',
+      protocol: 'In the event of tether failure, deploy hand controller; engage Automatic Attitude Hold (AAH); arrest rates.',
+      subsystemId: 'SAFER',
     },
     {
-      id: 'TMG' as const,
-      label: 'TMG LAYERS',
-      name: 'Thermal Micrometeoroid Garment',
-      spec: '14-layer ortho-fabric, aluminized Mylar insulation, and Kevlar puncture-resistant outer weave.',
-      telemetry: 'Ext Temp: -48°C / +62°C · Micrometeoroid Puncture Sensors: 0 (Nominal)',
-      status: 'SEALED',
-      color: '#a855f7',
-      targetY: -0.45,
+      id: 'SUIT_TMG',
+      title: 'TMG Outer Layers',
+      subsystemName: 'Thermal Micrometeoroid Garment',
+      region: 'PERIPHERY (-0.55m)',
+      elevationTag: '-0.55m Outer Shell',
+      side: 'RIGHT' as const,
+      pos: [0.22, -0.55, 0.14] as [number, number, number],
+      scanTargetY: -0.55,
+      status: (isRadiationActive ? 'WATCH' : 'SEALED') as 'NOMINAL' | 'WATCH' | 'CRITICAL',
+      color: isRadiationActive ? '#fbbf24' : '#a855f7',
+      primaryValue: '14 Layers',
+      unitLabel: 'Punctures: 0 · Shield Nom',
+      metric: `14 Layers · Ext -48°C / +62°C`,
+      functionSummary: '14-layer protective outer envelope: aluminized Mylar radiation insulation, woven Orthofabric outer shell, and Kevlar high-velocity micrometeoroid puncture barrier.',
+      healthDetail: isRadiationActive
+        ? 'High energetic particle flux detected on exterior dosimeter patches. Outer thermal layer intact.'
+        : 'Zero micrometeoroid punctures detected across all 14 layers. External surface temperature within -48°C to +62°C thermal envelope.',
+      protocol: isRadiationActive
+        ? 'Limit direct solar exposure; translate in vehicle shadow where feasible.'
+        : 'Inspect glove RTV silicone palms and tethers every 45 minutes for sharp edge snags.',
+      subsystemId: 'TMG',
     },
-  ], []);
+  ], [isDecomp, isScrubberFault, co2ScrubberState, suitPressurePsi, suitPressureKpa, ppCo2, temp, lcvgTemp, o2Reserve, o2TankPressureMpa, o2TteHours, o2TteRemMins, saferPressureMpa, isRadiationActive]);
+
+  // Suit Hotspots for Right-Hand Panel
+  const suitHotspots: Hotspot[] = useMemo(() => [
+    {
+      id: 'PLSS',
+      label: 'PLSS Life Support',
+      subsystemName: 'Portable Life Support System',
+      organ: 'Dual O₂ Tanks & Sublimator',
+      elevationTag: '+0.45m Backpack',
+      region: 'DORSAL (+0.45m)',
+      pos: [-0.18, 0.45, -0.28],
+      scanTargetY: 0.45,
+      severity: isDecomp || isScrubberFault ? 'CRITICAL' : 'NOMINAL',
+      metric: `${o2Reserve}% O₂ · ${o2TankPressureMpa} MPa`,
+      detail: `Dual 27.6 MPa tanks. Consumables remaining: ${o2TteHours}h ${o2TteRemMins}m. Sublimator ice loop active at ${sublimatorRate} L/h.`,
+      protocol: 'Standard PLSS consumables check every 30 minutes.',
+    },
+    {
+      id: 'DCM',
+      label: 'Display & Control',
+      subsystemName: 'DCM Chest Module',
+      organ: 'Suit Pressure Regulator',
+      elevationTag: '+0.32m Chest',
+      region: 'THORACIC (+0.32m)',
+      pos: [0, 0.32, 0.28],
+      scanTargetY: 0.32,
+      severity: isDecomp ? 'CRITICAL' : 'NOMINAL',
+      metric: `${suitPressurePsi.toFixed(1)} psi · Pure O₂`,
+      detail: `Suit internal pure O₂ pressure regulation nominal at 4.3 psi (${suitPressureKpa} kPa). Makeup valve servo operating.`,
+      protocol: 'Monitor suit pressure decay delta q15m.',
+    },
+    {
+      id: 'VISOR',
+      label: 'Helmet & Visor',
+      subsystemName: 'Extravehicular Visor Assembly',
+      organ: 'Gold Polycarbonate & HUD',
+      elevationTag: '+0.82m Helmet',
+      region: 'CRANIAL (+0.82m)',
+      pos: [0, 0.82, 0.22],
+      scanTargetY: 0.82,
+      severity: isScrubberFault ? 'WARNING' : 'NOMINAL',
+      metric: `94% Tint · CO₂ ${ppCo2} mmHg`,
+      detail: `100% solar UV/IR attenuation. Optical anti-fog matrix nominal. Deadspace ppCO₂ at ${ppCo2} mmHg.`,
+      protocol: 'Adjust gold sun-visor for orbital day/night terminator crossings.',
+    },
+    {
+      id: 'LCVG',
+      label: 'Thermal Garment',
+      subsystemName: 'Liquid Cooling Garment',
+      organ: '91m Water Chilled Loop',
+      elevationTag: '-0.15m Coolant',
+      region: 'ABDOMINAL (-0.15m)',
+      pos: [-0.22, -0.15, 0.16],
+      scanTargetY: -0.15,
+      severity: 'NOMINAL',
+      metric: `${lcvgTemp.toFixed(1)} °C · Flow 1.8 L/m`,
+      detail: `Chilled water loop circulating at 1.8 L/min. Crew thermal balance in equilibrium.`,
+      protocol: 'Maintain comfort valve setting at position 2 (18.0°C).',
+    },
+    {
+      id: 'SAFER',
+      label: 'Rescue Propulsion',
+      subsystemName: 'Aid for EVA Rescue',
+      organ: 'Cold-Gas GN₂ Thrusters',
+      elevationTag: '+0.02m Waist',
+      region: 'LUMBAR (+0.02m)',
+      pos: [0.22, 0.02, -0.20],
+      scanTargetY: 0.02,
+      severity: 'NOMINAL',
+      metric: `${saferPressureMpa} MPa · 24 Armed`,
+      detail: `Nitrogen pressure 20.7 MPa. 24 cold-gas nozzles armed delivering 3.05 m/s delta-V.`,
+      protocol: 'Attitude hold sensor active; hand controller stowed.',
+    },
+    {
+      id: 'TMG',
+      label: 'Outer Shield',
+      subsystemName: 'Thermal Micrometeoroid Garment',
+      organ: '14-Layer Kevlar & Mylar',
+      elevationTag: '-0.55m Outer Shell',
+      region: 'PERIPHERY (-0.55m)',
+      pos: [0.22, -0.55, 0.14],
+      scanTargetY: -0.55,
+      severity: isRadiationActive ? 'WARNING' : 'NOMINAL',
+      metric: `14 Layers · Punctures: 0`,
+      detail: `14-layer multi-layer insulation intact. Zero micrometeoroid punctures detected across shell.`,
+      protocol: 'Inspect tethers and RTV glove palms every 45 minutes.',
+    },
+  ], [isDecomp, isScrubberFault, o2Reserve, o2TankPressureMpa, o2TteHours, o2TteRemMins, sublimatorRate, suitPressurePsi, suitPressureKpa, ppCo2, lcvgTemp, saferPressureMpa, isRadiationActive]);
 
 
 
@@ -542,13 +777,15 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         id: 'BRAIN' as const,
         title: 'Brain & Ocular',
         subsystemName: 'Cranial & SANS Ocular',
-        region: 'CRANIAL (+1.32m)',
-        elevationTag: '+1.32m Cranial',
+        region: 'CRANIAL (+1.70m)',
+        elevationTag: '+1.70m Cranial',
         side: 'LEFT' as const,
-        pos: [0.0, 1.30, 0.05] as [number, number, number],
-        scanTargetY: 1.30 * 0.82,
+        pos: ASTRODOC_BODY_RIG.at[0],
+        scanTargetY: 1.34 * 0.82,
         status: brainStatus,
         color: brainColor,
+        primaryValue: isRadiationActive ? `${radFlux.toFixed(1)} mGy/h` : isOcularAlert ? '6.8 mm' : '5.2 mm',
+        unitLabel: isRadiationActive ? 'Phosphenes' : isOcularAlert ? 'ONSD · High ICP' : 'ONSD · ICP 11',
         metric: isRadiationActive ? `Flux ${radFlux.toFixed(1)} · Phosphenes` : isOcularAlert ? 'ONSD 6.8 mm · High ICP' : 'ONSD 5.2 mm · ICP 11',
         functionSummary: 'Coordinates cognitive operations, autonomic cardiopulmonary regulation, neurovestibular balance, and visual pathway transmission via optic nerves. In microgravity, upward cephalic fluid shift increases intracranial pressure, stressing the optic nerve sheath.',
         healthDetail: isRadiationActive
@@ -567,13 +804,15 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         id: 'HEART' as const,
         title: 'Heart & Cardiac',
         subsystemName: 'Cardiovascular & Myocardium',
-        region: 'THORACIC (+0.72m)',
-        elevationTag: '+0.72m Thoracic',
+        region: 'THORACIC (+0.78m)',
+        elevationTag: '+0.78m Thoracic',
         side: 'LEFT' as const,
-        pos: [-0.07, 0.72, 0.10] as [number, number, number],
-        scanTargetY: 0.72 * 0.82,
+        pos: ASTRODOC_BODY_RIG.at[3],
+        scanTargetY: 0.73 * 0.82,
         status: heartStatus,
         color: heartColor,
+        primaryValue: `${Math.round(hr)} bpm`,
+        unitLabel: isRadiationActive ? 'SPE Stress' : isCardiacCritical ? `QTc ${qtc}ms · Crit` : `QTc ${qtc}ms · NSR`,
         metric: isRadiationActive ? `HR ${Math.round(hr)} bpm · SPE Stress` : isCardiacCritical ? `HR ${Math.round(hr)} bpm · Crit` : `HR ${Math.round(hr)} bpm · NSR`,
         functionSummary: 'Drives systemic blood circulation, regulates arterial blood pressure via baroreceptors, and delivers oxygen to tissues. Microgravity removes hydrostatic blood pooling in legs, reducing cardiac volume and predisposing to ventricular remodeling and arrhythmias.',
         healthDetail: isRadiationActive
@@ -594,13 +833,15 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         id: 'KIDNEYS' as const,
         title: 'Kidneys & Renal',
         subsystemName: 'Renal Perfusion & Electrolytes',
-        region: 'ABDOMINAL (+0.18m)',
-        elevationTag: '+0.18m Abdominal',
+        region: 'ABDOMINAL (+0.30m)',
+        elevationTag: '+0.30m Abdominal',
         side: 'LEFT' as const,
-        pos: [-0.10, 0.20, 0.05] as [number, number, number],
-        scanTargetY: 0.18 * 0.82,
+        pos: ASTRODOC_BODY_RIG.at[2],
+        scanTargetY: 0.20 * 0.82,
         status: renalStatus,
         color: renalColor,
+        primaryValue: isRadiationActive ? `${(radDose || 0.75).toFixed(2)} Gy` : `${k.toFixed(2)} mmol/L`,
+        unitLabel: isRadiationActive ? 'Rad Shift' : isRenalCritical ? 'K⁺ · Crit' : 'K⁺ · 450 mOsm',
         metric: isRadiationActive ? `Dose ${(radDose || 0.75).toFixed(2)} Gy · Rad Shift` : isRenalCritical ? `K+ ${k.toFixed(1)} · Critical` : `K+ ${k.toFixed(2)} mmol/L`,
         functionSummary: 'Filters blood, regulates total body fluid balance, controls potassium/sodium ion concentrations, and secretes renin. Microgravity induces acute cephalic fluid shift, prompting rapid diuresis, potassium excretion, and calcium precipitation.',
         healthDetail: isRadiationActive
@@ -621,13 +862,15 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         id: 'LUNGS' as const,
         title: 'Lungs & Pulmonary',
         subsystemName: 'Pulmonary Gas Exchange',
-        region: 'PULMONARY (+0.82m)',
-        elevationTag: '+0.82m Pulmonary',
+        region: 'PULMONARY (+0.86m)',
+        elevationTag: '+0.86m Pulmonary',
         side: 'RIGHT' as const,
-        pos: [0.08, 0.80, 0.08] as [number, number, number],
+        pos: [-ASTRODOC_BODY_RIG.at[1][0], ASTRODOC_BODY_RIG.at[1][1], ASTRODOC_BODY_RIG.at[1][2]] as [number, number, number],
         scanTargetY: 0.80 * 0.82,
         status: lungsStatus,
         color: lungsColor,
+        primaryValue: isRadiationActive ? `${radFlux.toFixed(1)} mGy/h` : `${spo2.toFixed(1)}%`,
+        unitLabel: isRadiationActive ? 'SPE Alert' : `SpO₂ · CO₂ ${co2.toFixed(1)}`,
         metric: isRadiationCritical ? `Flux ${radFlux.toFixed(1)} mGy/h · SPE Alert` : isRadiationActive ? `Flux ${radFlux.toFixed(1)} mGy/h · Watch` : isLungsCrit ? `SpO₂ ${spo2.toFixed(1)}% · Low` : `SpO₂ ${spo2.toFixed(1)}% · Nom`,
         functionSummary: 'Facilitates alveolar gas diffusion, oxygenating arterial blood and removing metabolic carbon dioxide. In closed spacecraft habitats, lack of gravity eliminates natural air convection, creating dead-space pockets of exhaled CO₂ and risk of hypoxia.',
         healthDetail: isRadiationActive
@@ -648,13 +891,15 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         id: 'VASCULAR' as const,
         title: 'Vascular Network',
         subsystemName: 'Circulation & Hemodynamics',
-        region: 'CIRCULATORY (+0.40m)',
-        elevationTag: '+0.40m Circulatory',
+        region: 'CIRCULATORY (+0.31m)',
+        elevationTag: '+0.31m Circulatory',
         side: 'RIGHT' as const,
-        pos: [0.16, 0.40, 0.04] as [number, number, number],
-        scanTargetY: 0.40 * 0.82,
+        pos: ASTRODOC_BODY_RIG.at[4],
+        scanTargetY: 0.34 * 0.82,
         status: vascStatus,
         color: vascColor,
+        primaryValue: isRadiationCritical ? `${radFlux.toFixed(1)} mGy/h` : `${hct.toFixed(1)}%`,
+        unitLabel: isRadiationActive ? `Lymph ${telemetry?.lymphocyte_count ?? 0.85}` : `Hct · TRM ${trm.toFixed(2)}`,
         metric: isRadiationCritical ? `Rad Flux ${radFlux.toFixed(1)} mGy/h · CRIT` : isRadiationActive ? `Lymph ${telemetry?.lymphocyte_count ?? 0.85} · Rad Alert` : isVascCrit ? `Hct ${hct.toFixed(1)}% · Viscous` : `Hct ${hct.toFixed(1)}% · Nom`,
         functionSummary: 'Maintains systemic arterial compliance, peripheral vascular resistance, and venous return. Microgravity plasma volume loss increases hematocrit and whole blood viscosity, elevating venous stasis and jugular thrombosis risk.',
         healthDetail: isRadiationCritical
@@ -677,13 +922,15 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         id: 'SKELETAL' as const,
         title: 'Skeletal & Spine',
         subsystemName: 'Bone Density & Biomechanics',
-        region: 'FEMORAL (-0.65m)',
-        elevationTag: '-0.65m Femoral',
+        region: 'FEMORAL (-1.15m)',
+        elevationTag: '-1.15m Femoral',
         side: 'RIGHT' as const,
-        pos: [0.10, -0.65, 0.04] as [number, number, number],
-        scanTargetY: -0.65 * 0.82,
+        pos: ASTRODOC_BODY_RIG.at[5],
+        scanTargetY: -0.78 * 0.82,
         status: skeletalStatus,
         color: skeletalColor,
+        primaryValue: isRadiationCritical ? `${(radDose || 0.75).toFixed(2)} Gy` : `${bmd.toFixed(1)}%`,
+        unitLabel: isRadiationActive ? 'Marrow Dose' : 'BMD · ARED 11.8 MJ',
         metric: isRadiationCritical ? `Dose ${(radDose || 0.75).toFixed(2)} Gy · Marrow Crit` : isRadiationActive ? `Flux ${radFlux.toFixed(1)} · Marrow Alert` : isSkeletalAlert ? `BMD ${bmd.toFixed(1)}% · Alert` : `BMD ${bmd.toFixed(1)}% · Nom`,
         functionSummary: 'Provides structural frame, protects vital organs, and serves as the mineral reservoir for calcium and phosphate. In microgravity, unweighted bones lose mineral density at 1–1.5% per month, with spinal disc expansion causing lumbar pain.',
         healthDetail: isRadiationCritical
@@ -703,30 +950,17 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     ];
   }, [orbitalPosition, hr, spo2, hct, k, co2, temp, radFlux, radDose, trm, bmd, telemetry, isOcularAlert, clinical, ocularSeverity, cardiacSeverity, renalSeverity, skeletalSeverity, isCardiacCritical, isCardiacWarning, isRenalAlert, isRenalCritical, isSkeletalAlert, isRadiationActive, isRadiationCritical, currentScenario]);
 
-  const activeDisplayTargets = anatomicalParts;
+  const activeDisplayTargets = modelType === 'SUIT' ? suitParts : anatomicalParts;
   const activeDisplayTargetsRef = useRef(activeDisplayTargets);
+  const badgeAnchorsCacheRef = useRef<Record<string, { x: number; y: number }>>({});
   useEffect(() => {
     activeDisplayTargetsRef.current = activeDisplayTargets;
-  }, [activeDisplayTargets]);
+    badgeAnchorsCacheRef.current = {};
+  }, [activeDisplayTargets, modelType]);
 
   // Smooth View Snap Trigger
-  const snapToAngle = useCallback((targetDeg: number) => {
-    const rad = (targetDeg * Math.PI) / 180;
-    snapTargetAzimuthRef.current = rad;
-    setAutoRotate(false);
-  }, []);
 
   // Reset Camera View
-  const handleResetCamera = useCallback(() => {
-    targetCameraPosRef.current = { x: 0, y: -0.05, z: 5.85 };
-    targetControlsTargetRef.current = { x: 0, y: 0, z: 0 };
-    snapTargetAzimuthRef.current = null;
-    targetFocusYRef.current = null;
-    targetCameraZRef.current = null;
-    setAutoRotate(true);
-    setShowOrganModal(false);
-    setLaserMode('SWEEP');
-  }, []);
 
   // Smoothly return 3D human body back to real/nominal center position when dismissing detail cards
   const handleCloseOrganModal = useCallback(() => {
@@ -754,11 +988,13 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     }
   }, [onSelectSubsystem]);
 
-  // Unified Target Selector (Anatomy)
+  // Unified Target Selector (Anatomy & EVA Suit)
   const handleTargetSelect = useCallback((targetId: string) => {
-    const organ = anatomicalParts.find(o => o.id === targetId) || anatomicalParts[0];
-    handleOrganClick(organ);
-  }, [anatomicalParts, handleOrganClick]);
+    const target = activeDisplayTargets.find(o => o.id === targetId) || activeDisplayTargets[0];
+    if (target) {
+      handleOrganClick(target as any);
+    }
+  }, [activeDisplayTargets, handleOrganClick]);
 
   const handleTargetSelectRef = useRef(handleTargetSelect);
   useEffect(() => {
@@ -794,7 +1030,9 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
       powerPreference: 'high-performance',
     });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const isMobileDevice = typeof window !== 'undefined' && (window.innerWidth <= 768 || /Mobi|Android|iPhone/i.test(navigator.userAgent));
+    const targetPixelRatio = Math.min(window.devicePixelRatio || 1, isMobileDevice ? 1.5 : 1.75);
+    renderer.setPixelRatio(targetPixelRatio);
     renderer.setClearColor(0x000000, 0);
 
     while (container.firstChild) {
@@ -817,8 +1055,8 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     controls.enablePan = false;
     controls.minPolarAngle = Math.PI * 0.25;
     controls.maxPolarAngle = Math.PI * 0.75;
-    controls.autoRotate = autoRotateRef.current;
-    controls.autoRotateSpeed = 1.8;
+    controls.autoRotate = false;
+    controls.autoRotateSpeed = 1.4;
     controls.target.set(0, 0, 0);
     controlsRef.current = controls;
 
@@ -834,447 +1072,97 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     rimLight.position.set(-2, -1, -3);
     scene.add(rimLight);
 
-    // ─── 4. Human Anatomical Model Group ───
+    // ─── 4. AstroDocX 3D Human Body Point-Cloud Group (36,000 Hybrid Points: 24k Base + 12k Internal Detail) ───
     const humanGroup = new THREE.Group();
-    humanGroup.scale.set(0.82, 0.82, 0.82);
     humanGroup.position.set(0, 0, 0);
     scene.add(humanGroup);
 
-    // Luminous Radial Sprite Particle Textures (Soft celestial glow instead of square pixels)
-    const createGlowTexture = (colorInner: string, colorMid: string, colorOuter: string) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 64;
-      canvas.height = 64;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return undefined;
-      const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-      grad.addColorStop(0, colorInner);
-      grad.addColorStop(0.25, colorMid);
-      grad.addColorStop(0.60, colorOuter);
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 64, 64);
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.needsUpdate = true;
-      return tex;
+    const initialBody = generateProceduralAstroDocBody(ASTRODOC_TOTAL_POINTS);
+    const astroGeo = new THREE.BufferGeometry();
+    astroGeo.setAttribute('position', new THREE.BufferAttribute(initialBody.pos, 3));
+    astroGeo.setAttribute('aNrm', new THREE.BufferAttribute(initialBody.nrm, 3));
+    astroGeo.setAttribute('aReg', new THREE.BufferAttribute(initialBody.reg, 1));
+    astroGeo.setAttribute('aSeed', new THREE.BufferAttribute(initialBody.seed, 1));
+
+    const initFigRect = computeAstroDocFigRect(width, height, 1);
+    const astroUniforms = {
+      uAng: { value: 0.0 },
+      uTime: { value: 0.0 },
+      uBeat: { value: 0.0 },
+      uPR: { value: Math.min(window.devicePixelRatio || 1, 2) },
+      uK: { value: ASTRODOC_VIEWBOX.k },
+      uYMid: { value: ASTRODOC_VIEWBOX.yMid },
+      uFocus: { value: -1.0 },
+      uScan: { value: 0.0 },
+      uTheme: { value: 0.0 },
+      uS0: { value: 0.0 },
+      uS1: { value: 0.0 },
+      uS2: { value: 0.0 },
+      uS3: { value: 0.0 },
+      uS4: { value: 0.0 },
+      uS5: { value: 0.0 },
+      uHeart: { value: new THREE.Vector3(...ASTRODOC_BODY_RIG.heart) },
+      uFigRect: { value: new THREE.Vector4(initFigRect.x, initFigRect.y, initFigRect.w, initFigRect.h) },
+      uViewSize: { value: new THREE.Vector2(width, height) },
     };
 
-    const cyanGlowTex = createGlowTexture('#ffffff', 'rgba(120, 235, 255, 0.95)', 'rgba(0, 180, 240, 0.35)');
-    const redGlowTex = createGlowTexture('#ffffff', 'rgba(255, 40, 80, 0.98)', 'rgba(220, 15, 50, 0.40)');
-    const heartGlowTex = createGlowTexture('#ffffff', 'rgba(255, 20, 140, 1.0)', 'rgba(236, 72, 153, 0.45)');
-    const lungGlowTex = createGlowTexture('#e0f7fe', 'rgba(56, 189, 248, 0.90)', 'rgba(6, 182, 212, 0.35)');
-    const brainGlowTex = createGlowTexture('#ffffff', 'rgba(244, 63, 94, 0.95)', 'rgba(236, 72, 153, 0.40)');
-    const boneGlowTex = createGlowTexture('#ffffff', 'rgba(180, 250, 240, 0.90)', 'rgba(45, 212, 191, 0.30)');
-
-    // 4a-1. Volumetric Translucent Holographic 3D Body Mesh Surface
-    // Ultra-ethereal transparency so internal skeleton, brain, arterial tree and heart shine through vividly
-    const bodyGeo = new THREE.BufferGeometry();
-    bodyGeo.setAttribute('position', new THREE.BufferAttribute(HUMAN_VERTICES, 3));
-    bodyGeo.setIndex(new THREE.BufferAttribute(HUMAN_TRI_INDICES, 1));
-    bodyGeo.computeVertexNormals();
-
-    const bodyMat = new THREE.MeshPhysicalMaterial({
-      color: 0x011d32,
-      emissive: 0x00263e,
-      emissiveIntensity: 0.85,
-      roughness: 0.22,
-      metalness: 0.1,
-      transmission: 0.60,
-      ior: 1.34,
+    const astroMat = new THREE.RawShaderMaterial({
+      vertexShader: ASTRODOC_VERTEX_SHADER,
+      fragmentShader: ASTRODOC_FRAGMENT_SHADER,
+      uniforms: astroUniforms,
       transparent: true,
-      opacity: 0.35,
-      side: THREE.DoubleSide,
+      depthTest: false,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-    humanGroup.add(bodyMesh);
-
-    // 4a-2. Elegant Wireframe Polygon Lattice (subtle high-tech contour lines)
-    const wireGeo = new THREE.BufferGeometry();
-    wireGeo.setAttribute('position', new THREE.BufferAttribute(HUMAN_VERTICES, 3));
-    wireGeo.setIndex(new THREE.BufferAttribute(HUMAN_LINE_INDICES, 1));
-    const wireMat = new THREE.LineBasicMaterial({
-      color: 0x00c8e6,
-      transparent: true,
-      opacity: 0.08,
-    });
-    const wireMesh = new THREE.LineSegments(wireGeo, wireMat);
-    humanGroup.add(wireMesh);
-
-    // 4a-3. High-Density Celestial Stardust Point Cloud (Luminous glowing outer silhouette constellation)
-    const stardustVertices = generateStardustPointCloud(HUMAN_VERTICES, HUMAN_LINE_INDICES, 18500);
-    const stardustGeo = new THREE.BufferGeometry();
-    stardustGeo.setAttribute('position', new THREE.BufferAttribute(stardustVertices, 3));
-
-    const stardustMat = new THREE.PointsMaterial({
-      color: 0x67e8f9,
-      size: 0.036,
-      map: cyanGlowTex,
-      transparent: true,
-      opacity: 0.95,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const stardustMesh = new THREE.Points(stardustGeo, stardustMat);
-    humanGroup.add(stardustMesh);
-
-    // 4a-4. Authentic 3D Anatomical Internal Skeleton (Spine, Ribcage, Pelvis, Limbs, Skull)
-    const skelLines = getSkeletonLineSegments();
-    const skelGeo = new THREE.BufferGeometry();
-    skelGeo.setAttribute('position', new THREE.BufferAttribute(skelLines, 3));
-
-    const skelMat = new THREE.LineBasicMaterial({
-      color: 0xccfbf1, // Luminous pale cyan-white bone
-      transparent: true,
-      opacity: 0.84,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const skelMesh = new THREE.LineSegments(skelGeo, skelMat);
-    humanGroup.add(skelMesh);
-
-    // Glowing Skeletal Joint/Disc Nodes
-    const skelPts = getSkeletonPoints();
-    const skelPtsGeo = new THREE.BufferGeometry();
-    skelPtsGeo.setAttribute('position', new THREE.BufferAttribute(skelPts, 3));
-
-    const skelPtsMat = new THREE.PointsMaterial({
-      color: 0x5eead4,
-      size: 0.024,
-      map: boneGlowTex,
-      transparent: true,
-      opacity: 0.85,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const skelPtsMesh = new THREE.Points(skelPtsGeo, skelPtsMat);
-    humanGroup.add(skelPtsMesh);
-
-    // 4a-5. Cranial Neural Network / Holographic Brain
-    const brainNet = getBrainNeuralNetwork();
-    const brainGroup = new THREE.Group();
-    humanGroup.add(brainGroup);
-
-    const brainPtsGeo = new THREE.BufferGeometry();
-    brainPtsGeo.setAttribute('position', new THREE.BufferAttribute(brainNet.points, 3));
-
-    const brainPtsMat = new THREE.PointsMaterial({
-      color: 0xff1493, // Vivid deep pink/magenta neural nodes
-      size: 0.038,
-      map: brainGlowTex,
-      transparent: true,
-      opacity: 0.98,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const brainPtsMesh = new THREE.Points(brainPtsGeo, brainPtsMat);
-    brainGroup.add(brainPtsMesh);
-
-    const brainLinesGeo = new THREE.BufferGeometry();
-    brainLinesGeo.setAttribute('position', new THREE.BufferAttribute(brainNet.lines, 3));
-
-    const brainLinesMat = new THREE.LineBasicMaterial({
-      color: 0xf43f5e, // Rose pink synaptic web
-      transparent: true,
-      opacity: 0.65,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const brainLinesMesh = new THREE.LineSegments(brainLinesGeo, brainLinesMat);
-    brainGroup.add(brainLinesMesh);
-
-    // 4b. Glowing Scarlet Red Arterial / Vascular Tree (strictly nested inside body)
-    const vascLines = getVascularLineSegments();
-    const vascGeo = new THREE.BufferGeometry();
-    vascGeo.setAttribute('position', new THREE.BufferAttribute(vascLines, 3));
-
-    const vascMat = new THREE.LineBasicMaterial({
-      color: 0xff173d,
-      transparent: true,
-      opacity: 0.95,
-      linewidth: 2,
-    });
-    const vascMesh = new THREE.LineSegments(vascGeo, vascMat);
-    humanGroup.add(vascMesh);
-
-    // Glowing Red Arterial Nodes along the vessels
-    const vascPts = getVascularPoints();
-    const vascPtsGeo = new THREE.BufferGeometry();
-    vascPtsGeo.setAttribute('position', new THREE.BufferAttribute(vascPts, 3));
-
-    const vascPtsMat = new THREE.PointsMaterial({
-      color: 0xff2a4d,
-      size: 0.036,
-      map: redGlowTex,
-      transparent: true,
-      opacity: 0.96,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const vascPtsMesh = new THREE.Points(vascPtsGeo, vascPtsMat);
-    humanGroup.add(vascPtsMesh);
-
-    // 4c. Pulsing Hot Pink / Magenta Myocardium Node (Vivid pink heart in left chest)
-    const heartGroup = new THREE.Group();
-    humanGroup.add(heartGroup);
-
-    const heartPts = getHeartPoints();
-    const heartGeo = new THREE.BufferGeometry();
-    heartGeo.setAttribute('position', new THREE.BufferAttribute(heartPts, 3));
-
-    const heartMat = new THREE.PointsMaterial({
-      color: 0xff007f, // Hot pink / magenta
-      size: 0.056,
-      map: heartGlowTex,
-      transparent: true,
-      opacity: 0.98,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const heartMesh = new THREE.Points(heartGeo, heartMat);
-    heartGroup.add(heartMesh);
-
-    // Inner glowing myocardium core
-    const heartCoreGeo = new THREE.SphereGeometry(0.045, 16, 16);
-    const heartCoreMat = new THREE.MeshBasicMaterial({
-      color: 0xff1493,
-      transparent: true,
-      opacity: 0.75,
-      blending: THREE.AdditiveBlending,
-    });
-    const heartCore = new THREE.Mesh(heartCoreGeo, heartCoreMat);
-    heartCore.position.set(-0.07, 0.74, 0.10);
-    heartGroup.add(heartCore);
-
-    // Volumetric Cardiac Aura Sphere (Pulsating biological glow)
-    const heartAuraGeo = new THREE.SphereGeometry(0.075, 20, 20);
-    const heartAuraMat = new THREE.MeshBasicMaterial({
-      color: 0xff1055,
-      transparent: true,
-      opacity: 0.38,
-      blending: THREE.AdditiveBlending,
-    });
-    const heartAura = new THREE.Mesh(heartAuraGeo, heartAuraMat);
-    heartAura.position.set(-0.07, 0.74, 0.10);
-    heartGroup.add(heartAura);
-
-    // 4d. Volumetric Breathing Pulmonary Lungs Group
-    const lungsGroup = new THREE.Group();
-    humanGroup.add(lungsGroup);
-
-    const lungMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.52,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.CustomBlending,
+      blendSrc: THREE.OneFactor,
+      blendDst: THREE.OneFactor,
     });
 
-    const leftLungGeo = new THREE.SphereGeometry(0.082, 14, 14);
-    leftLungGeo.scale(0.85, 1.40, 0.75);
-    const leftLungMesh = new THREE.Mesh(leftLungGeo, lungMat);
-    leftLungMesh.position.set(0.08, 0.78, 0.07);
-    lungsGroup.add(leftLungMesh);
+    const astroPoints = new THREE.Points(astroGeo, astroMat);
+    astroPoints.frustumCulled = false;
+    humanGroup.add(astroPoints);
 
-    const rightLungGeo = new THREE.SphereGeometry(0.078, 14, 14);
-    rightLungGeo.scale(0.82, 1.35, 0.72);
-    const rightLungMesh = new THREE.Mesh(rightLungGeo, lungMat.clone());
-    rightLungMesh.position.set(-0.09, 0.78, 0.07);
-    lungsGroup.add(rightLungMesh);
-
-    // Bronchial arborization branches (Trachea bifurcation into main left/right bronchi)
-    const bronchusMat = new THREE.LineBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.75,
-      blending: THREE.AdditiveBlending,
-    });
-    const bronchusPts = new Float32Array([
-      // Carina bifurcation
-      0, 0.88, 0.06,  -0.05, 0.80, 0.07,
-      0, 0.88, 0.06,   0.05, 0.80, 0.07,
-      // Left branches
-      -0.05, 0.80, 0.07, -0.09, 0.75, 0.06,
-      -0.05, 0.80, 0.07, -0.08, 0.72, 0.08,
-      // Right branches
-       0.05, 0.80, 0.07,  0.09, 0.75, 0.06,
-       0.05, 0.80, 0.07,  0.08, 0.72, 0.08,
-    ]);
-    const bronchusGeo = new THREE.BufferGeometry();
-    bronchusGeo.setAttribute('position', new THREE.BufferAttribute(bronchusPts, 3));
-    const bronchusMesh = new THREE.LineSegments(bronchusGeo, bronchusMat);
-    lungsGroup.add(bronchusMesh);
-
-    // Alveolar gas-exchange particle cloud
-    const alveoliPts: number[] = [];
-    for (let p = 0; p < 70; p++) {
-      const side = p % 2 === 0 ? 1 : -1;
-      const lx = side * (0.04 + Math.random() * 0.055);
-      const ly = 0.70 + Math.random() * 0.16;
-      const lz = 0.03 + Math.random() * 0.06;
-      alveoliPts.push(lx, ly, lz);
-    }
-    const alveoliGeo = new THREE.BufferGeometry();
-    alveoliGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(alveoliPts), 3));
-    const alveoliMat = new THREE.PointsMaterial({
-      color: 0x38bdf8,
-      size: 0.030,
-      map: lungGlowTex,
-      transparent: true,
-      opacity: 0.90,
-      blending: THREE.AdditiveBlending,
-    });
-    const alveoliCloud = new THREE.Points(alveoliGeo, alveoliMat);
-    lungsGroup.add(alveoliCloud);
-
-    // 4e. Bilateral Glowing Renal Kidneys Group
-    const kidneysGroup = new THREE.Group();
-    humanGroup.add(kidneysGroup);
-
-    const kidneyMat = new THREE.MeshBasicMaterial({
-      color: 0xa855f7, // Deep vivid purple / renal filtration
-      wireframe: true,
-      transparent: true,
-      opacity: 0.65,
-      blending: THREE.AdditiveBlending,
+    let isDisposed = false;
+    loadAstroDocBodyBin('/assets/body-ftVWkDPf.bin').then(binData => {
+      // Only apply binary data if it matches the high-density buffer size to prevent truncating the geometry
+      if (isDisposed || !binData || binData.n !== initialBody.n) return;
+      (astroGeo.attributes.position.array as Float32Array).set(binData.pos);
+      (astroGeo.attributes.aNrm.array as Float32Array).set(binData.nrm);
+      (astroGeo.attributes.aReg.array as Float32Array).set(binData.reg);
+      (astroGeo.attributes.aSeed.array as Float32Array).set(binData.seed);
+      astroGeo.attributes.position.needsUpdate = true;
+      astroGeo.attributes.aNrm.needsUpdate = true;
+      astroGeo.attributes.aReg.needsUpdate = true;
+      astroGeo.attributes.aSeed.needsUpdate = true;
     });
 
-    const kidneyGeo = new THREE.SphereGeometry(0.042, 12, 12);
-    kidneyGeo.scale(0.8, 1.25, 0.7);
-
-    const leftKidney = new THREE.Mesh(kidneyGeo, kidneyMat);
-    leftKidney.position.set(-0.10, 0.20, 0.045);
-    kidneysGroup.add(leftKidney);
-
-    const rightKidney = new THREE.Mesh(kidneyGeo.clone(), kidneyMat.clone());
-    rightKidney.position.set(0.10, 0.22, 0.045);
-    kidneysGroup.add(rightKidney);
-
-    const renalCoreMat = new THREE.MeshBasicMaterial({
-      color: 0xc084fc,
-      transparent: true,
-      opacity: 0.85,
-      blending: THREE.AdditiveBlending,
-    });
-    const leftRenalCore = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), renalCoreMat);
-    leftRenalCore.position.set(-0.10, 0.20, 0.045);
-    kidneysGroup.add(leftRenalCore);
-
-    const rightRenalCore = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), renalCoreMat);
-    rightRenalCore.position.set(0.10, 0.22, 0.045);
-    kidneysGroup.add(rightRenalCore);
-
-    // 4f. Authentic 3D NASA Polar Target Scanner Grid Disc at floor (y = -1.78)
-    const floorY = -1.78;
-    const gridGroup = new THREE.Group();
-    gridGroup.position.set(0, floorY, 0);
-    humanGroup.add(gridGroup);
-
-    const gridMat = new THREE.LineBasicMaterial({
-      color: 0x00e5ff,
-      transparent: true,
-      opacity: 0.55,
-    });
-
-    // 3 Concentric Target Rings (r = 0.35, 0.70, 1.05)
-    [0.35, 0.70, 1.05].forEach((radius) => {
-      const ringCurve = new THREE.EllipseCurve(0, 0, radius, radius, 0, 2 * Math.PI, false, 0);
-      const ringPts = ringCurve.getPoints(48);
-      const rGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
-      rGeo.rotateX(Math.PI / 2);
-      const ringMesh = new THREE.LineLoop(rGeo, gridMat);
-      gridGroup.add(ringMesh);
-    });
-
-    // 8 Radial Spokes dividing the circle at 45° intervals
-    const spokesPts: number[] = [];
-    const numSpokes = 8;
-    const outerR = 1.05;
-    for (let s = 0; s < numSpokes; s++) {
-      const angle = (s / numSpokes) * Math.PI * 2;
-      spokesPts.push(0, 0, 0);
-      spokesPts.push(Math.sin(angle) * outerR, 0, Math.cos(angle) * outerR);
-    }
-    const spokesGeo = new THREE.BufferGeometry();
-    spokesGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(spokesPts), 3));
-    const spokesMesh = new THREE.LineSegments(spokesGeo, gridMat);
-    gridGroup.add(spokesMesh);
-
-    // Rotating Radar Scanner Sweep Arm
-    const radarArmPts = new Float32Array([0, 0.002, 0, 0, 0.002, outerR]);
-    const radarArmGeo = new THREE.BufferGeometry();
-    radarArmGeo.setAttribute('position', new THREE.BufferAttribute(radarArmPts, 3));
-    const radarArmMat = new THREE.LineBasicMaterial({
-      color: 0x00f0ff,
-      transparent: true,
-      opacity: 0.85,
-    });
-    const radarArmMesh = new THREE.Line(radarArmGeo, radarArmMat);
-    gridGroup.add(radarArmMesh);
-
-    // 4g. 3D Hotspot Target Reticles on the body for all anatomical parts & hazards
-    const hotspot3DMeshes: THREE.Mesh[] = [];
-    const hotspotRingMeshes: THREE.Mesh[] = [];
-    const hotspotNodeMap: Record<string, { node: THREE.Mesh; ring: THREE.Mesh; mode: string }> = {};
-
-    const allCandidateTargets = [
-      { id: 'BRAIN', pos: [0.0, 1.30, 0.05], color: 0x38bdf8, subsystemId: 'OCULAR', mode: 'ANATOMY' },
-      { id: 'HEART', pos: [-0.07, 0.72, 0.10], color: 0xec4899, subsystemId: 'CARDIAC', mode: 'ANATOMY' },
-      { id: 'LUNGS', pos: [0.08, 0.80, 0.08], color: 0x06b6d4, subsystemId: 'CARDIAC', mode: 'ANATOMY' },
-      { id: 'KIDNEYS', pos: [-0.10, 0.20, 0.05], color: 0xa855f7, subsystemId: 'RENAL', mode: 'ANATOMY' },
-      { id: 'VASCULAR', pos: [0.16, 0.40, 0.04], color: 0xf43f5e, subsystemId: 'RENAL', mode: 'ANATOMY' },
-      { id: 'SKELETAL', pos: [0.10, -0.65, 0.04], color: 0x14b8a6, subsystemId: 'SKELETAL', mode: 'ANATOMY' },
-      { id: 'ISOLATION', pos: [0.0, 1.05, 0.05], color: 0x38bdf8, subsystemId: 'OCULAR', mode: 'HAZARDS' },
-      { id: 'ENVIRONMENT', pos: [0.0, 0.60, 0.12], color: 0x00e5a3, subsystemId: 'CARDIAC', mode: 'HAZARDS' },
-      { id: 'RADIATION', pos: [0.0, 0.15, 0.05], color: 0x00e5ff, subsystemId: 'RENAL', mode: 'HAZARDS' },
-      { id: 'DISTANCE', pos: [0.15, 0.22, 0.04], color: 0x00e5a3, subsystemId: 'RENAL', mode: 'HAZARDS' },
-      { id: 'GRAVITY', pos: [0.08, -0.60, 0.04], color: 0x00e5a3, subsystemId: 'SKELETAL', mode: 'HAZARDS' },
-    ];
-
-    allCandidateTargets.forEach(ht => {
-      // Visual inner core node
-      const g = new THREE.SphereGeometry(0.026, 16, 16);
-      const m = new THREE.MeshBasicMaterial({ color: ht.color });
-      const node = new THREE.Mesh(g, m);
-      node.position.set(ht.pos[0], ht.pos[1], ht.pos[2]);
-      node.userData = { id: ht.subsystemId, targetId: ht.id, mode: ht.mode };
-      humanGroup.add(node);
-      hotspot3DMeshes.push(node);
-
-      // Dedicated enlarged 3D invisible pick volume for effortless click registration
-      const hitG = new THREE.SphereGeometry(0.16, 12, 12);
-      const hitM = new THREE.MeshBasicMaterial({ visible: false });
-      const hitMesh = new THREE.Mesh(hitG, hitM);
-      hitMesh.position.set(ht.pos[0], ht.pos[1], ht.pos[2]);
-      hitMesh.userData = { id: ht.subsystemId, targetId: ht.id, mode: ht.mode };
-      humanGroup.add(hitMesh);
-      hotspot3DMeshes.push(hitMesh);
-
-      // Outer targeting ring
-      const rGeo = new THREE.RingGeometry(0.046, 0.058, 24);
-      const rMat = new THREE.MeshBasicMaterial({
-        color: ht.color,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.85,
-      });
-      const rMesh = new THREE.Mesh(rGeo, rMat);
-      rMesh.position.set(ht.pos[0], ht.pos[1], ht.pos[2] + 0.01);
-      rMesh.userData = { id: ht.subsystemId, targetId: ht.id, mode: ht.mode };
-      humanGroup.add(rMesh);
-      hotspotRingMeshes.push(rMesh);
-
-      hotspotNodeMap[ht.id] = { node, ring: rMesh, mode: ht.mode };
-    });
+    // Store latest projected 2D coordinates for fast click/hover hit testing
+    let latestProjectedMap: Record<string, { x: number; y: number }> = {};
+    let latestFigRect = initFigRect;
 
     // ─── 4f. NASA EVA Suit Model Group (High-Fidelity Space EMU) ───
     const suitGroup = new THREE.Group();
     suitGroup.visible = false;
     scene.add(suitGroup);
 
-    // Strobe / Beacon lights on EVA Suit
-    const helmetBeaconLight = new THREE.PointLight(0x00e5ff, 1.2, 2.5);
+    // Dedicated studio & solar lighting for the physical EVA space suit inside suitGroup
+    const suitSunLight = new THREE.DirectionalLight(0xfff8ee, 2.4);
+    suitSunLight.position.set(2.5, 4.0, 3.5);
+    suitGroup.add(suitSunLight);
+
+    const suitFillLight = new THREE.DirectionalLight(0x93c5fd, 1.2);
+    suitFillLight.position.set(-2.5, 1.5, 2.0);
+    suitGroup.add(suitFillLight);
+
+    const suitBackRim = new THREE.DirectionalLight(0x38bdf8, 1.6);
+    suitBackRim.position.set(0, 3.0, -3.5);
+    suitGroup.add(suitBackRim);
+
+    const suitAmbient = new THREE.AmbientLight(0x475569, 1.4);
+    suitGroup.add(suitAmbient);
+
+    // Strobe / Beacon light on helmet
+    const helmetBeaconLight = new THREE.PointLight(0x00e5ff, 1.4, 3.0);
     helmetBeaconLight.position.set(0, 0.88, 0.22);
     suitGroup.add(helmetBeaconLight);
 
@@ -1285,107 +1173,71 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     helmetBeaconMesh.position.set(0, 0.88, 0.22);
     suitGroup.add(helmetBeaconMesh);
 
-    // Dual Umbilical Conduits (O2 and Liquid Cooling from PLSS to DCM Chest)
-    const leftCurve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.22, 0.45, -0.32),
-      new THREE.Vector3(-0.35, 0.32, -0.12),
-      new THREE.Vector3(-0.26, 0.14, 0.20),
-      new THREE.Vector3(-0.08, 0.24, 0.26),
-    ]);
-    const leftTubeGeo = new THREE.TubeGeometry(leftCurve, 32, 0.018, 10, false);
-    const leftTubeMat = new THREE.MeshStandardMaterial({
-      color: 0x00e5ff,
-      emissive: 0x007799,
-      emissiveIntensity: 0.5,
-      roughness: 0.3,
-      metalness: 0.7,
-    });
-    const leftTubeMesh = new THREE.Mesh(leftTubeGeo, leftTubeMat);
-    suitGroup.add(leftTubeMesh);
+    // Subtle Chest DCM status indicator LED
+    const chestLedLight = new THREE.PointLight(0x38bdf8, 0.8, 1.5);
+    chestLedLight.position.set(0, 0.32, 0.28);
+    suitGroup.add(chestLedLight);
 
-    const rightCurve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0.22, 0.45, -0.32),
-      new THREE.Vector3(0.35, 0.32, -0.12),
-      new THREE.Vector3(0.26, 0.14, 0.20),
-      new THREE.Vector3(0.08, 0.24, 0.26),
-    ]);
-    const rightTubeGeo = new THREE.TubeGeometry(rightCurve, 32, 0.018, 10, false);
-    const rightTubeMat = new THREE.MeshStandardMaterial({
-      color: 0x3b82f6,
-      emissive: 0x1d4ed8,
-      emissiveIntensity: 0.5,
-      roughness: 0.3,
-      metalness: 0.7,
-    });
-    const rightTubeMesh = new THREE.Mesh(rightTubeGeo, rightTubeMat);
-    suitGroup.add(rightTubeMesh);
+    // Lazy-load NASA EVA Suit GLB model on demand (saves 2.87MB network & CPU during initial load)
+    let isSuitLoaded = false;
+    let isSuitLoading = false;
+    const loadSuitModel = () => {
+      if (isSuitLoaded || isSuitLoading) return;
+      isSuitLoading = true;
+      const suitLoader = new GLTFLoader();
+      suitLoader.load(
+        '/models/Astronaut.glb',
+        (gltf) => {
+          isSuitLoaded = true;
+          isSuitLoading = false;
+          const rawModel = gltf.scene;
+          const suitMeshContainer = new THREE.Group();
 
-    const suitLoader = new GLTFLoader();
-    suitLoader.load(
-      '/models/Astronaut.glb',
-      (gltf) => {
-        const rawModel = gltf.scene;
-        const suitMeshContainer = new THREE.Group();
+          // Retain authentic NASA spacesuit textures, gold visor, and enhance with aerospace materials
+          rawModel.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+              const mesh = child as THREE.Mesh;
+              mesh.castShadow = true;
+              mesh.receiveShadow = true;
 
-        // Visor gold reflective material
-        const visorMat = new THREE.MeshStandardMaterial({
-          color: 0xffb700,
-          metalness: 0.95,
-          roughness: 0.12,
-          emissive: 0x442800,
-          emissiveIntensity: 0.4,
-        });
+              if (mesh.material) {
+                const origMat = mesh.material as THREE.MeshStandardMaterial;
+                origMat.color.setRGB(1.0, 1.0, 1.0);
+                origMat.roughness = 0.44;
+                origMat.metalness = 0.16;
+                // Subtle aerospace rim glow
+                origMat.emissive = new THREE.Color(0x0284c7);
+                origMat.emissiveIntensity = 0.05;
+                origMat.needsUpdate = true;
+              }
+            }
+          });
 
-        // NASA White Suit composite weave
-        const suitMat = new THREE.MeshStandardMaterial({
-          color: 0xebf2f8,
-          metalness: 0.22,
-          roughness: 0.65,
-          emissive: 0x091420,
-          emissiveIntensity: 0.25,
-        });
+          // Add rawModel hierarchy to container (maintains complete node tree & transforms)
+          suitMeshContainer.add(rawModel);
 
-        // Edge highlights for holographic AR definition
-        const edgeLineMat = new THREE.LineBasicMaterial({
-          color: 0x38bdf8,
-          transparent: true,
-          opacity: 0.35,
-        });
+          // Accurate uniform scale (preserves natural human suit anatomical proportions)
+          const rawBox = new THREE.Box3().setFromObject(suitMeshContainer);
+          const rawSize = rawBox.getSize(new THREE.Vector3());
+          const targetH = 2.40;
+          const scaleFactor = targetH / (rawSize.y || 1);
+          suitMeshContainer.scale.set(scaleFactor, scaleFactor, scaleFactor);
+          suitMeshContainer.updateMatrixWorld(true);
 
-        rawModel.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh) {
-            const mesh = child as THREE.Mesh;
-            const geo = mesh.geometry.clone();
+          const scaledBox = new THREE.Box3().setFromObject(suitMeshContainer);
+          const center = scaledBox.getCenter(new THREE.Vector3());
+          suitMeshContainer.position.set(-center.x, -center.y, -center.z);
+          suitMeshContainer.updateMatrixWorld(true);
 
-            const nameLower = (mesh.name || '').toLowerCase();
-            const isVisor = nameLower.includes('visor') || nameLower.includes('glass') || nameLower.includes('face');
-
-            const renderedMesh = new THREE.Mesh(geo, isVisor ? visorMat : suitMat);
-            suitMeshContainer.add(renderedMesh);
-
-            const edgesGeo = new THREE.EdgesGeometry(geo, 25);
-            const edgeLines = new THREE.LineSegments(edgesGeo, edgeLineMat);
-            suitMeshContainer.add(edgeLines);
-          }
-        });
-
-        const rawBox = new THREE.Box3().setFromObject(suitMeshContainer);
-        const rawSize = rawBox.getSize(new THREE.Vector3());
-        const targetH = 2.42;
-        const scaleFactor = targetH / (rawSize.y || 1);
-        suitMeshContainer.scale.set(scaleFactor * 0.88, scaleFactor, scaleFactor * 0.88);
-        suitMeshContainer.updateMatrixWorld(true);
-
-        const scaledBox = new THREE.Box3().setFromObject(suitMeshContainer);
-        const center = scaledBox.getCenter(new THREE.Vector3());
-        suitMeshContainer.position.set(-center.x, -center.y, -center.z);
-        suitMeshContainer.updateMatrixWorld(true);
-
-        suitGroup.add(suitMeshContainer);
-      },
-      undefined,
-      (err) => console.warn('Could not load Astronaut.glb:', err)
-    );
+          suitGroup.add(suitMeshContainer);
+        },
+        undefined,
+        (err) => {
+          isSuitLoading = false;
+          console.warn('Could not load Astronaut.glb:', err);
+        }
+      );
+    };
 
     switchModelRef.current = (type: 'HUMAN' | 'SUIT') => {
       modelTypeRef.current = type;
@@ -1393,43 +1245,48 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
       if (type === 'HUMAN') {
         humanGroup.visible = true;
         suitGroup.visible = false;
+        setSelectedOrganId('HEART');
+        setSelectedHotspot('CARDIAC');
       } else {
+        loadSuitModel();
         humanGroup.visible = false;
         suitGroup.visible = true;
+        setSelectedOrganId('SUIT_PLSS');
+        setSelectedHotspot('PLSS');
       }
     };
 
-    focusSuitSubsystemRef.current = (id: 'VISOR' | 'PLSS' | 'DCM' | 'SAFER' | 'TMG') => {
-      const sub = suitSubsystems.find(s => s.id === id);
+    focusSuitSubsystemRef.current = (id: string) => {
+      const sub = suitParts.find(s => s.id === id || s.subsystemId === id);
       if (!sub) return;
-      setSelectedSuitSubsystem(id);
-      targetFocusYRef.current = sub.targetY;
+      setSelectedOrganId(sub.id);
+      setSelectedHotspot(sub.subsystemId);
+      targetFocusYRef.current = sub.scanTargetY;
     };
 
-    // ─── 5. Optional Laser Scanner Plane ───
+    // ─── 5. Precision Axial Scan Ring (Clean anatomical slice contour without blinding wide sheet) ───
     const scanGroup = new THREE.Group();
     scene.add(scanGroup);
 
-    const laserBeamPts = new Float32Array([-1.1, 0, 0, 1.1, 0, 0]);
+    const laserBeamPts = new Float32Array([-0.46, 0, 0, 0.46, 0, 0]);
     const laserBeamGeo = new THREE.BufferGeometry();
     laserBeamGeo.setAttribute('position', new THREE.BufferAttribute(laserBeamPts, 3));
     const laserBeamMat = new THREE.LineBasicMaterial({
-      color: 0xffffff,
+      color: 0xe0f2fe,
       transparent: true,
-      opacity: 0.95,
+      opacity: 0.42,
     });
     const laserBeamLine = new THREE.Line(laserBeamGeo, laserBeamMat);
     scanGroup.add(laserBeamLine);
 
-    const scanSheetGeo = new THREE.PlaneGeometry(2.2, 0.28);
+    const scanSheetGeo = new THREE.PlaneGeometry(0.95, 0.24);
     scanSheetGeo.rotateX(Math.PI / 2);
     const scanSheetMat = new THREE.MeshBasicMaterial({
       color: 0x00e5ff,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.05,
       side: THREE.DoubleSide,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
     });
     const scanSheet = new THREE.Mesh(scanSheetGeo, scanSheetMat);
     scanGroup.add(scanSheet);
@@ -1439,108 +1296,19 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     const sliceGeo = new THREE.BufferGeometry().setFromPoints(slicePoints);
     sliceGeo.rotateX(Math.PI / 2);
     const sliceMat = new THREE.LineBasicMaterial({
-      color: 0x80f5ff,
+      color: 0x7dd3fc,
       transparent: true,
-      opacity: 0.90,
+      opacity: 0.78,
     });
     const sliceContourLine = new THREE.LineLoop(sliceGeo, sliceMat);
     scanGroup.add(sliceContourLine);
 
-    const scanLight = new THREE.PointLight(0x00e5ff, 2.2, 2.4);
+    const scanLight = new THREE.PointLight(0x00e5ff, 1.4, 2.0);
     scanGroup.add(scanLight);
 
     updateMaterialsRef.current = (theme: string, severity: 'CRITICAL' | 'WARNING' | 'NOMINAL') => {
-      let pColor = 0x5ce1e6;
-      let vColor = 0xff173d;
-      let vpColor = 0xff2a4d;
-      let hColor = 0xff007f;
-      let hcColor = 0xff1493;
-      let baseColor = 0x00e5ff;
-      let bodyCol = 0x002638;
-      let bodyEmis = 0x00121d;
-      let wireCol = 0x00c8e6;
-      let skelColor = 0xccfbf1;
-      let skelPtsColor = 0x5eead4;
-      let brainColor = 0xff1493;
-      let brainLineColor = 0xf43f5e;
-      let radarColor = 0x00f0ff;
-
-      if (severity === 'CRITICAL') {
-        pColor = 0xff3b5c; // Vivid crimson stardust
-        vColor = 0xff0033; // Emergency deep red vascular network
-        vpColor = 0xff173d;
-        hColor = 0xff173d; // Pulsing emergency myocardium
-        hcColor = 0xcc0022;
-        baseColor = 0xef4444; // Emergency red pedestal
-        bodyCol = 0x3d0b14; // Alert deep crimson anatomical silhouette
-        bodyEmis = 0x220509;
-        wireCol = 0xff2244; // Vibrant alert red wireframe!
-        skelColor = 0xff8899;
-        skelPtsColor = 0xff3b5c;
-        brainColor = 0xff0055;
-        brainLineColor = 0xff173d;
-        radarColor = 0xef4444;
-      } else if (severity === 'WARNING') {
-        pColor = 0xfbbf24; // Tactical amber stardust
-        vColor = 0xd97706; // Amber vascular network
-        vpColor = 0xf59e0b;
-        hColor = 0xf59e0b; // Amber myocardium
-        hcColor = 0xb45309;
-        baseColor = 0xf59e0b; // Tactical amber pedestal
-        bodyCol = 0x2e1e04; // Alert deep amber silhouette
-        bodyEmis = 0x1a1102;
-        wireCol = 0xf59e0b; // Vibrant tactical amber wireframe!
-        skelColor = 0xfde68a;
-        skelPtsColor = 0xfbbf24;
-        brainColor = 0xf59e0b;
-        brainLineColor = 0xd97706;
-        radarColor = 0xf59e0b;
-      } else if (theme === 'THERMAL') {
-        pColor = 0xff9933; // Infrared warm orange
-        vColor = 0xff3300; // Fiery crimson heat vessels
-        vpColor = 0xff4500;
-        hColor = 0xffffff; // Incandescent white-hot metabolic core
-        hcColor = 0xff5500;
-        baseColor = 0xff7700;
-        bodyCol = 0x4a1800;
-        bodyEmis = 0x240c00;
-        wireCol = 0xff6600;
-        skelColor = 0xffffff;
-        skelPtsColor = 0xffeedd;
-        brainColor = 0xffaa00;
-        brainLineColor = 0xff5500;
-        radarColor = 0xff7700;
-      } else if (theme === 'AMBER') {
-        pColor = 0xf59e0b; // Apollo/Orion tactical amber phosphor
-        vColor = 0xd97706; // Deep gold
-        vpColor = 0xfbbf24;
-        hColor = 0xfbbf24; // Amber myocardium
-        hcColor = 0xf59e0b;
-        baseColor = 0xf59e0b;
-        bodyCol = 0x3d2800;
-        bodyEmis = 0x1f1400;
-        wireCol = 0xf59e0b;
-        skelColor = 0xfde68a;
-        skelPtsColor = 0xfbbf24;
-        brainColor = 0xf59e0b;
-        brainLineColor = 0xd97706;
-        radarColor = 0xf59e0b;
-      }
-
-      bodyMat.color.setHex(bodyCol);
-      bodyMat.emissive.setHex(bodyEmis);
-      wireMat.color.setHex(wireCol);
-      stardustMat.color.setHex(pColor);
-      skelMat.color.setHex(skelColor);
-      skelPtsMat.color.setHex(skelPtsColor);
-      brainPtsMat.color.setHex(brainColor);
-      brainLinesMat.color.setHex(brainLineColor);
-      vascMat.color.setHex(vColor);
-      vascPtsMat.color.setHex(vpColor);
-      heartMat.color.setHex(hColor);
-      heartCoreMat.color.setHex(hcColor);
-      gridMat.color.setHex(baseColor);
-      radarArmMat.color.setHex(radarColor);
+      astroUniforms.uTheme.value = theme === 'THERMAL' ? 1.0 : theme === 'AMBER' ? 2.0 : 0.0;
+      const pColor = severity === 'CRITICAL' ? 0xf43f5e : severity === 'WARNING' ? 0xf59e0b : theme === 'THERMAL' ? 0xf97316 : theme === 'AMBER' ? 0xf59e0b : 0x7fe8ff;
       scanSheetMat.color.setHex(pColor);
       sliceMat.color.setHex(pColor);
       scanLight.color.setHex(severity === 'CRITICAL' ? 0xff173d : severity === 'WARNING' ? 0xf59e0b : pColor);
@@ -1549,7 +1317,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     // Apply initial materials on mount
     updateMaterialsRef.current(colorTheme, activeSeverityRef.current);
 
-    // ─── 6. Pointer & Raycasting Event Handling ───
+    // ─── 6. Pointer & Click Event Handling ───
     const raycaster = new THREE.Raycaster();
     let pointerDownPos = { x: 0, y: 0 };
 
@@ -1567,64 +1335,21 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
 
       if (dx < 6 && dy < 6) {
         const rect = renderer.domElement.getBoundingClientRect();
-        const mouse = new THREE.Vector2(
-          ((e.clientX - rect.left) / rect.width) * 2 - 1,
-          -((e.clientY - rect.top) / rect.height) * 2 + 1
-        );
-        raycaster.setFromCamera(mouse, camera);
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
 
-        // Raycast against all interactive anatomical elements: reticles, organs, skeleton, and body silhouette
-        const candidateObjects = [
-          ...hotspot3DMeshes.filter(m => m.visible !== false),
-          heartCore,
-          leftLungMesh,
-          rightLungMesh,
-          leftKidney,
-          rightKidney,
-          bodyMesh,
-          skelMesh,
-          vascMesh,
-          ...(modelTypeRef.current === 'SUIT' ? [suitGroup] : []),
-        ].filter(Boolean);
-
-        const intersects = raycaster.intersectObjects(candidateObjects, true);
-        if (intersects.length > 0) {
-          // Priority 1: Check if any intersected object is a direct hotspot reticle or dedicated hit volume
-          const hotspotHit = intersects.find(hit => hit.object.userData?.targetId);
-          if (hotspotHit) {
-            handleTargetSelectRef.current(hotspotHit.object.userData.targetId);
-            return;
-          }
-
-          // Priority 2: Check if any intersected object is a direct organ mesh
-          const organHit = intersects.find(hit => 
-            hit.object === leftLungMesh || hit.object === rightLungMesh ||
-            hit.object === heartCore ||
-            hit.object === leftKidney || hit.object === rightKidney
+        if (modelTypeRef.current === 'SUIT') {
+          const mouse = new THREE.Vector2(
+            (clickX / rect.width) * 2 - 1,
+            -(clickY / rect.height) * 2 + 1
           );
-          if (organHit) {
-            if (organHit.object === leftLungMesh || organHit.object === rightLungMesh) {
-              handleTargetSelectRef.current('LUNGS');
-              return;
-            }
-            if (organHit.object === heartCore) {
-              handleTargetSelectRef.current('HEART');
-              return;
-            }
-            if (organHit.object === leftKidney || organHit.object === rightKidney) {
-              handleTargetSelectRef.current('KIDNEYS');
-              return;
-            }
-          }
-
-          // Priority 3: Body Mesh / Surface click: calculate precise anatomical region
-          const hit = intersects[0];
-          const localPt = humanGroup.worldToLocal(hit.point.clone());
-          const y = localPt.y;
-          const x = localPt.x;
-          const z = localPt.z;
-
-          if (modelTypeRef.current === 'SUIT') {
+          raycaster.setFromCamera(mouse, camera);
+          const intersects = raycaster.intersectObjects([suitGroup], true);
+          if (intersects.length > 0) {
+            const hit = intersects[0];
+            const localPt = suitGroup.worldToLocal(hit.point.clone());
+            const y = localPt.y;
+            const z = localPt.z;
             if (z < -0.12) {
               focusSuitSubsystemRef.current?.('PLSS');
             } else if (y > 0.65) {
@@ -1636,53 +1361,45 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
             } else {
               focusSuitSubsystemRef.current?.('TMG');
             }
-            return;
           }
+          return;
+        }
 
-          let targetOrgan: 'BRAIN' | 'HEART' | 'LUNGS' | 'KIDNEYS' | 'VASCULAR' | 'SKELETAL' = 'HEART';
-          // 1. Head / Cranial / Eyes
-          if (y >= 1.05) {
-            targetOrgan = 'BRAIN';
+        // Check 2D screen proximity to the 6 projected AstroDocX organ anchors
+        let bestId: string | null = null;
+        let bestDist = 52;
+        activeDisplayTargetsRef.current.forEach(t => {
+          const p = latestProjectedMap[t.id];
+          if (!p) return;
+          const dist = Math.hypot(clickX - p.x, clickY - p.y);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestId = t.id;
           }
-          // 2. Lower Pelvis, Legs, Knees, Feet
-          else if (y < 0.0) {
-            targetOrgan = 'SKELETAL';
-          }
-          // 3. Torso: High-precision anatomical distance matching
-          else {
-            const heartDist = Math.hypot(x - (-0.07), (y - 0.74) * 1.25, (z - 0.09) * 0.9);
-            const leftLungDist = Math.hypot(x - 0.09, (y - 0.78) * 1.15, (z - 0.06) * 0.9);
-            const rightLungDist = Math.hypot(x - (-0.09), (y - 0.78) * 1.15, (z - 0.06) * 0.9);
-            const lungsDist = Math.min(leftLungDist, rightLungDist);
-            const vascDist = Math.hypot(x - 0.02, (y - 0.44) * 1.15, z - 0.05);
-            const kidneyDist = Math.min(
-              Math.hypot(x - (-0.11), (y - 0.20) * 1.2, z - 0.045),
-              Math.hypot(x - 0.11, (y - 0.20) * 1.2, z - 0.045)
-            );
+        });
 
-            // Posterior spine bias if clicked from behind
-            if (z < -0.07 && Math.abs(x) < 0.08) {
-              targetOrgan = 'SKELETAL';
-            } else {
-              const minDist = Math.min(heartDist, lungsDist, vascDist, kidneyDist);
-              if (minDist === heartDist && heartDist < 0.24) {
-                targetOrgan = 'HEART';
-              } else if (minDist === lungsDist && lungsDist < 0.28) {
-                targetOrgan = 'LUNGS';
-              } else if (minDist === kidneyDist && kidneyDist < 0.26) {
-                targetOrgan = 'KIDNEYS';
-              } else if (minDist === vascDist && vascDist < 0.26) {
-                targetOrgan = 'VASCULAR';
-              } else if (y > 0.60) {
-                targetOrgan = x < -0.03 ? 'HEART' : 'LUNGS';
-              } else if (y > 0.32) {
-                targetOrgan = 'VASCULAR';
-              } else {
-                targetOrgan = 'KIDNEYS';
-              }
-            }
+        if (bestId) {
+          handleTargetSelectRef.current(bestId);
+          return;
+        }
+
+        // If clicked inside the 300x660 figure silhouette, select the corresponding anatomical region by Y
+        if (
+          clickX >= latestFigRect.x + latestFigRect.w * 0.15 &&
+          clickX <= latestFigRect.x + latestFigRect.w * 0.85 &&
+          clickY >= latestFigRect.y &&
+          clickY <= latestFigRect.y + latestFigRect.h
+        ) {
+          const figYNorm = (clickY - latestFigRect.y) / latestFigRect.h;
+          if (figYNorm < 0.22) {
+            handleTargetSelectRef.current('BRAIN');
+          } else if (figYNorm < 0.38) {
+            handleTargetSelectRef.current(clickX < latestFigRect.x + latestFigRect.w * 0.5 ? 'HEART' : 'LUNGS');
+          } else if (figYNorm < 0.56) {
+            handleTargetSelectRef.current(clickX < latestFigRect.x + latestFigRect.w * 0.5 ? 'KIDNEYS' : 'VASCULAR');
+          } else {
+            handleTargetSelectRef.current('SKELETAL');
           }
-          handleTargetSelectRef.current(targetOrgan);
         }
       }
     };
@@ -1690,23 +1407,31 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     const onPointerMove = (e: PointerEvent) => {
       if (snapTargetAzimuthRef.current !== null) return;
       const rect = renderer.domElement.getBoundingClientRect();
-      const mouse = new THREE.Vector2(
-        ((e.clientX - rect.left) / rect.width) * 2 - 1,
-        -((e.clientY - rect.top) / rect.height) * 2 + 1
-      );
-      raycaster.setFromCamera(mouse, camera);
-      const candidateObjects = [
-        ...hotspot3DMeshes.filter(m => m.visible !== false),
-        bodyMesh,
-        heartCore,
-        leftLungMesh,
-        rightLungMesh,
-        leftKidney,
-        rightKidney,
-        ...(modelTypeRef.current === 'SUIT' ? [suitGroup] : []),
-      ].filter(Boolean);
-      const intersects = raycaster.intersectObjects(candidateObjects, true);
-      renderer.domElement.style.cursor = intersects.length > 0 ? 'pointer' : 'grab';
+      const moveX = e.clientX - rect.left;
+      const moveY = e.clientY - rect.top;
+
+      if (modelTypeRef.current === 'SUIT') {
+        const mouse = new THREE.Vector2(
+          (moveX / rect.width) * 2 - 1,
+          -(moveY / rect.height) * 2 + 1
+        );
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects([suitGroup], true);
+        renderer.domElement.style.cursor = intersects.length > 0 ? 'pointer' : 'grab';
+        return;
+      }
+
+      const nearAnchor = activeDisplayTargetsRef.current.some(t => {
+        const p = latestProjectedMap[t.id];
+        return p && Math.hypot(moveX - p.x, moveY - p.y) < 38;
+      });
+      const inBody =
+        moveX >= latestFigRect.x + latestFigRect.w * 0.22 &&
+        moveX <= latestFigRect.x + latestFigRect.w * 0.78 &&
+        moveY >= latestFigRect.y + latestFigRect.h * 0.05 &&
+        moveY <= latestFigRect.y + latestFigRect.h * 0.95;
+
+      renderer.domElement.style.cursor = nearAnchor || inBody ? 'pointer' : 'grab';
     };
 
     const dom = renderer.domElement;
@@ -1714,9 +1439,11 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     dom.addEventListener('pointerup', onPointerUp);
     dom.addEventListener('pointermove', onPointerMove);
 
-    // ─── 7. Animation Loop (60 FPS Tracking & Pulsing) ───
+    // ─── 7. Animation Loop (60 FPS AstroDocX Shader Uniforms, Arterial Pulse & Scan Sweep) ───
     let animationFrameId: number;
     const clock = new THREE.Clock();
+    let lastElapsed = 0;
+    let beatPhase = 0;
     let currentScanY = 0;
     let targetScanY = 0;
 
@@ -1731,13 +1458,30 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
       return 'PLANTAR / BASE';
     };
 
-    const tempVec = new THREE.Vector3();
+    const statusToNum = (st?: string): number => {
+      if (st === 'CRITICAL') return 2.0;
+      if (st === 'WATCH' || st === 'WARNING') return 1.0;
+      return 0.0;
+    };
+
+    let isTabVisible = typeof document !== 'undefined' ? !document.hidden : true;
+    const handleVisibilityChange = () => {
+      isTabVisible = !document.hidden;
+      if (isTabVisible && !isDisposed) {
+        lastElapsed = clock.getElapsedTime();
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = requestAnimationFrame(animate);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const animate = () => {
+      if (isDisposed || !isTabVisible) return;
       animationFrameId = requestAnimationFrame(animate);
       const elapsed = clock.getElapsedTime();
+      const dt = Math.min(0.1, Math.max(0.001, elapsed - lastElapsed));
+      lastElapsed = elapsed;
 
-      // Handle smooth view snap animation
       if (snapTargetAzimuthRef.current !== null) {
         const currentAz = controls.getAzimuthalAngle();
         const diff = snapTargetAzimuthRef.current - currentAz;
@@ -1752,7 +1496,6 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
 
       controls.update();
 
-      // Handle smooth vertical focus pan animation & centering return
       if (targetFocusYRef.current !== null) {
         const curY = controls.target.y;
         const diffY = targetFocusYRef.current - curY;
@@ -1778,7 +1521,6 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         }
       }
 
-      // Handle smooth camera zoom/distance return animation
       if (targetCameraZRef.current !== null) {
         const curLen = camera.position.length();
         const diffLen = targetCameraZRef.current - curLen;
@@ -1790,7 +1532,6 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         }
       }
 
-      // Smooth return for controls.target
       if (targetControlsTargetRef.current) {
         controls.target.x += (targetControlsTargetRef.current.x - controls.target.x) * 0.08;
         controls.target.y += (targetControlsTargetRef.current.y - controls.target.y) * 0.08;
@@ -1809,7 +1550,6 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         }
       }
 
-      // Smooth return for camera.position
       if (targetCameraPosRef.current) {
         camera.position.x += (targetCameraPosRef.current.x - camera.position.x) * 0.08;
         camera.position.y += (targetCameraPosRef.current.y - camera.position.y) * 0.08;
@@ -1825,76 +1565,110 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
             targetCameraPosRef.current.z
           );
           targetCameraPosRef.current = null;
-          if (autoRotateRef.current) {
+          if (autoRotateRef.current && modelTypeRef.current === 'SUIT') {
             controls.autoRotate = true;
           }
         }
       }
 
-      // Azimuth HUD text
+      const rawAz = controls.getAzimuthalAngle();
+      // Gentle harmonic frontal oscillation (+/- 12.6 deg) + full 360 deg interactive drag rotation
+      const idleSway = autoRotateRef.current ? 0.22 * Math.sin(elapsed * 0.35) : 0.0;
+      const uAng = -rawAz + idleSway;
       if (azimuthDomRef.current) {
-        const rawAz = controls.getAzimuthalAngle();
-        const deg = Math.round((((rawAz % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2)) * 360);
+        const deg = Math.round((((uAng % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2)) * 360);
         azimuthDomRef.current.textContent = `${deg}°`;
       }
 
-      // Laser Scanner Plane
+      const curW = containerSizeRef.current.width;
+      const curH = containerSizeRef.current.height;
+      const zoomScale = 5.85 / Math.max(3.4, Math.min(7.2, camera.position.length()));
+      const figRect = computeAstroDocFigRect(curW, curH, zoomScale);
+      latestFigRect = figRect;
+
+      // Update AstroDocX Shader Uniforms (Phase-Locked to Live BPM without Discontinuities)
+      const currentHr = Math.max(40, Math.min(200, hrRef.current || 62));
+      beatPhase = (beatPhase + dt * (currentHr / 60.0)) % 1.0;
+      const uBeat = beatPhase;
+
       const mode = laserModeRef.current;
-      if (mode === 'OFF') {
-        scanGroup.visible = false;
-      } else {
-        scanGroup.visible = true;
-        if (mode === 'SWEEP') {
-          const cycle = (Math.sin(elapsed * 1.25) + 1) * 0.5;
-          targetScanY = -1.60 + cycle * (1.35 - (-1.60));
-          currentScanY += (targetScanY - currentScanY) * 0.15;
-        } else if (mode === 'LOCK_ORGAN') {
-          const activeHs = hotspots.find(h => h.id === selectedHotspotRef.current);
-          targetScanY = activeHs ? activeHs.scanTargetY : 0.70;
-          currentScanY += (targetScanY - currentScanY) * 0.10;
-        }
+      const uScan = mode === 'OFF' ? -1.0 : ((elapsed % 5.5) / 5.5);
 
-        scanGroup.position.y = currentScanY;
-        const contour = getBodyContourRadii(currentScanY);
-        sliceContourLine.scale.set(contour.rx * 1.08, 1, contour.rz * 1.08);
-        scanSheetMat.opacity = 0.20;
+      const activeOrgan = selectedOrganIdRef.current;
+      const focusIdx =
+        activeOrgan === 'BRAIN' ? 0.0 :
+        activeOrgan === 'VASCULAR' ? 1.0 :
+        activeOrgan === 'LUNGS' ? 2.0 :
+        activeOrgan === 'KIDNEYS' ? 3.0 :
+        activeOrgan === 'SKELETAL' ? 4.0 :
+        activeOrgan === 'HEART' ? 5.0 : -1.0;
 
-        if (elevationDomRef.current) {
-          elevationDomRef.current.textContent = `${currentScanY >= 0 ? '+' : ''}${currentScanY.toFixed(2)} m`;
-        }
-        if (regionDomRef.current) {
-          regionDomRef.current.textContent = getRegionName(currentScanY);
-        }
-        if (sliceIndexDomRef.current) {
-          const sliceNum = Math.round(((currentScanY + 1.60) / 2.95) * 128);
-          sliceIndexDomRef.current.textContent = `#${Math.max(1, Math.min(128, sliceNum))}`;
-        }
-        if (elevationRulerChevronRef.current) {
-          const pct = Math.max(0, Math.min(100, ((currentScanY + 1.60) / 2.95) * 100));
-          elevationRulerChevronRef.current.style.bottom = `${pct}%`;
+      const targets = activeDisplayTargetsRef.current;
+      const findStatus = (id: string) => statusToNum(targets.find(t => t.id === id)?.status);
+
+      const pr = Math.min(window.devicePixelRatio || 1, 2);
+      astroUniforms.uAng.value = uAng;
+      astroUniforms.uTime.value = elapsed;
+      astroUniforms.uBeat.value = uBeat;
+      astroUniforms.uPR.value = pr * Math.min(1.28, Math.max(0.92, figRect.w / 220));
+      astroUniforms.uFocus.value = focusIdx;
+      astroUniforms.uScan.value = uScan;
+      astroUniforms.uS0.value = findStatus('BRAIN');
+      astroUniforms.uS1.value = findStatus('VASCULAR');
+      astroUniforms.uS2.value = findStatus('LUNGS');
+      astroUniforms.uS3.value = findStatus('KIDNEYS');
+      astroUniforms.uS4.value = findStatus('SKELETAL');
+      astroUniforms.uS5.value = findStatus('HEART');
+      astroUniforms.uFigRect.value.set(figRect.x, figRect.y, figRect.w, figRect.h);
+      astroUniforms.uViewSize.value.set(curW, curH);
+
+      // Update SVG Floor & Scanline overlay in 300x660 figure space
+      if (figSvgRef.current) {
+        figSvgRef.current.style.left = `${figRect.x}px`;
+        figSvgRef.current.style.top = `${figRect.y}px`;
+        figSvgRef.current.style.width = `${figRect.w}px`;
+        figSvgRef.current.style.height = `${figRect.h}px`;
+      }
+      if (scanLineSvgRef.current) {
+        if (uScan >= 0 && modelTypeRef.current === 'HUMAN') {
+          const scanY660 = 40 + uScan * 580;
+          scanLineSvgRef.current.setAttribute('y1', scanY660.toFixed(1));
+          scanLineSvgRef.current.setAttribute('y2', scanY660.toFixed(1));
+          scanLineSvgRef.current.style.opacity = '1';
+        } else {
+          scanLineSvgRef.current.style.opacity = '0';
         }
       }
 
-      // ─── Real-Time Floor Radar Sweep Rotation ───
-      radarArmMesh.rotation.y = elapsed * 1.5;
+      // Keep 3D slice ring only for EVA Suit mode; AstroDocX body uses shader scan wave + SVG scanline
+      if (modelTypeRef.current === 'SUIT' && mode !== 'OFF') {
+        scanGroup.visible = true;
+        const cycle = (Math.sin(elapsed * 1.05) + 1) * 0.5;
+        targetScanY = -1.45 + cycle * (1.35 - (-1.45));
+        currentScanY += (targetScanY - currentScanY) * 0.15;
+        scanGroup.position.y = currentScanY;
+        const contour = getBodyContourRadii(currentScanY);
+        sliceContourLine.scale.set(contour.rx * 1.04, 1, contour.rz * 1.04);
+        scanSheetMat.opacity = 0.035;
+      } else {
+        scanGroup.visible = false;
+        currentScanY = 1.75 - Math.max(0, uScan) * 3.6;
+      }
 
-      // ─── Real-Time Brainwave Synaptic Pulsation ───
-      const brainPulse = 1.0 + 0.045 * Math.sin(elapsed * 2.8);
-      brainGroup.scale.set(brainPulse, brainPulse, brainPulse);
-
-      // ─── Real-Time Double-Beat Pulsing Heart ───
-      const currentHr = hrRef.current || 72;
-      const bps = (currentHr / 60) * Math.PI * 2;
-      const pulseScale = 1.0 + 0.26 * Math.pow(Math.sin(elapsed * bps), 4);
-      heartGroup.scale.set(pulseScale, pulseScale, pulseScale);
-
-      // ─── Real-Time Pulmonary Lungs Breathing ───
-      const lungBreath = 1.0 + 0.05 * Math.sin(elapsed * 2.0);
-      lungsGroup.scale.set(lungBreath, lungBreath, lungBreath);
-
-      // ─── Real-Time Renal Kidneys Filtration Pulse ───
-      const kidneyPulse = 1.0 + 0.04 * Math.sin(elapsed * 1.6);
-      kidneysGroup.scale.set(kidneyPulse, kidneyPulse, kidneyPulse);
+      if (elevationDomRef.current) {
+        elevationDomRef.current.textContent = `${currentScanY >= 0 ? '+' : ''}${currentScanY.toFixed(2)} m`;
+      }
+      if (regionDomRef.current) {
+        regionDomRef.current.textContent = getRegionName(currentScanY);
+      }
+      if (sliceIndexDomRef.current) {
+        const sliceNum = Math.round(((1.75 - currentScanY) / 3.6) * 128);
+        sliceIndexDomRef.current.textContent = `#${Math.max(1, Math.min(128, sliceNum))}`;
+      }
+      if (elevationRulerChevronRef.current) {
+        const pct = Math.max(0, Math.min(100, ((currentScanY + 1.85) / 3.6) * 100));
+        elevationRulerChevronRef.current.style.bottom = `${pct}%`;
+      }
 
       // ─── Real-Time Microgravity EVA Spacesuit Floating & Strobe Animation ───
       if (modelTypeRef.current === 'SUIT') {
@@ -1907,60 +1681,27 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         helmetBeaconMesh.scale.setScalar(0.9 + 0.3 * beaconPulse);
       }
 
-      // ─── Real-Time 3D Mesh Visibility, Colors & Pulsation ───
-      const currentMode = inspectionModeRef.current;
-      allCandidateTargets.forEach(t => {
-        const entry = hotspotNodeMap[t.id];
-        if (entry) {
-          const isVis = entry.mode === currentMode;
-          entry.node.visible = isVis;
-          entry.ring.visible = isVis;
-        }
-      });
-
-      activeDisplayTargetsRef.current.forEach((t) => {
-        const entry = hotspotNodeMap[t.id];
-        if (entry) {
-          (entry.node.material as THREE.MeshBasicMaterial).color.set(t.color);
-          (entry.ring.material as THREE.MeshBasicMaterial).color.set(t.color);
-          entry.ring.scale.setScalar(1.0);
-        }
-      });
-
-      // Rock-solid steady holographic lighting & wireframe (no automatic blinking/strobing)
       const curSev = activeSeverityRef.current;
-      if (curSev === 'CRITICAL') {
-        wireMat.opacity = 0.22;
-        scanLight.intensity = 2.4;
-      } else if (curSev === 'WARNING') {
-        wireMat.opacity = 0.16;
-        scanLight.intensity = 2.2;
-      } else {
-        wireMat.opacity = 0.09;
-        scanLight.intensity = 2.2;
-      }
+      scanLight.intensity = curSev === 'CRITICAL' ? 1.8 : 1.4;
 
-      // ─── Project 3D Hotspot Targets to 2D Screen for Dotted Leader Lines ───
-      const curW = containerSizeRef.current.width;
-      const curH = containerSizeRef.current.height;
-
+      // ─── Project 3D AstroDocX Organ Anchors to 2D Screen for Minimal Dots & Stationary Card Leader Lines ───
       if (showBadgesRef.current) {
+        const projectedMap: Record<string, { x: number; y: number }> = {};
+
         activeDisplayTargetsRef.current.forEach(ht => {
-          tempVec.set(ht.pos[0], ht.pos[1], ht.pos[2]);
-          tempVec.applyMatrix4(humanGroup.matrixWorld);
-          tempVec.project(camera);
+          const [bx, by] = projectAstroDocPoint(ht.pos, uAng);
+          const screenX = figRect.x + (bx / ASTRODOC_VIEWBOX.width) * figRect.w;
+          const screenY = figRect.y + (by / ASTRODOC_VIEWBOX.height) * figRect.h;
+          projectedMap[ht.id] = { x: screenX, y: screenY };
 
-          const screenX = ((tempVec.x + 1) / 2) * curW;
-          const screenY = ((-tempVec.y + 1) / 2) * curH;
-
-          // Position 2D Hotspot Reticle Ring
+          // Position Minimal 2D Small-Dot Pointer (20x20 container -> center is -10px)
           const ringEl = ringRefs.current[ht.id];
           if (ringEl) {
-            ringEl.style.transform = `translate(${screenX - 17}px, ${screenY - 17}px)`;
+            ringEl.style.transform = `translate(${screenX - 10}px, ${screenY - 10}px)`;
             const ringCircle = ringEl.querySelector('.reticle-ring-circle') as HTMLElement;
             if (ringCircle) {
-              ringCircle.style.borderColor = ht.color;
-              ringCircle.style.boxShadow = `0 0 12px ${ht.color}`;
+              ringCircle.style.borderColor = `${ht.color}55`;
+              ringCircle.style.background = `${ht.color}18`;
             }
             const innerDot = ringEl.querySelector('.reticle-inner-dot') as HTMLElement;
             if (innerDot) {
@@ -1968,27 +1709,36 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
               innerDot.style.boxShadow = `0 0 8px ${ht.color}`;
             }
           }
+        });
 
-          // Draw Dotted Leader Line from Badge to Hotspot (Pixel-Perfect Dynamic Connection)
+        latestProjectedMap = projectedMap;
+
+        // Connect Leader Lines from Stationary Callout Cards to 3D Organ Dots (Cached Layout - 0 Reflows in rAF Loop)
+        activeDisplayTargetsRef.current.forEach(ht => {
+          const p = projectedMap[ht.id];
+          const badgeEl = badgeRefs.current[ht.id];
           const lineEl = lineRefs.current[ht.id];
-          if (lineEl) {
-            const badgeEl = badgeRefs.current[ht.id];
-            let badgeAnchorX = ht.side === 'LEFT' ? 145 : curW - 145;
-            let badgeAnchorY = curH * 0.5;
+          if (!p || !lineEl) return;
 
-            if (badgeEl && mountRef.current) {
-              const bRect = badgeEl.getBoundingClientRect();
-              const cRect = mountRef.current.getBoundingClientRect();
-              badgeAnchorY = (bRect.top - cRect.top) + bRect.height * 0.5;
-              badgeAnchorX = ht.side === 'LEFT' ? (bRect.right - cRect.left) : (bRect.left - cRect.left);
-            }
-
-            lineEl.setAttribute('x1', String(badgeAnchorX));
-            lineEl.setAttribute('y1', String(badgeAnchorY));
-            lineEl.setAttribute('x2', String(screenX));
-            lineEl.setAttribute('y2', String(screenY));
-            lineEl.setAttribute('stroke', ht.color);
+          let cached = badgeAnchorsCacheRef.current[ht.id];
+          if (!cached && badgeEl && mountRef.current) {
+            const bRect = badgeEl.getBoundingClientRect();
+            const cRect = mountRef.current.getBoundingClientRect();
+            cached = {
+              x: ht.side === 'LEFT' ? (bRect.right - cRect.left) : (bRect.left - cRect.left),
+              y: (bRect.top - cRect.top) + bRect.height * 0.5,
+            };
+            badgeAnchorsCacheRef.current[ht.id] = cached;
           }
+
+          const badgeAnchorX = cached ? cached.x : (ht.side === 'LEFT' ? 210 : curW - 210);
+          const badgeAnchorY = cached ? cached.y : p.y;
+
+          lineEl.setAttribute('x1', String(badgeAnchorX));
+          lineEl.setAttribute('y1', String(badgeAnchorY));
+          lineEl.setAttribute('x2', String(p.x));
+          lineEl.setAttribute('y2', String(p.y));
+          lineEl.setAttribute('stroke', ht.color);
         });
       }
 
@@ -2014,6 +1764,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
           }
           camera.updateProjectionMatrix();
           renderer.setSize(w, h);
+          badgeAnchorsCacheRef.current = {};
         }
       }
     });
@@ -2021,12 +1772,16 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     resizeObserver.observe(container);
 
     return () => {
+      isDisposed = true;
       cancelAnimationFrame(animationFrameId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       dom.removeEventListener('pointerdown', onPointerDown);
       dom.removeEventListener('pointerup', onPointerUp);
       dom.removeEventListener('pointermove', onPointerMove);
       resizeObserver.disconnect();
       controls.dispose();
+      astroGeo.dispose();
+      astroMat.dispose();
       renderer.dispose();
       if (container && dom) {
         container.removeChild(dom);
@@ -2034,7 +1789,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     };
   }, []);
 
-  // Target Icon Selector for Anatomical Organs
+  // Target Icon Selector for Anatomical Organs & EVA Spacesuit Subsystems
   const renderTargetIcon = (id: string, color: string) => {
     switch (id) {
       case 'BRAIN':
@@ -2049,6 +1804,24 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         return <Activity size={16} color={color} />;
       case 'SKELETAL':
         return <Bone size={16} color={color} />;
+      case 'SUIT_VISOR':
+      case 'VISOR':
+        return <Eye size={16} color={color} />;
+      case 'SUIT_DCM':
+      case 'DCM':
+        return <Gauge size={16} color={color} />;
+      case 'SUIT_LCVG':
+      case 'LCVG':
+        return <Thermometer size={16} color={color} />;
+      case 'SUIT_PLSS':
+      case 'PLSS':
+        return <Shield size={16} color={color} />;
+      case 'SUIT_SAFER':
+      case 'SAFER':
+        return <Navigation size={16} color={color} />;
+      case 'SUIT_TMG':
+      case 'TMG':
+        return <Layers size={16} color={color} />;
       default:
         return <Activity size={16} color={color} />;
     }
@@ -2056,233 +1829,330 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
 
   return (
     <div style={{
-      background: 'linear-gradient(180deg, rgba(12, 19, 32, 0.60) 0%, rgba(6, 10, 18, 0.72) 100%)',
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
-      borderRadius: 16,
+      background: 'transparent',
       overflow: 'hidden',
       position: 'relative',
       fontFamily: "var(--hud-font-sans, 'Tomorrow', -apple-system, BlinkMacSystemFont, sans-serif)",
-      boxShadow: '0 12px 36px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
     }}>
-      {/* ─── Top Technical Header Strip ─── */}
+      {/* ─── Top Technical Control Strip (Dropdown Selectors & Full 3D View Toggle) ─── */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '10px 16px',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
-        background: 'rgba(7, 12, 22, 0.75)',
-        backdropFilter: 'blur(16px)',
+        gap: 10,
+        padding: '7px 16px',
+        borderBottom: '1px solid rgba(122, 148, 99, 0.18)',
+        background: 'linear-gradient(180deg, rgba(18, 26, 21, 0.95) 0%, rgba(12, 18, 15, 0.98) 100%)',
+        position: 'relative',
+        zIndex: 40,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', letterSpacing: '0.02em' }}>
-            {crewNo} · {astronautName.toUpperCase()}
-          </span>
-        </div>
-
-        {/* Operational Controls: Model Selector, Sensor Themes & View Toggle */}
+        {/* Left Controls: Model Selector & Sensor Themes as Dropdowns */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {/* 3D Model Mode: Body vs Spacesuit */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'rgba(0, 0, 0, 0.55)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: 7,
-              padding: 2,
-              gap: 2,
-            }}
-          >
+          
+          {/* 1. Model Selector Dropdown */}
+          <div ref={modelDropdownRef} style={{ position: 'relative' }}>
             <button
               onClick={() => {
-                switchModelRef.current && switchModelRef.current('HUMAN');
-                handleCloseOrganModal();
+                setIsModelDropdownOpen(prev => !prev);
+                setIsThemeDropdownOpen(false);
               }}
               style={{
-                background: modelType === 'HUMAN' ? 'rgba(56, 189, 248, 0.24)' : 'transparent',
-                border: modelType === 'HUMAN' ? '1px solid #38bdf8' : '1px solid transparent',
-                color: modelType === 'HUMAN' ? '#38bdf8' : '#94a3b8',
+                background: isModelDropdownOpen
+                  ? 'linear-gradient(180deg, #2d4030 0%, #1e2c20 100%)'
+                  : 'linear-gradient(180deg, #223024 0%, #172219 100%)',
+                border: isModelDropdownOpen
+                  ? '1px solid rgba(161, 180, 142, 0.50)'
+                  : '1px solid rgba(122, 148, 99, 0.28)',
+                color: '#f1f5f9',
                 borderRadius: 5,
-                padding: '4px 9px',
-                fontSize: 10,
-                fontWeight: modelType === 'HUMAN' ? 700 : 500,
+                padding: '4.5px 10px',
+                fontSize: 10.5,
+                fontWeight: 600,
                 fontFamily: 'monospace',
+                lineHeight: 1,
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: 5,
+                justifyContent: 'center',
+                gap: 6,
                 transition: 'all 0.14s ease',
               }}
             >
-              <User size={12} />
-              <span>3D Body</span>
+              {modelType === 'HUMAN' ? <User size={12} color="#34d399" /> : <Shield size={12} color="#38bdf8" />}
+              <span>{modelType === 'HUMAN' ? '3D Body' : 'EVA Suit'}</span>
+              <ChevronDown
+                size={11}
+                color="#94a3b8"
+                style={{
+                  transform: isModelDropdownOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.15s ease',
+                }}
+              />
             </button>
-            <button
-              onClick={() => {
-                switchModelRef.current && switchModelRef.current('SUIT');
-                handleCloseOrganModal();
-              }}
-              style={{
-                background: modelType === 'SUIT' ? 'rgba(56, 189, 248, 0.24)' : 'transparent',
-                border: modelType === 'SUIT' ? '1px solid #38bdf8' : '1px solid transparent',
-                color: modelType === 'SUIT' ? '#38bdf8' : '#94a3b8',
-                borderRadius: 5,
-                padding: '4px 9px',
-                fontSize: 10,
-                fontWeight: modelType === 'SUIT' ? 700 : 500,
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                transition: 'all 0.14s ease',
-              }}
-            >
-              <Shield size={12} />
-              <span>EVA Suit</span>
-            </button>
-          </div>
 
-          <span style={{ width: 1, height: 18, background: 'rgba(255, 255, 255, 0.12)' }} />
-
-          {/* ── INSPECTION MODE: ANATOMY & ORGANS ── */}
-          <button
-            onClick={() => {
-              setShowOrganModal(true);
-            }}
-            title="Inspect Human Biological Anatomy: Brain, Heart, Lungs, Kidneys, Vascular Network, Skeletal Structure"
-            style={{
-              background: 'rgba(56, 189, 248, 0.24)',
-              border: '1px solid #38bdf8',
-              color: '#38bdf8',
-              borderRadius: 7,
-              padding: '4px 10px',
-              fontSize: 10,
-              fontWeight: 700,
-              fontFamily: 'monospace',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              transition: 'all 0.14s ease',
-            }}
-          >
-            <Heart size={12} color="#38bdf8" />
-            <span>Anatomy & Organs</span>
-          </button>
-
-          <span style={{ width: 1, height: 18, background: 'rgba(255, 255, 255, 0.12)' }} />
-
-          {/* ── SENSOR THEME MODE SELECTOR (CYAN, THERMAL, AMBER) ── */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'rgba(0, 0, 0, 0.55)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: 7,
-              padding: 2,
-              gap: 2,
-            }}
-          >
-            {[
-              {
-                id: 'CYAN' as const,
-                label: 'CYAN',
-                sub: 'Bio-Holo',
-                title: 'Holographic Bio-Scanner: Cyan stardust point cloud & arterial network for structural anatomy and cephalic fluid shift tracking (NASA-STD-3001).',
-                accent: '#00e5ff',
-                icon: Activity,
-              },
-              {
-                id: 'THERMAL' as const,
-                label: 'THERMAL',
-                sub: 'IR Heatmap',
-                title: 'Infrared Biomedical Thermography: Visualizes metabolic core heat accumulation, EVA exertion dissipation, and thermal strain gradients.',
-                accent: '#ff8833',
-                icon: Flame,
-              },
-              {
-                id: 'AMBER' as const,
-                label: 'AMBER',
-                sub: 'Tactical HUD',
-                title: 'Tactical Flight HUD: Apollo/Orion high-contrast amber phosphor mode for high-vibration flight phases and urgent physiological anomaly sentry.',
-                accent: '#f59e0b',
-                icon: Sun,
-              },
-            ].map(t => {
-              const active = colorTheme === t.id;
-              const IconComponent = t.icon;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setColorTheme(t.id)}
-                  title={t.title}
-                  style={{
-                    background: active ? `${t.accent}2c` : 'transparent',
-                    border: active ? `1px solid ${t.accent}` : '1px solid transparent',
-                    color: active ? t.accent : '#94a3b8',
-                    borderRadius: 5,
-                    padding: '4px 9px',
-                    fontSize: 10,
-                    fontWeight: active ? 700 : 500,
-                    fontFamily: 'monospace',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    boxShadow: active ? `0 0 10px ${t.accent}40` : 'none',
-                    transition: 'all 0.14s ease',
-                  }}
-                >
-                  <IconComponent size={12} color={active ? t.accent : '#94a3b8'} />
-                  <span>{t.label}</span>
-                  <span style={{ fontSize: 8.5, opacity: active ? 0.95 : 0.6 }}>
-                    ({t.sub})
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <span style={{ width: 1, height: 18, background: 'rgba(255, 255, 255, 0.12)' }} />
-
-          {/* Layout Toggle: Split vs Full 3D Focus */}
-          <button
-            onClick={() => setViewMode(prev => prev === 'SPLIT' ? 'FULL' : 'SPLIT')}
-            title="Toggle between full 3D view and split telemetry inspection"
-            style={{
-              background: viewMode === 'FULL' ? 'rgba(0, 229, 255, 0.22)' : 'rgba(255, 255, 255, 0.06)',
-              border: viewMode === 'FULL' ? '1px solid #00e5ff' : '1px solid rgba(255, 255, 255, 0.12)',
-              color: viewMode === 'FULL' ? '#00e5ff' : '#cbd5e1',
-              borderRadius: 6,
-              padding: '5px 10px',
-              fontSize: 10,
-              fontWeight: 700,
-              fontFamily: 'monospace',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              transition: 'all 0.14s ease',
-            }}
-          >
-            {viewMode === 'FULL' ? (
-              <>
-                <Columns2 size={12} />
-                <span>Split Telemetry</span>
-              </>
-            ) : (
-              <>
-                <Maximize2 size={12} />
-                <span>Full 3D View</span>
-              </>
+            {isModelDropdownOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 4px)',
+                  left: 0,
+                  zIndex: 100,
+                  background: 'linear-gradient(180deg, rgba(20, 30, 23, 0.98) 0%, rgba(13, 19, 15, 0.99) 100%)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(122, 148, 99, 0.35)',
+                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+                  borderRadius: 6,
+                  padding: 4,
+                  minWidth: 175,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                }}
+              >
+                {[
+                  { id: 'HUMAN' as const, label: '3D Body', sub: 'Bio-Twin Hologram', icon: User, color: '#34d399' },
+                  { id: 'SUIT' as const, label: 'EVA Suit', sub: 'NASA EMU Suit', icon: Shield, color: '#38bdf8' },
+                ].map(opt => {
+                  const active = modelType === opt.id;
+                  const Icon = opt.icon;
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => {
+                        switchModelRef.current && switchModelRef.current(opt.id);
+                        handleCloseOrganModal();
+                        setIsModelDropdownOpen(false);
+                      }}
+                      style={{
+                        background: active ? 'rgba(122, 148, 99, 0.22)' : 'transparent',
+                        border: 'none',
+                        color: active ? '#ffffff' : '#cbd5e1',
+                        borderRadius: 4,
+                        padding: '6px 9px',
+                        fontSize: 10.5,
+                        fontFamily: 'monospace',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                        transition: 'background 0.12s ease',
+                      }}
+                      onMouseEnter={e => {
+                        if (!active) e.currentTarget.style.background = 'rgba(122, 148, 99, 0.12)';
+                      }}
+                      onMouseLeave={e => {
+                        if (!active) e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <Icon size={12} color={opt.color} />
+                        <div>
+                          <div style={{ fontWeight: active ? 700 : 500 }}>{opt.label}</div>
+                          <div style={{ fontSize: 8.5, color: '#8291a0' }}>{opt.sub}</div>
+                        </div>
+                      </div>
+                      {active && <CheckCircle2 size={11} color="#34d399" />}
+                    </button>
+                  );
+                })}
+              </div>
             )}
-          </button>
+          </div>
+
+          <span style={{ width: 1, height: 16, background: 'rgba(122, 148, 99, 0.22)' }} />
+
+          {/* 2. Sensor Theme Mode Dropdown */}
+          <div ref={themeDropdownRef} style={{ position: 'relative' }}>
+            {(() => {
+              const themeList = [
+                {
+                  id: 'CYAN' as const,
+                  label: 'CYAN',
+                  sub: 'Bio-Holo',
+                  desc: 'Cephalic fluid shift & anatomy',
+                  icon: Activity,
+                  color: '#38bdf8',
+                },
+                {
+                  id: 'THERMAL' as const,
+                  label: 'THERMAL',
+                  sub: 'IR Heatmap',
+                  desc: 'Metabolic core heat dissipation',
+                  icon: Flame,
+                  color: '#ea580c',
+                },
+                {
+                  id: 'AMBER' as const,
+                  label: 'AMBER',
+                  sub: 'Tactical HUD',
+                  desc: 'Apollo/Orion high-contrast sentry',
+                  icon: Sun,
+                  color: '#d97706',
+                },
+              ];
+              const activeThemeObj = themeList.find(t => t.id === colorTheme) || themeList[0];
+              const ActiveIcon = activeThemeObj.icon;
+
+              return (
+                <>
+                  <button
+                    onClick={() => {
+                      setIsThemeDropdownOpen(prev => !prev);
+                      setIsModelDropdownOpen(false);
+                    }}
+                    style={{
+                      background: isThemeDropdownOpen
+                        ? 'linear-gradient(180deg, #2d4030 0%, #1e2c20 100%)'
+                        : 'linear-gradient(180deg, #223024 0%, #172219 100%)',
+                      border: isThemeDropdownOpen
+                        ? '1px solid rgba(161, 180, 142, 0.50)'
+                        : '1px solid rgba(122, 148, 99, 0.28)',
+                      color: '#f1f5f9',
+                      borderRadius: 5,
+                      padding: '4.5px 10px',
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      fontFamily: 'monospace',
+                      lineHeight: 1,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      transition: 'all 0.14s ease',
+                    }}
+                  >
+                    <ActiveIcon size={12} color={activeThemeObj.color} />
+                    <span>{activeThemeObj.label}</span>
+                    <span style={{ fontSize: 9, opacity: 0.8, color: '#94a3b8' }}>({activeThemeObj.sub})</span>
+                    <ChevronDown
+                      size={11}
+                      color="#94a3b8"
+                      style={{
+                        transform: isThemeDropdownOpen ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.15s ease',
+                      }}
+                    />
+                  </button>
+
+                  {isThemeDropdownOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        left: 0,
+                        zIndex: 100,
+                        background: 'linear-gradient(180deg, rgba(20, 30, 23, 0.98) 0%, rgba(13, 19, 15, 0.99) 100%)',
+                        backdropFilter: 'blur(16px)',
+                        WebkitBackdropFilter: 'blur(16px)',
+                        border: '1px solid rgba(122, 148, 99, 0.35)',
+                        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+                        borderRadius: 6,
+                        padding: 4,
+                        minWidth: 220,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                      }}
+                    >
+                      {themeList.map(t => {
+                        const active = colorTheme === t.id;
+                        const IconComponent = t.icon;
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => {
+                              setColorTheme(t.id);
+                              setIsThemeDropdownOpen(false);
+                            }}
+                            style={{
+                              background: active ? 'rgba(122, 148, 99, 0.22)' : 'transparent',
+                              border: 'none',
+                              color: active ? '#ffffff' : '#cbd5e1',
+                              borderRadius: 4,
+                              padding: '6px 9px',
+                              fontSize: 10.5,
+                              fontFamily: 'monospace',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 8,
+                              transition: 'background 0.12s ease',
+                            }}
+                            onMouseEnter={e => {
+                              if (!active) e.currentTarget.style.background = 'rgba(122, 148, 99, 0.12)';
+                            }}
+                            onMouseLeave={e => {
+                              if (!active) e.currentTarget.style.background = 'transparent';
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                              <IconComponent size={12} color={t.color} />
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                                  <span style={{ fontWeight: active ? 700 : 500 }}>{t.label}</span>
+                                  <span style={{ fontSize: 9, color: '#94a3b8' }}>({t.sub})</span>
+                                </div>
+                                <div style={{ fontSize: 8.5, color: '#8291a0', whiteSpace: 'nowrap' }}>{t.desc}</div>
+                              </div>
+                            </div>
+                            {active && <CheckCircle2 size={11} color="#34d399" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
         </div>
+
+        {/* Very Right: Layout Toggle (Split vs Full 3D View) */}
+        <button
+          onClick={() => setViewMode(prev => prev === 'SPLIT' ? 'FULL' : 'SPLIT')}
+          title="Toggle between full 3D view and split telemetry inspection"
+          style={{
+            background: viewMode === 'FULL'
+              ? 'linear-gradient(180deg, #2d4030 0%, #1e2c20 100%)'
+              : 'linear-gradient(180deg, #223024 0%, #172219 100%)',
+            border: viewMode === 'FULL'
+              ? '1px solid rgba(161, 180, 142, 0.50)'
+              : '1px solid rgba(122, 148, 99, 0.28)',
+            color: viewMode === 'FULL' ? '#ffffff' : '#e2e8f0',
+            borderRadius: 5,
+            padding: '4.5px 10px',
+            fontSize: 10.5,
+            fontWeight: 700,
+            fontFamily: 'monospace',
+            lineHeight: 1,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 5,
+            flexShrink: 0,
+            marginLeft: 'auto',
+            transition: 'all 0.14s ease',
+          }}
+        >
+          {viewMode === 'FULL' ? (
+            <>
+              <Columns2 size={12} />
+              <span>Split Telemetry</span>
+            </>
+          ) : (
+            <>
+              <Maximize2 size={12} />
+              <span>Full 3D View</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* ─── Main 3D Viewport & Inspection Split Card (Fluid Aerospace 470px Framing) ─── */}
@@ -2293,18 +2163,58 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
         maxHeight: 520,
         position: 'relative',
       }}>
-        {/* Left: 3D Holographic Canvas Viewport (100% Transparent to show rotating Earth video!) */}
+        {/* Left: 3D Holographic Canvas Viewport (Deep Obsidian Stage for Maximum Container & Point-Cloud Contrast) */}
         <div style={{
           position: 'relative',
           width: '100%',
           height: '100%',
           overflow: 'hidden',
-          background: 'transparent',
+          background: 'radial-gradient(circle at 50% 48%, rgba(5, 11, 22, 0.85) 0%, rgba(2, 5, 11, 0.96) 100%)',
         }}>
           {/* WebGL Canvas Container */}
           <div ref={mountRef} style={{ width: '100%', height: '100%', background: 'transparent' }} />
 
-          {/* ── SVG OVERLAY FOR DOTTED LEADER LINES ── */}
+          {/* ── ASTRODOCX 300x660 FIGURE OVERLAY (Concentric Floor Ellipses & Sweeping Scanline) ── */}
+          {modelType === 'HUMAN' && (
+            <svg
+              ref={figSvgRef}
+              viewBox="0 0 300 660"
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: 200,
+                height: 440,
+                pointerEvents: 'none',
+                zIndex: 5,
+                overflow: 'visible',
+              }}
+            >
+              <defs>
+                <radialGradient id="twin-floor-grad" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0" stopColor="#2dd4e8" stopOpacity="0.32" />
+                  <stop offset="1" stopColor="#2dd4e8" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+              <g className="twin-floor">
+                <ellipse cx="150" cy="625" rx="112" ry="18" fill="url(#twin-floor-grad)" stroke="rgba(127, 232, 255, 0.24)" strokeWidth="1" />
+                <ellipse cx="150" cy="625" rx="82" ry="12" fill="none" stroke="rgba(127, 232, 255, 0.28)" strokeWidth="1" strokeDasharray="3 5" />
+                <ellipse cx="150" cy="625" rx="46" ry="7" fill="none" stroke="rgba(127, 232, 255, 0.18)" strokeWidth="1" />
+              </g>
+              <line
+                ref={scanLineSvgRef}
+                x1="44"
+                x2="256"
+                y1="0"
+                y2="0"
+                stroke="rgba(191, 246, 255, 0.55)"
+                strokeWidth="1"
+              />
+            </svg>
+          )}
+
+          {/* ── SVG OVERLAY FOR HORIZONTAL DOTTED LEADER LINES (twin-leader) ── */}
           {showBadges && (
             <svg
               style={{
@@ -2325,15 +2235,15 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                   x2="0"
                   y2="0"
                   stroke={t.color}
-                  strokeWidth="1.2"
-                  strokeDasharray="3 3"
-                  opacity={selectedOrganId === t.id ? 0.95 : 0.45}
+                  strokeWidth={selectedOrganId === t.id ? "1.35" : "1"}
+                  strokeDasharray="2 4"
+                  opacity={selectedOrganId === t.id ? 0.78 : 0.36}
                 />
               ))}
             </svg>
           )}
 
-          {/* ── 2D HOTSPOT RETICLE RINGS ON BODY (TRACKED AT 60 FPS) ── */}
+          {/* ── MINIMAL SMALL-DOT POINTERS ON BODY (twin-halo + twin-dot) ── */}
           {showBadges && activeDisplayTargets.map(t => (
             <div
               key={t.id}
@@ -2347,8 +2257,8 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                width: 34,
-                height: 34,
+                width: 20,
+                height: 20,
                 borderRadius: '50%',
                 pointerEvents: 'auto',
                 cursor: 'pointer',
@@ -2360,7 +2270,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                 transition: 'filter 0.15s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.filter = 'drop-shadow(0 0 8px #ffffff)';
+                e.currentTarget.style.filter = 'drop-shadow(0 0 6px #ffffff)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.filter = 'none';
@@ -2369,11 +2279,11 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
               <div
                 className="reticle-ring-circle"
                 style={{
-                  width: 22,
-                  height: 22,
+                  width: 16,
+                  height: 16,
                   borderRadius: '50%',
-                  border: `1.8px solid ${t.color}`,
-                  boxShadow: `0 0 10px ${t.color}88`,
+                  border: `1px solid ${t.color}4d`,
+                  background: `${t.color}14`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -2383,8 +2293,8 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                 <div
                   className="reticle-inner-dot"
                   style={{
-                    width: 7,
-                    height: 7,
+                    width: 6,
+                    height: 6,
                     borderRadius: '50%',
                     background: t.color,
                     boxShadow: `0 0 8px ${t.color}`,
@@ -2394,201 +2304,285 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
             </div>
           ))}
 
-          {/* ── LEFT BADGES (ANATOMICAL ORGANS) ── */}
-          {showBadges && activeDisplayTargets.filter(t => t.side === 'LEFT').map((t, idx) => {
-            const isSelected = selectedOrganId === t.id;
-            const topPos = idx === 0 ? '14%' : idx === 1 ? '41%' : '68%';
+          {/* ── LEFT STATIONARY TELEMETRY CALLOUTS (Elevated Contrast Container, Subtle Border, Fixed Size, Aligned Text) ── */}
+          {showBadges && (
+            <div
+              style={{
+                position: 'absolute',
+                left: 14,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 32,
+                zIndex: 20,
+                pointerEvents: 'none',
+              }}
+            >
+              {activeDisplayTargets.filter(t => t.side === 'LEFT').map(t => {
+                const isSelected = selectedOrganId === t.id;
+                const isNominal = t.status === 'NOMINAL';
+                const statusTextColor =
+                  t.status === 'CRITICAL'
+                    ? '#f87171'
+                    : t.status === 'WATCH'
+                      ? '#fbbf24'
+                      : '#34d399';
 
-            return (
-              <div
-                key={t.id}
-                ref={el => { badgeRefs.current[t.id] = el; }}
-                onClick={() => handleTargetSelect(t.id)}
-                style={{
-                  position: 'absolute',
-                  top: topPos,
-                  left: 8,
-                  cursor: 'pointer',
-                  zIndex: 20,
-                  transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                  transform: isSelected ? 'scale(1.03)' : 'scale(1)',
-                  background: isSelected ? 'rgba(7, 18, 28, 0.94)' : 'rgba(8, 14, 22, 0.86)',
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
-                  border: `1px solid ${isSelected ? t.color : `${t.color}55`}`,
-                  borderRadius: 8,
-                  padding: '5px 9px',
-                  boxShadow: isSelected
-                    ? `0 0 16px ${t.color}44, 0 4px 16px rgba(0,0,0,0.6)`
-                    : '0 4px 14px rgba(0,0,0,0.5)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 7,
-                  width: 204,
-                  maxWidth: 218,
-                  boxSizing: 'border-box',
-                  overflow: 'hidden',
-                }}
-              >
-                <div style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  background: `${t.color}16`,
-                  border: `1px solid ${t.color}44`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  {renderTargetIcon(t.id, t.color)}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 1.5, flex: 1, overflow: 'hidden' }}>
-                  {/* Line 1: Title (Full width available) */}
-                  <div style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: '#f1f5f9',
-                    letterSpacing: '0.01em',
-                    whiteSpace: 'nowrap',
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    lineHeight: 1.2,
-                  }}>
-                    {t.title}
-                  </div>
-                  {/* Line 2: Status Pill + Metric (Clean, aligned, zero overflow) */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
-                    <span style={{
-                      fontSize: 8,
-                      fontWeight: 800,
-                      color: t.color,
-                      background: `${t.color}22`,
-                      border: `1px solid ${t.color}44`,
-                      padding: '1px 5px',
-                      borderRadius: 3,
-                      letterSpacing: '0.04em',
-                      flexShrink: 0,
-                      whiteSpace: 'nowrap',
-                      lineHeight: 1.2,
-                    }}>
-                      {t.status}
-                    </span>
-                    <span style={{
-                      fontSize: 8,
-                      color: '#94a3b8',
-                      fontFamily: 'monospace',
-                      fontWeight: 600,
-                      whiteSpace: 'nowrap',
-                      textOverflow: 'ellipsis',
+                return (
+                  <div
+                    key={t.id}
+                    ref={el => { badgeRefs.current[t.id] = el; }}
+                    onClick={() => handleTargetSelect(t.id)}
+                    style={{
+                      pointerEvents: 'auto',
+                      cursor: 'pointer',
+                      width: 196,
+                      height: 56,
+                      minHeight: 56,
+                      maxHeight: 56,
+                      boxSizing: 'border-box',
                       overflow: 'hidden',
+                      borderRadius: 10,
+                      padding: '9px 12px',
+                      background: isSelected
+                        ? 'linear-gradient(180deg, rgba(38, 54, 40, 0.96) 0%, rgba(24, 38, 27, 0.98) 100%)'
+                        : isNominal
+                          ? 'linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%)'
+                          : 'linear-gradient(180deg, rgba(46, 20, 26, 0.92) 0%, rgba(30, 13, 18, 0.96) 100%)',
+                      border: isSelected
+                        ? '1px solid rgba(161, 180, 142, 0.32)'
+                        : isNominal
+                          ? '1px solid rgba(122, 148, 99, 0.16)'
+                          : '1px solid rgba(248, 113, 113, 0.28)',
+                      boxShadow: isSelected
+                        ? '0 6px 18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+                        : '0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      transition: 'background 0.16s ease, border-color 0.16s ease',
+                    }}
+                  >
+                    {/* Row 1: Subsystem Title + Subtle Colored Status Text */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 6,
+                      width: '100%',
+                      lineHeight: 1,
                     }}>
-                      {t.metric}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                      <span style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: isSelected ? '#ffffff' : '#cbd5e1',
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                        {t.title}
+                      </span>
+                      <span style={{
+                        fontSize: 8.5,
+                        fontWeight: 700,
+                        fontFamily: 'monospace',
+                        color: statusTextColor,
+                        letterSpacing: '0.05em',
+                        lineHeight: 1,
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {t.status}
+                      </span>
+                    </div>
 
-          {/* ── RIGHT BADGES (ANATOMICAL ORGANS) ── */}
-          {showBadges && activeDisplayTargets.filter(t => t.side === 'RIGHT').map((t, idx) => {
-            const isSelected = selectedOrganId === t.id;
-            const topPos = idx === 0 ? '14%' : idx === 1 ? '41%' : '68%';
-
-            return (
-              <div
-                key={t.id}
-                ref={el => { badgeRefs.current[t.id] = el; }}
-                onClick={() => handleTargetSelect(t.id)}
-                style={{
-                  position: 'absolute',
-                  top: topPos,
-                  right: 8,
-                  cursor: 'pointer',
-                  zIndex: 20,
-                  transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                  transform: isSelected ? 'scale(1.03)' : 'scale(1)',
-                  background: isSelected ? 'rgba(7, 18, 28, 0.94)' : 'rgba(8, 14, 22, 0.86)',
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
-                  border: `1px solid ${isSelected ? t.color : `${t.color}55`}`,
-                  borderRadius: 8,
-                  padding: '5px 9px',
-                  boxShadow: isSelected
-                    ? `0 0 16px ${t.color}44, 0 4px 16px rgba(0,0,0,0.6)`
-                    : '0 4px 14px rgba(0,0,0,0.5)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 7,
-                  width: 204,
-                  maxWidth: 218,
-                  boxSizing: 'border-box',
-                  overflow: 'hidden',
-                }}
-              >
-                <div style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  background: `${t.color}16`,
-                  border: `1px solid ${t.color}44`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  {renderTargetIcon(t.id, t.color)}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 1.5, flex: 1, overflow: 'hidden' }}>
-                  {/* Line 1: Title (Full width available) */}
-                  <div style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: '#f1f5f9',
-                    letterSpacing: '0.01em',
-                    whiteSpace: 'nowrap',
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    lineHeight: 1.2,
-                  }}>
-                    {t.title}
-                  </div>
-                  {/* Line 2: Status Pill + Metric (Clean, aligned, zero overflow) */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
-                    <span style={{
-                      fontSize: 8,
-                      fontWeight: 800,
-                      color: t.color,
-                      background: `${t.color}22`,
-                      border: `1px solid ${t.color}44`,
-                      padding: '1px 5px',
-                      borderRadius: 3,
-                      letterSpacing: '0.04em',
-                      flexShrink: 0,
+                    {/* Row 2: Clean Left-Aligned Primary Metric + Unit/Context (No Truncation or Wide Gap) */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      justifyContent: 'flex-start',
+                      gap: 8,
+                      width: '100%',
+                      lineHeight: 1,
                       whiteSpace: 'nowrap',
-                      lineHeight: 1.2,
                     }}>
-                      {t.status}
-                    </span>
-                    <span style={{
-                      fontSize: 8,
-                      color: '#94a3b8',
-                      fontFamily: 'monospace',
-                      fontWeight: 600,
-                      whiteSpace: 'nowrap',
-                      textOverflow: 'ellipsis',
+                      <span style={{
+                        fontSize: 13.5,
+                        fontWeight: 800,
+                        fontFamily: 'monospace',
+                        fontVariantNumeric: 'tabular-nums',
+                        color: '#ffffff',
+                        letterSpacing: '-0.01em',
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}>
+                        {t.primaryValue}
+                      </span>
+                      <span style={{
+                        fontSize: 9.5,
+                        fontWeight: 600,
+                        fontFamily: 'monospace',
+                        fontVariantNumeric: 'tabular-nums',
+                        color: '#94a3b8',
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                        {t.unitLabel}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── RIGHT STATIONARY TELEMETRY CALLOUTS (Elevated Contrast Container, Subtle Border, Fixed Size, Aligned Text) ── */}
+          {showBadges && (
+            <div
+              style={{
+                position: 'absolute',
+                right: 14,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 32,
+                zIndex: 20,
+                pointerEvents: 'none',
+              }}
+            >
+              {activeDisplayTargets.filter(t => t.side === 'RIGHT').map(t => {
+                const isSelected = selectedOrganId === t.id;
+                const isNominal = t.status === 'NOMINAL';
+                const statusTextColor =
+                  t.status === 'CRITICAL'
+                    ? '#f87171'
+                    : t.status === 'WATCH'
+                      ? '#fbbf24'
+                      : '#34d399';
+
+                return (
+                  <div
+                    key={t.id}
+                    ref={el => { badgeRefs.current[t.id] = el; }}
+                    onClick={() => handleTargetSelect(t.id)}
+                    style={{
+                      pointerEvents: 'auto',
+                      cursor: 'pointer',
+                      width: 196,
+                      height: 56,
+                      minHeight: 56,
+                      maxHeight: 56,
+                      boxSizing: 'border-box',
                       overflow: 'hidden',
+                      borderRadius: 10,
+                      padding: '9px 12px',
+                      background: isSelected
+                        ? 'linear-gradient(180deg, rgba(38, 54, 40, 0.96) 0%, rgba(24, 38, 27, 0.98) 100%)'
+                        : isNominal
+                          ? 'linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%)'
+                          : 'linear-gradient(180deg, rgba(46, 20, 26, 0.92) 0%, rgba(30, 13, 18, 0.96) 100%)',
+                      border: isSelected
+                        ? '1px solid rgba(161, 180, 142, 0.32)'
+                        : isNominal
+                          ? '1px solid rgba(122, 148, 99, 0.16)'
+                          : '1px solid rgba(248, 113, 113, 0.28)',
+                      boxShadow: isSelected
+                        ? '0 6px 18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+                        : '0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      transition: 'background 0.16s ease, border-color 0.16s ease',
+                    }}
+                  >
+                    {/* Row 1: Subsystem Title + Subtle Colored Status Text */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 6,
+                      width: '100%',
+                      lineHeight: 1,
                     }}>
-                      {t.metric}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                      <span style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: isSelected ? '#ffffff' : '#cbd5e1',
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                        {t.title}
+                      </span>
+                      <span style={{
+                        fontSize: 8.5,
+                        fontWeight: 700,
+                        fontFamily: 'monospace',
+                        color: statusTextColor,
+                        letterSpacing: '0.05em',
+                        lineHeight: 1,
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {t.status}
+                      </span>
+                    </div>
 
-          {/* ── INTERACTIVE FLOATING ANATOMICAL ORGAN FUNCTION & HEALTH CARD ── */}
+                    {/* Row 2: Clean Left-Aligned Primary Metric + Unit/Context (No Truncation or Wide Gap) */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      justifyContent: 'flex-start',
+                      gap: 8,
+                      width: '100%',
+                      lineHeight: 1,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      <span style={{
+                        fontSize: 13.5,
+                        fontWeight: 800,
+                        fontFamily: 'monospace',
+                        fontVariantNumeric: 'tabular-nums',
+                        color: '#ffffff',
+                        letterSpacing: '-0.01em',
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}>
+                        {t.primaryValue}
+                      </span>
+                      <span style={{
+                        fontSize: 9.5,
+                        fontWeight: 600,
+                        fontFamily: 'monospace',
+                        fontVariantNumeric: 'tabular-nums',
+                        color: '#94a3b8',
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                        {t.unitLabel}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── INTERACTIVE FLOATING ANATOMICAL ORGAN FUNCTION & HEALTH CARD (COMPACT FIXED SIZE — NO SCROLLBAR) ── */}
           {inspectionMode === 'ANATOMY' && showOrganModal && selectedOrganId && (() => {
             const organ = anatomicalParts.find(o => o.id === selectedOrganId) || anatomicalParts[1];
             const organColor = organ.color || '#38bdf8';
@@ -2597,56 +2591,68 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
               <div
                 style={{
                   position: 'absolute',
-                  bottom: 8,
+                  bottom: 12,
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  maxWidth: 420,
-                  width: 'calc(100% - 28px)',
-                  maxHeight: '42%',
-                  overflowY: 'auto',
-                  background: 'rgba(6, 11, 20, 0.96)',
+                  width: 410,
+                  maxWidth: 'calc(100% - 24px)',
+                  height: 168,
+                  maxHeight: 168,
+                  boxSizing: 'border-box',
+                  overflow: 'hidden',
+                  background: 'linear-gradient(180deg, rgba(22, 32, 25, 0.97) 0%, rgba(14, 21, 16, 0.99) 100%)',
                   backdropFilter: 'blur(24px)',
                   WebkitBackdropFilter: 'blur(24px)',
-                  border: `1.5px solid ${organColor}`,
-                  boxShadow: `0 14px 44px rgba(0,0,0,0.95), 0 0 24px ${organColor}40`,
-                  borderRadius: 12,
-                  padding: '8px 12px',
+                  border: '1px solid rgba(122, 148, 99, 0.26)',
+                  boxShadow: '0 12px 36px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+                  borderRadius: 10,
+                  padding: '9px 12px',
                   zIndex: 35,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
                 }}
               >
-                {/* Header: Title, Subsystem & Status */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Header: Icon, Title, Subsystem, Status Badge & Close X */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', lineHeight: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                     <div style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: 7,
-                      background: `${organColor}22`,
+                      width: 24,
+                      height: 24,
+                      borderRadius: 6,
+                      background: 'rgba(122, 148, 99, 0.16)',
+                      border: '1px solid rgba(122, 148, 99, 0.22)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      flexShrink: 0,
                     }}>
                       {renderTargetIcon(organ.id, organColor)}
                     </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', letterSpacing: '0.03em' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 800, color: '#ffffff', letterSpacing: '0.04em', lineHeight: 1, whiteSpace: 'nowrap' }}>
                         {organ.title.toUpperCase()}
-                      </div>
-                      <div style={{ fontSize: 9, color: '#7dd3fc', fontFamily: 'monospace' }}>
-                        SUBSYSTEM: {organ.subsystemName.toUpperCase()} · {organ.elevationTag}
-                      </div>
+                      </span>
+                      <span style={{ fontSize: 9, color: '#94a3b8', fontFamily: 'monospace', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {organ.subsystemName.split('&')[0].trim().toUpperCase()} · {organ.elevationTag}
+                      </span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                     <span style={{
-                      fontSize: 9,
+                      fontSize: 8.5,
                       fontWeight: 700,
                       fontFamily: 'monospace',
-                      color: organColor,
-                      background: `${organColor}20`,
-                      padding: '2px 8px',
+                      lineHeight: 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: organ.status === 'CRITICAL' ? '#f87171' : organ.status === 'WATCH' ? '#fbbf24' : '#34d399',
+                      background: organ.status === 'CRITICAL' ? 'rgba(64, 18, 26, 0.85)' : organ.status === 'WATCH' ? 'rgba(58, 38, 14, 0.85)' : 'rgba(18, 36, 24, 0.85)',
+                      padding: '3px 7px',
                       borderRadius: 4,
-                      border: `1px solid ${organColor}50`,
+                      border: `1px solid ${organ.status === 'CRITICAL' ? 'rgba(239, 68, 68, 0.28)' : organ.status === 'WATCH' ? 'rgba(245, 158, 11, 0.28)' : 'rgba(122, 148, 99, 0.28)'}`,
                     }}>
                       {organ.status}
                     </span>
@@ -2654,95 +2660,109 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                       onClick={handleCloseOrganModal}
                       title="Close Organ Inspection HUD"
                       style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#94a3b8',
-                        display: 'flex',
+                        background: 'linear-gradient(180deg, #223024 0%, #172219 100%)',
+                        border: '1px solid rgba(122, 148, 99, 0.28)',
+                        borderRadius: 4,
+                        color: '#cbd5e1',
+                        display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         cursor: 'pointer',
-                        padding: '2px',
+                        padding: '3px',
+                        lineHeight: 1,
                       }}
                     >
-                      <X size={15} />
+                      <X size={13} />
                     </button>
                   </div>
                 </div>
 
-                {/* Live Biometrics Row */}
+                {/* Biometrics & Rapid Action Row */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  background: 'rgba(0,0,0,0.45)',
-                  padding: '5px 10px',
+                  gap: 8,
+                  background: 'rgba(10, 16, 12, 0.85)',
+                  border: '1px solid rgba(122, 148, 99, 0.14)',
+                  padding: '4px 8px',
                   borderRadius: 6,
-                  marginBottom: 8,
-                  borderLeft: `3px solid ${organColor}`,
+                  lineHeight: 1,
                 }}>
-                  <span style={{ fontSize: 9, color: '#94a3b8', fontFamily: 'monospace' }}>LIVE BIOMETRICS:</span>
-                  <span style={{
-                    fontSize: 12,
-                    fontFamily: 'monospace',
-                    fontWeight: 700,
-                    color: organ.status === 'CRITICAL' ? '#fca5a5' : organ.status === 'WATCH' ? '#fde047' : '#e0f2fe',
-                  }}>
-                    {organ.metric}
-                  </span>
-                </div>
-
-                {/* Biological Function (What the organ does in the human body & spaceflight) */}
-                <div style={{ marginBottom: 8, background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9.5, fontWeight: 700, color: '#38bdf8', marginBottom: 2, fontFamily: 'monospace' }}>
-                    <Info size={11} />
-                    <span>ORGAN FUNCTION & SPACE PHYSIOLOGY:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 9, color: '#94a3b8', fontFamily: 'monospace', fontWeight: 700 }}>BIOMETRICS:</span>
+                    <span style={{
+                      fontSize: 11.5,
+                      fontFamily: 'monospace',
+                      fontWeight: 800,
+                      fontVariantNumeric: 'tabular-nums',
+                      color: organ.status === 'CRITICAL' ? '#fca5a5' : organ.status === 'WATCH' ? '#fde047' : '#f8fafc',
+                      lineHeight: 1,
+                    }}>
+                      {organ.metric}
+                    </span>
                   </div>
-                  <div style={{ fontSize: 10, color: '#cbd5e1', lineHeight: 1.4 }}>
-                    {organ.functionSummary}
-                  </div>
-                </div>
 
-                {/* Health Status & Clinical Findings */}
-                <div style={{ fontSize: 10, color: '#94a3b8', lineHeight: 1.35, marginBottom: 8 }}>
-                  <strong style={{ color: '#e2e8f0' }}>Health Status:</strong> {organ.healthDetail}
-                </div>
-
-                {/* Flight Surgeon Protocol (Rx) & Action */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: 'rgba(0, 0, 0, 0.65)',
-                  borderRadius: 6,
-                  padding: '6px 10px',
-                  borderLeft: `3px solid ${organColor}`,
-                }}>
-                  <span style={{ fontSize: 9, color: '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '75%' }}>
-                    <strong style={{ color: organColor }}>RX:</strong> {organ.protocol}
-                  </span>
                   <button
                     onClick={() => {
                       targetFocusYRef.current = organ.scanTargetY;
                       if (onSelectSubsystem) onSelectSubsystem(organ.subsystemId);
                     }}
                     style={{
-                      background: `${organColor}26`,
-                      border: `1px solid ${organColor}`,
+                      background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                      border: '1px solid rgba(255, 255, 255, 0.14)',
                       borderRadius: 4,
                       padding: '3px 8px',
                       fontSize: 9,
                       fontFamily: 'monospace',
                       fontWeight: 700,
-                      color: organColor,
+                      lineHeight: 1,
+                      color: '#ffffff',
                       cursor: 'pointer',
-                      display: 'flex',
+                      display: 'inline-flex',
                       alignItems: 'center',
                       gap: 4,
+                      flexShrink: 0,
                     }}
                   >
                     <Crosshair size={10} />
                     <span>FOCUS</span>
                   </button>
+                </div>
+
+                {/* Structured Clinical Synopsis (Concise Physiology & Assessment — Fits Perfectly) */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  background: 'rgba(16, 24, 18, 0.65)',
+                  border: '1px solid rgba(122, 148, 99, 0.12)',
+                  borderRadius: 6,
+                  padding: '6px 8px',
+                  fontSize: 9.5,
+                  lineHeight: 1.35,
+                  boxSizing: 'border-box',
+                }}>
+                  <div style={{
+                    color: '#cbd5e1',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}>
+                    <strong style={{ color: '#7a9463', fontWeight: 700, fontFamily: 'monospace' }}>PHYSIOLOGY: </strong>
+                    {organ.functionSummary}
+                  </div>
+                  <div style={{
+                    color: '#f8fafc',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    fontSize: 9.5,
+                  }}>
+                    <strong style={{ color: organColor, fontWeight: 700, fontFamily: 'monospace' }}>RX PROTOCOL: </strong>
+                    {organ.protocol}
+                  </div>
                 </div>
               </div>
             );
@@ -2754,268 +2774,35 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
             top: 10,
             left: 12,
             pointerEvents: 'none',
-            fontSize: 8.5,
+            fontSize: 9.5,
             fontFamily: 'monospace',
-            color: '#8cb3d9',
-            display: 'flex',
+            lineHeight: 1,
+            color: '#94a3b8',
+            display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
             zIndex: 15,
+            background: 'linear-gradient(180deg, rgba(16, 26, 44, 0.88) 0%, rgba(11, 18, 31, 0.92) 100%)',
+            padding: '4.5px 9px',
+            borderRadius: 6,
+            border: '1px solid rgba(148, 163, 184, 0.12)',
           }}>
             <span>ELEV: <span ref={elevationDomRef} style={{ color: '#ffffff', fontWeight: 700 }}>+0.70 m</span></span>
-            <span style={{ opacity: 0.3 }}>·</span>
-            <span>SLICE: <span ref={sliceIndexDomRef} style={{ color: '#00e5ff' }}>#64</span></span>
-            <span style={{ opacity: 0.3 }}>·</span>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <span>SLICE: <span ref={sliceIndexDomRef} style={{ color: '#38bdf8', fontWeight: 700 }}>#64</span></span>
+            <span style={{ opacity: 0.4 }}>·</span>
             <span>AZ: <span ref={azimuthDomRef} style={{ color: '#ffffff', fontWeight: 700 }}>0°</span></span>
             <span style={{ display: 'none' }} ref={regionDomRef} />
           </div>
-
-          {/* ── INTERACTIVE EVA SPACESUIT SUBSYSTEM HUD ── */}
-          {modelType === 'SUIT' && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 38,
-                left: 12,
-                maxWidth: 400,
-                width: 'calc(100% - 24px)',
-                background: 'rgba(6, 14, 24, 0.94)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(56, 189, 248, 0.4)',
-                borderRadius: 10,
-                padding: '8px 12px',
-                zIndex: 22,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.85), 0 0 20px rgba(56, 189, 248, 0.25)',
-              }}
-            >
-              {/* Subsystem Tabs */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 9, fontWeight: 800, color: '#38bdf8', fontFamily: 'monospace', letterSpacing: '0.06em' }}>
-                  EVA EMU SUBSYSTEMS:
-                </span>
-                {suitSubsystems.map(sub => {
-                  const isSelected = selectedSuitSubsystem === sub.id;
-                  return (
-                    <button
-                      key={sub.id}
-                      onClick={() => focusSuitSubsystemRef.current && focusSuitSubsystemRef.current(sub.id)}
-                      style={{
-                        background: isSelected ? `${sub.color}26` : 'rgba(255, 255, 255, 0.05)',
-                        border: isSelected ? `1px solid ${sub.color}` : '1px solid rgba(255, 255, 255, 0.1)',
-                        color: isSelected ? sub.color : '#94a3b8',
-                        borderRadius: 4,
-                        padding: '3px 8px',
-                        fontSize: 9,
-                        fontWeight: isSelected ? 700 : 500,
-                        fontFamily: 'monospace',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        boxShadow: isSelected ? `0 0 10px ${sub.color}40` : 'none',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: sub.color }} />
-                      <span>{sub.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Selected Subsystem Detail Card */}
-              {(() => {
-                const activeSub = suitSubsystems.find(s => s.id === selectedSuitSubsystem) || suitSubsystems[1];
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#ffffff', letterSpacing: '0.02em' }}>
-                        {activeSub.name}
-                      </span>
-                      <span style={{
-                        fontSize: 8.5,
-                        fontWeight: 700,
-                        fontFamily: 'monospace',
-                        color: activeSub.color,
-                        background: `${activeSub.color}20`,
-                        padding: '1px 6px',
-                        borderRadius: 3,
-                        border: `1px solid ${activeSub.color}40`,
-                      }}>
-                        {activeSub.status}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.3 }}>
-                      {activeSub.spec}
-                    </div>
-                    <div style={{
-                      fontSize: 10,
-                      fontFamily: 'monospace',
-                      fontWeight: 700,
-                      color: activeSub.color,
-                      marginTop: 2,
-                      background: 'rgba(0,0,0,0.4)',
-                      padding: '3px 6px',
-                      borderRadius: 4,
-                      borderLeft: `2px solid ${activeSub.color}`,
-                    }}>
-                      {activeSub.telemetry}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* ── Floating Camera, Orbit & Laser Deck on 3D Viewport ── */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 8,
-              right: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              background: 'rgba(6, 12, 22, 0.88)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: 8,
-              padding: '3px 6px',
-              zIndex: 18,
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
-            }}
-          >
-            <button
-              onClick={() => snapToAngle(0)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: '#cbd5e1',
-                borderRadius: 5,
-                padding: '3px 7px',
-                fontSize: 9.5,
-                fontWeight: 600,
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-              }}
-            >
-              Front
-            </button>
-            <button
-              onClick={() => snapToAngle(180)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: '#cbd5e1',
-                borderRadius: 5,
-                padding: '3px 7px',
-                fontSize: 9.5,
-                fontWeight: 600,
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-              }}
-            >
-              Back
-            </button>
-            <button
-              onClick={handleResetCamera}
-              style={{
-                background: 'rgba(56, 189, 248, 0.15)',
-                border: '1px solid rgba(56, 189, 248, 0.35)',
-                color: '#38bdf8',
-                borderRadius: 5,
-                padding: '3px 7px',
-                fontSize: 9.5,
-                fontWeight: 700,
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-              }}
-            >
-              Reset
-            </button>
-
-            <span style={{ width: 1, height: 16, background: 'rgba(255, 255, 255, 0.12)', margin: '0 2px' }} />
-
-            {/* Orbit Toggle */}
-            <button
-              onClick={() => setAutoRotate(!autoRotate)}
-              style={{
-                background: autoRotate ? 'rgba(56, 189, 248, 0.22)' : 'rgba(255, 255, 255, 0.05)',
-                border: `1px solid ${autoRotate ? '#38bdf8' : 'rgba(255, 255, 255, 0.1)'}`,
-                color: autoRotate ? '#38bdf8' : '#94a3b8',
-                borderRadius: 5,
-                padding: '3px 8px',
-                fontSize: 9.5,
-                fontWeight: 600,
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              {autoRotate ? <Pause size={10} /> : <Play size={10} />}
-              <span>Orbit</span>
-            </button>
-
-            {/* Laser Scanner Mode */}
-            <button
-              onClick={() => {
-                setLaserMode(prev => prev === 'OFF' ? 'SWEEP' : prev === 'SWEEP' ? 'LOCK_ORGAN' : 'OFF');
-              }}
-              style={{
-                background: laserMode !== 'OFF' ? 'rgba(56, 189, 248, 0.22)' : 'rgba(255, 255, 255, 0.05)',
-                border: `1px solid ${laserMode !== 'OFF' ? '#38bdf8' : 'rgba(255, 255, 255, 0.1)'}`,
-                color: laserMode !== 'OFF' ? '#38bdf8' : '#94a3b8',
-                borderRadius: 5,
-                padding: '3px 8px',
-                fontSize: 9.5,
-                fontWeight: 600,
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                transition: 'all 0.14s ease',
-              }}
-            >
-              {laserMode === 'SWEEP' ? <Zap size={10} /> : laserMode === 'LOCK_ORGAN' ? <Crosshair size={10} /> : <Radio size={10} />}
-              <span>{laserMode === 'SWEEP' ? 'Sweep' : laserMode === 'LOCK_ORGAN' ? 'Lock' : 'Beam'}</span>
-            </button>
-
-            {/* Badges/Callouts Visibility Toggle */}
-            <button
-              onClick={() => setShowBadges(!showBadges)}
-              title="Toggle HUD Callout Badges on/off"
-              style={{
-                background: showBadges ? 'rgba(56, 189, 248, 0.22)' : 'rgba(255, 255, 255, 0.05)',
-                border: `1px solid ${showBadges ? '#38bdf8' : 'rgba(255, 255, 255, 0.1)'}`,
-                color: showBadges ? '#38bdf8' : '#94a3b8',
-                borderRadius: 5,
-                padding: '3px 8px',
-                fontSize: 9.5,
-                fontWeight: 600,
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                transition: 'all 0.14s ease',
-              }}
-            >
-              <Activity size={10} />
-              <span>{showBadges ? 'Callouts' : 'Minimal'}</span>
-            </button>
-          </div>
         </div>
 
-        {/* Right: Full Simultaneous Physiological Subsystems Panel (Shown in Split Mode) */}
-        {viewMode === 'SPLIT' && (
+        {/* Right: Full Simultaneous Subsystems Panel (Shown in Split Mode) */}
+        {viewMode === 'SPLIT' && (() => {
+          const displayHotspots = modelType === 'SUIT' ? suitHotspots : hotspots;
+          return (
           <div style={{
-            borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-            background: 'rgba(6, 10, 16, 0.72)',
+            borderLeft: '1px solid rgba(148, 163, 184, 0.10)',
+            background: 'linear-gradient(180deg, rgba(9, 15, 26, 0.96) 0%, rgba(6, 10, 18, 0.98) 100%)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             padding: '10px 12px',
@@ -3028,135 +2815,173 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
           }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 800, color: '#f8fafc', letterSpacing: '0.04em' }}>
-                  PHYSIOLOGICAL SUBSYSTEMS
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#f8fafc', letterSpacing: '0.04em', lineHeight: 1 }}>
+                  {modelType === 'SUIT' ? 'EVA SUIT SUBSYSTEMS' : 'PHYSIOLOGICAL SUBSYSTEMS'}
                 </span>
-                <span style={{
-                  fontSize: 8.5,
-                  color: isRadiationCritical || activeSeverity === 'CRITICAL' ? '#f87171' : (isRadiationActive || activeSeverity === 'WARNING') ? '#fbbf24' : '#38bdf8',
-                  fontFamily: 'monospace',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4
-                }}>
+                {modelType === 'SUIT' ? (
                   <span style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: '50%',
-                    background: isRadiationCritical || activeSeverity === 'CRITICAL' ? '#ef4444' : (isRadiationActive || activeSeverity === 'WARNING') ? '#f59e0b' : '#00e5a3',
-                    boxShadow: isRadiationCritical || activeSeverity === 'CRITICAL' ? '0 0 6px #ef4444' : (isRadiationActive || activeSeverity === 'WARNING') ? '0 0 6px #f59e0b' : '0 0 6px #00e5a3'
-                  }} />
-                  {isRadiationCritical ? 'SHELTER ALARM' : isRadiationActive ? 'SPE ALERT' : activeSeverity}
-                </span>
+                    fontSize: 9,
+                    color: isDecomp ? '#f87171' : isScrubberFault ? '#fbbf24' : '#38bdf8',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5
+                  }}>
+                    <span style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: isDecomp ? '#ef4444' : isScrubberFault ? '#f59e0b' : '#0ea5e9',
+                    }} />
+                    <span>{isDecomp ? 'DECOMP ALARM' : isScrubberFault ? 'CO2 ALERT' : 'NASA xEMU SENTRY'}</span>
+                  </span>
+                ) : (
+                  <span style={{
+                    fontSize: 9,
+                    color: isRadiationCritical || activeSeverity === 'CRITICAL' ? '#f87171' : (isRadiationActive || activeSeverity === 'WARNING') ? '#fbbf24' : '#34d399',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5
+                  }}>
+                    <span style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: isRadiationCritical || activeSeverity === 'CRITICAL' ? '#ef4444' : (isRadiationActive || activeSeverity === 'WARNING') ? '#f59e0b' : '#10b981',
+                    }} />
+                    <span>{isRadiationCritical ? 'SHELTER ALARM' : isRadiationActive ? 'SPE ALERT' : activeSeverity}</span>
+                  </span>
+                )}
               </div>
 
-              {/* Subsystems Stack */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
-                {hotspots.map(hs => {
+              {/* Subsystems Stack (Elevated Contrast Container, Subtle Border, Fixed Size, Aligned Text) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+                {displayHotspots.map(hs => {
                   const isSelected = selectedHotspot === hs.id;
                   const isCrit = hs.severity === 'CRITICAL';
                   const isWarn = hs.severity === 'WARNING';
 
                   const cardBorder = isSelected
-                    ? '1px solid #38bdf8'
+                    ? '1px solid rgba(161, 180, 142, 0.32)'
                     : isCrit
-                      ? '1px solid rgba(239, 68, 68, 0.45)'
+                      ? '1px solid rgba(239, 68, 68, 0.30)'
                       : isWarn
-                        ? '1px solid rgba(245, 158, 11, 0.4)'
-                        : '1px solid rgba(255, 255, 255, 0.08)';
+                        ? '1px solid rgba(245, 158, 11, 0.28)'
+                        : '1px solid rgba(122, 148, 99, 0.16)';
 
                   const cardBg = isSelected
-                    ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.14) 0%, rgba(8, 14, 22, 0.92) 100%)'
+                    ? 'linear-gradient(180deg, rgba(38, 54, 40, 0.96) 0%, rgba(24, 38, 27, 0.98) 100%)'
                     : isCrit
-                      ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(15, 8, 8, 0.9) 100%)'
+                      ? 'linear-gradient(180deg, rgba(46, 20, 26, 0.92) 0%, rgba(30, 13, 18, 0.96) 100%)'
                       : isWarn
-                        ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.10) 0%, rgba(15, 12, 6, 0.9) 100%)'
-                        : 'rgba(9, 14, 22, 0.75)';
+                        ? 'linear-gradient(180deg, rgba(42, 30, 16, 0.92) 0%, rgba(28, 20, 12, 0.96) 100%)'
+                        : 'linear-gradient(180deg, rgba(24, 34, 27, 0.92) 0%, rgba(16, 24, 18, 0.96) 100%)';
+
+                  const statusColor = isCrit
+                    ? '#f87171'
+                    : isWarn
+                      ? '#fbbf24'
+                      : isSelected
+                        ? '#a1b48e'
+                        : '#34d399';
+
+                  const metricParts = hs.metric.split('·');
+                  const primaryReading = metricParts[0]?.trim() || hs.metric;
+                  const secondaryReading = metricParts.slice(1).join(' · ').trim();
 
                   return (
                     <div
                       key={hs.id}
                       onClick={() => {
                         setSelectedHotspot(hs.id);
-                        if (onSelectSubsystem) onSelectSubsystem(hs.id);
+                        if (modelType === 'SUIT') {
+                          const targetPart = suitParts.find(p => p.subsystemId === hs.id);
+                          if (targetPart) handleOrganClick(targetPart);
+                        } else {
+                          if (onSelectSubsystem) onSelectSubsystem(hs.id as any);
+                        }
                       }}
                       style={{
                         background: cardBg,
                         border: cardBorder,
-                        borderLeft: `3px solid ${isSelected ? '#38bdf8' : isCrit ? '#ef4444' : isWarn ? '#f59e0b' : 'rgba(56, 189, 248, 0.35)'}`,
-                        borderRadius: 8,
-                        padding: '6px 10px',
+                        borderRadius: 9,
+                        height: 52,
+                        minHeight: 52,
+                        maxHeight: 52,
+                        boxSizing: 'border-box',
+                        overflow: 'hidden',
+                        padding: '8px 11px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
                         cursor: 'pointer',
-                        transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                        boxShadow: isSelected
-                          ? '0 0 14px rgba(56, 189, 248, 0.22), inset 0 1px 0 rgba(255,255,255,0.08)'
-                          : '0 2px 6px rgba(0,0,0,0.25)',
+                        transition: 'background 0.16s ease, border-color 0.16s ease',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 2 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                          <span style={{
-                            width: 5,
-                            height: 5,
-                            borderRadius: '50%',
-                            background: isCrit ? '#ef4444' : isWarn ? '#f59e0b' : '#38bdf8',
-                            boxShadow: `0 0 5px ${isCrit ? '#ef4444' : isWarn ? '#f59e0b' : '#38bdf8'}`,
-                            flexShrink: 0,
-                          }} />
-                          <span style={{ fontSize: 10, fontWeight: 700, color: '#f8fafc', letterSpacing: '0.02em', flexShrink: 0 }}>
+                      {/* Row 1: Subsystem Title + Subtle Colored Status Text */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, lineHeight: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0, flex: 1, overflow: 'hidden', lineHeight: 1 }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 800, color: isSelected ? '#ffffff' : '#e2e8f0', letterSpacing: '0.04em', flexShrink: 0, lineHeight: 1 }}>
                             {hs.id}
                           </span>
-                          <span style={{ fontSize: 8.5, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            · {hs.organ}
+                          <span style={{ fontSize: 9.5, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
+                            {hs.organ}
                           </span>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                          {isSelected ? (
-                            <span style={{
-                              fontSize: 8,
-                              fontWeight: 800,
-                              fontFamily: 'monospace',
-                              padding: '1.5px 6px',
-                              borderRadius: 9999,
-                              background: 'rgba(56, 189, 248, 0.2)',
-                              color: '#38bdf8',
-                              border: '1px solid rgba(56, 189, 248, 0.45)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 3,
-                              whiteSpace: 'nowrap',
-                            }}>
-                              <CheckCircle2 size={7.5} />
-                              <span>ACTIVE</span>
-                            </span>
-                          ) : (
-                            <span style={{
-                              fontSize: 7.5,
-                              fontWeight: 700,
-                              fontFamily: 'monospace',
-                              padding: '1.5px 5px',
-                              borderRadius: 3,
-                              background: isCrit ? 'rgba(239, 68, 68, 0.18)' : isWarn ? 'rgba(245, 158, 11, 0.18)' : 'rgba(56, 189, 248, 0.12)',
-                              color: isCrit ? '#f87171' : isWarn ? '#fbbf24' : '#38bdf8',
-                              border: `1px solid ${isCrit ? 'rgba(239, 68, 68, 0.4)' : isWarn ? 'rgba(245, 158, 11, 0.35)' : 'rgba(56, 189, 248, 0.3)'}`,
-                              whiteSpace: 'nowrap',
-                            }}>
-                              {hs.severity}
-                            </span>
-                          )}
-                        </div>
+                        <span style={{
+                          fontSize: 8.5,
+                          fontWeight: 700,
+                          fontFamily: 'monospace',
+                          color: statusColor,
+                          letterSpacing: '0.06em',
+                          lineHeight: 1,
+                          flexShrink: 0,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {isSelected ? 'ACTIVE' : hs.severity}
+                        </span>
                       </div>
 
-                      {/* Metric Row */}
+                      {/* Row 2: Fixed Single-Line Primary Metric Value + Secondary Context */}
                       <div style={{
-                        fontSize: 10,
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        justifyContent: 'space-between',
+                        gap: 8,
                         fontFamily: 'monospace',
-                        fontWeight: 700,
-                        color: isCrit ? '#fca5a5' : isWarn ? '#fde047' : '#e0f2fe',
+                        fontVariantNumeric: 'tabular-nums',
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
                       }}>
-                        {hs.metric}
+                        <span style={{
+                          fontSize: 12,
+                          fontWeight: 800,
+                          color: isCrit ? '#fca5a5' : isWarn ? '#fde047' : '#ffffff',
+                          lineHeight: 1,
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                        }}>
+                          {primaryReading}
+                        </span>
+                        {secondaryReading && (
+                          <span style={{
+                            fontSize: 9.5,
+                            fontWeight: 600,
+                            color: '#94a3b8',
+                            lineHeight: 1,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}>
+                            {secondaryReading}
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
@@ -3165,132 +2990,260 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
 
               {/* ── Active Subsystem Deep-Dive Telemetry Inspector ── */}
               <div style={{
-                background: 'linear-gradient(135deg, rgba(8, 14, 24, 0.9) 0%, rgba(4, 8, 16, 0.95) 100%)',
-                border: '1px solid rgba(56, 189, 248, 0.28)',
-                borderRadius: 8,
-                padding: '7px 9px',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+                background: 'linear-gradient(180deg, rgba(16, 26, 44, 0.94) 0%, rgba(11, 18, 31, 0.97) 100%)',
+                border: '1px solid rgba(148, 163, 184, 0.14)',
+                borderRadius: 9,
+                padding: '8px 10px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
                 fontFamily: 'monospace',
               }}>
                 {/* Inspector Header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, lineHeight: 1 }}>
                     <Activity size={10} style={{ color: '#38bdf8' }} />
-                    <span style={{ fontSize: 9, fontWeight: 800, color: '#f8fafc', letterSpacing: '0.04em' }}>
-                      INSPECTOR // {selectedHotspot}
+                    <span style={{ fontSize: 9, fontWeight: 800, color: '#f8fafc', letterSpacing: '0.04em', lineHeight: 1 }}>
+                      INSPECTOR // {modelType === 'SUIT' ? `EVA SUIT · ${selectedHotspot}` : selectedHotspot}
                     </span>
                   </div>
                   <span style={{
                     fontSize: 7.5,
+                    lineHeight: 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     color: '#34d399',
-                    background: 'rgba(52, 211, 153, 0.14)',
-                    border: '1px solid rgba(52, 211, 153, 0.3)',
-                    padding: '1px 5px',
-                    borderRadius: 3,
+                    background: 'rgba(12, 44, 36, 0.85)',
+                    border: '1px solid rgba(16, 185, 129, 0.22)',
+                    padding: '2.5px 6px',
+                    borderRadius: 4,
                     fontWeight: 700,
                   }}>
-                    SENTRY 60Hz
+                    {modelType === 'SUIT' ? 'xEMU 10Hz' : 'SENTRY 60Hz'}
                   </span>
                 </div>
 
-                {/* 2x2 Sensor Metric Tiles */}
-                {selectedHotspot === 'CARDIAC' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 5 }}>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>QTc INTERVAL</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>{qtc} ms</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>AUTONOMIC ARF</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#38bdf8' }}>{arf.toFixed(2)}</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>VISCOSITY TRM</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>{trm.toFixed(2)}</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>RHYTHM</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399' }}>Sinus NSR</div>
-                    </div>
+                {/* 2x2 Sensor Metric Tiles: EVA Suit Mode */}
+                {modelType === 'SUIT' ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 6 }}>
+                    {selectedHotspot === 'VISOR' ? (
+                      <>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>HELMET CO₂</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: isScrubberFault ? '#fbbf24' : '#ffffff' }}>{ppCo2} mmHg</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>UV/IR FILTER</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#38bdf8' }}>100% SHIELD</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>SUN TINT</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#fbbf24' }}>94% ACTIVE</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>ANTI-FOG</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399' }}>HEATED NOM</div>
+                        </div>
+                      </>
+                    ) : selectedHotspot === 'DCM' ? (
+                      <>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>SUIT PRESSURE</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: isDecomp ? '#f87171' : '#38bdf8' }}>{suitPressurePsi.toFixed(2)} psi</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>METRIC PRESS</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>{suitPressureKpa} kPa</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>REGULATOR</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399' }}>AUTO CLOSED</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>PURGE VALVE</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>SEALED</div>
+                        </div>
+                      </>
+                    ) : selectedHotspot === 'LCVG' ? (
+                      <>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>LCVG INLET</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#38bdf8' }}>{lcvgTemp.toFixed(1)} °C</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>LOOP FLOW</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>1.8 L/min</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>CORE TEMP</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: temp > 37.5 ? '#fbbf24' : '#34d399' }}>{(temp || 36.7).toFixed(1)} °C</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>SUBLIMATOR</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>{sublimatorRate} L/h</div>
+                        </div>
+                      </>
+                    ) : selectedHotspot === 'SAFER' ? (
+                      <>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>GN₂ TANK</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#00e5a3' }}>{saferPressureMpa} MPa</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>THRUSTERS</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>24 ARMED</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>DELTA-V</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#38bdf8' }}>{saferDeltaV}</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>CONTROLLER</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399' }}>STOWED</div>
+                        </div>
+                      </>
+                    ) : selectedHotspot === 'TMG' ? (
+                      <>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>FABRIC LAYERS</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#c084fc' }}>14 LAYERS</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>PUNCTURE SENS</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399' }}>0 DETECTED</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>RAD ATTEN</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationActive ? '#fbbf24' : '#ffffff' }}>{(radFlux || 0.04).toFixed(2)} mSv/h</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>EXT TEMP</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#38bdf8' }}>-48°C / +62°C</div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>PRIMARY O₂</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: isDecomp ? '#f87171' : '#00e5ff' }}>{o2Reserve}% ({o2TteHours}h {o2TteRemMins}m)</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>O₂ PRESSURE</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>{o2TankPressureMpa} MPa</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>CO₂ SCRUBBER</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: isScrubberFault ? '#fbbf24' : '#34d399' }}>{co2ScrubberState}</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>BATTERY BUS</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>{batteryPct}% ({batteryVolts}V)</div>
+                        </div>
+                      </>
+                    )}
                   </div>
-                )}
+                ) : (
+                  /* 2x2 Sensor Metric Tiles: Physiological Anatomy Mode */
+                  <>
+                    {selectedHotspot === 'CARDIAC' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 6 }}>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>QTc INTERVAL</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>{qtc} ms</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>AUTONOMIC ARF</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#38bdf8' }}>{arf.toFixed(2)}</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>VISCOSITY TRM</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>{trm.toFixed(2)}</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>RHYTHM</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399' }}>Sinus NSR</div>
+                        </div>
+                      </div>
+                    )}
 
-                {selectedHotspot === 'OCULAR' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 5 }}>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>ONSD SHEATH</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: isOcularAlert ? '#f87171' : '#38bdf8' }}>{isOcularAlert ? '6.8 mm' : '5.2 mm'}</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>ICP PRESSURE</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>11.2 mmHg</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>RETINAL MICRO</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399' }}>0 Lesions</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>OPTIC MARGIN</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>Frisén Gr.0</div>
-                    </div>
-                  </div>
-                )}
+                    {selectedHotspot === 'OCULAR' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 6 }}>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>ONSD SHEATH</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: isOcularAlert ? '#f87171' : '#38bdf8' }}>{isOcularAlert ? '6.8 mm' : '5.2 mm'}</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>ICP PRESSURE</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>11.2 mmHg</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>RETINAL MICRO</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399' }}>0 Lesions</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>OPTIC MARGIN</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>Frisén Gr.0</div>
+                        </div>
+                      </div>
+                    )}
 
-                {selectedHotspot === 'RENAL' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 5 }}>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>SERUM K⁺</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#38bdf8' }}>{k.toFixed(2)} mmol/L</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>URINE OSM</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>450 mOsm/kg</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>CORTICAL GFR</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399' }}>116 mL/min</div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>FLUID BALANCE</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>+120 mL / 24h</div>
-                    </div>
-                  </div>
-                )}
+                    {selectedHotspot === 'RENAL' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 6 }}>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>SERUM K⁺</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#38bdf8' }}>{k.toFixed(2)} mmol/L</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>URINE OSM</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>450 mOsm/kg</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>CORTICAL GFR</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#34d399' }}>116 mL/min</div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>FLUID BALANCE</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: '#ffffff' }}>+120 mL / 24h</div>
+                        </div>
+                      </div>
+                    )}
 
-                {selectedHotspot === 'SKELETAL' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 5 }}>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'RAD FLUX' : 'BMD INDEX'}</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationCritical ? '#ef4444' : isRadiationActive ? '#f59e0b' : isSkeletalAlert ? '#f87171' : '#38bdf8' }}>
-                        {isRadiationActive ? `${radFlux.toFixed(1)} mGy/h` : `${bmd.toFixed(1)}%`}
+                    {selectedHotspot === 'SKELETAL' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 6 }}>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'RAD FLUX' : 'BMD INDEX'}</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationCritical ? '#ef4444' : isRadiationActive ? '#f59e0b' : isSkeletalAlert ? '#f87171' : '#38bdf8' }}>
+                            {isRadiationActive ? `${radFlux.toFixed(1)} mGy/h` : `${bmd.toFixed(1)}%`}
+                          </div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'MARROW RSI' : 'RESORPTION'}</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationActive ? '#ef4444' : '#ffffff' }}>
+                            {isRadiationActive ? '1.25 CRIT' : '0.02% / wk'}
+                          </div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'ABSORBED DOSE' : 'ARED TARGET'}</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationActive ? '#f59e0b' : '#34d399' }}>
+                            {isRadiationActive ? `${(radDose || 0.75).toFixed(2)} Gy` : '150 kN'}
+                          </div>
+                        </div>
+                        <div style={{ background: 'linear-gradient(180deg, rgba(24, 39, 64, 0.92) 0%, rgba(18, 29, 48, 0.96) 100%)', padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(148, 163, 184, 0.11)' }}>
+                          <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'LYMPHOCYTES' : 'AXIAL SPINAL'}</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationActive ? '#ef4444' : '#ffffff' }}>
+                            {isRadiationActive ? `${telemetry?.lymphocyte_count ?? 0.85} (LOW)` : '+1.8 cm'}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'MARROW RSI' : 'RESORPTION'}</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationActive ? '#ef4444' : '#ffffff' }}>
-                        {isRadiationActive ? '1.25 CRIT' : '0.02% / wk'}
-                      </div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'ABSORBED DOSE' : 'ARED TARGET'}</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationActive ? '#f59e0b' : '#34d399' }}>
-                        {isRadiationActive ? `${(radDose || 0.75).toFixed(2)} Gy` : '150 kN'}
-                      </div>
-                    </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '3px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ fontSize: 7.5, color: '#94a3b8' }}>{isRadiationActive ? 'LYMPHOCYTES' : 'AXIAL SPINAL'}</div>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: isRadiationActive ? '#ef4444' : '#ffffff' }}>
-                        {isRadiationActive ? `${telemetry?.lymphocyte_count ?? 0.85} (LOW)` : '+1.8 cm'}
-                      </div>
-                    </div>
-                  </div>
+                    )}
+                  </>
                 )}
 
                 {/* Micro Live Wave Sparkline */}
                 <div style={{
-                  height: 18,
+                  height: 20,
                   width: '100%',
-                  background: 'rgba(0, 0, 0, 0.45)',
+                  background: '#050a14',
+                  border: '1px solid rgba(148, 163, 184, 0.10)',
                   borderRadius: 4,
                   overflow: 'hidden',
                   display: 'flex',
@@ -3305,7 +3258,15 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                         <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.0" />
                       </linearGradient>
                     </defs>
-                    {selectedHotspot === 'CARDIAC' && (
+                    {modelType === 'SUIT' && (
+                      <polyline
+                        fill="none"
+                        stroke="#00e5ff"
+                        strokeWidth="1.4"
+                        points="0,8 15,6 30,4 45,3 60,3 75,5 90,8 105,11 120,13 135,13 150,11 165,8 180,6 195,4 210,3 225,5 240,8 255,11 270,12 280,8"
+                      />
+                    )}
+                    {modelType !== 'SUIT' && selectedHotspot === 'CARDIAC' && (
                       <polyline
                         fill="none"
                         stroke="#38bdf8"
@@ -3313,7 +3274,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                         points="0,8 20,8 25,7 30,8 38,8 42,2 46,14 50,8 58,8 64,6 72,8 90,8 110,8 115,7 120,8 128,8 132,2 136,14 140,8 148,8 154,6 162,8 180,8 200,8 205,7 210,8 218,8 222,2 226,14 230,8 238,8 244,6 252,8 280,8"
                       />
                     )}
-                    {selectedHotspot === 'OCULAR' && (
+                    {modelType !== 'SUIT' && selectedHotspot === 'OCULAR' && (
                       <polyline
                         fill="none"
                         stroke="#38bdf8"
@@ -3321,7 +3282,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                         points="0,8 25,5 50,8 75,11 100,7 125,5 150,9 175,8 200,6 225,8 250,11 275,7 280,8"
                       />
                     )}
-                    {selectedHotspot === 'RENAL' && (
+                    {modelType !== 'SUIT' && selectedHotspot === 'RENAL' && (
                       <polyline
                         fill="none"
                         stroke="#38bdf8"
@@ -3329,7 +3290,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                         points="0,9 35,7 70,9 105,6 140,8 175,10 210,8 245,7 280,9"
                       />
                     )}
-                    {selectedHotspot === 'SKELETAL' && (
+                    {modelType !== 'SUIT' && selectedHotspot === 'SKELETAL' && (
                       <polyline
                         fill="none"
                         stroke="#38bdf8"
@@ -3342,7 +3303,8 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

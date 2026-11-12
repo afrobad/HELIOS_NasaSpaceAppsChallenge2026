@@ -3,6 +3,8 @@ import type { TelemetryPacket, AlertPayload, DistancePreset } from '../types/tel
 import { HolographicBodyScanner } from './HolographicBodyScanner';
 import { EcgRowCanvas } from './EcgRowCanvas';
 import { evaluateCrewClinicalSummary } from '../utils/clinicalPrioritization';
+import { UniversalButton } from './common/UniversalButton';
+import { UniversalTab } from './common/UniversalTab';
 import {
   Heart,
   Zap,
@@ -209,48 +211,68 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
       }}
     >
 
-      {/* ─── 2. ECLSS CABIN ENVIRONMENTAL DRAWER (MAC-STYLE ROUNDED FROSTED SLAB) ─── */}
+      {/* ─── 2. ECLSS CABIN ENVIRONMENTAL DRAWER (HIGH-CONTRAST TELEMETRY SLAB) ─── */}
       {showEclssBar && (
         <section
           aria-label="Cabin Environmental Ribbon"
           style={{
-            marginBottom: 6,
-            background: 'linear-gradient(180deg, rgba(12, 18, 30, 0.65) 0%, rgba(8, 13, 22, 0.75) 100%)',
+            marginBottom: 8,
+            background: 'linear-gradient(180deg, rgba(18, 26, 21, 0.96) 0%, rgba(12, 18, 14, 0.98) 100%)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.07)',
-            borderRadius: 10,
-            padding: '5px 14px',
+            border: '1px solid rgba(122, 148, 99, 0.20)',
+            borderRadius: 8,
+            padding: '7px 16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: 16,
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+            gap: 12,
+            boxShadow: '0 6px 20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.06em', fontFamily: 'monospace' }}>
-            <Wind size={15} />
-            <span>ECLSS LIFE SUPPORT:</span>
+          {/* Left Title: Status indicator with pulsating dot and icon */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ position: 'relative', display: 'flex', height: 7, width: 7 }}>
+              <span style={{ position: 'absolute', display: 'inline-flex', height: '100%', width: '100%', borderRadius: '50%', background: '#4ade80', opacity: 0.65, animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite' }} />
+              <span style={{ position: 'relative', display: 'inline-flex', borderRadius: '50%', height: 7, width: 7, background: '#22c55e' }} />
+            </span>
+            <Wind size={14} style={{ color: '#a1b48e' }} />
+            <span style={{ fontSize: 10.5, fontWeight: 800, color: '#f8fafc', letterSpacing: '0.08em', fontFamily: 'monospace' }}>
+              ECLSS LIFE SUPPORT:
+            </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap', fontSize: 11, fontFamily: 'monospace' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', fontSize: 11, fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>
             {/* Dynamic Cabin Pressure */}
             {(() => {
               const isDecompression = currentScenario === 'SCENARIO_2_SLOW_DECOMPRESSION_HYPOXIA';
               const pressureVal = isDecompression ? 88.0 : 101.3;
               return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: '#94a3b8' }}>CABIN PRESSURE:</span>
-                  <span style={{ color: isDecompression ? '#ef4444' : '#ffffff', fontWeight: 700 }}>
-                    {pressureVal.toFixed(1)} kPa
+                  <span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 600, letterSpacing: '0.03em' }}>CABIN PRESSURE:</span>
+                  <span style={{ color: isDecompression ? '#ef4444' : '#ffffff', fontWeight: 800 }}>
+                    {pressureVal.toFixed(1)} <span style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600 }}>kPa</span>
                   </span>
-                  <span style={{ color: isDecompression ? '#ef4444' : '#34d399', fontSize: 9.5, fontWeight: 700 }}>
+                  <span
+                    style={{
+                      fontSize: 8.5,
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: isDecompression ? 'rgba(239, 68, 68, 0.16)' : 'rgba(16, 185, 129, 0.12)',
+                      border: `1px solid ${isDecompression ? 'rgba(239, 68, 68, 0.32)' : 'rgba(16, 185, 129, 0.24)'}`,
+                      color: isDecompression ? '#ef4444' : '#34d399',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
                     {isDecompression ? 'CRITICAL LEAK' : 'NOMINAL'}
                   </span>
                 </div>
               );
             })()}
+
+            <div style={{ width: 1, height: 16, background: 'rgba(122, 148, 99, 0.18)' }} />
 
             {/* Dynamic Oxygen Fraction */}
             {(() => {
@@ -258,14 +280,27 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               const o2Val = isLowO2 ? 17.6 : 20.9;
               return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: '#94a3b8' }}>O₂ FRACTION:</span>
-                  <span style={{ color: isLowO2 ? '#f59e0b' : '#ffffff', fontWeight: 700 }}>{o2Val.toFixed(1)}%</span>
-                  <span style={{ color: isLowO2 ? '#f59e0b' : '#34d399', fontSize: 9.5, fontWeight: 700 }}>
+                  <span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 600, letterSpacing: '0.03em' }}>O₂ FRACTION:</span>
+                  <span style={{ color: isLowO2 ? '#f59e0b' : '#ffffff', fontWeight: 800 }}>{o2Val.toFixed(1)}%</span>
+                  <span
+                    style={{
+                      fontSize: 8.5,
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: isLowO2 ? 'rgba(245, 158, 11, 0.16)' : 'rgba(16, 185, 129, 0.12)',
+                      border: `1px solid ${isLowO2 ? 'rgba(245, 158, 11, 0.32)' : 'rgba(16, 185, 129, 0.24)'}`,
+                      color: isLowO2 ? '#f59e0b' : '#34d399',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
                     {isLowO2 ? 'HYPOXIC' : 'STABLE'}
                   </span>
                 </div>
               );
             })()}
+
+            <div style={{ width: 1, height: 16, background: 'rgba(122, 148, 99, 0.18)' }} />
 
             {/* Dynamic Cabin CO2 */}
             {(() => {
@@ -274,24 +309,39 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               const isWarn = co2Val > 2.8;
               return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: '#94a3b8' }}>CABIN CO₂:</span>
-                  <span style={{ color: isCrit ? '#ef4444' : isWarn ? '#f59e0b' : '#ffffff', fontWeight: 700 }}>
-                    {co2Val.toFixed(2)} mmHg
+                  <span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 600, letterSpacing: '0.03em' }}>CABIN CO₂:</span>
+                  <span style={{ color: isCrit ? '#ef4444' : isWarn ? '#f59e0b' : '#ffffff', fontWeight: 800 }}>
+                    {co2Val.toFixed(2)} <span style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600 }}>mmHg</span>
                   </span>
-                  <span style={{ color: isCrit ? '#ef4444' : isWarn ? '#f59e0b' : '#34d399', fontSize: 9.5, fontWeight: 700 }}>
+                  <span
+                    style={{
+                      fontSize: 8.5,
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: isCrit ? 'rgba(239, 68, 68, 0.16)' : isWarn ? 'rgba(245, 158, 11, 0.16)' : 'rgba(16, 185, 129, 0.12)',
+                      border: `1px solid ${isCrit ? 'rgba(239, 68, 68, 0.32)' : isWarn ? 'rgba(245, 158, 11, 0.32)' : 'rgba(16, 185, 129, 0.24)'}`,
+                      color: isCrit ? '#ef4444' : isWarn ? '#f59e0b' : '#34d399',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
                     {isCrit ? 'CRITICAL' : isWarn ? 'ELEVATED' : 'NOMINAL'}
                   </span>
                 </div>
               );
             })()}
 
+            <div style={{ width: 1, height: 16, background: 'rgba(122, 148, 99, 0.18)' }} />
+
             {/* Cabin Temp */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ color: '#94a3b8' }}>CABIN TEMP:</span>
-              <span style={{ color: '#ffffff', fontWeight: 700 }}>
+              <span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 600, letterSpacing: '0.03em' }}>CABIN TEMP:</span>
+              <span style={{ color: '#ffffff', fontWeight: 800 }}>
                 {activeTelemetry.core_temp ? (activeTelemetry.core_temp - 15.4).toFixed(1) : '21.4'}°C
               </span>
             </div>
+
+            <div style={{ width: 1, height: 16, background: 'rgba(122, 148, 99, 0.18)' }} />
 
             {/* Dynamic Radiation Flux */}
             {(() => {
@@ -300,11 +350,22 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               const isWarn = radVal > 0.15;
               return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: '#94a3b8' }}>RAD FLUX:</span>
-                  <span style={{ color: isCrit ? '#ef4444' : isWarn ? '#f59e0b' : '#ffffff', fontWeight: 700 }}>
-                    {radVal.toFixed(2)} mSv/h
+                  <span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 600, letterSpacing: '0.03em' }}>RAD FLUX:</span>
+                  <span style={{ color: isCrit ? '#ef4444' : isWarn ? '#f59e0b' : '#ffffff', fontWeight: 800 }}>
+                    {radVal.toFixed(2)} <span style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600 }}>mSv/h</span>
                   </span>
-                  <span style={{ color: isCrit ? '#ef4444' : isWarn ? '#f59e0b' : '#38bdf8', fontSize: 9.5, fontWeight: 700 }}>
+                  <span
+                    style={{
+                      fontSize: 8.5,
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: isCrit ? 'rgba(239, 68, 68, 0.16)' : isWarn ? 'rgba(245, 158, 11, 0.16)' : 'rgba(56, 189, 248, 0.12)',
+                      border: `1px solid ${isCrit ? 'rgba(239, 68, 68, 0.32)' : isWarn ? 'rgba(245, 158, 11, 0.32)' : 'rgba(56, 189, 248, 0.24)'}`,
+                      color: isCrit ? '#ef4444' : isWarn ? '#f59e0b' : '#38bdf8',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
                     {isCrit ? 'SPE STORM' : isWarn ? 'ELEVATED' : 'SHIELDED'}
                   </span>
                 </div>
@@ -412,18 +473,17 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
 
           {/* Right Action: Beautiful "SOLVED" Button (Restore All Systems to Nominal) */}
           {onSolveSituation && (
-            <button
-              type="button"
+            <UniversalButton
+              variant="emerald"
+              size="md"
+              pill
+              icon={<CheckCircle2 size={18} />}
+              iconPosition="left"
               onClick={onSolveSituation}
-              className="helios-solved-btn"
               title="Situation Solved — Restore all life support and crew telemetry back to Nominal"
             >
-              <CheckCircle2 size={20} className="helios-solved-icon" />
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left', lineHeight: 1.15 }}>
-                <span className="helios-solved-title">SOLVED</span>
-                <span className="helios-solved-sub">All Nominal</span>
-              </div>
-            </button>
+              SOLVED · ALL NOMINAL
+            </UniversalButton>
           )}
         </section>
       )}
@@ -441,15 +501,15 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '7px 12px',
-              background: 'linear-gradient(180deg, rgba(14, 22, 36, 0.7) 0%, rgba(10, 16, 26, 0.8) 100%)',
+              background: 'linear-gradient(180deg, rgba(18, 26, 21, 0.96) 0%, rgba(12, 18, 15, 0.98) 100%)',
               backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 14,
-              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(122, 148, 99, 0.18)',
+              borderRadius: 12,
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <User size={14} style={{ color: '#38bdf8' }} />
+              <User size={13} style={{ color: '#a1b48e' }} />
               <span
                 style={{
                   fontSize: 11,
@@ -457,60 +517,35 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                   letterSpacing: '0.06em',
                   color: '#ffffff',
                   fontFamily: 'monospace',
+                  lineHeight: 1,
                 }}
               >
                 CREW MANIFEST
               </span>
             </div>
 
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                background: 'rgba(0, 0, 0, 0.35)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-                borderRadius: 9999,
-                padding: 2,
-                gap: 2,
-              }}
-            >
-              <button
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <UniversalTab
+                active={crewFilter === 'ALL'}
+                accent="cyan"
+                size="sm"
+                pill
                 onClick={() => setCrewFilter('ALL')}
-                style={{
-                  background: crewFilter === 'ALL' ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
-                  border: 'none',
-                  color: crewFilter === 'ALL' ? '#38bdf8' : '#94a3b8',
-                  borderRadius: 9999,
-                  padding: '3px 8px',
-                  fontSize: 9.5,
-                  fontWeight: 700,
-                  fontFamily: 'monospace',
-                  cursor: 'pointer',
-                  transition: 'all 0.14s ease',
-                }}
               >
                 ALL (4)
-              </button>
-              <button
+              </UniversalTab>
+              <UniversalTab
+                active={crewFilter === 'ANOMALY'}
+                accent="amber"
+                size="sm"
+                pill
                 onClick={() => setCrewFilter('ANOMALY')}
-                style={{
-                  background: crewFilter === 'ANOMALY' ? 'rgba(245, 158, 11, 0.22)' : 'transparent',
-                  border: 'none',
-                  color: crewFilter === 'ANOMALY' ? '#fbbf24' : '#94a3b8',
-                  borderRadius: 9999,
-                  padding: '3px 8px',
-                  fontSize: 9.5,
-                  fontWeight: 700,
-                  fontFamily: 'monospace',
-                  cursor: 'pointer',
-                  transition: 'all 0.14s ease',
-                }}
               >
                 ALERT ({CREW_ROSTER.filter(c => {
                   const t = telemetryMap[c.id];
                   return t && ((t.heart_rate ?? 60) > 100 || (t.spo2 ?? 98) < 95.0 || t.evaluated_severity === 'CRITICAL' || t.evaluated_severity === 'WARNING');
                 }).length})
-              </button>
+              </UniversalTab>
             </div>
           </div>
 
@@ -535,62 +570,61 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                   style={{
                     position: 'relative',
                     background: isCritical
-                      ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(18, 10, 16, 0.9) 100%)'
+                      ? 'linear-gradient(135deg, rgba(38, 14, 20, 0.96) 0%, rgba(22, 9, 14, 0.98) 100%)'
                       : isWarning
-                        ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(18, 14, 10, 0.9) 100%)'
+                        ? 'linear-gradient(135deg, rgba(34, 24, 12, 0.96) 0%, rgba(20, 15, 9, 0.98) 100%)'
                         : isSelected
-                          ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.14) 0%, rgba(13, 22, 38, 0.85) 100%)'
-                          : 'linear-gradient(180deg, rgba(14, 21, 35, 0.6) 0%, rgba(10, 16, 26, 0.75) 100%)',
+                          ? 'linear-gradient(135deg, rgba(35, 50, 38, 0.97) 0%, rgba(24, 36, 27, 0.99) 100%)'
+                          : 'linear-gradient(180deg, rgba(22, 30, 24, 0.92) 0%, rgba(16, 23, 18, 0.96) 100%)',
                     backdropFilter: 'blur(16px)',
                     WebkitBackdropFilter: 'blur(16px)',
                     border: isCritical
-                      ? '1.5px solid #ef4444'
+                      ? '1px solid rgba(239, 68, 68, 0.36)'
                       : isWarning
-                        ? '1.5px solid #f59e0b'
+                        ? '1px solid rgba(245, 158, 11, 0.32)'
                         : isSelected
-                          ? '1.5px solid rgba(56, 189, 248, 0.55)'
-                          : '1px solid rgba(255, 255, 255, 0.07)',
+                          ? '1px solid rgba(161, 180, 142, 0.35)'
+                          : '1px solid rgba(122, 148, 99, 0.16)',
                     borderRadius: 10,
-                    padding: '7px 11px',
+                    padding: '8px 11px',
                     cursor: 'pointer',
                     transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                     boxShadow: isCritical
-                      ? '0 0 24px rgba(239, 68, 68, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                      ? '0 6px 20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06)'
                       : isWarning
-                        ? '0 0 18px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
+                        ? '0 6px 20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06)'
                         : isSelected
-                          ? '0 8px 24px rgba(56, 189, 248, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15)'
-                          : '0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-                    transform: isSelected ? 'translateY(-2px)' : 'none',
+                          ? '0 8px 22px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08)'
+                          : '0 6px 18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+                    transform: isSelected ? 'translateY(-1px)' : 'none',
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected && !hasAlert) {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.16)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.borderColor = 'rgba(161, 180, 142, 0.30)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isSelected && !hasAlert) {
                       e.currentTarget.style.transform = 'none';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.07)';
+                      e.currentTarget.style.borderColor = 'rgba(122, 148, 99, 0.16)';
                     }
                   }}
                 >
                   {/* Top Row: Avatar, Name, Role Badge, and Holo-Badge */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      {/* Avatar with Smooth Glow Border */}
+                      {/* Avatar with Subtle Border */}
                       <div
                         style={{
                           position: 'relative',
                           width: 36,
                           height: 36,
                           borderRadius: 9999,
-                          border: `2px solid ${isCritical ? '#ef4444' : isWarning ? '#f59e0b' : isSelected ? '#38bdf8' : '#10b981'}`,
-                          boxShadow: `0 0 10px ${isCritical ? 'rgba(239, 68, 68, 0.45)' : isWarning ? 'rgba(245, 158, 11, 0.4)' : isSelected ? 'rgba(56, 189, 248, 0.4)' : 'rgba(16, 185, 129, 0.3)'}`,
+                          border: `1.5px solid ${isCritical ? 'rgba(239, 68, 68, 0.65)' : isWarning ? 'rgba(245, 158, 11, 0.65)' : isSelected ? 'rgba(161, 180, 142, 0.7)' : 'rgba(122, 148, 99, 0.45)'}`,
                           overflow: 'hidden',
                           flexShrink: 0,
-                          background: '#0a1622',
+                          background: '#0b1007',
                         }}
                       >
                         <img
@@ -605,7 +639,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
 
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', letterSpacing: '0.02em' }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', letterSpacing: '0.02em', lineHeight: 1.1 }}>
                             {crew.name}
                           </span>
                           <span
@@ -613,63 +647,49 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                               fontSize: 9,
                               fontWeight: 700,
                               fontFamily: 'monospace',
-                              padding: '1.5px 5px',
+                              lineHeight: 1,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '3px 6px',
                               borderRadius: 4,
-                              background: 'rgba(255, 255, 255, 0.06)',
-                              color: '#cbd5e1',
+                              background: 'rgba(32, 45, 35, 0.85)',
+                              border: '1px solid rgba(122, 148, 99, 0.20)',
+                              color: '#e2e8f0',
                             }}
                           >
                             {crew.roleShort}
                           </span>
                         </div>
-                        <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace', marginTop: 1 }}>
+                        <div style={{ fontSize: 10, color: '#94a3b8', fontFamily: 'monospace', marginTop: 2, lineHeight: 1.1 }}>
                           {crew.crewNo} · Age {crew.age}
                         </div>
                       </div>
                     </div>
 
-                    {/* Status Pill Badges */}
+                    {/* Status Pill Badges (Active Badges Removed — Only Medical Severity Shown) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      {isSelected && (
-                        <span
-                          style={{
-                            fontSize: 8.5,
-                            fontWeight: 800,
-                            fontFamily: 'monospace',
-                            color: '#38bdf8',
-                            background: 'rgba(56, 189, 248, 0.16)',
-                            border: '1px solid rgba(56, 189, 248, 0.45)',
-                            padding: '2px 7px',
-                            borderRadius: 9999,
-                            letterSpacing: '0.04em',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 3,
-                          }}
-                        >
-                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 6px #38bdf8' }} />
-                          ACTIVE
-                        </span>
-                      )}
                       {isCritical ? (
                         <span
                           style={{
                             fontSize: 8.5,
                             fontWeight: 800,
                             fontFamily: 'monospace',
+                            lineHeight: 1,
                             color: '#fca5a5',
-                            background: 'rgba(239, 68, 68, 0.22)',
-                            border: '1px solid rgba(239, 68, 68, 0.6)',
-                            padding: '2px 7px',
+                            background: 'rgba(64, 18, 26, 0.88)',
+                            border: '1px solid rgba(239, 68, 68, 0.30)',
+                            padding: '3.5px 7px',
                             borderRadius: 9999,
                             letterSpacing: '0.04em',
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
-                            gap: 3,
+                            justifyContent: 'center',
+                            gap: 4,
                           }}
                         >
-                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444' }} />
-                          CRITICAL
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                          <span>CRITICAL</span>
                         </span>
                       ) : isWarning ? (
                         <span
@@ -677,73 +697,86 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                             fontSize: 8.5,
                             fontWeight: 800,
                             fontFamily: 'monospace',
+                            lineHeight: 1,
                             color: '#fde047',
-                            background: 'rgba(245, 158, 11, 0.22)',
-                            border: '1px solid rgba(245, 158, 11, 0.5)',
-                            padding: '2px 7px',
+                            background: 'rgba(58, 38, 14, 0.88)',
+                            border: '1px solid rgba(245, 158, 11, 0.28)',
+                            padding: '3.5px 7px',
                             borderRadius: 9999,
                             letterSpacing: '0.04em',
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
-                            gap: 3,
+                            justifyContent: 'center',
+                            gap: 4,
                           }}
                         >
-                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#f59e0b' }} />
-                          WARNING
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
+                          <span>WARNING</span>
                         </span>
-                      ) : !isSelected ? (
+                      ) : (
                         <span
                           style={{
                             fontSize: 8.5,
-                            fontWeight: 700,
+                            fontWeight: 800,
                             fontFamily: 'monospace',
+                            lineHeight: 1,
                             color: '#34d399',
-                            background: 'rgba(16, 185, 129, 0.12)',
-                            padding: '2px 7px',
+                            background: 'rgba(16, 44, 26, 0.82)',
+                            border: '1px solid rgba(16, 185, 129, 0.24)',
+                            padding: '3.5px 7px',
                             borderRadius: 9999,
+                            letterSpacing: '0.04em',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
                           }}
                         >
-                          NOMINAL
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#34d399', flexShrink: 0 }} />
+                          <span>NOMINAL</span>
                         </span>
-                      ) : null}
+                      )}
                     </div>
                   </div>
 
-                  {/* Vitals Spark Grid - Mac Style Rounded Inner Slab */}
+                  {/* Vitals Spark Grid - Elevated Contrast Inner Container */}
                   <div
                     style={{
                       display: 'grid',
                       gridTemplateColumns: '1fr 1fr 1fr 1fr',
                       gap: 6,
-                      background: 'rgba(0, 0, 0, 0.35)',
+                      background: 'linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%)',
                       borderRadius: 7,
-                      padding: '5px 8px',
-                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      padding: '6px 9px',
+                      border: '1px solid rgba(122, 148, 99, 0.14)',
                       fontFamily: 'monospace',
+                      fontVariantNumeric: 'tabular-nums',
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 8.5, color: '#94a3b8' }}>HR</div>
+                      <div style={{ fontSize: 8.5, color: '#94a3b8', fontWeight: 700, lineHeight: 1.1 }}>HR</div>
                       <div
                         style={{
                           fontSize: 13,
                           fontWeight: 800,
                           color: hr > 100 ? '#ef4444' : hr > 85 ? '#fbbf24' : '#ffffff',
-                          marginTop: 1,
+                          marginTop: 2,
+                          lineHeight: 1.1,
                         }}
                       >
-                        {hr.toFixed(0)} <span style={{ fontSize: 8, color: '#64748b' }}>bpm</span>
+                        {hr.toFixed(0)} <span style={{ fontSize: 8.5, color: '#94a3b8', fontWeight: 600 }}>bpm</span>
                       </div>
                     </div>
 
                     <div>
-                      <div style={{ fontSize: 8.5, color: '#94a3b8' }}>SPO₂</div>
+                      <div style={{ fontSize: 8.5, color: '#94a3b8', fontWeight: 700, lineHeight: 1.1 }}>SPO₂</div>
                       <div
                         style={{
                           fontSize: 13,
                           fontWeight: 800,
                           color: spo2 < 90 ? '#ef4444' : spo2 < 96.5 ? '#fbbf24' : '#ffffff',
-                          marginTop: 1,
+                          marginTop: 2,
+                          lineHeight: 1.1,
                         }}
                       >
                         {spo2.toFixed(1)}%
@@ -751,16 +784,16 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                     </div>
 
                     <div>
-                      <div style={{ fontSize: 8.5, color: '#94a3b8' }}>TEMP</div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: temp > 37.5 ? '#fbbf24' : '#ffffff', marginTop: 1 }}>
+                      <div style={{ fontSize: 8.5, color: '#94a3b8', fontWeight: 700, lineHeight: 1.1 }}>TEMP</div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: temp > 37.5 ? '#fbbf24' : '#ffffff', marginTop: 2, lineHeight: 1.1 }}>
                         {temp.toFixed(1)}°
                       </div>
                     </div>
 
                     <div>
-                      <div style={{ fontSize: 8.5, color: '#94a3b8' }}>HRV</div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', marginTop: 1 }}>
-                        {hrv.toFixed(0)} <span style={{ fontSize: 8, color: '#64748b' }}>ms</span>
+                      <div style={{ fontSize: 8.5, color: '#94a3b8', fontWeight: 700, lineHeight: 1.1 }}>HRV</div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', marginTop: 2, lineHeight: 1.1 }}>
+                        {hrv.toFixed(0)} <span style={{ fontSize: 8.5, color: '#94a3b8', fontWeight: 600 }}>ms</span>
                       </div>
                     </div>
                   </div>
@@ -770,13 +803,14 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                     <div
                       style={{
                         marginTop: 7,
-                        padding: '4px 8px',
+                        padding: '5px 8px',
                         borderRadius: 6,
-                        background: isCritical ? 'rgba(239, 68, 68, 0.14)' : 'rgba(245, 158, 11, 0.14)',
-                        border: `1px solid ${isCritical ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
+                        background: isCritical ? 'rgba(64, 18, 26, 0.85)' : 'rgba(58, 38, 14, 0.85)',
+                        border: `1px solid ${isCritical ? 'rgba(239, 68, 68, 0.28)' : 'rgba(245, 158, 11, 0.28)'}`,
                         fontSize: 9,
-                        fontWeight: 700,
-                        color: isCritical ? '#fca5a5' : '#fde047',
+                        fontWeight: 800,
+                        lineHeight: 1,
+                        color: isCritical ? '#fecaca' : '#fef08a',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 6,
@@ -790,7 +824,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                     </div>
                   )}
 
-                  {/* Bottom Action Footer for Card */}
+                  {/* Bottom Specialty Metadata Footer (Redundant Triage Button Removed) */}
                   <div
                     style={{
                       display: 'flex',
@@ -798,37 +832,18 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                       justifyContent: 'space-between',
                       marginTop: 6,
                       fontSize: 9,
+                      lineHeight: 1,
                       color: '#94a3b8',
                       fontFamily: 'monospace',
                     }}
                   >
-                    <span style={{ color: '#94a3b8', fontSize: 9, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ color: '#38bdf8', fontSize: 7 }}>●</span>
-                      {crew.specialty.split('&')[0].trim()}
+                    <span style={{ color: '#cbd5e1', fontSize: 9.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5, lineHeight: 1 }}>
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#38bdf8', flexShrink: 0 }} />
+                      <span>{crew.specialty.split('&')[0].trim()}</span>
                     </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenTriage(crew.id);
-                      }}
-                      style={{
-                        background: 'rgba(56, 189, 248, 0.08)',
-                        border: '1px solid rgba(56, 189, 248, 0.25)',
-                        color: isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#38bdf8',
-                        fontSize: 9,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        padding: '3px 8px',
-                        borderRadius: 4,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <span>TRIAGE CLINICAL</span>
-                      <ArrowRight size={10} />
-                    </button>
+                    <span style={{ color: '#64748b', fontSize: 8.5, fontWeight: 600 }}>
+                      {crew.role}
+                    </span>
                   </div>
                 </div>
               );
@@ -838,25 +853,25 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
           {/* Tactical Mission Protocol Sensor Status */}
           <div
             style={{
-              padding: '10px 14px',
-              background: 'linear-gradient(180deg, rgba(14, 21, 35, 0.5) 0%, rgba(9, 14, 24, 0.7) 100%)',
+              padding: '9px 14px',
+              background: 'linear-gradient(180deg, rgba(18, 26, 21, 0.96) 0%, rgba(12, 18, 15, 0.98) 100%)',
               backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              borderRadius: 14,
+              border: '1px solid rgba(122, 148, 99, 0.18)',
+              borderRadius: 12,
               fontSize: 10,
-              color: '#94a3b8',
+              color: '#cbd5e1',
               fontFamily: 'monospace',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+              boxShadow: '0 6px 18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
             }}
           >
-            <div style={{ color: '#38bdf8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ color: '#a1b48e', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 6, lineHeight: 1 }}>
               <Shield size={12} />
               <span>CREW TELEMETRY LINK</span>
             </div>
-            <span style={{ color: '#34d399', fontSize: 8.5, fontWeight: 700 }}>ONLINE</span>
+            <span style={{ color: '#34d399', fontSize: 9, fontWeight: 800, lineHeight: 1 }}>ONLINE</span>
           </div>
         </aside>
 
@@ -864,144 +879,113 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
             CENTER FLANK: THE 3D HOLOGRAPHIC BIO-TWIN SCANNER VIEWPORT
            ───────────────────────────────────────────────────────────── */}
         <main className="helios-center-flank">
-          {/* Holo-Bay Cyber Frame Header with Mac-Style Traffic Light Beacons */}
+          {/* Unified Bio-Twin Container (Header seamlessly connected with Scanner Container) */}
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '8px 14px',
-              background: 'linear-gradient(180deg, rgba(15, 23, 40, 0.8) 0%, rgba(9, 14, 25, 0.9) 100%)',
+              background: 'linear-gradient(180deg, rgba(14, 20, 16, 0.96) 0%, rgba(9, 14, 11, 0.98) 100%)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.09)',
-              borderBottom: 'none',
-              borderTopLeftRadius: 18,
-              borderTopRightRadius: 18,
-              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(122, 148, 99, 0.20)',
+              borderRadius: 16,
+              overflow: 'hidden',
+              boxShadow: '0 18px 44px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {/* Mac-Style Subtle Window Indicator Bullets */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 9999, background: '#f43f5e', opacity: 0.85 }} />
-                <span style={{ width: 8, height: 8, borderRadius: 9999, background: '#f59e0b', opacity: 0.85 }} />
-                <span style={{ width: 8, height: 8, borderRadius: 9999, background: '#10b981', opacity: 0.85 }} />
-              </div>
-
-              <span
-                style={{
-                  fontFamily: "var(--hud-font-brand, 'Orbitron', sans-serif)",
-                  fontSize: 13,
-                  fontWeight: 900,
-                  color: '#ffffff',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                HOLOGRAPHIC BIO-TWIN // {activeCrew.crewNo} {activeCrew.name.toUpperCase()}
-              </span>
-              <span
-                style={{
-                  fontSize: 9.5,
-                  fontFamily: 'monospace',
-                  padding: '2px 8px',
-                  borderRadius: 9999,
-                  background: 'rgba(56, 189, 248, 0.15)',
-                  color: '#38bdf8',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                  fontWeight: 700,
-                }}
-              >
-                {activeCrew.role}
-              </span>
-
-              {/* Real-time Dynamic Clinical Badge on 3D Header */}
-              {activeClinical.isAbnormal && (
+            {/* Minimal Connected Header with Typographical Hierarchy (No Badges, No Numbering) */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '9px 16px',
+                background: 'linear-gradient(180deg, rgba(20, 28, 22, 0.94) 0%, rgba(14, 20, 16, 0.96) 100%)',
+                borderBottom: '1px solid rgba(122, 148, 99, 0.16)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
                 <span
                   style={{
-                    fontSize: 9,
-                    fontFamily: 'monospace',
-                    padding: '2px 8px',
-                    borderRadius: 9999,
-                    background: activeClinical.severity === 'CRITICAL' ? 'rgba(239, 68, 68, 0.22)' : 'rgba(245, 158, 11, 0.22)',
-                    color: activeClinical.severity === 'CRITICAL' ? '#fca5a5' : '#fde047',
-                    border: activeClinical.severity === 'CRITICAL' ? '1px solid #ef4444' : '1px solid #f59e0b',
-                    fontWeight: 800,
-                    letterSpacing: '0.04em',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: '#94a3b8',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
                   }}
                 >
-                  <span style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: '50%',
-                    background: activeClinical.severity === 'CRITICAL' ? '#ef4444' : '#f59e0b',
-                    boxShadow: `0 0 6px ${activeClinical.severity === 'CRITICAL' ? '#ef4444' : '#f59e0b'}`,
-                  }} />
-                  {activeClinical.primaryConcern.title}
+                  HOLOGRAPHIC BIO-TWIN
                 </span>
-              )}
+                <span style={{ color: 'rgba(255, 255, 255, 0.16)', fontSize: 11 }}>/</span>
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: '#f8fafc',
+                    letterSpacing: '0.01em',
+                  }}
+                >
+                  {activeCrew.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    fontFamily: 'monospace',
+                    color: '#94a3b8',
+                  }}
+                >
+                  {activeCrew.crewNo} · {activeCrew.role}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, color: '#94a3b8', fontFamily: 'monospace', fontWeight: 600, letterSpacing: '0.05em' }}>
+                {activeClinical.isAbnormal ? (
+                  <span style={{ color: activeClinical.severity === 'CRITICAL' ? '#f87171' : '#fbbf24', fontWeight: 700 }}>
+                    {activeClinical.primaryConcern.title}
+                  </span>
+                ) : (
+                  <span>DRAG TO ROTATE 360°</span>
+                )}
+              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: '#94a3b8', fontFamily: 'monospace' }}>
-              {activeClinical.isAbnormal ? (
-                <span style={{ color: activeClinical.severity === 'CRITICAL' ? '#f87171' : '#fbbf24', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <AlertTriangle size={11} />
-                  <span>PHYSIOLOGICAL STRAIN FLAGGED</span>
-                </span>
-              ) : (
-                <span>DRAG TO ROTATE 360°</span>
-              )}
+            {/* Embedded 3D Holographic Body Scanner */}
+            <div data-tour="bio-twin">
+              <HolographicBodyScanner
+                astronautId={activeCrew.id}
+                astronautName={activeCrew.name}
+                astronautRole={activeCrew.role}
+                crewNo={activeCrew.crewNo}
+                telemetry={activeTelemetry}
+                currentScenario={currentScenario}
+                themeMode={scannerTheme}
+                orbitalPosition={orbitalPosition}
+                onSelectSubsystem={(sub) => setActiveSubsystem(sub)}
+              />
             </div>
           </div>
 
-          {/* Embedded 3D Holographic Body Scanner Container with Mac-Style Rounded Base */}
-          <div
-            data-tour="bio-twin"
-            style={{
-              borderBottomLeftRadius: 18,
-              borderBottomRightRadius: 18,
-              overflow: 'hidden',
-              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.65), inset 0 0 24px rgba(56, 189, 248, 0.04)',
-            }}
-          >
-            <HolographicBodyScanner
-              astronautId={activeCrew.id}
-              astronautName={activeCrew.name}
-              astronautRole={activeCrew.role}
-              crewNo={activeCrew.crewNo}
-              telemetry={activeTelemetry}
-              currentScenario={currentScenario}
-              themeMode={scannerTheme}
-              orbitalPosition={orbitalPosition}
-              onSelectSubsystem={(sub) => setActiveSubsystem(sub)}
-            />
-          </div>
-
-          {/* Bottom Hotspot Clinical Action Banner - Mac Style Frosted Slab */}
+          {/* Bottom Hotspot Clinical Action Banner - Single Unified Deep Clinical Report Action */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '5px 12px',
-              background: 'linear-gradient(180deg, rgba(14, 21, 35, 0.7) 0%, rgba(9, 14, 24, 0.8) 100%)',
+              padding: '7px 14px',
+              background: 'linear-gradient(180deg, rgba(20, 28, 22, 0.96) 0%, rgba(13, 19, 15, 0.98) 100%)',
               backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(122, 148, 99, 0.18)',
               borderRadius: 12,
               fontSize: 10.5,
               fontFamily: 'monospace',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Crosshair size={15} style={{ color: '#38bdf8' }} />
+              <Crosshair size={15} style={{ color: '#a1b48e' }} />
               <span style={{ color: '#ffffff', fontWeight: 800 }}>
                 ORGAN FOCUS: {activeSubsystem}
               </span>
-              <span style={{ color: '#94a3b8' }}>
+              <span style={{ color: '#cbd5e1', fontWeight: 600 }}>
                 {activeSubsystem === 'CARDIAC'
                   ? 'Myocardium & Rhythm Assessment'
                   : activeSubsystem === 'OCULAR'
@@ -1012,36 +996,17 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               </span>
             </div>
 
-            <button
+            <UniversalButton
+              variant="cyan"
+              size="sm"
+              pill
+              icon={<ArrowRight size={12} />}
+              iconPosition="right"
               onClick={() => onOpenTriage(activeCrew.id)}
-              style={{
-                background: 'rgba(56, 189, 248, 0.16)',
-                border: '1px solid rgba(56, 189, 248, 0.45)',
-                borderRadius: 9999,
-                padding: '5px 14px',
-                color: '#38bdf8',
-                fontSize: 10,
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                letterSpacing: '0.04em',
-                transition: 'all 0.16s ease',
-                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.28)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.16)';
-                e.currentTarget.style.transform = 'none';
-              }}
+              title={`Open comprehensive deep clinical report for ${activeCrew.name}`}
             >
-              <span>DEEP CLINICAL REPORT</span>
-              <ArrowRight size={12} />
-            </button>
+              DEEP CLINICAL REPORT
+            </UniversalButton>
           </div>
         </main>
 
@@ -1049,25 +1014,25 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
             RIGHT FLANK: REAL-TIME ECG WAVEFORM & CLINICAL DIAGNOSTICS LAB
            ───────────────────────────────────────────────────────────── */}
         <aside className="helios-right-flank">
-          {/* Live ECG Rhythm Strip Card (Mac-Style Card) */}
+          {/* Live ECG Rhythm Strip Card (Expanded Height & High-Contrast Inner Canvas) */}
           <div
             data-tour="live-ecg"
             style={{
-              background: 'linear-gradient(180deg, rgba(14, 21, 35, 0.7) 0%, rgba(9, 14, 24, 0.8) 100%)',
+              background: 'linear-gradient(180deg, rgba(18, 26, 21, 0.96) 0%, rgba(12, 18, 15, 0.98) 100%)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(122, 148, 99, 0.18)',
               borderRadius: 12,
-              padding: '8px 13px',
-              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+              padding: '10px 13px',
+              boxShadow: '0 8px 28px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <Heart
-                  size={14}
+                  size={13}
                   style={{
-                    color: isAbnormal ? '#f43f5e' : '#38bdf8',
+                    color: isAbnormal ? '#f43f5e' : '#a1b48e',
                   }}
                 />
                 <span
@@ -1077,6 +1042,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                     letterSpacing: '0.06em',
                     color: '#ffffff',
                     fontFamily: 'monospace',
+                    lineHeight: 1,
                   }}
                 >
                   LIVE LEAD II ECG WAVEFORM
@@ -1086,12 +1052,16 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               <span
                 style={{
                   fontSize: 8.5,
-                  fontWeight: 700,
+                  fontWeight: 800,
                   fontFamily: 'monospace',
+                  lineHeight: 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   color: isAbnormal ? '#fb7185' : '#34d399',
-                  background: isAbnormal ? 'rgba(244, 63, 94, 0.16)' : 'rgba(16, 185, 129, 0.14)',
-                  border: `1px solid ${isAbnormal ? 'rgba(244, 63, 94, 0.4)' : 'rgba(16, 185, 129, 0.35)'}`,
-                  padding: '2px 7px',
+                  background: isAbnormal ? 'rgba(64, 18, 26, 0.85)' : 'rgba(16, 44, 26, 0.82)',
+                  border: `1px solid ${isAbnormal ? 'rgba(244, 63, 94, 0.28)' : 'rgba(16, 185, 129, 0.24)'}`,
+                  padding: '3.5px 8px',
                   borderRadius: 9999,
                 }}
               >
@@ -1099,14 +1069,14 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               </span>
             </div>
 
-            {/* Embedded ECG Canvas with Rounded Inset */}
+            {/* Embedded ECG Canvas with Expanded Height (114px) */}
             <div
               style={{
-                height: 62,
+                height: 114,
                 width: '100%',
-                background: '#020409',
+                background: '#070c08',
                 borderRadius: 8,
-                border: '1px solid rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(122, 148, 99, 0.16)',
                 overflow: 'hidden',
                 position: 'relative',
               }}
@@ -1114,7 +1084,7 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               <EcgRowCanvas
                 astronautId={activeCrew.id}
                 telemetry={activeTelemetry}
-                height={62}
+                height={114}
               />
             </div>
 
@@ -1123,10 +1093,13 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginTop: 5,
-                fontSize: 8.5,
-                color: '#94a3b8',
+                marginTop: 6,
+                fontSize: 9,
+                color: '#cbd5e1',
                 fontFamily: 'monospace',
+                fontWeight: 600,
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1,
               }}
             >
               <span>SWEEP: 25 mm/s</span>
@@ -1135,16 +1108,16 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
             </div>
           </div>
 
-          {/* Vitals Telemetry Matrix (Mac-Style Card with 4 Refined Tiles) */}
+          {/* Vitals Telemetry Matrix (Elevated Inner Tiles for Clear Visual Contrast) */}
           <div
             style={{
-              background: 'linear-gradient(180deg, rgba(14, 21, 35, 0.7) 0%, rgba(9, 14, 24, 0.8) 100%)',
+              background: 'linear-gradient(180deg, rgba(18, 26, 21, 0.96) 0%, rgba(12, 18, 15, 0.98) 100%)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(122, 148, 99, 0.18)',
               borderRadius: 12,
-              padding: '8px 13px',
-              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+              padding: '9px 13px',
+              boxShadow: '0 8px 28px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
             }}
           >
             <div
@@ -1154,13 +1127,14 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 letterSpacing: '0.06em',
                 color: '#ffffff',
                 fontFamily: 'monospace',
-                marginBottom: 6,
+                marginBottom: 7,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 7,
+                lineHeight: 1,
               }}
             >
-              <Zap size={13} style={{ color: '#38bdf8' }} />
+              <Zap size={13} style={{ color: '#a1b48e' }} />
               <span>PHYSIOLOGICAL VITAL MATRIX</span>
             </div>
 
@@ -1170,25 +1144,26 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 gridTemplateColumns: '1fr 1fr',
                 gap: 7,
                 fontFamily: 'monospace',
+                fontVariantNumeric: 'tabular-nums',
               }}
             >
               {/* 1. Heart Rate */}
               <div
                 style={{
-                  background: 'rgba(0, 0, 0, 0.35)',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  background: 'linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%)',
+                  border: '1px solid rgba(122, 148, 99, 0.14)',
                   borderRadius: 7,
-                  padding: '6px 9px',
+                  padding: '7px 10px',
                 }}
               >
-                <div style={{ fontSize: 8.5, color: '#94a3b8', textTransform: 'uppercase' }}>Heart Rate</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 2 }}>
-                  <span style={{ fontSize: 16, fontWeight: 900, color: activeTelemetry.heart_rate > 100 ? '#fbbf24' : '#ffffff' }}>
+                <div style={{ fontSize: 8.5, color: '#cbd5e1', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1.1 }}>Heart Rate</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 3 }}>
+                  <span style={{ fontSize: 17, fontWeight: 900, color: activeTelemetry.heart_rate > 100 ? '#fbbf24' : '#ffffff', lineHeight: 1.1 }}>
                     {activeTelemetry.heart_rate.toFixed(0)}
                   </span>
-                  <span style={{ fontSize: 9, color: '#64748b' }}>bpm</span>
+                  <span style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600 }}>bpm</span>
                 </div>
-                <div style={{ fontSize: 8, color: Math.abs(activeTelemetry.z_score_hr) > 1.5 ? '#fbbf24' : '#34d399', marginTop: 1, fontWeight: 600 }}>
+                <div style={{ fontSize: 8.5, color: Math.abs(activeTelemetry.z_score_hr) > 1.5 ? '#fbbf24' : '#34d399', marginTop: 2, fontWeight: 700, lineHeight: 1.1 }}>
                   Z: {activeTelemetry.z_score_hr >= 0 ? '+' : ''}{activeTelemetry.z_score_hr.toFixed(1)}σ
                 </div>
               </div>
@@ -1196,20 +1171,20 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               {/* 2. SpO2 */}
               <div
                 style={{
-                  background: 'rgba(0, 0, 0, 0.35)',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  background: 'linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%)',
+                  border: '1px solid rgba(122, 148, 99, 0.14)',
                   borderRadius: 7,
-                  padding: '6px 9px',
+                  padding: '7px 10px',
                 }}
               >
-                <div style={{ fontSize: 8.5, color: '#94a3b8', textTransform: 'uppercase' }}>O₂ Saturation</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 2 }}>
-                  <span style={{ fontSize: 16, fontWeight: 900, color: activeTelemetry.spo2 < 97 ? '#fbbf24' : '#ffffff' }}>
+                <div style={{ fontSize: 8.5, color: '#cbd5e1', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1.1 }}>O₂ Saturation</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 3 }}>
+                  <span style={{ fontSize: 17, fontWeight: 900, color: activeTelemetry.spo2 < 97 ? '#fbbf24' : '#ffffff', lineHeight: 1.1 }}>
                     {activeTelemetry.spo2.toFixed(1)}
                   </span>
-                  <span style={{ fontSize: 9, color: '#64748b' }}>%</span>
+                  <span style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600 }}>%</span>
                 </div>
-                <div style={{ fontSize: 8, color: '#34d399', marginTop: 1, fontWeight: 600 }}>
+                <div style={{ fontSize: 8.5, color: '#34d399', marginTop: 2, fontWeight: 700, lineHeight: 1.1 }}>
                   Capillary Nom
                 </div>
               </div>
@@ -1217,20 +1192,20 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               {/* 3. Core Temp */}
               <div
                 style={{
-                  background: 'rgba(0, 0, 0, 0.35)',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  background: 'linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%)',
+                  border: '1px solid rgba(122, 148, 99, 0.14)',
                   borderRadius: 7,
-                  padding: '6px 9px',
+                  padding: '7px 10px',
                 }}
               >
-                <div style={{ fontSize: 8.5, color: '#94a3b8', textTransform: 'uppercase' }}>Core Body Temp</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 2 }}>
-                  <span style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>
+                <div style={{ fontSize: 8.5, color: '#cbd5e1', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1.1 }}>Core Body Temp</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 3 }}>
+                  <span style={{ fontSize: 17, fontWeight: 900, color: '#ffffff', lineHeight: 1.1 }}>
                     {activeTelemetry.core_temp.toFixed(1)}
                   </span>
-                  <span style={{ fontSize: 9, color: '#64748b' }}>°C</span>
+                  <span style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600 }}>°C</span>
                 </div>
-                <div style={{ fontSize: 8, color: '#cbd5e1', marginTop: 1 }}>
+                <div style={{ fontSize: 8.5, color: '#cbd5e1', marginTop: 2, fontWeight: 600, lineHeight: 1.1 }}>
                   Circadian Steady
                 </div>
               </div>
@@ -1238,20 +1213,20 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
               {/* 4. HRV (RMSSD) */}
               <div
                 style={{
-                  background: 'rgba(0, 0, 0, 0.35)',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  background: 'linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%)',
+                  border: '1px solid rgba(122, 148, 99, 0.14)',
                   borderRadius: 7,
-                  padding: '6px 9px',
+                  padding: '7px 10px',
                 }}
               >
-                <div style={{ fontSize: 8.5, color: '#94a3b8', textTransform: 'uppercase' }}>HRV (RMSSD)</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 2 }}>
-                  <span style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>
+                <div style={{ fontSize: 8.5, color: '#cbd5e1', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1.1 }}>HRV (RMSSD)</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 3 }}>
+                  <span style={{ fontSize: 17, fontWeight: 900, color: '#ffffff', lineHeight: 1.1 }}>
                     {activeTelemetry.hrv_rmssd.toFixed(0)}
                   </span>
-                  <span style={{ fontSize: 9, color: '#64748b' }}>ms</span>
+                  <span style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600 }}>ms</span>
                 </div>
-                <div style={{ fontSize: 8, color: '#cbd5e1', marginTop: 1 }}>
+                <div style={{ fontSize: 8.5, color: '#cbd5e1', marginTop: 2, fontWeight: 600, lineHeight: 1.1 }}>
                   Vagal Autonomic
                 </div>
               </div>
@@ -1261,14 +1236,15 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
           {/* Blood & Fluid Chemistry Strip */}
           <div
             style={{
-              background: 'linear-gradient(180deg, rgba(14, 21, 35, 0.7) 0%, rgba(9, 14, 24, 0.8) 100%)',
+              background: 'linear-gradient(180deg, rgba(18, 26, 21, 0.96) 0%, rgba(12, 18, 15, 0.98) 100%)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(122, 148, 99, 0.18)',
               borderRadius: 12,
-              padding: '8px 13px',
+              padding: '9px 13px',
               fontFamily: 'monospace',
-              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+              fontVariantNumeric: 'tabular-nums',
+              boxShadow: '0 8px 28px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
             }}
           >
             <div
@@ -1277,55 +1253,67 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                 fontWeight: 800,
                 letterSpacing: '0.06em',
                 color: '#ffffff',
-                marginBottom: 6,
+                marginBottom: 7,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 7,
+                lineHeight: 1,
               }}
             >
-              <Droplets size={13} style={{ color: '#38bdf8' }} />
+              <Droplets size={13} style={{ color: '#a1b48e' }} />
               <span>FLUID & BIOCHEMISTRY PANEL</span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4.5, fontSize: 9.5 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                fontSize: 9.5,
+                background: 'linear-gradient(180deg, rgba(26, 36, 28, 0.90) 0%, rgba(18, 26, 20, 0.94) 100%)',
+                border: '1px solid rgba(122, 148, 99, 0.12)',
+                borderRadius: 8,
+                padding: '7px 10px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#e2e8f0', borderBottom: '1px solid rgba(148, 163, 184, 0.09)', paddingBottom: 4 }}>
                 <span>Serum Potassium (K⁺):</span>
-                <span style={{ color: '#38bdf8', fontWeight: 700 }}>{activeTelemetry.potassium ?? 4.4} mmol/L</span>
+                <span style={{ color: '#38bdf8', fontWeight: 800 }}>{activeTelemetry.potassium ?? 4.4} mmol/L</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#e2e8f0', borderBottom: '1px solid rgba(148, 163, 184, 0.09)', paddingBottom: 4 }}>
                 <span>Hematocrit (HCT):</span>
-                <span style={{ color: '#ffffff', fontWeight: 700 }}>{activeTelemetry.hematocrit ?? 42.0}%</span>
+                <span style={{ color: '#ffffff', fontWeight: 800 }}>{activeTelemetry.hematocrit ?? 42.0}%</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#e2e8f0', borderBottom: '1px solid rgba(148, 163, 184, 0.09)', paddingBottom: 4 }}>
                 <span>WBC Leukocytes:</span>
-                <span style={{ color: '#ffffff', fontWeight: 700 }}>{activeTelemetry.wbc_count ?? 6.8} × 10³/µL</span>
+                <span style={{ color: '#ffffff', fontWeight: 800 }}>{activeTelemetry.wbc_count ?? 6.8} × 10³/µL</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#cbd5e1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#e2e8f0' }}>
                 <span>C-Reactive Protein (CRP):</span>
-                <span style={{ color: '#ffffff', fontWeight: 700 }}>{activeTelemetry.crp ?? 0.8} mg/L</span>
+                <span style={{ color: '#ffffff', fontWeight: 800 }}>{activeTelemetry.crp ?? 0.8} mg/L</span>
               </div>
             </div>
           </div>
 
-          {/* AI Flight Surgeon Decision Card (Mac-Style Card) */}
+          {/* AI Flight Surgeon Decision Card (Redundant Workstation Button Removed) */}
           <div
             data-tour="ai-diagnostic"
             style={{
               background: isAbnormal
-                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(20, 14, 8, 0.85) 100%)'
-                : 'linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(10, 16, 28, 0.85) 100%)',
+                ? 'linear-gradient(135deg, rgba(34, 24, 12, 0.96) 0%, rgba(20, 15, 9, 0.98) 100%)'
+                : 'linear-gradient(180deg, rgba(18, 26, 21, 0.96) 0%, rgba(12, 18, 15, 0.98) 100%)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              border: isAbnormal ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid rgba(56, 189, 248, 0.35)',
+              border: isAbnormal ? '1px solid rgba(245, 158, 11, 0.28)' : '1px solid rgba(122, 148, 99, 0.18)',
               borderRadius: 12,
-              padding: '8px 13px',
-              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+              padding: '10px 13px',
+              boxShadow: '0 8px 28px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <Sparkles size={14} style={{ color: isAbnormal ? '#fbbf24' : '#38bdf8' }} />
-                <span style={{ fontSize: 10.5, fontWeight: 900, color: '#ffffff', letterSpacing: '0.04em', fontFamily: 'monospace' }}>
+                <Sparkles size={14} style={{ color: isAbnormal ? '#fbbf24' : '#a1b48e' }} />
+                <span style={{ fontSize: 10.5, fontWeight: 900, color: '#ffffff', letterSpacing: '0.04em', fontFamily: 'monospace', lineHeight: 1 }}>
                   HELIX-AI ANALYST DIAGNOSTIC
                 </span>
               </div>
@@ -1334,9 +1322,14 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
                   fontSize: 8.5,
                   fontWeight: 800,
                   fontFamily: 'monospace',
-                  color: isAbnormal ? (latestAlert?.severity === 'CRITICAL' ? '#ef4444' : '#fbbf24') : '#38bdf8',
-                  background: isAbnormal ? (latestAlert?.severity === 'CRITICAL' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)') : 'rgba(56, 189, 248, 0.16)',
-                  padding: '2px 7px',
+                  lineHeight: 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: isAbnormal ? (latestAlert?.severity === 'CRITICAL' ? '#fca5a5' : '#fde047') : '#34d399',
+                  background: isAbnormal ? (latestAlert?.severity === 'CRITICAL' ? 'rgba(64, 18, 26, 0.85)' : 'rgba(58, 38, 14, 0.85)') : 'rgba(16, 44, 26, 0.82)',
+                  border: `1px solid ${isAbnormal ? (latestAlert?.severity === 'CRITICAL' ? 'rgba(239, 68, 68, 0.28)' : 'rgba(245, 158, 11, 0.28)') : 'rgba(16, 185, 129, 0.24)'}`,
+                  padding: '3.5px 8px',
                   borderRadius: 9999,
                 }}
               >
@@ -1345,74 +1338,47 @@ export const MainIndexDeck: React.FC<MainIndexDeckProps> = ({
             </div>
 
             {(isAbnormal || isScenarioElevated) ? (
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 9, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2, letterSpacing: '0.04em' }}>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 800, color: '#cbd5e1', textTransform: 'uppercase', marginBottom: 2, letterSpacing: '0.04em' }}>
                   PROBLEM / DIAGNOSIS:
                 </div>
-                <div style={{ fontSize: 10, color: '#f8fafc', fontWeight: 700, marginBottom: 6, lineHeight: 1.35 }}>
+                <div style={{ fontSize: 10, color: '#ffffff', fontWeight: 800, marginBottom: 6, lineHeight: 1.35 }}>
                   {latestAlert?.reason || latestAlert?.triage_diagnosis || activeClinical?.primaryConcern?.title || currentScenario.replace(/_/g, ' ')}
                 </div>
 
-                <div style={{ fontSize: 9, fontWeight: 800, color: (latestAlert?.severity === 'CRITICAL' || activeClinical?.severity === 'CRITICAL') ? '#f87171' : '#fbbf24', textTransform: 'uppercase', marginBottom: 2, letterSpacing: '0.04em' }}>
+                <div style={{ fontSize: 9, fontWeight: 800, color: (latestAlert?.severity === 'CRITICAL' || activeClinical?.severity === 'CRITICAL') ? '#fca5a5' : '#fde047', textTransform: 'uppercase', marginBottom: 2, letterSpacing: '0.04em' }}>
                   RECOMMENDED ACTION:
                 </div>
                 <div
                   style={{
                     fontSize: 9.5,
-                    color: '#e2e8f0',
-                    lineHeight: 1.35,
-                    background: 'rgba(0, 0, 0, 0.35)',
+                    color: '#f8fafc',
+                    lineHeight: 1.4,
+                    background: 'linear-gradient(180deg, rgba(26, 36, 28, 0.90) 0%, rgba(18, 26, 20, 0.95) 100%)',
                     padding: '6px 9px',
                     borderRadius: 6,
-                    border: `1px solid ${(latestAlert?.severity === 'CRITICAL' || activeClinical?.severity === 'CRITICAL') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                    border: `1px solid ${(latestAlert?.severity === 'CRITICAL' || activeClinical?.severity === 'CRITICAL') ? 'rgba(239, 68, 68, 0.28)' : 'rgba(245, 158, 11, 0.28)'}`,
                   }}
                 >
                   {latestAlert?.actionable_instruction || activeClinical?.primaryConcern?.recommendation || 'Initiate NASA clinical countermeasure protocol and monitor.'}
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: 10, color: '#cbd5e1', lineHeight: 1.45, marginBottom: 8, fontFamily: 'monospace' }}>
+              <div
+                style={{
+                  fontSize: 10,
+                  color: '#e2e8f0',
+                  lineHeight: 1.48,
+                  fontFamily: 'monospace',
+                  background: 'linear-gradient(180deg, rgba(26, 36, 28, 0.90) 0%, rgba(18, 26, 20, 0.95) 100%)',
+                  border: '1px solid rgba(122, 148, 99, 0.14)',
+                  borderRadius: 8,
+                  padding: '8px 10px',
+                }}
+              >
                 All physiological baselines within nominal flight limits. Autonomic cardiac stability steady at 60 FPS sentry lock.
               </div>
             )}
-
-            <button
-              onClick={() => onOpenTriage(activeCrew.id)}
-              style={{
-                width: '100%',
-                background: isAbnormal
-                  ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(217, 119, 6, 0.25) 100%)'
-                  : 'linear-gradient(135deg, rgba(56, 189, 248, 0.3) 0%, rgba(2, 132, 199, 0.2) 100%)',
-                border: `1px solid ${isAbnormal ? 'rgba(245, 158, 11, 0.6)' : 'rgba(56, 189, 248, 0.5)'}`,
-                borderRadius: 8,
-                padding: '8px 14px',
-                color: '#ffffff',
-                fontSize: 10.5,
-                fontWeight: 800,
-                fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
-                letterSpacing: '0.04em',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 7,
-                transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-                boxShadow: isAbnormal
-                  ? '0 4px 16px rgba(245, 158, 11, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
-                  : '0 4px 16px rgba(56, 189, 248, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.filter = 'brightness(1.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.filter = 'none';
-              }}
-            >
-              <span>LAUNCH FULL CLINICAL WORKSTATION</span>
-              <ArrowRight size={13} />
-            </button>
           </div>
         </aside>
       </div>

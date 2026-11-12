@@ -9,8 +9,10 @@
  * and base path independence (works seamlessly on Render root or subpaths).
  */
 
+import type { NavigationViewType } from '../types/telemetry';
+
 export interface AppRouteState {
-  view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD' | 'CABIN_3D' | 'DRAGON_DOCKING' | 'SELF_ASSESSMENT' | 'MISSION_ROUTINE';
+  view: NavigationViewType;
   astronautId: string;
 }
 
@@ -156,6 +158,27 @@ export function parseCurrentRoute(): AppRouteState {
   if (path.includes('/mission-routine') || path.includes('/routine')) {
     return {
       view: 'MISSION_ROUTINE',
+      astronautId: 'AST-01_COMMANDER',
+    };
+  }
+
+  if (path.includes('/doctor') || path.includes('/analyst') || window.location.hash.includes('analyst') || window.location.hash.includes('doctor')) {
+    return {
+      view: 'ANALYST',
+      astronautId: 'AST-01_COMMANDER',
+    };
+  }
+
+  if (path.includes('/alerts') || window.location.hash.includes('alerts')) {
+    return {
+      view: 'ALERTS',
+      astronautId: 'AST-01_COMMANDER',
+    };
+  }
+
+  if (path.includes('/nasa') || window.location.hash.includes('nasa')) {
+    return {
+      view: 'NASA_DATA',
       astronautId: 'AST-01_COMMANDER',
     };
   }

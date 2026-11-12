@@ -13,6 +13,7 @@ class WebSocketService {
   private ws: WebSocket | null = null;
   private url: string = '';
   private reconnectTimer: number | null = null;
+  private reconnectAttempts: number = 0;
   private pingInterval: number | null = null;
   private isExplicitClose: boolean = false;
 
@@ -40,6 +41,7 @@ class WebSocketService {
       this.ws = new WebSocket(this.url);
 
       this.ws.onopen = () => {
+        this.reconnectAttempts = 0;
         this.notifyStatus(true);
         this.startKeepalive();
       };
@@ -79,6 +81,7 @@ class WebSocketService {
 
   public disconnect(): void {
     this.isExplicitClose = true;
+    this.reconnectAttempts = 0;
     this.stopKeepalive();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -93,10 +96,13 @@ class WebSocketService {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
+    this.reconnectAttempts++;
+    // Exponential backoff: 2s -> 3s -> 4.5s -> 6.7s -> 10s -> max 25s
+    const delay = Math.min(25000, Math.round(2000 * Math.pow(1.5, Math.min(this.reconnectAttempts - 1, 6))));
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
-    }, 2000);
+    }, delay);
   }
 
   private startKeepalive(): void {

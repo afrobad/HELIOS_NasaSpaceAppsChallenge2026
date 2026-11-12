@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
 import type { TelemetryPacket } from '../types/telemetry';
 import { EcgRowCanvas } from './EcgRowCanvas';
-import { getAstronautOsdrProfile } from './HealthTelemetryView';
+import { getAstronautOsdrProfile } from '../data/astronautProfiles';
 import { evaluateCrewClinicalSummary } from '../utils/clinicalPrioritization';
 import { useStabilizedClinicalSummary } from '../hooks/useStabilizedClinicalSummary';
+import { UniversalButton } from './common/UniversalButton';
 
 interface CrewGridProps {
   telemetryMap: Record<string, TelemetryPacket>;
@@ -293,56 +294,19 @@ const CrewCardRow: React.FC<CrewCardRowProps> = ({ crew, telemetry, onOpenTriage
               </div>
 
               {/* Action Button: Triage Alert vs Telemetry */}
-              <div style={{ width: '100%', marginTop: '2px' }}>
-                <button
+              <div style={{ width: '100%', marginTop: '4px' }}>
+                <UniversalButton
+                  variant={isCritical ? 'amber' : isWarning ? 'amber' : 'cyan'}
+                  size="xs"
+                  pill
+                  fullWidth
                   onClick={(e) => {
                     e.stopPropagation();
                     onOpenTriage(crew.id);
                   }}
-                  className="hud-btn"
-                  style={{
-                    width: '100%',
-                    padding: '4px 6px',
-                    minHeight: '26px',
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    borderRadius: '4px',
-                    background: isCritical
-                      ? 'rgba(250, 204, 21, 0.20)'
-                      : isWarning
-                      ? 'rgba(250, 204, 21, 0.14)'
-                      : 'rgba(255, 255, 255, 0.08)',
-                    border: isCritical
-                      ? '1px solid rgba(250, 204, 21, 0.65)'
-                      : isWarning
-                      ? '1px solid rgba(250, 204, 21, 0.45)'
-                      : '1px solid rgba(148, 163, 184, 0.35)',
-                    color: isCritical
-                      ? '#fde047'
-                      : isWarning
-                      ? '#facc15'
-                      : '#f1f5f9',
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.35)',
-                    transition: 'all 0.15s ease',
-                    cursor: 'pointer',
-                  }}
                 >
-                  {isCritical || isWarning ? (
-                    <>
-                      <span>Triage Alert</span>
-                      <span style={{ fontSize: '10px' }}>→</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Telemetry</span>
-                      <span style={{ fontSize: '10px', opacity: 0.85 }}>→</span>
-                    </>
-                  )}
-                </button>
+                  {isCritical || isWarning ? 'Triage Alert →' : 'Telemetry →'}
+                </UniversalButton>
               </div>
             </div>
 

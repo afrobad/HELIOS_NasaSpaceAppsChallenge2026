@@ -1,0 +1,129 @@
+/* =========================================================================
+   HELIOS UNIVERSAL TAB — MINIMAL DARK AEROSPACE SPECIFICATION
+   - Minimal flat dark background (zero 3D gradient button containers)
+   - Crisp 1px subtle boundary border
+   - High readability white active text, smooth 90 FPS transition
+   ========================================================================= */
+
+.helios-tab {
+  --tab-radius: 6px;
+  --tab-padding: 5.5px 12px;
+  --tab-font-size: 11.5px;
+  --tab-active-bg: rgba(255, 255, 255, 0.08);
+  --tab-active-border: rgba(255, 255, 255, 0.18);
+  --tab-active-color: #ffffff;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: relative;
+  box-sizing: border-box;
+  padding: var(--tab-padding);
+  font-family: var(--hud-font-sans, 'Hubot Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: var(--tab-font-size);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  border-radius: var(--tab-radius);
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  outline: none;
+  box-shadow: none;
+  text-shadow: none;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+/* Inactive Tab Hover */
+.helios-tab:hover:not(.helios-tab--active):not(:disabled) {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.helios-tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Active Minimal Dark Tab */
+.helios-tab--active {
+  background: var(--tab-active-bg) !important;
+  border: 1px solid var(--tab-active-border) !important;
+  color: var(--tab-active-color) !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* ── ACCENT COLOR VARIANTS ──────────────────────────────────────────────── */
+.helios-tab--cyan.helios-tab--active {
+  --tab-active-bg: rgba(56, 189, 248, 0.10);
+  --tab-active-border: rgba(56, 189, 248, 0.30);
+  --tab-active-color: #ffffff;
+}
+
+.helios-tab--emerald.helios-tab--active {
+  --tab-active-bg: rgba(16, 185, 129, 0.10);
+  --tab-active-border: rgba(16, 185, 129, 0.30);
+  --tab-active-color: #ffffff;
+}
+
+.helios-tab--amber.helios-tab--active {
+  --tab-active-bg: rgba(245, 158, 11, 0.10);
+  --tab-active-border: rgba(245, 158, 11, 0.30);
+  --tab-active-color: #ffffff;
+}
+
+/* ── SIZES ──────────────────────────────────────────────────────────────── */
+.helios-tab--xs {
+  --tab-padding: 3px 8px;
+  --tab-font-size: 10px;
+}
+
+.helios-tab--sm {
+  --tab-padding: 4px 9px;
+  --tab-font-size: 10.5px;
+}
+
+.helios-tab--md {
+  --tab-padding: 5.5px 12px;
+  --tab-font-size: 11.5px;
+}
+
+.helios-tab--lg {
+  --tab-padding: 8px 16px;
+  --tab-font-size: 12.5px;
+}
+
+/* ── SHAPES ─────────────────────────────────────────────────────────────── */
+.helios-tab--pill {
+  --tab-radius: 9999px;
+}
+
+.helios-tab--rounded {
+  --tab-radius: 6px;
+}
+
+/* Tab Badge */
+.helios-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 1;
+  background: #ef4444;
+  color: #ffffff;
+}
+
