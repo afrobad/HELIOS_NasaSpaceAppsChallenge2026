@@ -696,6 +696,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               title="HELIOS Flight Deck - Return to Dashboard"
               className="helios-brand-btn"
             >
+              <img
+                src="/assets/helios_astronaut_circle.png"
+                alt="HELIOS Astronaut Icon"
+                className="helios-brand-icon"
+                width={30}
+                height={30}
+              />
               <span className="helios-brand-title">HELIOS</span>
               <span
                 className={`helios-status-icon-pill ${

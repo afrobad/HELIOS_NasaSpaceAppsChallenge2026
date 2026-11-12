@@ -63,6 +63,22 @@
   transform: translateY(-1px);
 }
 
+.helios-brand-icon {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.45));
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.22s ease;
+  flex-shrink: 0;
+  display: block;
+}
+
+.helios-brand-btn:hover .helios-brand-icon {
+  transform: scale(1.08) rotate(2deg);
+  filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.75));
+}
+
 .helios-brand-title {
   font-family: var(--hud-font-brand, 'Orbitron', 'Rajdhani', sans-serif);
   font-size: 15.5px;
