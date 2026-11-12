@@ -376,11 +376,11 @@ HELIOS does not use arbitrary physiological thresholds. Every baseline distribut
 <summary><b><img src="assets/icons/layout-dashboard.svg" width="17" height="17" align="center" /> 1. Unified Spacecraft Flight Command Deck (Dashboard · <code>/</code>)</b></summary>
 <br/>
 
-> **In Plain English:** Think of this as the master health control cockpit inside the spaceship. It displays live heart rates, oxygen levels, and body temperatures for all 4 astronauts, plus cabin air quality on a single screen. If anyone gets sick, their card instantly turns from green to red with a clear emergency button to solve it.
+> Think of this as the master health control cockpit inside the spaceship. It displays live heart rates, oxygen levels, and body temperatures for all 4 astronauts, plus cabin air quality on a single screen. If anyone gets sick, their card instantly turns from green to red with a clear emergency button to solve it.
 
 
-* **10 Hz Real-Time Biometric Feed**: Non-blocking WebSocket pipeline continuously streaming heart rate, pulse oximetry (SpO₂), core body temperature, heart rate variability (HRV RMSSD), blood pressure, and cabin life-support telemetry.
-* **Hardware-Decoupled 60–90 FPS Canvas Engine**: Precisely calibrated, real-time Lead II electrocardiogram (ECG) and photoplethysmogram (PPG) waveforms rendered on high-framerate HTML5 canvases without DOM overhead.
+* Real-Time Biometric Feed**: Non-blocking WebSocket pipeline continuously streaming heart rate, pulse oximetry (SpO₂), core body temperature, heart rate variability (HRV RMSSD), blood pressure, and cabin life-support telemetry.
+*  Precisely calibrated, real-time Lead II electrocardiogram (ECG) and photoplethysmogram (PPG) waveforms rendered on high-framerate HTML5 canvases without DOM overhead.
 * **ECLSS Life-Support Atmosphere Bar**: Real-time atmospheric containment monitors measuring cabin pressure ($101.3\text{ kPa}$), oxygen fraction ($20.9\%$), carbon dioxide partial pressure ($1.82\text{ mmHg}$), ambient temperature ($21.4^\circ\text{C}$), and ionizing radiation flux ($0.05\text{ mSv/h}$).
 * **Crew Telemetry Manifest**: Live health state cards for all four crew members (**Commander Haley**, **Pilot Chris**, **Science Officer Dr. Sian**, **Specialist Leo**) with color-coded triage badges.
 </details>
@@ -389,7 +389,7 @@ HELIOS does not use arbitrary physiological thresholds. Every baseline distribut
 <summary><b><img src="assets/icons/brain.svg" width="17" height="17" align="center" /> 2. Autonomous Helix-Ai Analyst & Situation Normalizer</b></summary>
 <br/>
 
-> **In Plain English:** Powered by Helix-Ai Analyst-a calm, spoken flight intelligence sentry. During a health emergency, astronauts don't have time to browse dense manuals. Helix-Ai Analyst evaluates hundreds of health signals in milliseconds and speaks out loud with exact instructions on how to safeguard the crew. Once the emergency is resolved, one click on "SOLVED" clears the alarms and returns everything to normal.
+> Powered by Helix-Ai Analyst-a calm, spoken flight intelligence sentry. During a health emergency, astronauts don't have time to browse dense manuals. Helix-Ai Analyst evaluates hundreds of health signals in milliseconds and speaks out loud with exact instructions on how to safeguard the crew. Once the emergency is resolved, one click on "SOLVED" clears the alarms and returns everything to normal.
 
 
 * **Sub-Second Multi-Agent Triage**: Analyzes multi-sensor anomalies in $<400\text{ ms}$, categorizing anomaly severity (`NOMINAL`, `WATCH`, `WARNING`, `CRITICAL`).
@@ -401,7 +401,7 @@ HELIOS does not use arbitrary physiological thresholds. Every baseline distribut
 <summary><b><img src="assets/icons/activity.svg" width="17" height="17" align="center" /> 3. Interactive 3D Holographic Digital Bio-Twin (<code>/scanner</code>)</b></summary>
 <br/>
 
-> **In Plain English:** An interactive 3D virtual model of the astronaut's body. Anyone can spin and zoom around the body, clicking on the brain, heart, lungs, or bones to see exactly how space radiation or weightlessness is affecting that specific organ in real-time.
+> An interactive 3D virtual model of the astronaut's body. Anyone can spin and zoom around the body, clicking on the brain, heart, lungs, or bones to see exactly how space radiation or weightlessness is affecting that specific organ in real-time.
 
 
 * **360° Anatomical WebGL Mannequin**: Rotatable wireframe Bio-Twin with three rendering modes:
@@ -415,7 +415,7 @@ HELIOS does not use arbitrary physiological thresholds. Every baseline distribut
 <summary><b><img src="assets/icons/eye.svg" width="17" height="17" align="center" /> 4. First-Person Spacesuit Helmet Visor (Suit HUD · <code>/suit-hud</code>)</b></summary>
 <br/>
 
-> **In Plain English:** Step inside an astronaut's spacesuit during a dangerous spacewalk. Move your mouse to look around through the curved helmet glass, complete with realistic glare reflections, oxygen alerts, and compass navigation markers.
+> Step inside an astronaut's spacesuit during a dangerous spacewalk. Move your mouse to look around through the curved helmet glass, complete with realistic glare reflections, oxygen alerts, and compass navigation markers.
 
 
 * **Zero-G Helmet Visor Simulation**: High-fidelity optical visor with curvature mapping, dynamic edge vignetting, visor glare reflections, and atmospheric condensation/smoke effects.
@@ -427,7 +427,7 @@ HELIOS does not use arbitrary physiological thresholds. Every baseline distribut
 <summary><b><img src="assets/icons/satellite.svg" width="17" height="17" align="center" /> 5. Photorealistic 3D ISS Orbital Flight Deck (<code>/iss</code>)</b></summary>
 <br/>
 
-> **In Plain English:** Walk through a virtual 3D replica of the International Space Station. Gaze out the famous 7-window Cupola dome at Earth spinning below, and click on the cockpit computer screens to check crew telemetry.
+> Walk through a virtual 3D replica of the International Space Station. Gaze out the famous 7-window Cupola dome at Earth spinning below, and click on the cockpit computer screens to check crew telemetry.
 
 
 * **Full-Scale Station Exterior & Interior Twin**: Engineered with authentic textures, deep-blue photovoltaic solar array wings, gold MLI thermal insulation blankets, and space-grade anodized aluminum modules.
@@ -439,7 +439,7 @@ HELIOS does not use arbitrary physiological thresholds. Every baseline distribut
 <summary><b><img src="assets/icons/radio.svg" width="17" height="17" align="center" /> 6. Earth Mission Control Center Ground Console (<code>/mcc</code>)</b></summary>
 <br/>
 
-> **In Plain English:** See the mission through the eyes of Earth ground control. You can drag the radio delay slider from 0 seconds (Earth orbit) up to 24 minutes (Mars). This demonstrates why Earth doctors cannot help in time and why HELIOS's onboard AI is essential.
+> See the mission through the eyes of Earth ground control. You can drag the radio delay slider from 0 seconds (Earth orbit) up to 24 minutes (Mars). This demonstrates why Earth doctors cannot help in time and why HELIOS's onboard AI is essential.
 
 
 * **Physical Speed-of-Light Radio Delay Engine**: Simulates authentic distance-based radio latency:
@@ -454,7 +454,7 @@ HELIOS does not use arbitrary physiological thresholds. Every baseline distribut
 <summary><b><img src="assets/icons/timer.svg" width="17" height="17" align="center" /> 7. Cognitive Self-Assessment & NASA PVT Drill (<code>/self-check</code>, <code>/mission-routine</code>)</b></summary>
 <br/>
 
-> **In Plain English:** A quick 2-minute reaction-speed drill used by real NASA astronauts. It measures millisecond reaction times to test if an astronaut is too tired or mentally fatigued to safely operate spacecraft machinery.
+> A quick 2-minute reaction-speed drill used by real NASA astronauts. It measures millisecond reaction times to test if an astronaut is too tired or mentally fatigued to safely operate spacecraft machinery.
 
 
 * **Interactive NASA PVT Reaction Drill**: Validated Psychomotor Vigilance Task measuring millisecond reaction times to detect subtle cognitive fatigue, sleep loss, and neuro-vestibular degradation.
@@ -563,7 +563,7 @@ cd frontend
 npm run dev
 ```
 
-Open browser at **`http://localhost:3000`** (or `http://localhost:5173`).
+Open browser at **`http://localhost:3000`**
 
 ---
 
@@ -600,18 +600,17 @@ Open browser at **`http://localhost:3000`** (or `http://localhost:5173`).
 
 <a id="team--credits"></a>
 
-## <img src="team_aerovitals.png" width="22" height="22" align="center" alt="Team" /> Team Aero Vitals 
+## About The Team
 
 <div align="center">
-  <img src="team_aerovitals.png" width="84" height="84" alt="Team Aero Vitals Logo" style="vertical-align: middle; border-radius: 0.5%;" /><br/>
-  <b>Team Aero Vitals - Official NASA Space Apps Challenge 2026 Entry</b>
+  <img src="team_aerovitals.png" width="300" height="190" alt="Team Aero Vitals Logo" style="vertical-align: middle; border-radius: 0.5%;" /><br/>
+  <b>Team Aero Vitals</b>
 </div>
 
 <br/>
 
 **NASA International Space Apps Challenge 2026**  
 *Project Name:* **H.E.L.I.O.S.**  
-*Team Name:* **Team Aero Vitals**
 
 * **Raisul Islam** - Team Leader & Product Strategist
 * **Mohammad Zihaduzzaman** - Lead Full-Stack Developer
@@ -625,7 +624,7 @@ For complete asset licenses, 3D model attributions, and scientific citations, pl
 
 <div align="center">
 
-### <img src="assets/team_aero_vitals_logo_round.png" width="30" height="30" align="center" alt="Team Aero Vitals" style="vertical-align: middle; border-radius: 50%;" /> &nbsp;H.E.L.I.O.S. <img src="assets/icons/satellite.svg" width="24" height="24" align="center" alt="Satellite" />
+### <img src="assets/team_aero_vitals_logo_round.png" width="30" height="30" align="center" alt="Team Aero Vitals" style="vertical-align: middle; border-radius: 50%;" /> &nbsp;H.E.L.I.O.S. 
 **Protecting Every Heartbeat, from Earth’s Orbit to Humanity’s First Footprint on Mars.**
 
 *Released under the MIT License. Developed with pride for the NASA Space Apps Challenge 2026.*
