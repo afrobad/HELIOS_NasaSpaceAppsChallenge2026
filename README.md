@@ -24,7 +24,8 @@
 <table>
   <tr>
     <td align="center" style="background: rgba(13, 27, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px;">
-      <a href="#executive-overview"><img src="assets/icons/compass.svg" width="15" height="15" align="center" alt="Overview" /> <b>Overview</b></a> &nbsp;•&nbsp;
+      <a href="#in-simple-words"><img src="assets/icons/compass.svg" width="15" height="15" align="center" alt="Simple Words" /> <b>In Simple Words (Layman Guide)</b></a> &nbsp;•&nbsp;
+      <a href="#executive-overview"><b>Overview</b></a> &nbsp;•&nbsp;
       <a href="#the-deep-space-medical-reality"><img src="assets/icons/rocket.svg" width="15" height="15" align="center" alt="Challenge" /> <b>Deep-Space Challenge</b></a> &nbsp;•&nbsp;
       <a href="#interactive-tech-stack"><img src="assets/icons/layers.svg" width="15" height="15" align="center" alt="Tech Stack" /> <b>Tech Stack</b></a> &nbsp;•&nbsp;
       <a href="#key-subsystems--innovations"><img src="assets/icons/cpu.svg" width="15" height="15" align="center" alt="Subsystems" /> <b>Subsystems</b></a> &nbsp;•&nbsp;
@@ -38,6 +39,78 @@
 </table>
 
 </div>
+
+---
+
+<a id="in-simple-words"></a>
+
+## <img src="assets/icons/compass.svg" width="22" height="22" align="center" alt="Plain English" /> HELIOS in Simple Words: The 60-Second Layman Guide
+
+> **"If you only have one minute to understand what we built, read this:"**
+
+<table>
+  <tr>
+    <td width="50%" style="background: rgba(14, 165, 233, 0.08); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 10px; padding: 18px; vertical-align: top;">
+      <h3 style="color: #38bdf8; margin-top: 0;">
+        <img src="assets/icons/rocket.svg" width="20" height="20" align="center" alt="Problem" /> 1. The Problem: There is No 911 on Mars
+      </h3>
+      <p style="color: #cbd5e1; line-height: 1.6;">
+        On Earth, if you collapse, an ambulance arrives in minutes or a doctor examines you over video.
+      </p>
+      <p style="color: #cbd5e1; line-height: 1.6;">
+        On the way to Mars, astronauts are millions of kilometers away. <b>Radio waves take up to 24 minutes to travel to Earth, and another 24 minutes to get an answer back.</b> If an astronaut has a heart attack, cabin smoke breaks out, or radiation spikes, waiting 48 minutes for Earth doctors means they will not survive.
+      </p>
+    </td>
+    <td width="50%" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 10px; padding: 18px; vertical-align: top;">
+      <h3 style="color: #10b981; margin-top: 0;">
+        <img src="assets/icons/shield-check.svg" width="20" height="20" align="center" alt="Solution" /> 2. The Solution: An AI Doctor Inside the Spaceship
+      </h3>
+      <p style="color: #cbd5e1; line-height: 1.6;">
+        <b>HELIOS is an autonomous AI Flight Surgeon built directly into the spacecraft.</b>
+      </p>
+      <p style="color: #cbd5e1; line-height: 1.6;">
+        It requires <b>zero internet</b> and <b>zero connection to Earth</b>. It watches crew heartbeats and cabin air 24/7, spots medical emergencies before the astronaut even feels sick, highlights the affected organ on a 3D hologram, and speaks out loud with calm, step-by-step instructions to save their life in milliseconds.
+      </p>
+    </td>
+  </tr>
+</table>
+
+<br/>
+
+### <img src="assets/icons/eye.svg" width="20" height="20" align="center" alt="Features" /> The 4 Core Capabilities (Explained with Everyday Analogies)
+
+<table>
+  <tr>
+    <td width="25%" align="center" style="background: rgba(13, 27, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 16px; vertical-align: top;">
+      <img src="assets/icons/activity.svg" width="36" height="36" alt="Smartwatch" /><br/><br/>
+      <b style="color: #38bdf8; font-size: 15px;">Super-Smartwatch</b><br/><br/>
+      <span style="color: #cbd5e1; font-size: 13px; line-height: 1.5; display: block; text-align: left;">
+        Watches every crew member's heartbeat, oxygen, temperature, and spaceship air 10 times every second. If anything starts to go wrong, it alerts the crew immediately.
+      </span>
+    </td>
+    <td width="25%" align="center" style="background: rgba(13, 27, 42, 0.75); border: 1px solid rgba(192, 132, 252, 0.25); border-radius: 10px; padding: 16px; vertical-align: top;">
+      <img src="assets/icons/brain.svg" width="36" height="36" alt="AI Doctor" /><br/><br/>
+      <b style="color: #c084fc; font-size: 15px;">Spoken AI Doctor</b><br/><br/>
+      <span style="color: #cbd5e1; font-size: 13px; line-height: 1.5; display: block; text-align: left;">
+        During a panic, astronauts cannot read complex medical books. The AI speaks directly into their headsets with clear, calm voice instructions telling them exactly what to do.
+      </span>
+    </td>
+    <td width="25%" align="center" style="background: rgba(13, 27, 42, 0.75); border: 1px solid rgba(52, 211, 153, 0.25); border-radius: 10px; padding: 16px; vertical-align: top;">
+      <img src="assets/icons/users.svg" width="36" height="36" alt="3D Twin" /><br/><br/>
+      <b style="color: #34d399; font-size: 15px;">3D Body Hologram</b><br/><br/>
+      <span style="color: #cbd5e1; font-size: 13px; line-height: 1.5; display: block; text-align: left;">
+        A 3D virtual copy of the astronaut. If space radiation harms bone marrow or zero-gravity pushes fluids into the head, that exact body part glows in red so anyone can see what hurts.
+      </span>
+    </td>
+    <td width="25%" align="center" style="background: rgba(13, 27, 42, 0.75); border: 1px solid rgba(251, 191, 36, 0.25); border-radius: 10px; padding: 16px; vertical-align: top;">
+      <img src="assets/icons/eye.svg" width="36" height="36" alt="Helmet HUD" /><br/><br/>
+      <b style="color: #fbbf24; font-size: 15px;">Iron Man Visor HUD</b><br/><br/>
+      <span style="color: #cbd5e1; font-size: 13px; line-height: 1.5; display: block; text-align: left;">
+        During spacewalks outside the station, astronauts see life-critical oxygen warnings and navigation arrows projected right onto the inside glass of their helmet.
+      </span>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -290,6 +363,9 @@ HELIOS does not use arbitrary medical thresholds. Every baseline distribution, z
 <summary><b><img src="assets/icons/layout-dashboard.svg" width="17" height="17" align="center" /> 1. Unified Spacecraft Flight Command Deck (Dashboard · <code>/</code>)</b></summary>
 <br/>
 
+> **In Plain English:** Think of this as the master health control cockpit inside the spaceship. It displays live heart rates, oxygen levels, and body temperatures for all 4 astronauts, plus cabin air quality on a single screen. If anyone gets sick, their card instantly turns from green to red with a clear emergency button to solve it.
+
+
 * **10 Hz Real-Time Biometric Feed**: Non-blocking WebSocket pipeline continuously streaming heart rate, pulse oximetry (SpO₂), core body temperature, heart rate variability (HRV RMSSD), blood pressure, and cabin life-support telemetry.
 * **Hardware-Decoupled 60–90 FPS Canvas Engine**: Clinically calibrated, real-time Lead II electrocardiogram (ECG) and photoplethysmogram (PPG) waveforms rendered on high-framerate HTML5 canvases without DOM overhead.
 * **ECLSS Life-Support Atmosphere Bar**: Real-time atmospheric containment monitors measuring cabin pressure ($101.3\text{ kPa}$), oxygen fraction ($20.9\%$), carbon dioxide partial pressure ($1.82\text{ mmHg}$), ambient temperature ($21.4^\circ\text{C}$), and ionizing radiation flux ($0.05\text{ mSv/h}$).
@@ -300,6 +376,9 @@ HELIOS does not use arbitrary medical thresholds. Every baseline distribution, z
 <summary><b><img src="assets/icons/brain.svg" width="17" height="17" align="center" /> 2. Autonomous Helix-AI Clinical Analyst & Situation Normalizer</b></summary>
 <br/>
 
+> **In Plain English:** A calm, spoken AI flight surgeon. During a medical emergency, astronauts don't have time to browse medical manuals. This AI analyzes hundreds of health signals in milliseconds and speaks out loud with exact instructions on how to save the patient. Once the emergency is resolved, one click on "SOLVED" clears the alarms and returns everything to normal.
+
+
 * **Sub-Second Multi-Agent Triage**: Analyzes multi-sensor anomalies in $<400\text{ ms}$, categorizing clinical severity (`NOMINAL`, `WATCH`, `WARNING`, `CRITICAL`).
 * **Hands-Free Audio Directives**: Synthesizes medical verbal directives with authentic NASA Quindar tones ($2525\text{ Hz}$ initiate / $2475\text{ Hz}$ terminate) and clinical prosody, minimizing astronaut cognitive workload.
 * **One-Click Situation Normalization ("SOLVED // ALL NOMINAL")**: When an emergency is mitigated, the crew clicks **SOLVED**. The system validates physiological recovery, flushes stale anomaly state, silences klaxons, broadcasts speech confirmation, and resets crew baselines.
@@ -308,6 +387,9 @@ HELIOS does not use arbitrary medical thresholds. Every baseline distribution, z
 <details open>
 <summary><b><img src="assets/icons/activity.svg" width="17" height="17" align="center" /> 3. Interactive 3D Holographic Digital Bio-Twin (<code>/scanner</code>)</b></summary>
 <br/>
+
+> **In Plain English:** An interactive 3D virtual model of the astronaut's body. Anyone can spin and zoom around the body, clicking on the brain, heart, lungs, or bones to see exactly how space radiation or weightlessness is affecting that specific organ in real-time.
+
 
 * **360° Anatomical WebGL Mannequin**: Rotatable wireframe Bio-Twin with three rendering modes:
   * **Cyan Bio-Holo**: Standard physiological monitoring mode.
@@ -320,6 +402,9 @@ HELIOS does not use arbitrary medical thresholds. Every baseline distribution, z
 <summary><b><img src="assets/icons/eye.svg" width="17" height="17" align="center" /> 4. First-Person Spacesuit Helmet Visor (Suit HUD · <code>/suit-hud</code>)</b></summary>
 <br/>
 
+> **In Plain English:** Step inside an astronaut's spacesuit during a dangerous spacewalk. Move your mouse to look around through the curved helmet glass, complete with realistic glare reflections, oxygen alerts, and compass navigation markers.
+
+
 * **Zero-G Helmet Visor Simulation**: High-fidelity optical visor with curvature mapping, dynamic edge vignetting, visor glare reflections, and atmospheric condensation/smoke effects.
 * **Tactical Waypoint Navigation**: Real-time azimuth and distance tracking targeting spacecraft modules, lunar habitat airlocks, and emergency recharge nodes.
 * **Head-Tracking Zero-G Parallax**: Dynamic camera interpolation responding to mouse/pointer motion, replicating in-helmet astronaut situational awareness.
@@ -329,6 +414,9 @@ HELIOS does not use arbitrary medical thresholds. Every baseline distribution, z
 <summary><b><img src="assets/icons/satellite.svg" width="17" height="17" align="center" /> 5. Photorealistic 3D ISS Orbital Flight Deck (<code>/iss</code>)</b></summary>
 <br/>
 
+> **In Plain English:** Walk through a virtual 3D replica of the International Space Station. Gaze out the famous 7-window Cupola dome at Earth spinning below, and click on the cockpit computer screens to check crew telemetry.
+
+
 * **Full-Scale Station Exterior & Interior Twin**: Engineered with authentic textures, deep-blue photovoltaic solar array wings, gold MLI thermal insulation blankets, and space-grade anodized aluminum modules.
 * **Seven-Window Cupola Observation Dome**: Real-time orbital Earth nadir tracking, calculating sub-satellite latitude/longitude, orbital velocity ($27,600\text{ km/h}$), and day-night terminator transitions over an 8K procedural Earth globe.
 * **Interactive Bulkhead Consoles**: Projecting real-time crew vitals and mission telemetry directly onto 3D in-world monitors using Three.js CSS2D/CSS3D technology.
@@ -337,6 +425,9 @@ HELIOS does not use arbitrary medical thresholds. Every baseline distribution, z
 <details open>
 <summary><b><img src="assets/icons/radio.svg" width="17" height="17" align="center" /> 6. Earth Mission Control Center Ground Console (<code>/mcc</code>)</b></summary>
 <br/>
+
+> **In Plain English:** See the mission through the eyes of Earth ground control. You can drag the radio delay slider from 0 seconds (Earth orbit) up to 24 minutes (Mars). This demonstrates why Earth doctors cannot help in time and why HELIOS's onboard AI is essential.
+
 
 * **Physical Speed-of-Light Radio Delay Engine**: Simulates authentic distance-based radio latency:
   * Low Earth Orbit (LEO): $0.0\text{ seconds}$
@@ -349,6 +440,9 @@ HELIOS does not use arbitrary medical thresholds. Every baseline distribution, z
 <details open>
 <summary><b><img src="assets/icons/timer.svg" width="17" height="17" align="center" /> 7. Cognitive Self-Assessment & NASA PVT Drill (<code>/self-check</code>, <code>/mission-routine</code>)</b></summary>
 <br/>
+
+> **In Plain English:** A quick 2-minute reaction-speed drill used by real NASA astronauts. It measures millisecond reaction times to test if an astronaut is too tired or mentally fatigued to safely operate spacecraft machinery.
+
 
 * **Interactive NASA PVT Reaction Drill**: Validated Psychomotor Vigilance Task measuring millisecond reaction times to detect subtle cognitive fatigue, sleep loss, and neuro-vestibular degradation.
 * **Countermeasure Adherence Engine**: Tracks daily compliance with the Advanced Resistive Exercise Device (ARED) and cycle ergometer, preventing muscle atrophy and cardiovascular deconditioning.
@@ -403,6 +497,18 @@ HELIOS enforces strict **NASA-STD-8739.8** software safety and **OWASP Top 10** 
 <a id="quick-start--deployment"></a>
 
 ## <img src="assets/icons/terminal.svg" width="22" height="22" align="center" alt="Quick Start" /> Quick Start & Deployment
+
+### <img src="assets/icons/rocket.svg" width="18" height="18" align="center" alt="Tour" /> 1-Minute Interactive Tour (How Anyone Can Test HELIOS)
+
+You don't need any technical knowledge to explore HELIOS. Once running, open these pages in your browser:
+
+* **Flight Cockpit (`http://localhost:3000`)**: The main command deck. Click the red emergency scenario buttons (e.g. *Toxic Atmosphere* or *Cardiac Arrhythmia*) to watch the AI immediately detect the crisis, speak life-saving instructions, and highlight vital signs.
+* **3D Bio-Twin Mannequin (`http://localhost:3000/scanner`)**: Click and drag with your mouse to spin the 3D body. Click on the brain or heart to see organ health data.
+* **Astronaut Helmet Visor (`http://localhost:3000/suit-hud`)**: Move your mouse to look around inside the helmet during a spacewalk.
+* **3D Space Station Deck (`http://localhost:3000/iss`)**: Step inside the ISS and look out the Cupola window at planet Earth.
+* **Earth Ground Control (`http://localhost:3000/mcc`)**: Drag the distance slider to Mars to see how communication lag delays Earth monitors while HELIOS acts instantly.
+
+---
 
 ### System Requirements
 * **Python**: 3.11 or newer
