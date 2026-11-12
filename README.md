@@ -1,6 +1,6 @@
 <div align="center">
 
-# <img src="assets/team_aero_vitals_logo_round.png" width="40" height="40" align="center" alt="Team Aero Vitals" style="vertical-align: middle; border-radius: 50%;" /> &nbsp;H.E.L.I.O.S. <img src="assets/icons/satellite.svg" width="30" height="30" align="center" alt="Satellite" />
+# <img src="assets/team_aero_vitals_logo_round.png" width="45" height="45" align="center" alt="Team Aero Vitals" style="vertical-align: middle; border-radius: 50%;" /><br> &nbsp;H.E.L.I.O.S. 
 ### Health Evaluation & Longevity Intelligence for Orbiting Specialists
 **Autonomous Offline-First Clinical Sentry, Multi-Agent Biometric Intelligence & 3D Digital Bio-Twin for Deep-Space Exploration**
 
