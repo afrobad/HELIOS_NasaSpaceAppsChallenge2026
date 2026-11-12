@@ -2,12 +2,12 @@
 
 <div align="center">
 
-# <img src="assets/team_aero_vitals_logo_round.png" width="45" height="45" align="center" alt="Team Aero Vitals" style="vertical-align: middle; border-radius: 50%;" /><br> &nbsp;H.E.L.I.O.S. 
-### Health Evaluation & Longevity Intelligence for Orbiting Specialists
-**Autonomous Offline-First Health Sentry, Multi-Agent Biometric Intelligence & 3D Digital Bio-Twin for Deep-Space Exploration**
+# <img src="assets/team_aero_vitals_logo_round.png" width="45" height="45" align="center" alt="Team Aero Vitals" style="vertical-align: middle; border-radius: 50%;" /><br> &nbsp;H.E.L.I.O.S.
+**Health Evaluation Logistic Intelligent Onboard System**<br>
+**Autonomous Offline-First Ai-Based Health Monitoring System For Astronauts**
 
-**NASA International Space Apps Challenge 2026**  
-*Challenge Track: Create Health Monitoring Software for Astronauts on Space Missions*
+**NASA Space Apps Challenge 2026**  
+*Challenge: Create Health Monitoring Software for Astronauts on Space Missions*
 
 <br/>
 
@@ -26,7 +26,7 @@
 <table>
   <tr>
     <td align="center" style="background: rgba(13, 27, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px;">
-      <a href="#in-simple-words"><img src="assets/icons/compass.svg" width="15" height="15" align="center" alt="Simple Words" /> <b>In Simple Words (Layman Guide)</b></a> &nbsp;•&nbsp;
+      <a href="#in-simple-words"><img src="assets/icons/compass.svg" width="15" height="15" align="center" alt="Simple Words" /> <b>In Simple Words</b></a> &nbsp;•&nbsp;
       <a href="#executive-overview"><b>Overview</b></a> &nbsp;•&nbsp;
       <a href="#the-deep-space-health-reality"><img src="assets/icons/rocket.svg" width="15" height="15" align="center" alt="Challenge" /> <b>Deep-Space Challenge</b></a> &nbsp;•&nbsp;
       <a href="#interactive-tech-stack"><img src="assets/icons/layers.svg" width="15" height="15" align="center" alt="Tech Stack" /> <b>Tech Stack</b></a> &nbsp;•&nbsp;
@@ -141,7 +141,7 @@ In acute physiological crises-such as cabin decompression, severe toxic gas brea
       <td width="50%" style="background: rgba(13, 27, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); padding: 14px; vertical-align: top;">
         <b><img src="assets/icons/shield-check.svg" width="16" height="16" align="center" /> 100% Autonomous & Offline-First</b><br/>
         <sub>Zero cloud dependencies. Operates locally at the spacecraft edge with zero network requirement.</sub><br/><br/>
-        <b><img src="assets/icons/radio.svg" width="16" height="16" align="center" /> 10 Hz Real-Time Biometric Ingestion</b><br/>
+        <b><img src="assets/icons/radio.svg" width="16" height="16" align="center" />Real-Time Biometric Ingestion</b><br/>
         <sub>Continuous non-blocking WebSockets streaming multi-astronaut cardiovascular, respiratory, and metabolic vitals.</sub><br/><br/>
         <b><img src="assets/icons/heart-pulse.svg" width="16" height="16" align="center" /> 149 Multimodal Physiological Parameters</b><br/>
         <sub>Monitored continuously across 10 vital physiological categories (Hemodynamics, SpO₂, ECG, Renal, Biomarkers).</sub>
@@ -170,7 +170,7 @@ In acute physiological crises-such as cabin decompression, severe toxic gas brea
       <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/fastapi/fastapi-original.svg" width="46" height="46" alt="FastAPI" /><br/><br/>
       <b style="color: #38bdf8; font-size: 15px;">FastAPI Aerospace Core</b><br/>
       <sub style="color: #94a3b8;">Python 3.11+ · High-Rate ASGI</sub><br/><br/>
-      <code style="background: #0369a1; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px;">10 Hz WebSocket Loop</code><br/>
+      <code style="background: #0369a1; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px;">WebSocket Loop</code><br/>
       <sub style="color: #cbd5e1;">Non-blocking multi-crew telemetry feeder and z-score anomaly evaluation.</sub>
     </td>
     <td width="33.3%" align="center" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(2, 6, 23, 0.85) 100%); border: 1px solid rgba(129, 140, 248, 0.35); border-radius: 12px; padding: 18px;">
@@ -327,7 +327,7 @@ HELIOS does not use arbitrary physiological thresholds. Every baseline distribut
 │                                                                                                         │
 │   ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐  ┌────────────────────────────┐   │
 │   │  Main Dashboard   │  │  Health Telemetry │  │  Daily Self-Check │  │  Mission Routine Adherence │   │
-│   │  (10 Hz Telemetry)│  │  (Deep Biosensors)│  │  (Cognitive / PVT)│  │  (ARED Countermeasures)   │   │
+│   │  ( Telemetry)│  │  (Deep Biosensors)│  │  (Cognitive / PVT)│  │  (ARED Countermeasures)   │   │
 │   └─────────┬─────────┘  └─────────┬─────────┘  └─────────┬─────────┘  └─────────────┬──────────────┘   │
 │             │                      │                      │                           │                 │
 │   ┌─────────┴─────────┐  ┌─────────┴─────────┐  ┌─────────┴─────────┐  ┌─────────────┴──────────────┐   │
@@ -336,14 +336,14 @@ HELIOS does not use arbitrary physiological thresholds. Every baseline distribut
 │   └───────────────────┘  └───────────────────┘  └───────────────────┘  └────────────────────────────┘   │
 └───────────────────────────────────────────────────┬─────────────────────────────────────────────────────┘
                                                     │
-                                   Bidirectional 10 Hz WebSocket & REST
+                                   Bidirectional WebSocket & REST
                                                     │
 ┌───────────────────────────────────────────────────▼─────────────────────────────────────────────────────┐
 │                                      FASTAPI AEROSPACE EDGE ENGINE                                      │
 │                                                                                                         │
 │   ┌────────────────────────────────┐  ┌────────────────────────────────┐  ┌─────────────────────────┐   │
 │   │ TelemetryFeeder Engine         │  │ SentryMatrix Engine            │  │ Helix-Ai Analyst Sentry │   │
-│   │ High-rate 10 Hz WebSocket loop │  │ Rolling Z-score anomaly triage │  │ Multi-agent reasoning   │   │
+│   │ High-rate       WebSocket loop │  │ Rolling Z-score anomaly triage │  │ Multi-agent reasoning   │   │
 │   │ Multi-crew data synthesis      │  │ Dynamic baseline gating        │  │ Quindar radio tones     │   │
 │   └──────────────┬─────────────────┘  └──────────────┬─────────────────┘  └────────────┬────────────┘   │
 │                  │                                   │                                 │                │
@@ -563,7 +563,7 @@ Open browser at **`http://localhost:3000`**
 ```text
 ├── backend/
 │   └── app/
-│       ├── main.py                  # FastAPI server, REST routes & 10 Hz WebSocket
+│       ├── main.py                  # FastAPI server, REST routes & WebSocket
 │       ├── ai/                      # Helix-Ai Analyst inference & telemetry reasoning
 │       ├── core/                    # NASA OSDR biomarker baselines & sentry engine
 │       ├── db/                      # SQLite WAL database & historical telemetry tables
@@ -592,7 +592,7 @@ Open browser at **`http://localhost:3000`**
 ## About The Team
 
 <div align="center">
-  <img src="team_aerovitals.png" width="300" height="190" alt="Team Aero Vitals Logo" style="vertical-align: middle; border-radius: 0.5%;" /><br/>
+  <img src="team_aerovitals.png" width="450" height="290" alt="Team Aero Vitals Logo" style="vertical-align: middle; border-radius: 0.5%;" /><br/>
   <b>Team Aero Vitals</b>
 </div>
 
