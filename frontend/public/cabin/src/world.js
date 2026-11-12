@@ -617,11 +617,13 @@ export class World {
             }
           }
 
-          // Ensure authentic sRGB color reproduction for all station diffuse textures
+          // Ensure authentic sRGB color reproduction & correct inverted texture vertical orientation on ISS modules & flags (fixes upside down NASDA, ESA, USA, Unity & flags)
           if (m.map) {
             m.map.colorSpace = THREE.SRGBColorSpace;
             m.map.wrapS = THREE.RepeatWrapping;
             m.map.wrapT = THREE.RepeatWrapping;
+            m.map.repeat.set(1, -1);
+            m.map.offset.set(0, 1);
             m.map.anisotropy = 16;
             m.map.minFilter = THREE.LinearMipmapLinearFilter;
             m.map.magFilter = THREE.LinearFilter;
