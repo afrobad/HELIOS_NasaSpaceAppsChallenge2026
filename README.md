@@ -1,3 +1,16 @@
+<table width="100%">
+  <tr>
+    <td>
+      <a href="README.md"><img src="assets/tabs/tab_readme_active.svg" height="28" alt="README" /></a>&nbsp;&nbsp;
+      <a href="LICENSE"><img src="assets/tabs/tab_license_inactive.svg" height="28" alt="License" /></a>&nbsp;&nbsp;
+      <a href="CREDITS.md"><img src="assets/tabs/tab_credits_inactive.svg" height="28" alt="Credits" /></a>
+      <hr />
+      <b>H.E.L.I.O.S.</b><br />
+      Health Evaluation &amp; Longevity Intelligence for Orbiting Specialists.
+    </td>
+  </tr>
+</table>
+
 <div align="center">
 
 # <img src="assets/team_aero_vitals_logo_round.png" width="45" height="45" align="center" alt="Team Aero Vitals" style="vertical-align: middle; border-radius: 50%;" /><br> &nbsp;H.E.L.I.O.S. 
@@ -66,7 +79,7 @@
         <img src="assets/icons/shield-check.svg" width="20" height="20" align="center" alt="Solution" /> 2. The Solution: An AI Doctor Inside the Spaceship
       </h3>
       <p style="color: #cbd5e1; line-height: 1.6;">
-        <b>HELIOS is powered by Helix-Ai Analyst—an autonomous health sentry built directly into the spacecraft.</b>
+        <b>HELIOS is powered by Helix-Ai Analyst-an autonomous health sentry built directly into the spacecraft.</b>
       </p>
       <p style="color: #cbd5e1; line-height: 1.6;">
         It requires <b>zero internet</b> and <b>zero connection to Earth</b>. It watches crew heartbeats and cabin air 24/7, spots health emergencies before the astronaut even feels sick, highlights the affected organ on a 3D hologram, and speaks out loud with calm, step-by-step instructions to save their life in milliseconds.
@@ -120,9 +133,9 @@
 
 During humanity’s journey toward the Moon and Mars under the Artemis program, astronauts will travel millions of kilometers from Earth. Beyond Low Earth Orbit (LEO), the traditional umbilical cord connecting astronauts to Houston Mission Control breaks down: **light-speed radio signals take between 4 and 24 minutes one-way**, creating an unavoidable round-trip communication blackout of up to 48 minutes.
 
-In acute physiological crises—such as cabin decompression, severe toxic gas breakthrough, cardiac arrhythmias, or solar particle radiation storms—**Earth-dependent remote telemetry is physically impossible**.
+In acute physiological crises-such as cabin decompression, severe toxic gas breakthrough, cardiac arrhythmias, or solar particle radiation storms-**Earth-dependent remote telemetry is physically impossible**.
 
-**H.E.L.I.O.S.** (Health Evaluation & Longevity Intelligence for Orbiting Specialists) is a mission-grade, **100% autonomous, offline-first health decision-support and visual self-assessment platform**. Built for deep-space exploration crews and grounded in genuine **NASA Open Science Data Repository (OSDR)** spaceflight profiles, HELIOS equips the spacecraft with **Helix-Ai Analyst**—an autonomous health intelligence sentry capable of presymptomatic anomaly detection, real-time 3D anatomical twin modeling, and hands-free spoken countermeasure intervention.
+**H.E.L.I.O.S.** (Health Evaluation & Longevity Intelligence for Orbiting Specialists) is a mission-grade, **100% autonomous, offline-first health decision-support and visual self-assessment platform**. Built for deep-space exploration crews and grounded in genuine **NASA Open Science Data Repository (OSDR)** spaceflight profiles, HELIOS equips the spacecraft with **Helix-Ai Analyst**-an autonomous health intelligence sentry capable of presymptomatic anomaly detection, real-time 3D anatomical twin modeling, and hands-free spoken countermeasure intervention.
 
 <br/>
 
@@ -376,7 +389,7 @@ HELIOS does not use arbitrary physiological thresholds. Every baseline distribut
 <summary><b><img src="assets/icons/brain.svg" width="17" height="17" align="center" /> 2. Autonomous Helix-Ai Analyst & Situation Normalizer</b></summary>
 <br/>
 
-> **In Plain English:** Powered by Helix-Ai Analyst—a calm, spoken flight intelligence sentry. During a health emergency, astronauts don't have time to browse dense manuals. Helix-Ai Analyst evaluates hundreds of health signals in milliseconds and speaks out loud with exact instructions on how to safeguard the crew. Once the emergency is resolved, one click on "SOLVED" clears the alarms and returns everything to normal.
+> **In Plain English:** Powered by Helix-Ai Analyst-a calm, spoken flight intelligence sentry. During a health emergency, astronauts don't have time to browse dense manuals. Helix-Ai Analyst evaluates hundreds of health signals in milliseconds and speaks out loud with exact instructions on how to safeguard the crew. Once the emergency is resolved, one click on "SOLVED" clears the alarms and returns everything to normal.
 
 
 * **Sub-Second Multi-Agent Triage**: Analyzes multi-sensor anomalies in $<400\text{ ms}$, categorizing anomaly severity (`NOMINAL`, `WATCH`, `WARNING`, `CRITICAL`).
@@ -539,12 +552,12 @@ cd ..
 
 ### 2. Launch Development Stack
 
-**Terminal 1 — Aerospace Backend Engine:**
+**Terminal 1 - Aerospace Backend Engine:**
 ```bash
 python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-**Terminal 2 — Flight Command Interface:**
+**Terminal 2 - Flight Command Interface:**
 ```bash
 cd frontend
 npm run dev
@@ -587,11 +600,11 @@ Open browser at **`http://localhost:3000`** (or `http://localhost:5173`).
 
 <a id="team--credits"></a>
 
-## <img src="assets/icons/users.svg" width="22" height="22" align="center" alt="Team" /> Team Aero Vitals & NASA Space Apps Submission
+## <img src="team_aerovitals.png" width="22" height="22" align="center" alt="Team" /> Team Aero Vitals 
 
 <div align="center">
-  <img src="assets/team_aero_vitals_logo_round.png" width="84" height="84" alt="Team Aero Vitals Logo" style="vertical-align: middle; border-radius: 50%;" /><br/>
-  <b>Team Aero Vitals — Official NASA Space Apps Challenge 2026 Entry</b>
+  <img src="team_aerovitals.png" width="84" height="84" alt="Team Aero Vitals Logo" style="vertical-align: middle; border-radius: 0.5%;" /><br/>
+  <b>Team Aero Vitals - Official NASA Space Apps Challenge 2026 Entry</b>
 </div>
 
 <br/>
@@ -600,11 +613,11 @@ Open browser at **`http://localhost:3000`** (or `http://localhost:5173`).
 *Project Name:* **H.E.L.I.O.S.**  
 *Team Name:* **Team Aero Vitals**
 
-* **Raisul Islam** — Team Leader & Product Strategist
-* **Mohammad Zihaduzzaman** — Lead Full-Stack Developer
-* **Mohammed Meraj** — Lead Systems Architect & Security Engineer
-* **Ashfia Tasnim** — Biomedical & Life Sciences Researcher
-* **Mohammad Sabbir** — Video Producer & Media Editor
+* **Raisul Islam** - Team Leader & Product Strategist
+* **Mohammad Zihaduzzaman** - Lead Full-Stack Developer
+* **Mohammed Meraj** - Lead Systems Architect & Security Engineer
+* **Ashfia Tasnim** - Biomedical & Life Sciences Researcher
+* **Mohammad Sabbir** - Video Producer & Media Editor
 
 For complete asset licenses, 3D model attributions, and scientific citations, please see [**`CREDITS.md`**](CREDITS.md).
 

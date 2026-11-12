@@ -1,4 +1,17 @@
-# H.E.L.I.O.S. — Master Credits, Citations & Attributions
+<table width="100%">
+  <tr>
+    <td>
+      <a href="README.md"><img src="assets/tabs/tab_readme_inactive.svg" height="28" alt="README" /></a>&nbsp;&nbsp;
+      <a href="LICENSE"><img src="assets/tabs/tab_license_inactive.svg" height="28" alt="License" /></a>&nbsp;&nbsp;
+      <a href="CREDITS.md"><img src="assets/tabs/tab_credits_active.svg" height="28" alt="Credits" /></a>
+      <hr />
+      <b>H.E.L.I.O.S.</b><br />
+      Health Evaluation &amp; Longevity Intelligence for Orbiting Specialists.
+    </td>
+  </tr>
+</table>
+
+# H.E.L.I.O.S. - Master Credits, Citations & Attributions
 ### Official Project Credentials & Open Science Attribution Index
 **NASA International Space Apps Challenge 2026**  
 **Challenge Track:** Create Health Monitoring Software for Astronauts on Space Missions  
@@ -6,7 +19,7 @@
 
 ---
 
-## <img src="assets/team_aero_vitals_logo_round.png" width="22" height="22" align="center" alt="Team" style="vertical-align: middle; border-radius: 50%;" /> 1. Team Aero Vitals — Core Contributors
+## <img src="assets/team_aero_vitals_logo_round.png" width="22" height="22" align="center" alt="Team" style="vertical-align: middle; border-radius: 50%;" /> 1. Team Aero Vitals - Core Contributors
 
 | Contributor | Operational Role | Key Responsibilities & Contributions |
 |:---|:---|:---|
@@ -56,24 +69,24 @@ All physiological baselines, biomarker ranges, and laboratory assay thresholds a
 We gratefully acknowledge the developers and maintainers of the open-source software libraries powering the HELIOS stack:
 
 ### Backend Engine (Python 3.11+)
-- **FastAPI** (`0.115+`) by Sebastián Ramírez — High-performance, async Web framework.
-- **Starlette** by Encode — Robust ASGI toolkit powering WebSockets and HTTP streaming.
-- **Pydantic** (`v2`) — High-speed, data validation using Python type hints.
-- **Uvicorn** — Lightning-fast ASGI server implementation based on uvloop and httptools.
-- **SQLite3 / WAL Mode** — Serverless, zero-configuration relational database engine with Write-Ahead Logging.
+- **FastAPI** (`0.115+`) by Sebastián Ramírez - High-performance, async Web framework.
+- **Starlette** by Encode - Robust ASGI toolkit powering WebSockets and HTTP streaming.
+- **Pydantic** (`v2`) - High-speed, data validation using Python type hints.
+- **Uvicorn** - Lightning-fast ASGI server implementation based on uvloop and httptools.
+- **SQLite3 / WAL Mode** - Serverless, zero-configuration relational database engine with Write-Ahead Logging.
 
 ### Frontend Command Deck (React 19 & TypeScript 5.6)
-- **React 19** by Meta Platforms, Inc. — Component lifecycle, concurrent rendering, and UI architecture.
-- **TypeScript** by Microsoft Corporation — Type-safe aerospace contract enforcement and payload validation.
-- **Vite** by Evan You and the Vite Core Team — Next-generation frontend build tooling and hot-module replacement.
-- **Lucide Icons** (`lucide-react`) — High-precision, clean SVG icon set for aerospace command surfaces.
-- **Tailwind CSS** — Modern utility-first styling engine.
-- **GSAP (GreenSock)** — Industry-standard high-performance camera interpolation and visual transitions.
+- **React 19** by Meta Platforms, Inc. - Component lifecycle, concurrent rendering, and UI architecture.
+- **TypeScript** by Microsoft Corporation - Type-safe aerospace contract enforcement and payload validation.
+- **Vite** by Evan You and the Vite Core Team - Next-generation frontend build tooling and hot-module replacement.
+- **Lucide Icons** (`lucide-react`) - High-precision, clean SVG icon set for aerospace command surfaces.
+- **Tailwind CSS** - Modern utility-first styling engine.
+- **GSAP (GreenSock)** - Industry-standard high-performance camera interpolation and visual transitions.
 
 ### 3D Graphics & Simulation Engine
-- **Three.js** (`r160+`) by Ricardo Cabello (Mr.doob) and the Three.js Community — GPU-accelerated WebGL 3D rendering engine.
-- **CSS2DRenderer & CSS3DRenderer** — Three.js DOM-to-3D projection overlays for interactive bulkhead terminals.
-- **SkeletonUtils & GLTFLoader** — Three.js glTF/GLB asset management and animation pipeline.
+- **Three.js** (`r160+`) by Ricardo Cabello (Mr.doob) and the Three.js Community - GPU-accelerated WebGL 3D rendering engine.
+- **CSS2DRenderer & CSS3DRenderer** - Three.js DOM-to-3D projection overlays for interactive bulkhead terminals.
+- **SkeletonUtils & GLTFLoader** - Three.js glTF/GLB asset management and animation pipeline.
 
 ---
 
@@ -124,7 +137,7 @@ We gratefully acknowledge the developers and maintainers of the open-source soft
 HELIOS is released under the **MIT License**.
 
 ```
-Copyright (c) 2026 Team Aero Vitals — NASA International Space Apps Challenge
+Copyright (c) 2026 Team Aero Vitals - NASA International Space Apps Challenge
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
