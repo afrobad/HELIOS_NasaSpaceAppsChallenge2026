@@ -21,13 +21,10 @@ export const SpaceBackground: React.FC<SpaceBackgroundProps> = memo(({ activeVie
   const earthVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    // Gracefully defer Earth video playback until after initial paint & hydration
-    const timer = setTimeout(() => {
-      if (earthVideoRef.current) {
-        earthVideoRef.current.play().catch(() => {});
-      }
-    }, 200);
-    return () => clearTimeout(timer);
+    // Keep Earth video playing across all views
+    if (earthVideoRef.current) {
+      earthVideoRef.current.play().catch(() => {});
+    }
   }, [activeView]);
 
   return (
@@ -50,13 +47,12 @@ export const SpaceBackground: React.FC<SpaceBackgroundProps> = memo(({ activeVie
           backgroundImage: 'url(/space/earth_orbit.webp)',
           backgroundSize: 'cover',
           backgroundPosition: 'center center',
-          opacity: 0.38,
-          filter: 'brightness(0.65) contrast(1.08)',
+          opacity: 0.85,
           transition: 'opacity 0.6s ease',
         }}
       />
 
-      {/* ── Raw Rotating Earth Video (Calibrated Luminance for High-Contrast Telemetry) ── */}
+      {/* ── Raw Rotating Earth Video (Active Across All Pages) ── */}
       <video
         ref={earthVideoRef}
         className="hud-earth-rotating-video"
@@ -64,7 +60,7 @@ export const SpaceBackground: React.FC<SpaceBackgroundProps> = memo(({ activeVie
         loop
         muted
         playsInline
-        preload="none"
+        preload="auto"
         poster="/space/earth_orbit.webp"
         style={{
           position: 'absolute',
@@ -74,8 +70,8 @@ export const SpaceBackground: React.FC<SpaceBackgroundProps> = memo(({ activeVie
           objectFit: 'cover',
           objectPosition: 'center center',
           pointerEvents: 'none',
-          opacity: 0.44,
-          filter: 'contrast(1.08) brightness(0.66) saturate(0.92)',
+          opacity: 0.98,
+          filter: 'contrast(1.05) brightness(1.02)',
           transition: 'opacity 0.5s ease',
           willChange: 'opacity',
         }}
@@ -85,13 +81,12 @@ export const SpaceBackground: React.FC<SpaceBackgroundProps> = memo(({ activeVie
         <source src="/space/earth_raw.mp4" type="video/mp4" />
       </video>
 
-      {/* ── Calibrated NASA-STD-3001 Dark Telemetry Scrim (Preserves Earth Ambience + Guarantees Contrast) ── */}
+      {/* ── Aerospace Subtle Feathered Vignette (Leaves Earth Globe Crystal Clear) ── */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          background:
-            'radial-gradient(ellipse at 50% 45%, rgba(4, 9, 18, 0.56) 0%, rgba(3, 7, 15, 0.74) 65%, rgba(2, 4, 10, 0.90) 100%)',
+          background: 'radial-gradient(ellipse at 50% 50%, rgba(2, 6, 12, 0.0) 0%, rgba(2, 6, 12, 0.15) 70%, rgba(1, 4, 8, 0.45) 100%)',
           pointerEvents: 'none',
           transition: 'background 0.5s ease',
         }}

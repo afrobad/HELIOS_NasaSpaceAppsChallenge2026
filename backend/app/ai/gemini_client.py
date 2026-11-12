@@ -59,9 +59,10 @@ class GeminiClient:
 
     def is_available(self) -> bool:
         """
-        Returns True if a valid Gemini API key is configured and HELIOS_ZERO_CLOUD is not enabled.
+        Returns True only if explicitly enabled. By default, HELIOS enforces a 100%
+        zero-cloud, local-first architecture (no external API calls in runtime).
         """
-        if os.environ.get("HELIOS_ZERO_CLOUD", "0") == "1":
+        if os.environ.get("HELIOS_ZERO_CLOUD", "1") == "1":
             return False
         return bool(self.api_key and len(self.api_key.strip()) > 10)
 

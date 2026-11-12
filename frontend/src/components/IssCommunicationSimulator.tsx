@@ -231,30 +231,33 @@ export const IssCommunicationSimulator: React.FC<Props> = ({ distancePreset = 'L
             <span
               style={{
                 display: 'inline-block',
-                width: 6,
-                height: 6,
+                width: 8,
+                height: 8,
                 borderRadius: '50%',
-                backgroundColor: isFullBlackout ? '#ef4444' : '#34d399',
+                backgroundColor: isFullBlackout ? T.critical : T.nominal,
+                boxShadow: `0 0 8px ${isFullBlackout ? T.critical : T.nominal}`,
               }}
             />
-            <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.04em' }}>
-              COMMUNICATION NETWORK
+            <span style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.04em' }}>
+              ISS COMMUNICATION RESILIENCE SIMULATOR · NASA SPACE NETWORK (SN)
             </span>
             <span
               style={{
-                fontSize: 9,
-                fontWeight: 700,
-                fontFamily: T.mono,
-                color: isFullBlackout ? '#ef4444' : '#34d399',
-                background: isFullBlackout ? 'rgba(239, 68, 68, 0.12)' : 'rgba(52, 211, 153, 0.12)',
-                border: `1px solid ${isFullBlackout ? 'rgba(239, 68, 68, 0.3)' : 'rgba(52, 211, 153, 0.3)'}`,
-                borderRadius: 3,
-                padding: '1px 6px',
-                letterSpacing: '0.04em',
+                fontSize: 10,
+                fontWeight: 600,
+                color: isFullBlackout ? T.critical : T.nominal,
+                background: isFullBlackout ? T.criticalBg : T.nominalBg,
+                border: `1px solid ${isFullBlackout ? T.criticalBorder : T.nominalBorder}`,
+                borderRadius: 4,
+                padding: '2px 8px',
               }}
             >
-              {isFullBlackout ? 'BLACKOUT' : 'ACTIVE'}
+              {isFullBlackout ? 'CONTINGENCY: TOTAL COMMS BLACKOUT' : 'SPACE NETWORK ACTIVE'}
             </span>
+          </div>
+          <div style={{ fontSize: 10, color: T.textMuted, marginTop: 4 }}>
+            Ground Truth Ground-to-Orbit Architecture (Source: <code style={{ color: T.cyan, fontFamily: T.mono }}>iss_contact.md</code>).
+            Decoupled radio paths prevent false link coupling: Ku-band high-rate failure does not disrupt S-band voice loops.
           </div>
         </div>
 
@@ -556,6 +559,10 @@ export const IssCommunicationSimulator: React.FC<Props> = ({ distancePreset = 'L
               </div>
             </div>
           </div>
+
+          <div style={{ fontSize: 9, color: T.textMuted, marginTop: 12, lineHeight: 1.4 }}>
+            Ground Station Architecture Note: As documented in <strong style={{ color: T.textSecondary }}>iss_contact.md</strong>, S-band and Ku-band operate over independent transponders. A transmitter failure on Ku-band disables high-bandwidth payload video, but Mission Control maintains uninterrupted audio contact and vital telemetry over S-band.
+          </div>
         </div>
       </div>
 
@@ -563,10 +570,10 @@ export const IssCommunicationSimulator: React.FC<Props> = ({ distancePreset = 'L
       <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 6, padding: '12px 14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: T.textPrimary, letterSpacing: '0.04em' }}>
-            MESSAGE LOG
+            STORE-AND-FORWARD EMERGENCY & OPERATIONAL MESSAGE LOG
           </div>
           <span style={{ fontSize: 9, color: T.textMuted, fontFamily: T.mono }}>
-            PERSISTENT BUFFER
+            BUFFER RETENTION: 100% PERSISTENT (SQLite WAL BACKED)
           </span>
         </div>
 

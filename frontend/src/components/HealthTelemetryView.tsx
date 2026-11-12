@@ -10,7 +10,6 @@ import { InlineTrendDrawer } from './clinical/InlineTrendDrawer';
 import { DeepAnalysisModal } from './clinical/DeepAnalysisModal';
 import { ClinicalTimeline } from './clinical/ClinicalTimeline';
 import { ClinicalIntelligenceDrawer } from './clinical/ClinicalIntelligenceDrawer';
-import { UniversalButton } from './common/UniversalButton';
 
 interface HealthTelemetryViewProps {
   initialAstronautId?: string | null;
@@ -44,16 +43,146 @@ const CREW_MEMBERS: CrewMeta[] = [
   { id: 'AST-04_ENGINEER', name: 'Specialist Leo', role: 'Systems Engineer', age: 45, callsign: 'LEO', avatar: '/crew/leo.jpg', subjectId: 'C004', roleShort: 'ENG' },
 ];
 
-import {
-  NASA_OSDR_PROFILES,
-  getAstronautOsdrProfile,
-  type CrewBaselineAndLabProfile,
-} from '../data/astronautProfiles';
+export interface CrewBaselineAndLabProfile {
+  // Baseline Vitals from NASA Spaceflight Baselines
+  restHr: number;
+  restHrv: number;
+  restSpo2: number;
+  restTemp: number;
+  restSleep: number;
+  // Authentic NASA OSDR Inspiration4 Laboratory Values (OSD-569 CBC, OSD-575 CMP, CV, Immune)
+  wbc: number; // k/μL
+  hct: number; // %
+  plt: number; // k/μL
+  hgb: number; // g/dL
+  rbc: number; // M/μL
+  na: number; // mmol/L
+  k: number; // mmol/L
+  glu: number; // mg/dL
+  bun: number; // mg/dL
+  cr: number; // mg/dL
+  alb: number; // g/dL
+  alt: number; // U/L
+  ast: number; // U/L
+  crp: number; // mg/L
+  fibrinogen: number; // mg/dL
+  tnf: number; // pg/mL
+  il6: number; // pg/mL
+  ifn: number; // pg/mL
+  il1b: number; // pg/mL
+}
 
-export {
-  NASA_OSDR_PROFILES,
-  getAstronautOsdrProfile,
-  type CrewBaselineAndLabProfile,
+export const NASA_OSDR_PROFILES: Record<string, CrewBaselineAndLabProfile> = {
+  'AST-01_COMMANDER': {
+    restHr: 62.0,
+    restHrv: 65.0,
+    restSpo2: 98.2,
+    restTemp: 36.80,
+    restSleep: 86.0,
+    wbc: 5.0,
+    hct: 43.6,
+    plt: 227.0,
+    hgb: 14.7,
+    rbc: 4.84,
+    na: 138.0,
+    k: 4.40,
+    glu: 90.0,
+    bun: 18.0,
+    cr: 1.12,
+    alb: 4.9,
+    alt: 9.0,
+    ast: 16.0,
+    crp: 1.06,
+    fibrinogen: 260.0,
+    tnf: 75.8,
+    il6: 6.86,
+    ifn: 3.4,
+    il1b: 58.0,
+  },
+  'AST-02_PILOT': {
+    restHr: 58.0,
+    restHrv: 72.0,
+    restSpo2: 98.5,
+    restTemp: 36.70,
+    restSleep: 88.0,
+    wbc: 5.5,
+    hct: 36.4,
+    plt: 252.0,
+    hgb: 14.8,
+    rbc: 4.85,
+    na: 137.0,
+    k: 3.52,
+    glu: 85.0,
+    bun: 16.0,
+    cr: 0.95,
+    alb: 4.4,
+    alt: 16.0,
+    ast: 23.0,
+    crp: 0.70,
+    fibrinogen: 220.0,
+    tnf: 65.0,
+    il6: 4.2,
+    ifn: 2.8,
+    il1b: 40.0,
+  },
+  'AST-03_MEDICAL': {
+    restHr: 66.0,
+    restHrv: 58.0,
+    restSpo2: 98.0,
+    restTemp: 36.90,
+    restSleep: 82.0,
+    wbc: 7.0,
+    hct: 41.4,
+    plt: 359.0,
+    hgb: 13.5,
+    rbc: 4.67,
+    na: 137.0,
+    k: 4.20,
+    glu: 103.0,
+    bun: 21.0,
+    cr: 0.89,
+    alb: 4.2,
+    alt: 19.0,
+    ast: 18.0,
+    crp: 1.06,
+    fibrinogen: 453.0,
+    tnf: 724.2,
+    il6: 7.60,
+    ifn: 4.2,
+    il1b: 65.1,
+  },
+  'AST-04_ENGINEER': {
+    restHr: 64.0,
+    restHrv: 61.0,
+    restSpo2: 98.3,
+    restTemp: 36.84,
+    restSleep: 84.0,
+    wbc: 8.1,
+    hct: 48.3,
+    plt: 240.0,
+    hgb: 16.5,
+    rbc: 5.55,
+    na: 140.0,
+    k: 4.00,
+    glu: 97.0,
+    bun: 26.0,
+    cr: 1.15,
+    alb: 4.5,
+    alt: 40.0,
+    ast: 48.0,
+    crp: 1.77,
+    fibrinogen: 419.0,
+    tnf: 111.8,
+    il6: 6.34,
+    ifn: 3.6,
+    il1b: 110.2,
+  },
+};
+
+export const getAstronautOsdrProfile = (id: string): CrewBaselineAndLabProfile => {
+  if (id === 'AST-03_MEDICAL_SPECIALIST') return NASA_OSDR_PROFILES['AST-03_MEDICAL'];
+  if (id === 'AST-04_MISSION_SPECIALIST') return NASA_OSDR_PROFILES['AST-04_ENGINEER'];
+  return NASA_OSDR_PROFILES[id] || NASA_OSDR_PROFILES['AST-01_COMMANDER'];
 };
 
 interface DeviceMeta {
@@ -1403,10 +1532,10 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
         <div
           style={{
             padding: '12px 24px 0 24px',
-            background: 'linear-gradient(180deg, rgba(18, 26, 21, 0.95) 0%, rgba(12, 18, 15, 0.98) 100%)',
+            background: 'linear-gradient(180deg, rgba(20, 26, 38, 0.75) 0%, rgba(12, 16, 24, 0.82) 100%)',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
-            borderBottom: '1px solid rgba(122, 148, 99, 0.18)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
             display: 'flex',
             flexDirection: 'column',
             gap: '8px',
@@ -1862,23 +1991,33 @@ export const HealthTelemetryView: React.FC<HealthTelemetryViewProps> = ({
                       borderRadius: '8px 8px 0 0',
                       outline: 'none',
                       borderTop: isSelected
-                        ? '2px solid rgba(255, 255, 255, 0.4)'
+                        ? '2px solid #ffffff'
                         : isHovered
-                        ? '2px solid rgba(255, 255, 255, 0.2)'
-                        : '2px solid rgba(255, 255, 255, 0.08)',
-                      borderLeft: '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRight: '1px solid rgba(255, 255, 255, 0.12)',
+                        ? '2px solid rgba(255, 255, 255, 0.35)'
+                        : '2px solid #2a2a2a',
+                      borderLeft: isSelected
+                        ? '1px solid #444444'
+                        : isHovered
+                        ? '1px solid #333333'
+                        : '1px solid #252525',
+                      borderRight: isSelected
+                        ? '1px solid #444444'
+                        : isHovered
+                        ? '1px solid #333333'
+                        : '1px solid #252525',
                       borderBottom: 'none',
                       marginBottom: '-1px',
                       background: isSelected
-                        ? 'rgba(255, 255, 255, 0.08)'
+                        ? 'linear-gradient(180deg, #2c2c2c 0%, #181818 100%)'
                         : isHovered
-                        ? 'rgba(255, 255, 255, 0.04)'
-                        : 'rgba(0, 0, 0, 0.25)',
-                      boxShadow: 'none',
+                        ? '#222222'
+                        : '#141414',
+                      boxShadow: isSelected
+                        ? '0 -2px 10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.20)'
+                        : 'none',
                       color: isSelected ? '#ffffff' : isHovered ? '#ffffff' : '#94a3b8',
                       cursor: 'pointer',
-                      transition: 'background 0.15s ease, color 0.15s ease, border-color 0.15s ease',
+                      transition: 'background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease',
                       position: 'relative',
                       zIndex: isSelected ? 3 : 1,
                     }}

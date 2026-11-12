@@ -216,7 +216,7 @@ class OllamaClient:
         """Checks if local Ollama daemon is reachable and lists installed models. Auto-spawns if offline."""
         for attempt in range(2):
             try:
-                async with httpx.AsyncClient(timeout=0.75) as client:
+                async with httpx.AsyncClient(timeout=2.0) as client:
                     res = await client.get(f"{self.base_url}/api/tags")
                     if res.status_code == 200:
                         models = [m.get("name") for m in res.json().get("models", [])]
@@ -233,7 +233,7 @@ class OllamaClient:
                 if attempt == 0:
                     loop = asyncio.get_event_loop()
                     await loop.run_in_executor(None, self.ensure_daemon_running)
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.5)
 
         return {
             "status": "OFFLINE",

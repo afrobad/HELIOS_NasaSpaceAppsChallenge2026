@@ -187,25 +187,20 @@ export const EcgRowCanvas: React.FC<EcgRowCanvasProps> = ({
       ctx.fillStyle = '#0d1017';
       ctx.fillRect(0, 0, W, H);
 
-      // Clinical grid (batched into single stroke paths for maximum GPU/CPU efficiency)
+      // Clinical grid (minor)
       ctx.strokeStyle = '#141720';
       ctx.lineWidth = 0.5;
       const gx = W / 48;
       const gy = H / 16;
-      ctx.beginPath();
-      for (let x = gx; x < W; x += gx) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-      for (let y = gy; y < H; y += gy) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
-      ctx.stroke();
-
+      for (let x = gx; x < W; x += gx) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = gy; y < H; y += gy) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
       // Major grid
       ctx.strokeStyle = '#1c2234';
       ctx.lineWidth = 0.8;
       const mgx = W / 9.6;
       const mgy = H / 4;
-      ctx.beginPath();
-      for (let x = mgx; x < W; x += mgx) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-      for (let y = mgy; y < H; y += mgy) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
-      ctx.stroke();
+      for (let x = mgx; x < W; x += mgx) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = mgy; y < H; y += mgy) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
 
       const stepX = W / BUF;
 

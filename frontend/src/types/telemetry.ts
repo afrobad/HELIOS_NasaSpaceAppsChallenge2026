@@ -73,58 +73,6 @@ export interface AlertPayload {
   };
 }
 
-export type NavigationViewType =
-  | 'HUD'
-  | 'HEALTH_TELEMETRY'
-  | 'MCC'
-  | 'SCANNER'
-  | 'MCC_TELEMETRY'
-  | 'SUIT_HUD'
-  | 'CABIN_3D'
-  | 'DRAGON_DOCKING'
-  | 'SELF_ASSESSMENT'
-  | 'MISSION_ROUTINE'
-  | 'ANALYST'
-  | 'ALERTS'
-  | 'NASA_DATA';
-
-export interface AlertStep {
-  text: string;
-  done: boolean;
-}
-
-export interface AlertEvidence {
-  source: string;
-  id: string;
-  title: string;
-  why: string;
-  url: string;
-}
-
-export interface AlertTimelineEvent {
-  ts: string;
-  kind: 'opened' | 'escalated' | 'eased' | 'step' | 'done' | 'resolved';
-  label: string;
-}
-
-export interface CrewAlert {
-  id: string;
-  crewId: string;
-  metric: string;
-  title: string;
-  hazard: 'cardiovascular' | 'environment' | 'radiation' | 'decompression' | 'sleep' | 'toxin';
-  status: 'act' | 'watch' | 'resolved';
-  peakStatus: 'act' | 'watch';
-  openedAt: string;
-  resolvedAt?: string;
-  explanation: string;
-  z: number;
-  series: number[];
-  evidence: AlertEvidence[];
-  steps: AlertStep[];
-  timeline: AlertTimelineEvent[];
-}
-
 export interface CrewProfile {
   id: string;
   name: string;

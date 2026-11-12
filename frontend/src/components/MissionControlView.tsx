@@ -5,43 +5,43 @@ import { HolographicBodyScanner } from './HolographicBodyScanner';
 import { CrewGrid } from './CrewGrid';
 import { CabinEnvironmentalBar } from './CabinEnvironmentalBar';
 import { NASA_OSDR_PROFILES } from './HealthTelemetryView';
+import { Volume2, VolumeX, AlertTriangle, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { audioService } from '../services/audioService';
 import { IssCommunicationSimulator } from './IssCommunicationSimulator';
-import { UniversalButton } from './common/UniversalButton';
-import { UniversalTab } from './common/UniversalTab';
 
 // ─────────────────────────────────────────────────────────────
-// MCC Design Tokens — Refined NASA-STD-3001 Aerospace Palette
+// MCC Design Tokens — Refined Olive-Charcoal Operational Palette
 // ─────────────────────────────────────────────────────────────
 const T = {
   bg: 'transparent', // Transparent to reveal aerospace rotating Earth background
-  surface: 'linear-gradient(180deg, rgba(14, 20, 28, 0.78) 0%, rgba(9, 13, 18, 0.84) 100%)', // Translucent aerospace glass
-  surfaceHover: 'linear-gradient(180deg, rgba(20, 28, 40, 0.88) 0%, rgba(14, 20, 28, 0.92) 100%)',
-  surfaceFlat: 'rgba(14, 20, 28, 0.75)',
-  surfaceElevated: 'rgba(20, 28, 40, 0.85)',
-  surfaceRecessed: 'rgba(9, 13, 18, 0.80)', // Dark inset & badge background
-  border: 'rgba(56, 189, 248, 0.16)', // Refined cyan-tinted aerospace border
-  borderSubtle: 'rgba(255, 255, 255, 0.07)',
-  borderHighlight: 'rgba(56, 189, 248, 0.35)',
+  surface: 'linear-gradient(180deg, rgba(16, 22, 30, 0.62) 0%, rgba(10, 14, 20, 0.70) 100%)', // Signature translucent aerospace container gradient
+  surfaceHover: 'linear-gradient(180deg, rgba(24, 34, 46, 0.75) 0%, rgba(16, 22, 30, 0.78) 100%)',
+  surfaceFlat: 'rgba(14, 18, 24, 0.62)',
+  surfaceElevated: 'rgba(18, 26, 38, 0.68)',
+  surfaceRecessed: 'rgba(6, 9, 14, 0.60)', // Dark inset & badge background
+  border: '#283548', // Refined slate-gray border
+  borderSubtle: '#1f2732',
+  borderHighlight: '#445366',
   textPrimary: '#ffffff', // Brilliant pure white for vital numbers & headings
-  textSecondary: '#cbd5e1', // Crisp, high-contrast readable slate for labels & copy
-  textMuted: '#94a3b8', // Legible secondary metadata & units
-  nominal: '#34d399',
-  nominalBg: 'rgba(16, 44, 26, 0.82)',
-  nominalBorder: 'rgba(16, 185, 129, 0.28)',
-  warning: '#f59e0b',
-  warningBg: 'rgba(58, 38, 14, 0.88)',
-  warningBorder: 'rgba(245, 158, 11, 0.28)',
-  critical: '#ef4444',
-  criticalBg: 'rgba(64, 18, 26, 0.88)',
-  criticalBorder: 'rgba(239, 68, 68, 0.28)',
-  active: '#0284c7',
-  activeBg: 'rgba(2, 132, 199, 0.14)',
-  activeBorder: 'rgba(56, 189, 248, 0.35)',
-  tabBg: 'rgba(15, 23, 32, 0.75)',
-  tabBorder: 'rgba(255, 255, 255, 0.08)',
-  tabActiveBg: 'rgba(255, 255, 255, 0.08)',
-  tabActiveBorder: 'rgba(56, 189, 248, 0.35)',
-  info: '#38bdf8',
+  textSecondary: '#b8cbde', // Crisp, high-contrast readable slate for labels & copy (was #8d99a6)
+  textMuted: '#849db5', // Legible secondary metadata & units (was #58626e)
+  nominal: '#5ebd4c',
+  nominalBg: '#090e0a',
+  nominalBorder: '#1c3d1e',
+  warning: '#e6a83c',
+  warningBg: '#141008',
+  warningBorder: '#4a3410',
+  critical: '#ff4d4d',
+  criticalBg: '#140808',
+  criticalBorder: '#4a1515',
+  active: '#3c4c5c',
+  activeBg: '#11161c',
+  activeBorder: '#4a5b6d',
+  tabBg: '#0c0f12',
+  tabBorder: '#2c3642',
+  tabActiveBg: 'rgba(56, 189, 248, 0.30)',
+  tabActiveBorder: 'rgba(56, 189, 248, 0.55)',
+  info: '#7ea4cb',
   mono: "'SF Mono', 'Cascadia Code', Consolas, 'Liberation Mono', monospace",
   sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
 } as const;
@@ -308,6 +308,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   // ─── TOP ORBITAL TELEMETRY & SIMULATION TIME ACCELERATION STATE ───
   const [orbitalPosition, setOrbitalPosition] = useState<DistancePreset>(propOrbitalPosition || (marsDelay ? 'MARS_MAX' : 'LEO'));
   const [speedMultiplier, setSpeedMultiplier] = useState<number>(propSpeedMultiplier || 1);
+  const [earthTime, setEarthTime] = useState<Date>(() => new Date());
   const [simMetSeconds, setSimMetSeconds] = useState<number>(14 * 86400 + 8 * 3600 + 42 * 60 + 15); // T+14d 08:42:15
   const [backendAlerts, setBackendAlerts] = useState<any[]>([]);
 
@@ -335,10 +336,21 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   // Simulation Clock Tick accelerated by speedMultiplier (1x, 2x, 5x, 10x)
   useEffect(() => {
     const timer = setInterval(() => {
+      setEarthTime(new Date());
       setSimMetSeconds(prev => prev + speedMultiplier);
     }, 1000);
     return () => clearInterval(timer);
   }, [speedMultiplier]);
+
+  // Format Mission Elapsed Time (MET)
+  const formatSimMet = (totalSec: number) => {
+    const days = Math.floor(totalSec / 86400);
+    const rem = totalSec % 86400;
+    const hrs = Math.floor(rem / 3600);
+    const mins = Math.floor((rem % 3600) / 60);
+    const secs = rem % 60;
+    return `T+${days}d ${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   // Live Spacecraft Onboard UTC derived from simulated epoch
   const simUtcTime = new Date(Date.now() + (simMetSeconds - (14 * 86400 + 8 * 3600 + 42 * 60 + 15)) * 1000)
@@ -1098,25 +1110,25 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   // SHARED STYLES
   // ─────────────────────────────────────────────────────────────
   const cardStyle: React.CSSProperties = {
-    background: 'linear-gradient(180deg, rgba(14, 20, 28, 0.85) 0%, rgba(9, 13, 18, 0.90) 100%)',
-    backdropFilter: 'blur(12px)',
-    WebkitBackdropFilter: 'blur(12px)',
-    border: '1px solid rgba(56, 189, 248, 0.14)',
-    borderRadius: 8,
-    padding: '16px 18px',
+    background: 'linear-gradient(180deg, rgba(14, 20, 28, 0.62) 0%, rgba(9, 13, 18, 0.70) 100%)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    border: `1px solid ${T.borderSubtle}`,
+    borderRadius: 6,
+    padding: '14px 16px',
     boxSizing: 'border-box',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
   };
 
   const labelStyle: React.CSSProperties = {
-    fontSize: 10.5,
-    fontWeight: 600,
-    color: '#94a3b8', // Crisp slate secondary metadata
-    letterSpacing: '0.04em',
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#9ec7ef', // High-contrast aerospace steel-cyan for prominent section titles
+    letterSpacing: '0.08em',
     textTransform: 'uppercase',
     fontFamily: T.sans,
-    lineHeight: 1.2,
-    marginBottom: 6,
+    lineHeight: 1,
+    marginBottom: 5,
   };
 
   const valStyle: React.CSSProperties = {
@@ -1137,17 +1149,29 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   };
 
   const tabBtn = (t2: MCCTab, label: string): React.ReactNode => {
+    const isSel = tab === t2;
     return (
-      <UniversalTab
+      <button
         key={t2}
-        active={tab === t2}
-        accent="cyan"
-        size="sm"
-        pill
         onClick={() => setTab(t2)}
+        style={{
+          background: isSel ? 'rgba(56, 189, 248, 0.30)' : '#0c0f12',
+          border: isSel ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid #2c3642',
+          borderRadius: 5,
+          padding: '6px 15px',
+          color: isSel ? '#ffffff' : '#9ec7ef',
+          fontSize: 11,
+          fontWeight: isSel ? 700 : 500,
+          cursor: 'pointer',
+          fontFamily: T.sans,
+          letterSpacing: '0.04em',
+          textShadow: isSel ? '0 1px 2px rgba(0, 0, 0, 0.75)' : 'none',
+          boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
+          transition: 'all 0.12s ease',
+        }}
       >
         {label}
-      </UniversalTab>
+      </button>
     );
   };
 
@@ -1689,7 +1713,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {/* ── 1. BOX MAIN TITLE & TOP CONTROL BAR (INCIDENT MODE) ── */}
+                {/* ── 1. BOX MAIN TITLE & TOP CONTROL BAR ── */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1699,28 +1723,28 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ ...labelStyle, marginBottom: 0 }}>MISSION INCIDENT</div>
+                    <div style={{ ...labelStyle, marginBottom: 0 }}>MISSION OPERATIONAL INCIDENT // FLIGHT EXCURSION</div>
                     <span style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 4,
-                      background: primaryAlert.priority === 'CRITICAL' ? 'rgba(239, 68, 68, 0.16)' : 'rgba(245, 158, 11, 0.16)',
-                      border: `1px solid ${primaryAlert.priority === 'CRITICAL' ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
-                      color: primaryAlert.priority === 'CRITICAL' ? '#f87171' : '#fbbf24',
-                      fontSize: 9,
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: 3,
-                      letterSpacing: '0.04em',
+                      gap: 5,
+                      background: primaryAlert.priority === 'CRITICAL' ? '#dc2626' : '#d97706',
+                      color: '#ffffff',
+                      fontSize: 9.5,
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      letterSpacing: '0.06em',
                       fontFamily: T.mono,
+                      boxShadow: primaryAlert.priority === 'CRITICAL' ? '0 0 10px rgba(220, 38, 38, 0.5)' : 'none',
                     }}>
-                      <span style={{ width: 4, height: 4, borderRadius: '50%', background: primaryAlert.priority === 'CRITICAL' ? '#f87171' : '#fbbf24' }} />
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ffffff' }} />
                       {primaryAlert.priority}
                     </span>
                     <span style={{
-                      background: 'rgba(122, 148, 99, 0.15)',
-                      color: '#a1b48e',
-                      border: '1px solid rgba(122, 148, 99, 0.28)',
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      color: '#38bdf8',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
                       fontSize: 9.5,
                       fontWeight: 700,
                       padding: '2px 8px',
@@ -1737,14 +1761,40 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       ACTIVE: <span style={{ color: '#f8fafc', fontWeight: 700 }}>{primaryAlert.age}</span>
                     </div>
 
-                    <UniversalButton
-                      variant="cyan"
-                      size="xs"
-                      pill
+                    <button
                       onClick={() => { setSelEventId(primaryAlert.id); setTab('INVESTIGATE'); }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: '#2563eb',
+                        border: '1px solid #60a5fa',
+                        borderRadius: 4,
+                        padding: '4px 12px',
+                        color: '#ffffff',
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontFamily: T.sans,
+                        letterSpacing: '0.03em',
+                        whiteSpace: 'nowrap',
+                        boxShadow: '0 2px 8px rgba(37, 99, 235, 0.35)',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#1d4ed8')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '#2563eb')}
                     >
-                      Investigate Excursion · {procName} →
-                    </UniversalButton>
+                      <span>INVESTIGATE EXCURSION →</span>
+                      <span style={{
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        padding: '1px 5px',
+                        borderRadius: 3,
+                        fontSize: 9,
+                        fontFamily: T.mono,
+                      }}>
+                        {procName}
+                      </span>
+                    </button>
                   </div>
                 </div>
 
@@ -1849,28 +1899,44 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   ))}
                 </div>
 
-                {/* ── 4. SCENARIO ACTIONABLE BRIEFING ── */}
+                {/* ── 4. SCENARIO SITUATION SUMMARY & SOLUTION VOICE BRIEFING ── */}
                 <div style={{
                   marginTop: 6,
-                  padding: '8px 12px',
-                  background: 'linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%)',
-                  border: '1px solid rgba(122, 148, 99, 0.22)',
-                  borderRadius: 5,
+                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, rgba(8, 12, 18, 0.95) 0%, rgba(14, 20, 30, 0.9) 100%)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: 6,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  gap: 12,
+                  gap: 14,
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
                 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#f8fafc', fontFamily: T.sans }}>
-                      {latestAlert?.reason || primaryAlert?.summary || 'Active telemetry anomaly detected.'}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontSize: 9,
+                        fontFamily: T.mono,
+                        fontWeight: 800,
+                        color: primaryAlert?.priority === 'CRITICAL' ? '#f87171' : (primaryAlert?.priority === 'WARNING' ? '#fde047' : '#4ade80'),
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        padding: '1px 6px',
+                        borderRadius: 3,
+                        border: `1px solid ${primaryAlert?.priority === 'CRITICAL' ? 'rgba(239, 68, 68, 0.4)' : (primaryAlert?.priority === 'WARNING' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(34, 197, 94, 0.4)')}`,
+                      }}>
+                        OPERATIONAL SITUATION SUMMARY
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#f8fafc', fontFamily: T.sans }}>
+                        {latestAlert?.reason || primaryAlert?.summary || 'All aerospace systems nominal. Continuous baseline surveillance active.'}
+                      </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 10, color: '#cbd5e1', lineHeight: 1.35 }}>
-                      <strong style={{ color: '#38bdf8', fontFamily: T.mono, fontSize: 9.5, letterSpacing: '0.04em' }}>
-                        FLIGHT DIRECTIVE:
+
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 10.5, color: '#cbd5e1', lineHeight: 1.4 }}>
+                      <strong style={{ color: '#38bdf8', fontFamily: T.mono, fontSize: 10, letterSpacing: '0.04em' }}>
+                        FLIGHT SURGEON SOLUTION:
                       </strong>
                       <span>
-                        {latestAlert?.actionable_instruction || (primaryAlert?.procedure && (PROCEDURES[primaryAlert.procedure]?.steps || []).map(s => `[${s.role}] ${s.text}`).slice(0, 2).join(' • ')) || 'Maintain continuous telemetry observation gate.'}
+                        {latestAlert?.actionable_instruction || (primaryAlert?.procedure && (PROCEDURES[primaryAlert.procedure]?.steps || []).map(s => `[${s.role}] ${s.text}`).slice(0, 2).join(' • ')) || 'Maintain nominal telemetry logging and routine ECLSS monitoring.'}
                       </span>
                     </div>
                   </div>
@@ -1925,53 +1991,98 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ ...labelStyle, marginBottom: 0 }}>MISSION STATUS</div>
+                    <div style={{ ...labelStyle, marginBottom: 0 }}>MISSION OPERATIONAL STATUS // AUTONOMOUS SENTRY</div>
                     <span style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 4,
-                      background: 'rgba(52, 211, 153, 0.12)',
-                      border: '1px solid rgba(52, 211, 153, 0.28)',
-                      color: '#34d399',
-                      fontSize: 9,
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: 3,
-                      letterSpacing: '0.04em',
+                      gap: 5,
+                      background: 'rgba(34, 197, 94, 0.15)',
+                      border: '1px solid rgba(34, 197, 94, 0.4)',
+                      color: '#4ade80',
+                      fontSize: 9.5,
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      letterSpacing: '0.06em',
                       fontFamily: T.mono,
                     }}>
-                      <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#34d399' }} />
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#4ade80' }} />
                       NOMINAL
+                    </span>
+                    <span style={{
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      color: '#38bdf8',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      fontFamily: T.mono,
+                    }}>
+                      ALL STATIONS (HABITAT OPTIMAL)
                     </span>
                   </div>
 
                   {/* Right: Operational Status & Action */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                     <div style={{ fontSize: 9.5, fontFamily: T.mono, color: '#94a3b8' }}>
-                      MODE: <span style={{ color: '#34d399', fontWeight: 700 }}>SUSTAINED CRUISE</span>
+                      MODE: <span style={{ color: '#4ade80', fontWeight: 700 }}>SUSTAINED CRUISE</span>
                     </div>
 
-                    <UniversalButton
-                      variant="cyan"
-                      size="xs"
-                      pill
+                    <button
                       onClick={() => setTab('CREW')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: '#0e1726',
+                        border: '1px solid #1e3a8a',
+                        borderRadius: 4,
+                        padding: '4px 12px',
+                        color: '#93c5fd',
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontFamily: T.sans,
+                        letterSpacing: '0.03em',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '#0e1726')}
                     >
-                      Crew Surveillance →
-                    </UniversalButton>
+                      <span>ALL CREW NOMINAL →</span>
+                      <span style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        padding: '1px 5px',
+                        borderRadius: 3,
+                        fontSize: 9,
+                        fontFamily: T.mono,
+                      }}>
+                        NASA-STD-3001
+                      </span>
+                    </button>
                   </div>
                 </div>
 
                 {/* ── 2. CLEAN HEADLINE ROW (NOMINAL MODE) ── */}
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '2px 0 4px 0' }}>
                   <span style={{
-                    fontSize: 14,
-                    fontWeight: 700,
+                    fontSize: 15,
+                    fontWeight: 800,
                     color: '#ffffff',
                     letterSpacing: '0.01em',
                     fontFamily: T.sans,
                   }}>
-                    All 4 Crew Members Within Personal Baselines
+                    All 4 Crew Members Within Personal Baseline Corridors
+                  </span>
+                  <span style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: '#94a3b8',
+                    fontFamily: T.sans,
+                  }}>
+                    — Autonomous Sentry Pass 84 · Multi-Signal Homeostasis Locked
                   </span>
                 </div>
 
@@ -2046,6 +2157,49 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* ── 4. SCENARIO SITUATION SUMMARY & SOLUTION VOICE BRIEFING ── */}
+                <div style={{
+                  marginTop: 6,
+                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, rgba(8, 12, 18, 0.95) 0%, rgba(14, 20, 30, 0.9) 100%)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 14,
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontSize: 9,
+                        fontFamily: T.mono,
+                        fontWeight: 800,
+                        color: primaryAlert?.priority === 'CRITICAL' ? '#f87171' : (primaryAlert?.priority === 'WARNING' ? '#fde047' : '#4ade80'),
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        padding: '1px 6px',
+                        borderRadius: 3,
+                        border: `1px solid ${primaryAlert?.priority === 'CRITICAL' ? 'rgba(239, 68, 68, 0.4)' : (primaryAlert?.priority === 'WARNING' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(34, 197, 94, 0.4)')}`,
+                      }}>
+                        OPERATIONAL SITUATION SUMMARY
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#f8fafc', fontFamily: T.sans }}>
+                        {latestAlert?.reason || primaryAlert?.summary || 'All aerospace systems nominal. Continuous baseline surveillance active.'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 10.5, color: '#cbd5e1', lineHeight: 1.4 }}>
+                      <strong style={{ color: '#38bdf8', fontFamily: T.mono, fontSize: 10, letterSpacing: '0.04em' }}>
+                        FLIGHT SURGEON SOLUTION:
+                      </strong>
+                      <span>
+                        {latestAlert?.actionable_instruction || (primaryAlert?.procedure && (PROCEDURES[primaryAlert.procedure]?.steps || []).map(s => `[${s.role}] ${s.text}`).slice(0, 2).join(' • ')) || 'Maintain nominal telemetry logging and routine ECLSS monitoring.'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
@@ -2167,7 +2321,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         </div>
 
         {/* ─── 2. CABIN ECLSS ENVIRONMENTAL TELEMETRY RIBBON ─── */}
-        <div style={{ width: '100%', position: 'relative', zIndex: 40, overflow: 'visible' }}>
+        <div style={{ width: '100%' }}>
           <CabinEnvironmentalBar
             telemetryMap={telemetryMap}
             currentScenario={currentScenario}
@@ -2177,8 +2331,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         {/* ─── 3. 4-ROW CREW LIVE BIOMETRIC TELEMETRY GRID WITH LIVE ECG & PLETHYSMOGRAM ─── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
-            <div style={labelStyle}>Live Crew Waveforms</div>
-            <span style={{ fontSize: 9, color: T.textMuted }}>ECG Lead-II · SpO₂ Plethysmogram · 10 Hz</span>
+            <div style={labelStyle}>Live Crew Health &amp; Dual-Trace Waveform Telemetry (10 Hz Synchronous Lock)</div>
+            <span style={{ fontSize: 9, color: T.textMuted }}>ECG Lead-II (White) · SpO₂ Plethysmogram (Orange) · Real-Time QRS Rhythm</span>
           </div>
 
           <CrewGrid
@@ -2284,37 +2438,37 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ ...labelStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        Mission Dosimetry
+                        Mission Dosimetry Trajectory // FD-01 → Today (FD-184)
                       </div>
-                      <div style={{ fontSize: 9.5, color: T.textSecondary, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        Cumulative Dose &amp; Real-Time Proton Flux (FD-01 → Today)
+                      <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        Cumulative Tissue Dose (mSv) &amp; Real-Time Proton Flux (mGy/d)
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 8.5, fontFamily: T.mono, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 9, fontFamily: T.mono, flexShrink: 0, whiteSpace: 'nowrap' }}>
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 5,
+                        gap: 6,
                         background: 'rgba(230, 168, 60, 0.1)',
                         border: '1px solid rgba(230, 168, 60, 0.28)',
-                        padding: '1.5px 6px',
+                        padding: '2px 8px',
                         borderRadius: 3,
                         whiteSpace: 'nowrap',
                       }}>
-                        <span style={{ width: 6, height: 2, background: '#e6a83c', borderRadius: 1 }} />
+                        <span style={{ width: 8, height: 2.5, background: '#e6a83c', borderRadius: 1 }} />
                         <span style={{ color: '#f8fafc', fontWeight: 700 }}>Dose: {liveDoseMsv.toFixed(1)} mSv</span>
                       </span>
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 5,
-                        background: isSpeEvent ? 'rgba(239, 68, 68, 0.15)' : 'rgba(122, 148, 99, 0.15)',
-                        border: `1px solid ${isSpeEvent ? 'rgba(239, 68, 68, 0.35)' : 'rgba(122, 148, 99, 0.25)'}`,
-                        padding: '1.5px 6px',
+                        gap: 6,
+                        background: isSpeEvent ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 189, 248, 0.1)',
+                        border: `1px solid ${isSpeEvent ? 'rgba(239, 68, 68, 0.35)' : 'rgba(56, 189, 248, 0.25)'}`,
+                        padding: '2px 8px',
                         borderRadius: 3,
                         whiteSpace: 'nowrap',
                       }}>
-                        <span style={{ width: 6, height: 2, background: isSpeEvent ? '#ef4444' : '#a1b48e', borderRadius: 1 }} />
+                        <span style={{ width: 8, height: 2.5, background: isSpeEvent ? '#ef4444' : '#38bdf8', borderRadius: 1 }} />
                         <span style={{ color: isSpeEvent ? '#ef4444' : '#38bdf8', fontWeight: 700 }}>
                           Flux: {liveFlux.toFixed(2)} mGy/d
                         </span>
@@ -2554,24 +2708,25 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ ...labelStyle, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        Cabin ppCO₂ Dynamics
+                        24-Hour Continuous Cabin ppCO₂ Dynamics
                       </div>
-                      <div style={{ fontSize: 9.5, color: T.textSecondary, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        24-Hour Trajectory · Limit &lt; 3.00 mmHg
+                      <div style={{ fontSize: 10, color: T.textSecondary, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        NASA-STD-3001 Flight Rule Limits (&lt; 3.00 mmHg)
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 8.5, fontFamily: T.mono, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 9, fontFamily: T.mono, flexShrink: 0, whiteSpace: 'nowrap' }}>
                       <span style={{
                         background: isBreach ? 'rgba(239, 68, 68, 0.18)' : isElevated ? 'rgba(245, 158, 11, 0.15)' : 'rgba(74, 222, 128, 0.12)',
                         border: `1px solid ${isBreach ? 'rgba(239, 68, 68, 0.4)' : isElevated ? 'rgba(245, 158, 11, 0.35)' : 'rgba(74, 222, 128, 0.3)'}`,
                         color: isBreach ? '#ef4444' : isElevated ? '#f59e0b' : '#4ade80',
-                        padding: '1.5px 6px',
+                        padding: '2px 8px',
                         borderRadius: 3,
                         fontWeight: 700,
                         whiteSpace: 'nowrap',
                       }}>
                         ppCO₂: {co2Val.toFixed(2)} mmHg
                       </span>
+                      <span style={{ color: '#849db5', whiteSpace: 'nowrap' }}>101.3 kPa · 21.3 kPa O₂</span>
                     </div>
                   </div>
 
@@ -2938,53 +3093,75 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '8px 14px',
-          background: 'linear-gradient(180deg, rgba(18, 26, 21, 0.95) 0%, rgba(12, 18, 15, 0.98) 100%)',
+          background: 'rgba(5, 9, 16, 0.95)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(122, 148, 99, 0.22)',
+          border: '1px solid rgba(56, 189, 248, 0.35)',
           borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.7)',
         }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#ffffff', letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>Crew Telemetry</span>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ textShadow: '0 2px 6px rgba(0,0,0,0.95)' }}>Crew Health</span>
               <span style={{
-                fontSize: 9,
+                fontSize: 10.5,
                 fontFamily: T.mono,
-                color: '#34d399',
+                color: '#38bdf8',
                 fontWeight: 700,
-                background: 'rgba(52, 211, 153, 0.12)',
-                border: '1px solid rgba(52, 211, 153, 0.28)',
-                borderRadius: 3,
-                padding: '2px 6px',
-                letterSpacing: '0.04em',
+                background: 'rgba(56, 189, 248, 0.18)',
+                border: '1px solid rgba(56, 189, 248, 0.45)',
+                borderRadius: 4,
+                padding: '2px 8px',
+                letterSpacing: '0.03em',
+                textShadow: '0 1px 4px rgba(0,0,0,0.8)',
               }}>
-                10 Hz
+                10 Hz Telemetry Lock · Inspiration4 OSDR Baselines
               </span>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* 3D Body Scanner quick toggle button */}
+            <button
+              onClick={() => setCrewSubTab('3D Bio-Scanner')}
+              style={{
+                background: crewSubTab === '3D Bio-Scanner' ? 'rgba(0, 229, 255, 0.16)' : '#0d131a',
+                border: `1px solid ${crewSubTab === '3D Bio-Scanner' ? '#00e5ff' : '#233647'}`,
+                borderRadius: 4,
+                padding: '4px 10px',
+                color: crewSubTab === '3D Bio-Scanner' ? '#00e5ff' : '#8da2b5',
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'all 0.12s ease',
+              }}
+            >
+              <span>3D Holographic Scanner</span>
+            </button>
+
             {/* "What Changed?" (Δ Baseline) switch */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: 6,
               background: '#0b0e11',
-              border: `1px solid ${diffMode ? '#34d39966' : T.borderSubtle}`,
+              border: `1px solid ${diffMode ? '#00e5ff66' : T.borderSubtle}`,
               borderRadius: 4,
               padding: '3px 8px',
             }}>
-              <span style={{ fontSize: 9, color: diffMode ? '#34d399' : T.textSecondary, fontWeight: diffMode ? 700 : 500 }}>
-                Δ Mode
+              <span style={{ fontSize: 9, color: diffMode ? '#00e5ff' : T.textSecondary, fontWeight: diffMode ? 700 : 500 }}>
+                What Changed? (Δ Mode)
               </span>
               <button
                 onClick={() => setDiffMode(!diffMode)}
                 style={{
-                  width: 24,
-                  height: 13,
+                  width: 26,
+                  height: 14,
                   borderRadius: 7,
-                  background: diffMode ? '#34d399' : '#222830',
+                  background: diffMode ? '#00e5ff' : '#222830',
                   border: 'none',
                   position: 'relative',
                   cursor: 'pointer',
@@ -2995,8 +3172,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               >
                 <span style={{
                   position: 'absolute',
-                  top: 1.5,
-                  left: diffMode ? 12 : 2,
+                  top: 2,
+                  left: diffMode ? 14 : 2,
                   width: 10,
                   height: 10,
                   borderRadius: '50%',
@@ -3007,34 +3184,52 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             </div>
 
             {/* Time range selector */}
-            <div style={{ display: 'flex', gap: 3 }}>
+            <div style={{ display: 'flex', background: '#0b0e11', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: 2 }}>
               {(['1h', '6h', '12h', '24h', 'Custom'] as const).map(r => (
-                <UniversalTab
+                <button
                   key={r}
-                  active={timeRange === r}
-                  accent="cyan"
-                  size="xs"
-                  pill
                   onClick={() => setTimeRange(r)}
+                  style={{
+                    background: timeRange === r ? '#222830' : 'transparent',
+                    border: timeRange === r ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
+                    color: timeRange === r ? '#ffffff' : T.textSecondary,
+                    borderRadius: 3,
+                    padding: '3px 8px',
+                    fontSize: 10,
+                    fontWeight: timeRange === r ? 600 : 400,
+                    cursor: 'pointer',
+                    transition: 'all 0.1s ease',
+                  }}
                 >
                   {r}
-                </UniversalTab>
+                </button>
               ))}
             </div>
 
             {/* Export button */}
-            <UniversalButton
-              variant="cyan"
-              size="xs"
-              pill
+            <button
               onClick={() => {
                 const dataStr = `CREW HEALTH TELEMETRY REPORT\nMET: T+14d 08:42:19\nTime Window: ${timeRange}\nCrew: ${selCrew.crewNo} ${selCrew.role} (${selCrew.name})\nHR: ${selStats.hr} bpm (${selStats.hrDeltaPct >= 0 ? '+' : ''}${selStats.hrDeltaPct.toFixed(1)}% vs base ${selCrew.baseHr})\nSpO2: ${selStats.spo2.toFixed(1)}% (vs base ${selCrew.baseSpo2.toFixed(1)}%)\nResp: ${selStats.resp} br/min\nTemp: ${selStats.temp.toFixed(1)} °C\nStatus: ${selStats.statusLabel}`;
                 navigator.clipboard.writeText(dataStr);
                 alert('Crew health telemetry snapshot copied to clipboard.');
               }}
+              style={{
+                background: '#11151a',
+                border: `1px solid ${T.border}`,
+                borderRadius: 4,
+                padding: '4px 10px',
+                color: T.textSecondary,
+                fontSize: 10,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
             >
-              Export Snapshot
-            </UniversalButton>
+              <span>Export</span>
+              <span style={{ fontSize: 8 }}>▼</span>
+            </button>
           </div>
         </div>
 
@@ -3049,19 +3244,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 key={c.id}
                 onClick={() => setSelCrewId(c.id)}
                 style={{
-                  background: isSelected
-                    ? 'linear-gradient(180deg, rgba(38, 54, 40, 0.95) 0%, rgba(24, 38, 27, 0.98) 100%)'
-                    : 'linear-gradient(180deg, rgba(18, 26, 21, 0.72) 0%, rgba(12, 18, 15, 0.78) 100%)',
-                  border: isSelected
-                    ? '1.5px solid rgba(161, 180, 142, 0.45)'
-                    : `1px solid ${stats.isAnomaly ? T.warningBorder : T.borderSubtle}`,
+                  background: isSelected ? 'rgba(56, 189, 248, 0.12)' : 'linear-gradient(180deg, #171c21 0%, #101317 100%)',
+                  border: isSelected ? '1.5px solid rgba(56, 189, 248, 0.35)' : `1px solid ${stats.isAnomaly ? T.warningBorder : T.borderSubtle}`,
                   borderRadius: 6,
                   padding: '10px 11px',
                   cursor: 'pointer',
                   transition: 'all 0.14s ease',
-                  boxShadow: isSelected
-                    ? 'inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 3px 12px rgba(0, 0, 0, 0.5)'
-                    : 'none',
+                  boxShadow: isSelected ? '0 3px 12px rgba(0,0,0,0.5)' : 'none',
                 }}
               >
                 {/* Header row: Avatar + Name + Status Badge */}
@@ -3142,18 +3331,31 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           marginBottom: 10,
           flexWrap: 'wrap',
         }}>
-          {(['Overview', '3D Bio-Scanner', 'Trends', 'Correlation', 'Baseline & Deviation', 'Medical History', 'Procedures'] as const).map(sub => (
-            <UniversalTab
-              key={sub}
-              active={crewSubTab === sub}
-              accent="cyan"
-              size="sm"
-              pill
-              onClick={() => setCrewSubTab(sub)}
-            >
-              {sub}
-            </UniversalTab>
-          ))}
+          {(['Overview', '3D Bio-Scanner', 'Trends', 'Correlation', 'Baseline & Deviation', 'Medical History', 'Procedures'] as const).map(sub => {
+            const isSel = crewSubTab === sub;
+            return (
+              <button
+                key={sub}
+                onClick={() => setCrewSubTab(sub)}
+                style={{
+                  background: isSel ? 'rgba(56, 189, 248, 0.30)' : '#0c1015',
+                  border: isSel ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid #202b38',
+                  color: isSel ? '#ffffff' : '#9ec7ef',
+                  borderRadius: 4,
+                  padding: '6px 14px',
+                  fontSize: 11,
+                  fontWeight: isSel ? 700 : 500,
+                  cursor: 'pointer',
+                  letterSpacing: '0.03em',
+                  textShadow: isSel ? '0 1px 2px rgba(0, 0, 0, 0.75)' : 'none',
+                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
+                  transition: 'all 0.12s ease',
+                }}
+              >
+                {sub}
+              </button>
+            );
+          })}
         </div>
 
         {/* ─── 4. Main Deep-Dive Content based on crewSubTab ─── */}
@@ -3195,7 +3397,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
                 {/* Key Metrics Group */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={labelStyle}>Key Metrics</div>
+                  <div style={labelStyle}>Key Metrics (Real-Time 10 Hz)</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {/* Heart Rate */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0a0d11', padding: '6px 8px', borderRadius: 4, border: `1px solid ${T.borderSubtle}` }}>
@@ -3271,7 +3473,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
                 {/* Personal Baseline Comparison Table */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
-                  <div style={labelStyle}>Baseline Comparison (OSD-575)</div>
+                  <div style={labelStyle}>Personal Baseline Comparison (OSD-575)</div>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
                     <thead>
                       <tr style={{ color: '#9ec7ef', borderBottom: '1px solid #233140', fontWeight: 700 }}>
@@ -3333,7 +3535,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 gap: 8,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                  <div style={labelStyle}>Trends (2h Window)</div>
+                  <div style={labelStyle}>Trends (Last 2 Hours)</div>
                   {/* Legend */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 9 }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: selStats.isAnomaly ? T.warning : T.nominal }}>
@@ -3404,14 +3606,30 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   background: '#090d12',
                   border: `1px solid ${T.borderSubtle}`,
                   borderRadius: 4,
-                  padding: '6px 8px',
+                  padding: '7px 9px',
                   marginTop: 'auto',
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 8.5, fontFamily: T.mono, color: '#8fa4ba' }}>
-                    <span>WINDOW: <strong style={{ color: '#ffffff' }}>120M</strong></span>
-                    <span>CORRIDOR: <strong style={{ color: '#ffffff' }}>±2.0σ</strong></span>
-                    <span>LOSS: <strong style={{ color: '#4ade80' }}>0.00%</strong></span>
-                    <span style={{ color: '#4ade80', fontWeight: 700 }}>● 10 Hz SYNC</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 8.5, fontWeight: 700, color: '#9ec7ef', letterSpacing: '0.04em' }}>
+                      TREND ANALYTICS HORIZON
+                    </span>
+                    <span style={{ fontSize: 8, fontFamily: T.mono, color: '#4ade80' }}>
+                      ● 10 Hz SYNCHRONOUS
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, textAlign: 'center', fontSize: 8.5 }}>
+                    <div style={{ background: '#070a0e', padding: '4px 6px', borderRadius: 3, border: `1px solid ${T.borderSubtle}` }}>
+                      <div style={{ color: '#8fa4ba', fontSize: 7.5 }}>WINDOW</div>
+                      <div style={{ color: '#ffffff', fontFamily: T.mono, fontWeight: 700 }}>120 MIN</div>
+                    </div>
+                    <div style={{ background: '#070a0e', padding: '4px 6px', borderRadius: 3, border: `1px solid ${T.borderSubtle}` }}>
+                      <div style={{ color: '#8fa4ba', fontSize: 7.5 }}>CORRIDOR</div>
+                      <div style={{ color: '#ffffff', fontFamily: T.mono, fontWeight: 700 }}>±2.0σ OSDR</div>
+                    </div>
+                    <div style={{ background: '#070a0e', padding: '4px 6px', borderRadius: 3, border: `1px solid ${T.borderSubtle}` }}>
+                      <div style={{ color: '#8fa4ba', fontSize: 7.5 }}>PACKET LOSS</div>
+                      <div style={{ color: '#4ade80', fontFamily: T.mono, fontWeight: 700 }}>0.00%</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3425,21 +3643,21 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 transition: 'background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                  <div style={labelStyle}>Event Correlation</div>
+                  <div style={labelStyle}>EVENT CORRELATION ENGINE</div>
                   <span style={{
                     fontSize: 8.5,
                     fontWeight: 700,
                     color: selStats.isAnomaly ? '#fbbf24' : '#4ade80',
                     background: selStats.isAnomaly ? 'rgba(245, 158, 11, 0.14)' : 'rgba(34, 197, 94, 0.14)',
                     border: `1px solid ${selStats.isAnomaly ? 'rgba(245, 158, 11, 0.4)' : 'rgba(34, 197, 94, 0.4)'}`,
-                    padding: '1.5px 6px',
+                    padding: '2px 6px',
                     borderRadius: 3,
                   }}>
-                    {selStats.isAnomaly ? '● CAUSAL CHAIN' : '● HOMEOSTASIS'}
+                    {selStats.isAnomaly ? '● CAUSAL CHAIN ACTIVE' : '● NOMINAL HOMEOSTASIS'}
                   </span>
                 </div>
                 <div style={{ fontSize: 9.5, color: '#9ec7ef', marginBottom: 8 }}>
-                  Target: <strong style={{ color: '#ffffff' }}>{selCrew.callsign} ({selCrew.name})</strong>
+                  Causal Multi-Signal Synthesis · Target: <strong style={{ color: '#ffffff' }}>{selCrew.callsign} ({selCrew.name})</strong>
                 </div>
 
                 {/* Scenario-Aware Causal Step Pipeline */}
@@ -3582,7 +3800,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 ) : isThromb ? (
                   /* ─── SCENARIO 7: VENOUS THROMBOSIS CAUSAL PIPELINE ─── */
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5, position: 'relative' }}>
-                    <div style={{ background: 'rgba(11, 16, 13, 0.85)', border: '1px solid rgba(122, 148, 99, 0.22)', borderRadius: 4, padding: '6px 8px' }}>
+                    <div style={{ background: '#0a0e14', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: 4, padding: '6px 8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                         <span style={{ fontSize: 8.5, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.04em' }}>STAGE 1: [TRIGGER] CEPHALAD FLUID SHIFT &amp; STASIS</span>
                         <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:08 UTC</span>
@@ -3696,7 +3914,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 ) : selStats.isAnomaly ? (
                   /* ─── GENERAL PHYSICAL EXERTION / CARDIOVASCULAR ANOMALY ─── */
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5, position: 'relative' }}>
-                    <div style={{ background: 'rgba(11, 16, 13, 0.85)', border: '1px solid rgba(122, 148, 99, 0.22)', borderRadius: 4, padding: '6px 8px' }}>
+                    <div style={{ background: '#0a0e14', border: '1px solid rgba(56, 189, 248, 0.35)', borderRadius: 4, padding: '6px 8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                         <span style={{ fontSize: 8.5, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.04em' }}>STAGE 1: [TRIGGER] PRIMARY STRESSOR</span>
                         <span style={{ fontSize: 8.5, fontFamily: T.mono, color: '#8fa9c4' }}>{simUtcTime.substring(0, 5)}:12 UTC</span>
@@ -3833,7 +4051,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
                 {/* Possible Linked Factors with Weighted Correlation Bars (Dynamically Computed) */}
                 <div style={{ marginTop: 10 }}>
-                  <div style={{ ...labelStyle, marginBottom: 5 }}>Correlation Weights</div>
+                  <div style={{ ...labelStyle, marginBottom: 5 }}>MULTI-SIGNAL CORRELATION WEIGHTS</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {correlationFactors.map((f, i) => (
                       <div key={i} style={{ background: '#080c10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '5px 8px' }}>
@@ -3860,7 +4078,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 transition: 'background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                  <div style={labelStyle}>Detection Rationale</div>
+                  <div style={labelStyle}>WHY IS THIS FLAGGED?</div>
                   <span style={{ fontSize: 8.5, color: '#9ec7ef', fontFamily: T.mono }}>NASA-STD-3001</span>
                 </div>
 
@@ -3925,7 +4143,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
                 {/* Decision Support & Protocol Box */}
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ ...labelStyle, marginBottom: 4 }}>Decision Support</div>
+                  <div style={{ ...labelStyle, marginBottom: 4 }}>DECISION SUPPORT ENGINE</div>
                   <div style={{ fontSize: 9.5, color: '#c5d5e5', lineHeight: 1.4 }}>
                     <div>
                       <strong style={{ color: '#ffffff' }}>Condition: </strong>
@@ -3953,7 +4171,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
                   <div style={{ marginTop: 8 }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: '#9ec7ef', textTransform: 'uppercase', marginBottom: 3 }}>
-                      CLINICAL PROTOCOL CHECKS
+                      SUGGESTED CLINICAL CHECKS
                     </div>
                     <div style={{ fontSize: 9, color: '#8fa9c4', lineHeight: 1.35 }}>
                       {isHypo ? (
@@ -4002,43 +4220,68 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     </div>
                   </div>
 
-                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <UniversalButton
-                      variant="cyan"
-                      size="xs"
-                      pill
-                      fullWidth
-                      onClick={() => setActiveProcedureId(targetProcedureId)}
-                    >
-                      Open Procedure: {targetProcedureId.replace('NASA-STD-3001-', '')} →
-                    </UniversalButton>
+                  {/* Flight Procedure Action Button */}
+                  <button
+                    onClick={() => setActiveProcedureId(targetProcedureId)}
+                    style={{
+                      marginTop: 9,
+                      width: '100%',
+                      background: '#151b22',
+                      border: `1px solid ${T.activeBorder}`,
+                      borderRadius: 4,
+                      padding: '7px 10px',
+                      color: '#ffffff',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      transition: 'all 0.12s ease',
+                    }}
+                  >
+                    OPEN PROCEDURE: {targetProcedureId.replace('NASA-STD-3001-', '')} →
+                  </button>
 
-                    {(onOpenMccTelemetry || onOpenTriage) && (
-                      <UniversalButton
-                        variant="cyan"
-                        size="xs"
-                        pill
-                        fullWidth
-                        onClick={() => {
-                          const isEmbeddedFrame = typeof window !== 'undefined' && (
-                            window.self !== window.top ||
-                            new URLSearchParams(window.location.search).get('embed') === '1' ||
-                            new URLSearchParams(window.location.search).get('cabin') === '1'
-                          );
-                          if (isEmbeddedFrame) {
-                            setSelCrewId(selCrew.id);
-                            setTab('CREW');
-                          } else if (onOpenMccTelemetry) {
-                            onOpenMccTelemetry(selCrew.id);
-                          } else if (onOpenTriage) {
-                            onOpenTriage(selCrew.id);
-                          }
-                        }}
-                      >
-                        Earth Clinical Telemetry Console →
-                      </UniversalButton>
-                    )}
-                  </div>
+                  {(onOpenMccTelemetry || onOpenTriage) && (
+                    <button
+                      onClick={() => {
+                        const isEmbeddedFrame = typeof window !== 'undefined' && (
+                          window.self !== window.top ||
+                          new URLSearchParams(window.location.search).get('embed') === '1' ||
+                          new URLSearchParams(window.location.search).get('cabin') === '1'
+                        );
+                        if (isEmbeddedFrame) {
+                          setSelCrewId(selCrew.id);
+                          setTab('CREW');
+                        } else if (onOpenMccTelemetry) {
+                          onOpenMccTelemetry(selCrew.id);
+                        } else if (onOpenTriage) {
+                          onOpenTriage(selCrew.id);
+                        }
+                      }}
+                      style={{
+                        marginTop: 5,
+                        width: '100%',
+                        background: '#101419',
+                        border: `1px solid ${T.borderSubtle}`,
+                        borderRadius: 4,
+                        padding: '6px 10px',
+                        color: '#9ec7ef',
+                        fontSize: 9,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 5,
+                        transition: 'all 0.12s ease',
+                      }}
+                    >
+                      OPEN EARTH TELEMETRY CONSOLE →
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -4219,8 +4462,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                 <div style={{
                   marginTop: 6,
                   padding: '10px 14px',
-                  background: 'linear-gradient(180deg, rgba(26, 36, 28, 0.92) 0%, rgba(18, 26, 20, 0.96) 100%)',
-                  border: '1px solid rgba(122, 148, 99, 0.22)',
+                  background: 'linear-gradient(135deg, rgba(8, 12, 18, 0.95) 0%, rgba(14, 20, 30, 0.9) 100%)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
                   borderRadius: 6,
                   display: 'flex',
                   alignItems: 'center',
@@ -4455,14 +4698,21 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     </div>
                     <div style={{ fontSize: 9, color: T.textMuted, marginTop: 3 }}>Category: {proc.category} · {proc.steps.length} sequential verification steps</div>
                   </div>
-                  <UniversalButton
-                    variant="cyan"
-                    size="xs"
-                    pill
+                  <button
                     onClick={() => setActiveProcedureId(proc.id)}
+                    style={{
+                      background: '#151b22',
+                      border: `1px solid ${T.border}`,
+                      borderRadius: 4,
+                      padding: '5px 12px',
+                      color: T.textSecondary,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
                   >
                     Open Checklist →
-                  </UniversalButton>
+                  </button>
                 </div>
               ))}
             </div>
@@ -4904,7 +5154,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* ─── ZONE 1: MINIMAL SPACECRAFT HEALTH METRICS BANNER ─── */}
+        {/* ─── ZONE 1: MINIMAL SPACECRAFT HEALTH METRICS BANNER (DECLUTTERED) ─── */}
         <div
           style={{
             background: 'linear-gradient(180deg, #181d22 0%, #0f1316 100%)',
@@ -4916,25 +5166,38 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={labelStyle}>SPACECRAFT HEALTH</div>
-              <span style={{
-                fontSize: 9,
-                fontWeight: 700,
-                color: '#34d399',
-                background: 'rgba(52, 211, 153, 0.12)',
-                border: '1px solid rgba(52, 211, 153, 0.28)',
-                borderRadius: 3,
-                padding: '1px 6px',
-                fontFamily: T.mono,
-              }}>
-                ● 16 DEVICES ONLINE
-              </span>
+              <div style={labelStyle}>SPACECRAFT HEALTH METRICS</div>
+              <Badge color={T.nominal} borderColor={T.nominalBorder}>
+                16 / 16 ONLINE
+              </Badge>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontFamily: T.mono, color: T.nominal }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.nominal, display: 'inline-block', boxShadow: `0 0 6px ${T.nominal}` }} />
+              TELEMETRY LOCKED
             </div>
           </div>
 
-          {/* 4-Column Balanced Spacecraft Health Gauges */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-            {/* Gauge 1: System Health */}
+          {/* 5-Column Clean, Self-Explanatory Spacecraft Health Gauges */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+            {/* Counter 1: Installed Systems */}
+            <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  INSTALLED SYSTEMS
+                </span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: T.nominal, letterSpacing: '0.04em' }}>
+                  ALL ONLINE
+                </span>
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: T.textPrimary, marginTop: 4 }}>
+                16 / 16
+              </div>
+              <div style={{ width: '100%', height: 3, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '100%', background: T.nominal }} />
+              </div>
+            </div>
+
+            {/* Counter 2: System Health */}
             <div style={{ background: '#0a0d10', border: `1px solid ${isCo2Excursion ? T.warningBorder : T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -4952,11 +5215,11 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
             </div>
 
-            {/* Gauge 2: Life Support Supply */}
+            {/* Counter 3: Life Support Supply (Explaining 71 Days) */}
             <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  LIFE SUPPORT
+                  LIFE SUPPORT SUPPLY
                 </span>
                 <span style={{ fontSize: 9, fontWeight: 700, color: '#38bdf8', letterSpacing: '0.04em' }}>
                   SAFE BUFFER
@@ -4970,9 +5233,9 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
             </div>
 
-            {/* Gauge 3: Safety Checks */}
+            {/* Counter 4: Flight Safety Rules */}
             <div
-              title="Continuous automated NASA-STD-3001 safety checks"
+              title="Continuous automated NASA-STD-3001 safety checks (Cabin O2, CO2 limits, radiation limits, pressure, water purity, vital signs)"
               style={{ background: '#0a0d10', border: `1px solid ${isCo2Excursion ? T.warningBorder : T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -4980,7 +5243,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   SAFETY CHECKS
                 </span>
                 <span style={{ fontSize: 9, fontWeight: 700, color: isCo2Excursion ? T.warning : T.nominal, letterSpacing: '0.04em' }}>
-                  {isCo2Excursion ? '1 ADVISORY' : 'ALL PASSING'}
+                  {isCo2Excursion ? '1 ADVISORY' : 'ALL NOMINAL'}
                 </span>
               </div>
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: T.mono, color: isCo2Excursion ? T.warning : T.nominal, marginTop: 4 }}>
@@ -4991,11 +5254,11 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
             </div>
 
-            {/* Gauge 4: Telemetry Stream Rate */}
+            {/* Counter 5: Telemetry Stream Rate */}
             <div style={{ background: '#0a0d10', border: `1px solid ${T.borderSubtle}`, borderRadius: 4, padding: '9px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  TELEMETRY BUS
+                  DATA STREAM RATE
                 </span>
                 <span style={{ fontSize: 9, fontWeight: 700, color: T.nominal, letterSpacing: '0.04em' }}>
                   LIVE SYNC
@@ -5014,8 +5277,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         {/* ─── ZONE 2: STRICTLY ALIGNED SPACECRAFT CONSUMABLES CONTAINER ─── */}
         <div style={cardStyle}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <div style={labelStyle}>CONSUMABLE MARGINS</div>
-            <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>4-Crew Buffer</span>
+            <div style={labelStyle}>SPACECRAFT CONSUMABLES &amp; EMERGENCY FLIGHT MARGINS</div>
+            <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>NASA-STD-3001 · 4 CREW AUTONOMOUS BUFFER</span>
           </div>
 
           {/* 4-Column Table Header with Strict Column Grid */}
@@ -5082,24 +5345,38 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             FILTER:
           </span>
           {[
-            { key: 'ALL', label: `All (${countAll})` },
+            { key: 'ALL', label: `ALL (${countAll})` },
             { key: 'ECLSS', label: `ECLSS (${countEclss})` },
-            { key: 'WEARABLE', label: `Wearables (${countWearable})` },
-            { key: 'LAB', label: `Lab & POC (${countLab})` },
-            { key: 'RADIATION', label: `Radiation (${countRad})` },
-            { key: 'COUNTERMEASURE', label: `Countermeasures (${countCtr})` },
-          ].map(f => (
-            <UniversalTab
-              key={f.key}
-              active={sysCategoryFilter === f.key}
-              accent="cyan"
-              size="xs"
-              pill
-              onClick={() => setSysCategoryFilter(f.key as any)}
-            >
-              {f.label}
-            </UniversalTab>
-          ))}
+            { key: 'WEARABLE', label: `WEARABLES (${countWearable})` },
+            { key: 'LAB', label: `LAB & POC (${countLab})` },
+            { key: 'RADIATION', label: `RADIATION (${countRad})` },
+            { key: 'COUNTERMEASURE', label: `COUNTERMEASURES (${countCtr})` },
+          ].map(f => {
+            const isSel = sysCategoryFilter === f.key;
+            return (
+              <button
+                key={f.key}
+                onClick={() => setSysCategoryFilter(f.key as any)}
+                style={{
+                  background: isSel ? 'rgba(56, 189, 248, 0.30)' : '#0c0f12',
+                  border: isSel ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid #2c3642',
+                  borderRadius: 4,
+                  padding: '5px 12px',
+                  color: isSel ? '#ffffff' : '#9ec7ef',
+                  fontSize: 10,
+                  fontWeight: isSel ? 700 : 500,
+                  cursor: 'pointer',
+                  fontFamily: T.sans,
+                  letterSpacing: '0.04em',
+                  textShadow: isSel ? '0 1px 2px rgba(0, 0, 0, 0.75)' : 'none',
+                  boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
+                  transition: 'all 0.12s ease',
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* ─── ZONE 4: INSTALLED SPACECRAFT HEALTH DEVICES CONTAINER CARDS (DECLUTTERED) ─── */}
@@ -5109,10 +5386,10 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
             // Minimal Mode Badge styling
             const modeColors = {
-              'CONTINUOUS': { bg: 'rgba(122, 148, 99, 0.15)', border: 'rgba(122, 148, 99, 0.30)', color: '#a1b48e' },
+              'CONTINUOUS': { bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.35)', color: '#38bdf8' },
               'PERIODIC': { bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.35)', color: '#c084fc' },
               'ON DEMAND': { bg: 'rgba(234, 179, 8, 0.12)', border: 'rgba(234, 179, 8, 0.35)', color: '#facc15' },
-            }[sys.mode] || { bg: 'rgba(122, 148, 99, 0.15)', border: 'rgba(122, 148, 99, 0.30)', color: '#a1b48e' };
+            }[sys.mode] || { bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.35)', color: '#38bdf8' };
 
             return (
               <div
@@ -5144,36 +5421,39 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                       {sys.categoryLabel}
                     </span>
 
-                    {/* Minimal Status Indicator & Mode */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {/* Minimal Badges: Working Status & Operating Mode */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {/* Working Status Badge */}
                       <span
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 3.5,
-                          background: isWarn ? 'rgba(245, 158, 11, 0.15)' : 'rgba(34, 197, 94, 0.12)',
-                          border: `1px solid ${isWarn ? 'rgba(245, 158, 11, 0.35)' : 'rgba(34, 197, 94, 0.28)'}`,
+                          gap: 4,
+                          background: isWarn ? 'rgba(245, 158, 11, 0.18)' : 'rgba(34, 197, 94, 0.14)',
+                          border: `1px solid ${isWarn ? 'rgba(245, 158, 11, 0.45)' : 'rgba(34, 197, 94, 0.35)'}`,
                           color: isWarn ? '#fbbf24' : '#4ade80',
                           borderRadius: 3,
-                          padding: '1.5px 6px',
+                          padding: '2px 7px',
                           fontSize: 8.5,
                           fontWeight: 700,
-                          letterSpacing: '0.03em',
+                          letterSpacing: '0.04em',
                         }}
                       >
-                        <span style={{ width: 4, height: 4, borderRadius: '50%', background: isWarn ? '#f59e0b' : '#22c55e', display: 'inline-block' }} />
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: isWarn ? '#f59e0b' : '#22c55e', display: 'inline-block' }} />
                         {isWarn ? 'WARNING' : 'WORKING'}
                       </span>
+
+                      {/* Mode Badge: CONTINUOUS / PERIODIC / ON DEMAND */}
                       <span
                         style={{
-                          fontSize: 8,
-                          color: modeColors.color,
                           background: modeColors.bg,
                           border: `1px solid ${modeColors.border}`,
+                          color: modeColors.color,
                           borderRadius: 3,
-                          padding: '1.5px 5px',
-                          fontFamily: T.mono,
-                          fontWeight: 600,
+                          padding: '2px 7px',
+                          fontSize: 8.5,
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
                         }}
                       >
                         {sys.mode}
@@ -5182,13 +5462,26 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   </div>
 
                   {/* Specific Device Name as Clear Title */}
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', letterSpacing: '0.01em', marginBottom: 2 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#ffffff', letterSpacing: '0.01em', marginBottom: 8 }}>
                     {sys.name}
                   </div>
 
-                  {/* Clean Single-Line Measures Subtitle */}
-                  <div style={{ fontSize: 9.5, color: '#94a3b8', marginBottom: 8, lineHeight: 1.3 }}>
-                    {sys.measures}
+                  {/* WHAT IT'S MEASURING (Clean Highlight) */}
+                  <div
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.05)',
+                      borderLeft: '2px solid #38bdf8',
+                      borderRadius: '0 4px 4px 0',
+                      padding: '5px 9px',
+                      marginBottom: 10,
+                    }}
+                  >
+                    <span style={{ fontSize: 8.5, fontWeight: 800, color: '#38bdf8', letterSpacing: '0.06em', textTransform: 'uppercase', marginRight: 6 }}>
+                      MEASURES:
+                    </span>
+                    <span style={{ fontSize: 10, color: '#e2e8f0', fontWeight: 500 }}>
+                      {sys.measures}
+                    </span>
                   </div>
 
                   {/* Clean 2x2 Key Telemetry Readouts Grid */}
@@ -5233,10 +5526,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   <div style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>
                     {sys.compartment} · {sys.hwRef}
                   </div>
-                  <UniversalButton
-                    variant="cyan"
-                    size="xs"
-                    pill
+                  <button
                     onClick={() => {
                       if (onOpenMccTelemetry) {
                         onOpenMccTelemetry(selCrewId || 'AST-01_COMMANDER');
@@ -5244,9 +5534,29 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                         onSelectView('MCC_TELEMETRY');
                       }
                     }}
+                    style={{
+                      background: '#0a0e13',
+                      border: `1px solid ${T.border}`,
+                      borderRadius: 3,
+                      padding: '4px 9px',
+                      color: '#9ec7ef',
+                      fontSize: 9,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      letterSpacing: '0.03em',
+                      transition: 'all 0.12s ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = '#38bdf8';
+                      e.currentTarget.style.color = '#ffffff';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = T.border;
+                      e.currentTarget.style.color = '#9ec7ef';
+                    }}
                   >
-                    Telemetry →
-                  </UniversalButton>
+                    VIEW IN EARTH TELEMETRY →
+                  </button>
                 </div>
               </div>
             );
@@ -5267,7 +5577,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         {/* DSN Tracking */}
         <div style={cardStyle}>
-          <div style={labelStyle}>DSN Ground Tracking</div>
+          <div style={labelStyle}>Deep Space Network Tracking</div>
           {DSN.map((stn, i) => (
             <div key={stn.name} style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0',
@@ -5293,35 +5603,56 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </span>
             </div>
           ))}
+          <div style={{ fontSize: 9, color: T.textMuted, marginTop: 8, lineHeight: 1.4 }}>
+            DSN station network tracking (Goldstone DSS-14, Madrid DSS-63, Canberra DSS-43).
+            Autonomous rotation schedule every 45 seconds.
+          </div>
         </div>
 
         {/* Station Handover & Conjunction Geometry */}
         <div style={cardStyle}>
-          <div style={labelStyle}>Handover Geometry</div>
+          <div style={labelStyle}>Station Handover & Conjunction Geometry</div>
           <MetricRow label="Active Carrier" value={activeDSN.name.split(' ')[0]} unit="" delta="Carrier lock" color={T.nominal} />
           <MetricRow label="Next Handover" value="Madrid → Canberra" unit="" delta="in 01h 42m" />
           <MetricRow label="Receiver Margin" value="+14.2" unit=" dB" delta="above threshold" color={T.nominal} />
           <MetricRow label="Solar SEP Angle" value="14.8" unit=" °" delta="clear of disk (>3.0°)" color={T.nominal} />
+          <div style={{ fontSize: 9, color: T.textMuted, marginTop: 8, lineHeight: 1.4 }}>
+            Sun-Earth-Probe (SEP) angle &gt; 3.0° ensures zero solar coronal plasma radio scintillation.
+            Link margin guarantees continuous telemetry decode.
+          </div>
         </div>
 
         {/* Propagation */}
         <div style={{ ...cardStyle, gridColumn: 'span 2' }}>
-          <div style={labelStyle}>Propagation Delay</div>
+          <div style={labelStyle}>Speed-of-Light Propagation Calculator (τ = d / c)</div>
 
           {/* Distance presets — Clean Buttons without External Container Dock */}
-          <div style={{ display: 'flex', gap: 6, marginTop: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-            {(Object.keys(DISTANCES) as DistancePreset[]).map(k => (
-              <UniversalTab
-                key={k}
-                active={distPreset === k}
-                accent="cyan"
-                size="xs"
-                pill
-                onClick={() => setDistPreset(k)}
-              >
-                {DISTANCES[k].label}
-              </UniversalTab>
-            ))}
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, marginBottom: 12 }}>
+            {(Object.keys(DISTANCES) as DistancePreset[]).map(k => {
+              const isSel = distPreset === k;
+              return (
+                <button
+                  key={k}
+                  onClick={() => setDistPreset(k)}
+                  style={{
+                    background: isSel ? 'rgba(56, 189, 248, 0.30)' : '#0b0e11',
+                    border: isSel ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid #202b38',
+                    borderRadius: 4,
+                    padding: '5px 12px',
+                    fontSize: 10,
+                    fontWeight: isSel ? 700 : 500,
+                    color: isSel ? '#ffffff' : '#9ec7ef',
+                    cursor: 'pointer',
+                    letterSpacing: '0.03em',
+                    textShadow: isSel ? '0 1px 2px rgba(0, 0, 0, 0.75)' : 'none',
+                    boxShadow: isSel ? 'inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4)' : 'none',
+                    transition: 'all 0.12s ease',
+                  }}
+                >
+                  {DISTANCES[k].label}
+                </button>
+              );
+            })}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
@@ -5350,6 +5681,11 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               </div>
             </div>
           </div>
+
+          <div style={{ fontSize: 9, color: T.textMuted, marginTop: 10, lineHeight: 1.5 }}>
+            Speed-of-light propagation delay is strictly calculated using vacuum velocity c = 299,792 km/s.
+            This is electromagnetic physics propagation time, NOT software network latency.
+          </div>
         </div>
       </div>
     </div>
@@ -5361,55 +5697,11 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   const renderInvestigate = () => {
     if (!activeEvent || activeEvent.priority === 'NOMINAL') {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ ...cardStyle, textAlign: 'center', padding: '24px 16px' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.nominal, marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Dot color={T.nominal} size={8} /> No Active Anomalies Under Investigation
-            </div>
-            <div style={{ fontSize: 10.5, color: T.textMuted }}>All 4 crew members and spacecraft subsystems are operating strictly within baseline parameters.</div>
+        <div style={{ ...cardStyle, textAlign: 'center', padding: 40 }}>
+          <div style={{ fontSize: 13, color: T.nominal, marginBottom: 6 }}>
+            <Dot color={T.nominal} size={8} /> No active anomalies to investigate
           </div>
-
-          {/* Event Log — Shift Surveillance */}
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <div style={labelStyle}>Event Log</div>
-              <span style={{ fontSize: 9, fontFamily: T.mono, color: T.textMuted }}>Shift Surveillance Stream</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '80px 80px 1fr 120px', gap: 6, marginTop: 6, paddingBottom: 4, borderBottom: `1px solid ${T.borderSubtle}` }}>
-              <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700 }}>TIME</span>
-              <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700 }}>PRIORITY</span>
-              <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700 }}>EVENT</span>
-              <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700 }}>ENTITY</span>
-            </div>
-            {events.map(e => (
-              <button
-                key={e.id}
-                onClick={() => { setSelEventId(e.id); }}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '80px 80px 1fr 120px',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 0',
-                  borderBottom: `1px solid ${T.borderSubtle}`,
-                  background: selEventId === e.id ? '#171c22' : 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  width: '100%',
-                  textAlign: 'left',
-                  boxSizing: 'border-box',
-                  transition: 'all 0.12s ease',
-                }}
-              >
-                <span style={{ fontSize: 10, fontFamily: T.mono, color: T.textMuted }}>{e.time}</span>
-                <Badge color={severityColor(e.priority)} borderColor={severityBorder(e.priority)} bg="#090c0f">
-                  {e.priority}
-                </Badge>
-                <span style={{ fontSize: 10, color: T.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.summary}</span>
-                <span style={{ fontSize: 10, color: T.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.entity}</span>
-              </button>
-            ))}
-          </div>
+          <div style={{ fontSize: 11, color: T.textMuted }}>All crew and systems are operating within prescribed baselines.</div>
         </div>
       );
     }
@@ -5422,6 +5714,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         <div style={{
           ...cardStyle,
           borderColor: severityBorder(evt.priority),
+          borderLeftWidth: 4,
+          borderLeftColor: severityColor(evt.priority),
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -5438,14 +5732,21 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               <span style={{ fontSize: 10, fontWeight: 600, color: severityColor(evt.priority) }}>
                 {trendArrow(evt.trend)} {evt.trend}
               </span>
-              <UniversalButton
-                variant={evt.acknowledged ? 'emerald' : 'cyan'}
-                size="xs"
-                pill
+              <button
                 onClick={() => ack(evt.id)}
+                style={{
+                  background: evt.acknowledged ? '#090d09' : '#0b0e11',
+                  border: `1px solid ${evt.acknowledged ? T.nominalBorder : T.border}`,
+                  borderRadius: 4,
+                  padding: '4px 10px',
+                  fontSize: 9,
+                  color: evt.acknowledged ? T.nominal : T.textSecondary,
+                  cursor: 'pointer',
+                  transition: 'all 0.12s ease',
+                }}
               >
-                {evt.acknowledged ? 'Acknowledged' : 'Acknowledge'}
-              </UniversalButton>
+                {evt.acknowledged ? 'ACKNOWLEDGED' : 'ACKNOWLEDGE'}
+              </button>
             </div>
           </div>
           <div style={{ fontSize: 12, color: T.textPrimary, marginTop: 6, fontWeight: 500 }}>{evt.summary}</div>
@@ -5460,8 +5761,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         {evt.timelineSequence && (
           <div style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={labelStyle}>Signal Cascade Timeline</div>
-              <span style={{ fontSize: 9, color: T.textMuted }}>Temporal Sequence</span>
+              <div style={labelStyle}>Pre-Anomaly Timeline & Signal Cascade Sequence</div>
+              <span style={{ fontSize: 9, color: T.textMuted }}>Temporal Correlation & Sequence (Not Implied Causality)</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${evt.timelineSequence.length}, 1fr)`, gap: 8 }}>
               {evt.timelineSequence.map((step, idx) => (
@@ -5483,7 +5784,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           {/* Observed */}
           <div style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={labelStyle}>Observed Telemetry</div>
+              <div style={labelStyle}>1. Observed (Directly Measured Telemetry)</div>
               <Badge color={T.nominal} borderColor={T.nominalBorder}>MEASURED</Badge>
             </div>
             {evt.observed.map((o, i) => (
@@ -5494,7 +5795,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           {/* Derived */}
           <div style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={labelStyle}>Derived Analytics</div>
+              <div style={labelStyle}>2. Derived (Calculated from Data)</div>
               <Badge color={T.info} borderColor="#2a3a4a">CALCULATED</Badge>
             </div>
             {evt.derived.map((d, i) => (
@@ -5505,8 +5806,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           {/* Correlated */}
           <div style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={labelStyle}>Correlated Signals</div>
-              <span style={{ fontSize: 9, color: T.textMuted }}>Temporal Link</span>
+              <div style={labelStyle}>3. Correlated Signals (Co-Occurring Trends)</div>
+              <span style={{ fontSize: 9, color: T.textMuted }}>Temporal link</span>
             </div>
             {evt.correlated.map((c, i) => (
               <div key={i} style={{ fontSize: 11, color: T.textSecondary, padding: '4px 0', borderBottom: `1px solid ${T.borderSubtle}` }}>{c}</div>
@@ -5516,8 +5817,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           {/* Possible Factors */}
           <div style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={labelStyle}>Possible Factors</div>
-              <span style={{ fontSize: 9, color: T.warning }}>Requires Verification</span>
+              <div style={labelStyle}>4. Possible Factors (Hypotheses, Not Proven)</div>
+              <span style={{ fontSize: 9, color: T.warning }}>Requires verification</span>
             </div>
             {evt.possibleFactors.map((f, i) => (
               <div key={i} style={{ fontSize: 11, color: T.textSecondary, padding: '4px 0', borderBottom: `1px solid ${T.borderSubtle}` }}>{f}</div>
@@ -5528,7 +5829,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
         {/* Decision Support & Provenance */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14 }}>
           <div style={cardStyle}>
-            <div style={labelStyle}>Actions to Evaluate</div>
+            <div style={labelStyle}>Actions to evaluate (Human-In-The-Loop)</div>
             {evt.actionsToEvaluate.map((a, i) => (
               <div key={i} style={{ display: 'flex', gap: 6, padding: '5px 0', borderBottom: `1px solid ${T.borderSubtle}` }}>
                 <span style={{ fontSize: 10, fontFamily: T.mono, color: T.textMuted, minWidth: 16 }}>{i + 1}.</span>
@@ -5537,17 +5838,26 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             ))}
 
             {evt.procedure && (
-              <div style={{ marginTop: 10 }}>
-                <UniversalButton
-                  variant="cyan"
-                  size="xs"
-                  pill
-                  fullWidth
-                  onClick={() => setActiveProcedureId(evt.procedure!)}
-                >
-                  Review Flight Procedure: {evt.procedure} →
-                </UniversalButton>
-              </div>
+              <button
+                onClick={() => setActiveProcedureId(evt.procedure!)}
+                style={{
+                  marginTop: 10,
+                  background: '#151b22',
+                  border: `1px solid ${T.activeBorder}`,
+                  borderRadius: 4,
+                  padding: '7px 12px',
+                  color: '#cad5e2',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.12s ease',
+                }}
+              >
+                REVIEW FLIGHT PROCEDURE: {evt.procedure} →
+              </button>
             )}
 
             <div style={{ fontSize: 9, color: T.textMuted, marginTop: 8, fontStyle: 'italic', lineHeight: 1.4 }}>
@@ -5574,7 +5884,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
 
         {/* Event History / Shift Summary */}
         <div style={cardStyle}>
-          <div style={labelStyle}>Event Log</div>
+          <div style={labelStyle}>Event Log — Shift Summary</div>
           <div style={{ display: 'grid', gridTemplateColumns: '80px 80px 1fr 120px', gap: 6, marginTop: 6, paddingBottom: 4, borderBottom: `1px solid ${T.borderSubtle}` }}>
             <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700 }}>TIME</span>
             <span style={{ fontSize: 9, color: T.textMuted, fontWeight: 700 }}>PRIORITY</span>
@@ -5630,150 +5940,225 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
       fontSize: 12,
     }}>
 
-      {/* ─── MINIMAL UNIFIED EARTH MCC HEADER & NAVIGATION ─── */}
-      <div style={{ maxWidth: '1250px', margin: '0 auto', padding: '10px 20px 0 20px', boxSizing: 'border-box' }}>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-          background: 'linear-gradient(180deg, rgba(18, 26, 21, 0.95) 0%, rgba(12, 18, 15, 0.98) 100%)',
-          border: '1px solid rgba(122, 148, 99, 0.20)',
-          borderRadius: 8,
-          padding: '14px 20px',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-        }}>
-          {/* Top Row: Title, DSN Badge, Orbital Selector, Simulation Speed & Handover */}
-          <div style={{
+      {/* ─── TOP ORBITAL TELEMETRY CONTROLLER (INLINE CLEAN LAYOUT, NO NESTED BOXES, NO DUPLICATE CLOCKS) ─── */}
+      <div style={{
+        maxWidth: '1250px',
+        margin: '0 auto',
+        padding: '0 20px',
+        boxSizing: 'border-box',
+      }}>
+        <div
+          style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 12,
-            flexWrap: 'wrap',
-          }}>
-            {/* Left: Clean Title & Compact DSN Status */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', backgroundColor: connected ? '#34d399' : '#ef4444', boxShadow: `0 0 8px ${connected ? 'rgba(52, 211, 153, 0.7)' : 'rgba(239, 68, 68, 0.7)'}` }} />
-              <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.02em', color: '#ffffff' }}>
-                Earth Mission Control · Houston MCC
-              </span>
-              <span style={{
-                fontSize: 9.5,
+            gap: 16,
+            padding: '6px 12px',
+            marginTop: 8,
+            marginBottom: 6,
+            background: 'rgba(9, 13, 18, 0.72)',
+            backdropFilter: 'blur(14px)',
+            WebkitBackdropFilter: 'blur(14px)',
+            border: '1px solid #1e293b',
+            borderRadius: 4,
+            flexWrap: 'nowrap',
+          }}
+        >
+          {/* Left: Position Dropdown & Delay (Clean inline, NO nested boxes!) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <span style={{ fontSize: 8.5, fontWeight: 700, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: T.mono }}>
+              POSITION:
+            </span>
+
+            {/* Shorter names & delays only */}
+            <select
+              value={orbitalPosition}
+              onChange={e => handleOrbitalPositionSelect(e.target.value as DistancePreset)}
+              style={{
+                background: '#06090d',
+                border: '1px solid #283548',
+                color: '#f1f5f9',
+                borderRadius: 3,
+                padding: '3px 8px',
+                fontSize: 10.5,
                 fontWeight: 600,
-                fontFamily: T.mono,
-                color: connected ? '#38bdf8' : '#f59e0b',
-                background: connected ? 'rgba(56, 189, 248, 0.10)' : 'rgba(245, 158, 11, 0.10)',
-                border: `1px solid ${connected ? 'rgba(56, 189, 248, 0.25)' : 'rgba(245, 158, 11, 0.25)'}`,
-                borderRadius: 20,
-                padding: '2.5px 8px',
-                letterSpacing: '0.03em',
-              }}>
-                DSN · {connected ? 'Locked' : 'Searching'}
+                fontFamily: T.sans,
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="LEO">LEO · &lt;1 ms</option>
+              <option value="GATEWAY">Lunar Gateway · 1.3s</option>
+              <option value="MARS_MIN">Mars Opposition · 3.0m</option>
+              <option value="MARS_MAX">Mars Conjunction · 22.3m</option>
+            </select>
+
+            <span style={{ fontSize: 9, color: '#263342' }}>|</span>
+
+            {/* Plain text delay without nested boxes */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+              <span style={{ fontSize: 8.5, fontWeight: 700, fontFamily: T.mono, color: '#64748b' }}>
+                DELAY:
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, fontFamily: T.mono, color: orbitalPosition === 'LEO' ? '#4ade80' : orbitalPosition === 'GATEWAY' ? '#cbd5e1' : '#f59e0b' }}>
+                {fmtTime(DISTANCES[orbitalPosition].km / C)}
               </span>
             </div>
 
-            {/* Right Controls: Position, Delay, Sim Speed, Handover */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              {/* Position selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 9, fontWeight: 600, color: '#64748b', letterSpacing: '0.04em', fontFamily: T.mono }}>
-                  Orbit:
-                </span>
-                <select
-                  value={orbitalPosition}
-                  onChange={e => handleOrbitalPositionSelect(e.target.value as DistancePreset)}
-                  style={{
-                    background: 'rgba(15, 23, 32, 0.85)',
-                    border: '1px solid rgba(56, 189, 248, 0.25)',
-                    color: '#f1f5f9',
-                    borderRadius: 6,
-                    padding: '3px 8px',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    fontFamily: T.sans,
-                    cursor: 'pointer',
-                    outline: 'none',
-                  }}
-                >
-                  <option value="LEO">LEO · &lt;1 ms</option>
-                  <option value="GATEWAY">Lunar Gateway · 1.3s</option>
-                  <option value="MARS_MIN">Mars Opposition · 3.0m</option>
-                  <option value="MARS_MAX">Mars Conjunction · 22.3m</option>
-                </select>
-              </div>
+            <span style={{ fontSize: 9, color: '#263342' }}>|</span>
 
-              {/* Delay metric */}
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, fontFamily: T.mono }}>
-                <span style={{ fontSize: 9, fontWeight: 600, color: '#64748b' }}>Delay:</span>
-                <span style={{ fontSize: 10, fontWeight: 700, color: orbitalPosition === 'LEO' ? '#34d399' : '#f59e0b' }}>
-                  {fmtTime(DISTANCES[orbitalPosition].km / C)}
+            {/* Earth Station UTC vs Spacecraft Vehicle Time */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: T.mono }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }} title="Earth Ground Station (MCC Houston) UTC">
+                <span style={{ fontSize: 8.5, fontWeight: 700, color: '#38bdf8' }}>EARTH:</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#f8fafc' }}>
+                  {earthTime.toISOString().substring(11, 19)} UTC
                 </span>
               </div>
-
-              <span style={{ fontSize: 9, color: 'rgba(255, 255, 255, 0.15)' }}>|</span>
-
-              {/* Sim Speed */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontSize: 9, fontWeight: 600, color: '#64748b', fontFamily: T.mono }}>Speed:</span>
-                <div style={{ display: 'flex', gap: 2, background: 'rgba(15, 23, 32, 0.85)', padding: 2, borderRadius: 20, border: '1px solid rgba(255, 255, 255, 0.10)' }}>
-                  {[1, 2, 5, 10].map(spd => {
-                    const isActive = speedMultiplier === spd;
-                    return (
-                      <button
-                        key={spd}
-                        onClick={() => handleSpeedChange(spd)}
-                        style={{
-                          background: isActive ? '#0284c7' : 'transparent',
-                          border: 'none',
-                          color: isActive ? '#ffffff' : '#64748b',
-                          borderRadius: 14,
-                          padding: '1px 7px',
-                          fontSize: 9,
-                          fontWeight: isActive ? 700 : 500,
-                          cursor: 'pointer',
-                          fontFamily: T.mono,
-                          transition: 'all 0.12s ease',
-                        }}
-                      >
-                        {spd}x
-                      </button>
-                    );
-                  })}
-                </div>
+              <span style={{ fontSize: 9, color: '#263342' }}>·</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }} title={`Spacecraft Habitat Vehicle Time (${DISTANCES[orbitalPosition]?.label}) — Delay: ${fmtTime(DISTANCES[orbitalPosition]?.delaySec ?? 0)}`}>
+                <span style={{ fontSize: 8.5, fontWeight: 700, color: '#4ade80' }}>SPACECRAFT:</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#4ade80' }}>
+                  {new Date(earthTime.getTime() - (DISTANCES[orbitalPosition]?.delaySec ?? 0) * 1000).toISOString().substring(11, 19)} UTC
+                </span>
               </div>
-
-              <span style={{ fontSize: 9, color: 'rgba(255, 255, 255, 0.15)' }}>|</span>
-
-              {/* Shift Handover button */}
-              <UniversalButton
-                variant="cyan"
-                size="xs"
-                pill
-                onClick={() => setShowHandover(true)}
-              >
-                Shift Handover
-              </UniversalButton>
             </div>
           </div>
 
-          {/* Bottom Row: Minimal Navigation Tabs */}
-          <nav style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            paddingTop: 10,
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-          }}>
+          {/* Right: Sim Speed & Sync Reset (No nested boxes, no duplicate clocks!) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 8.5, fontWeight: 700, color: '#64748b', letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: T.mono }}>
+                SIM SPEED:
+              </span>
+              <div style={{ display: 'flex', gap: 2, background: '#06090d', padding: '1px', borderRadius: 3, border: '1px solid #1e293b' }}>
+                {[1, 2, 5, 10].map(spd => {
+                  const isActive = speedMultiplier === spd;
+                  return (
+                    <button
+                      key={spd}
+                      onClick={() => handleSpeedChange(spd)}
+                      title={`Set simulation playback to ${spd}x`}
+                      style={{
+                        background: isActive ? '#1e293b' : 'transparent',
+                        border: isActive ? '1px solid #334155' : '1px solid transparent',
+                        color: isActive ? '#f8fafc' : '#64748b',
+                        borderRadius: 2,
+                        padding: '2px 8px',
+                        fontSize: 9,
+                        fontWeight: isActive ? 700 : 500,
+                        cursor: 'pointer',
+                        fontFamily: T.mono,
+                        transition: 'all 0.12s ease',
+                      }}
+                    >
+                      {spd}x
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <span style={{ fontSize: 9, color: '#263342' }}>|</span>
+
+            {/* Sync State & Reset to 1x Button */}
+            <button
+              onClick={() => handleSpeedChange(1)}
+              title={speedMultiplier > 1 ? `Click to sync simulation clock (${formatSimMet(simMetSeconds)}) with spacecraft (resets to 1x)` : `Telemetry synchronized with spacecraft (${formatSimMet(simMetSeconds)})`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                background: speedMultiplier > 1 ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
+                border: speedMultiplier > 1 ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
+                borderRadius: 3,
+                padding: '2px 7px',
+                cursor: speedMultiplier > 1 ? 'pointer' : 'default',
+                color: speedMultiplier > 1 ? '#38bdf8' : '#64748b',
+                fontSize: 9,
+                fontFamily: T.mono,
+                fontWeight: 600,
+                transition: 'all 0.12s ease',
+              }}
+            >
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: speedMultiplier > 1 ? '#38bdf8' : '#22c55e', display: 'inline-block' }} />
+              {speedMultiplier > 1 ? 'SYNC & RESET (1x)' : 'SYNCED (1x REALTIME)'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── NAVIGATION TABS RIBBON (matches navbar width 1250px) ─── */}
+      <div style={{
+        maxWidth: '1250px',
+        margin: '0 auto',
+        padding: '0 20px',
+        boxSizing: 'border-box',
+      }}>
+        <nav style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          padding: '10px 0',
+          borderBottom: `1px solid ${T.borderSubtle}`,
+        }}>
+          {/* Main Tab Switchings — Clean Buttons without External Container Dock */}
+          <div style={{ display: 'flex', gap: 6 }}>
             {tabBtn('OVERVIEW', 'Overview')}
             {tabBtn('CREW', 'Crew')}
             {tabBtn('SYSTEMS', 'Systems')}
             {tabBtn('COMMS', 'Comms')}
             {tabBtn('INVESTIGATE', 'Investigate')}
-          </nav>
-        </div>
+          </div>
+
+          {/* Quick Mission State Pill & Handover Action */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => setShowHandover(true)}
+              style={{
+                background: '#0c0f12',
+                border: `1px solid ${T.border}`,
+                borderRadius: 4,
+                padding: '5px 12px',
+                color: T.textSecondary,
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                cursor: 'pointer',
+                fontFamily: T.sans,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.12s ease',
+              }}
+            >
+              SHIFT HANDOVER
+            </button>
+
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 10px',
+              borderRadius: 4,
+              background: '#0b0e11',
+              border: `1px solid ${severityBorder(missionState)}`,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              color: severityColor(missionState),
+              fontFamily: T.sans,
+            }}>
+              <Dot color={severityColor(missionState)} size={5} />
+              STATUS: {missionState}
+            </span>
+          </div>
+        </nav>
       </div>
 
       {/* ─── CONTENT (matches 1250px width of other views) ─── */}
-      <main style={{ padding: '20px 20px 96px 20px', maxWidth: '1250px', margin: '0 auto', boxSizing: 'border-box' }}>
+      <main style={{ padding: '16px 20px 80px 20px', maxWidth: '1250px', margin: '0 auto', boxSizing: 'border-box' }}>
         {tab === 'OVERVIEW' && <TabErrorBoundary tabName="Overview">{renderOverview()}</TabErrorBoundary>}
         {tab === 'CREW' && <TabErrorBoundary tabName="Crew">{renderCrew()}</TabErrorBoundary>}
         {tab === 'SYSTEMS' && <TabErrorBoundary tabName="Systems">{renderSystems()}</TabErrorBoundary>}
@@ -5809,8 +6194,8 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: 12, marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.02em', color: T.textPrimary }}>
-                  Shift Handover Operational Briefing
+                <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', color: T.textPrimary }}>
+                  MCC OPERATIONAL SHIFT HANDOVER BRIEFING
                 </div>
                 <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>
                   MET T+14d 08:42:19 · Flight Console: Sentry Matrix · DSN: {activeDSN.name}
@@ -5819,19 +6204,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
               <button
                 onClick={() => setShowHandover(false)}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '50%',
-                  width: 26,
-                  height: 26,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  background: 'transparent',
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 4,
                   color: T.textMuted,
-                  fontSize: 14,
+                  fontSize: 12,
+                  padding: '4px 8px',
                   cursor: 'pointer',
-                  padding: 0,
-                  transition: 'all 0.12s ease',
                 }}
               >
                 ×
@@ -5895,32 +6274,38 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, paddingTop: 14, borderTop: `1px solid ${T.border}` }}>
-              <UniversalButton
-                variant={copiedHandover ? 'emerald' : 'cyan'}
-                size="sm"
-                pill
+              <button
                 onClick={() => {
                   const summaryText = `MCC SHIFT HANDOVER BRIEFING\nMET: T+14d 08:42:19\nActive Station: ${activeDSN.name}\nMission State: ${missionState}\nEvents:\n${events.filter(e => e.priority !== 'NOMINAL').map(e => `- [${e.priority}] ${e.entity}: ${e.summary} (Age: ${e.age})`).join('\n') || 'All systems nominal'}\nECLSS CO2: ${(Object.values(telemetryMap)[0]?.cabin_co2 || 1.8).toFixed(2)} mmHg`;
                   navigator.clipboard.writeText(summaryText);
                   setCopiedHandover(true);
                   setTimeout(() => setCopiedHandover(false), 2000);
                 }}
-              >
-                {copiedHandover ? 'Copied to Clipboard' : 'Copy Handover Briefing'}
-              </UniversalButton>
-
-              <button
-                onClick={() => setShowHandover(false)}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: 20,
-                  padding: '6px 16px',
-                  color: '#94a3b8',
+                  background: copiedHandover ? '#122416' : '#151b22',
+                  border: `1px solid ${copiedHandover ? T.nominal : T.border}`,
+                  borderRadius: 4,
+                  padding: '7px 14px',
+                  color: copiedHandover ? T.nominal : T.textPrimary,
                   fontSize: 11,
                   fontWeight: 600,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
+                }}
+              >
+                {copiedHandover ? 'COPIED TO CLIPBOARD' : 'COPY HANDOVER BRIEFING'}
+              </button>
+
+              <button
+                onClick={() => setShowHandover(false)}
+                style={{
+                  background: '#1a2028',
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 4,
+                  padding: '7px 16px',
+                  color: T.textPrimary,
+                  fontSize: 11,
+                  cursor: 'pointer',
                 }}
               >
                 Close
@@ -5977,19 +6362,13 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                     <button
                       onClick={() => setActiveProcedureId(null)}
                       style={{
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        borderRadius: '50%',
-                        width: 26,
-                        height: 26,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                        background: 'transparent',
+                        border: `1px solid ${T.border}`,
+                        borderRadius: 4,
                         color: T.textMuted,
-                        fontSize: 14,
+                        fontSize: 12,
+                        padding: '4px 8px',
                         cursor: 'pointer',
-                        padding: 0,
-                        transition: 'all 0.12s ease',
                       }}
                     >
                       ×
@@ -6048,14 +6427,20 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18, paddingTop: 14, borderTop: `1px solid ${T.border}` }}>
-                    <UniversalButton
-                      variant="cyan"
-                      size="sm"
-                      pill
+                    <button
                       onClick={() => setActiveProcedureId(null)}
+                      style={{
+                        background: '#1a2028',
+                        border: `1px solid ${T.border}`,
+                        borderRadius: 4,
+                        padding: '7px 18px',
+                        color: T.textPrimary,
+                        fontSize: 11,
+                        cursor: 'pointer',
+                      }}
                     >
                       Close Procedure
-                    </UniversalButton>
+                    </button>
                   </div>
                 </div>
               );

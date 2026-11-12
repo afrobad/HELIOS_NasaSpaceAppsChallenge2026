@@ -1,31 +1,25 @@
-import { useEffect, useState, useRef, useCallback, Suspense, lazy } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { HeaderBar } from './components/HeaderBar';
 import { ScenarioController } from './components/ScenarioController';
+import { HealthTelemetryView } from './components/HealthTelemetryView';
+import { MissionControlView } from './components/MissionControlView';
 import { HolographicBodyScanner } from './components/HolographicBodyScanner';
 import { SpaceBackground } from './components/SpaceBackground';
 import { MainIndexDeck } from './components/MainIndexDeck';
+import { SuitHudView } from './components/suit-hud/SuitHudView';
+import { Cabin3DView } from './components/cabin3d/Cabin3DView';
+import { DragonDockingIntro } from './components/docking/DragonDockingIntro';
+import { AstronautSelfAssessment } from './components/AstronautSelfAssessment';
+import { MissionRoutineAdherence } from './components/MissionRoutineAdherence';
 import { ProjectTourOverlay } from './components/ProjectTourOverlay';
 import { wsService } from './services/websocketService';
 import { audioService } from './services/audioService';
-import { UniversalButton } from './components/common/UniversalButton';
-
-// Route-level code splitting for lightning-fast initial HUD load (<400ms)
-const HealthTelemetryView = lazy(() => import('./components/HealthTelemetryView').then(m => ({ default: m.HealthTelemetryView })));
-const MissionControlView = lazy(() => import('./components/MissionControlView').then(m => ({ default: m.MissionControlView })));
-const SuitHudView = lazy(() => import('./components/suit-hud/SuitHudView').then(m => ({ default: m.SuitHudView })));
-const Cabin3DView = lazy(() => import('./components/cabin3d/Cabin3DView').then(m => ({ default: m.Cabin3DView })));
-const DragonDockingIntro = lazy(() => import('./components/docking/DragonDockingIntro').then(m => ({ default: m.DragonDockingIntro })));
-const AstronautSelfAssessment = lazy(() => import('./components/AstronautSelfAssessment').then(m => ({ default: m.AstronautSelfAssessment })));
-const MissionRoutineAdherence = lazy(() => import('./components/MissionRoutineAdherence').then(m => ({ default: m.MissionRoutineAdherence })));
-const ClinicalAnalystView = lazy(() => import('./components/ClinicalAnalystView').then(m => ({ default: m.ClinicalAnalystView })));
-const FlightAlertsView = lazy(() => import('./components/FlightAlertsView').then(m => ({ default: m.FlightAlertsView })));
-const NasaDatasetsView = lazy(() => import('./components/NasaDatasetsView').then(m => ({ default: m.NasaDatasetsView })));
 import {
   parseCurrentRoute,
   navigateTo,
   getSlugFromAstronautId,
 } from './services/routerService';
-import type { TelemetryPacket, AlertPayload, DistancePreset, NavigationViewType } from './types/telemetry';
+import type { TelemetryPacket, AlertPayload, DistancePreset } from './types/telemetry';
 import { DISTANCES, fmtTime } from './types/telemetry';
 import {
   DEFAULT_NOMINAL_TELEMETRY,
@@ -82,7 +76,7 @@ function broadcastCabinSync(telemetryMap: any, latestAlert: any, currentScenario
 export function App() {
   // Parse initial route: '/' -> HUD; '/telemetry/:name' -> Health Telemetry; '/mcc' -> Earth MCC; '/mcc/telemetry/:name' -> Earth MCC Telemetry; '/scanner' -> 3D Hologram
   const initialRoute = parseCurrentRoute();
-  const [activeView, setActiveView] = useState<NavigationViewType>(initialRoute.view);
+  const [activeView, setActiveView] = useState<'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD' | 'CABIN_3D' | 'DRAGON_DOCKING' | 'SELF_ASSESSMENT' | 'MISSION_ROUTINE'>(initialRoute.view);
   const [activeTriageAstronautId, setActiveTriageAstronautId] = useState<string | null>(
     initialRoute.view === 'HEALTH_TELEMETRY' ? initialRoute.astronautId : null
   );
@@ -883,7 +877,7 @@ export function App() {
   }, []);
 
   const handleSelectView = useCallback(
-    (view: NavigationViewType) => {
+    (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD' | 'CABIN_3D' | 'DRAGON_DOCKING' | 'SELF_ASSESSMENT' | 'MISSION_ROUTINE') => {
       if (view === 'DRAGON_DOCKING') {
         setActiveView('DRAGON_DOCKING');
         setActiveTriageAstronautId(null);
@@ -895,21 +889,6 @@ export function App() {
         setActiveMccAstronautId(null);
         sessionStorage.setItem('helios_docking_intro_seen', 'true');
         navigateTo('/');
-      } else if (view === 'ANALYST') {
-        setActiveView('ANALYST');
-        setActiveTriageAstronautId(null);
-        setActiveMccAstronautId(null);
-        navigateTo('/analyst');
-      } else if (view === 'ALERTS') {
-        setActiveView('ALERTS');
-        setActiveTriageAstronautId(null);
-        setActiveMccAstronautId(null);
-        navigateTo('/alerts');
-      } else if (view === 'NASA_DATA') {
-        setActiveView('NASA_DATA');
-        setActiveTriageAstronautId(null);
-        setActiveMccAstronautId(null);
-        navigateTo('/nasa');
       } else if (view === 'SELF_ASSESSMENT') {
         setActiveView('SELF_ASSESSMENT');
         setActiveTriageAstronautId(null);
@@ -1030,47 +1009,31 @@ export function App() {
           </div>
         </div>
 
-        <UniversalButton
-          variant="cyan"
-          size="xs"
-          pill
+        <button
           onClick={handleWarpSignal}
           title="Accelerate light-speed propagation and instantly deliver the telemetry packet to Earth MCC"
+          style={{
+            background: 'rgba(56, 189, 248, 0.16)',
+            border: '1px solid #38bdf8',
+            borderRadius: 4,
+            padding: '3px 10px',
+            color: '#ffffff',
+            fontSize: 9.5,
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            whiteSpace: 'nowrap',
+            transition: 'all 0.15s ease',
+          }}
         >
-          Warp Signal to Earth (Instant)
-        </UniversalButton>
+          <span>WARP SIGNAL TO EARTH (INSTANT RECEPTION)</span>
+        </button>
       </div>
     );
   };
-
-  const ViewLoadingFallback = () => (
-    <div
-      style={{
-        minHeight: '70vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#a1b48e',
-        fontFamily: 'monospace',
-        fontSize: 12,
-        letterSpacing: '0.08em',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div
-          style={{
-            width: 14,
-            height: 14,
-            border: '2px solid rgba(161, 180, 142, 0.25)',
-            borderTopColor: '#a1b48e',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite',
-          }}
-        />
-        <span>INITIALIZING AEROSPACE SUBSYSTEM...</span>
-      </div>
-    </div>
-  );
 
   return (
     <>
@@ -1137,7 +1100,6 @@ export function App() {
       )}
 
       {/* ─── 2. ONBOARD SPACECRAFT HEALTH TELEMETRY & CLINICAL ANALYSIS (INSTANT) ─── */}
-      <Suspense fallback={<ViewLoadingFallback />}>
       {activeView === 'HEALTH_TELEMETRY' && (
         <>
           {/* Universal Floating Header Capsule */}
@@ -1289,77 +1251,7 @@ export function App() {
         </div>
       )}
 
-      {/* ─── 2B. HELIX-AI CLINICAL ANALYST VIEW (AUTONOMOUS FLIGHT SURGEON) ─── */}
-      {activeView === 'ANALYST' && (
-        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backgroundColor: 'transparent' }}>
-          {!isEmbedMode && (
-            <div style={{ position: 'sticky', top: 0, zIndex: 9000, width: '100%' }}>
-              <HeaderBar
-                connected={connected}
-                activeView={activeView}
-                onSelectView={handleSelectView}
-                latestAlert={latestAlert}
-                currentScenario={currentScenario}
-                telemetryMap={telemetryMap}
-                onStartTour={() => setIsTourActive(true)}
-                isTourActive={isTourActive}
-                onSolveSituation={handleSolveSituation}
-              />
-            </div>
-          )}
-          <ClinicalAnalystView
-            telemetryMap={telemetryMap}
-            currentScenario={currentScenario}
-            onNavigateToAlerts={() => handleSelectView('ALERTS')}
-          />
-        </div>
-      )}
 
-      {/* ─── 2C. FLIGHT ALERTS CONSOLE (MULTI-CREW ANOMALY QUEUE) ─── */}
-      {activeView === 'ALERTS' && (
-        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backgroundColor: 'transparent' }}>
-          {!isEmbedMode && (
-            <div style={{ position: 'sticky', top: 0, zIndex: 9000, width: '100%' }}>
-              <HeaderBar
-                connected={connected}
-                activeView={activeView}
-                onSelectView={handleSelectView}
-                latestAlert={latestAlert}
-                currentScenario={currentScenario}
-                telemetryMap={telemetryMap}
-                onStartTour={() => setIsTourActive(true)}
-                isTourActive={isTourActive}
-                onSolveSituation={handleSolveSituation}
-              />
-            </div>
-          )}
-          <FlightAlertsView
-            initialAstronautId={activeTriageAstronautId || 'ALL'}
-          />
-        </div>
-      )}
-
-      {/* ─── 2D. NASA OPEN SCIENCE & INSPIRATION4 DATASETS ─── */}
-      {activeView === 'NASA_DATA' && (
-        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', backgroundColor: 'transparent' }}>
-          {!isEmbedMode && (
-            <div style={{ position: 'sticky', top: 0, zIndex: 9000, width: '100%' }}>
-              <HeaderBar
-                connected={connected}
-                activeView={activeView}
-                onSelectView={handleSelectView}
-                latestAlert={latestAlert}
-                currentScenario={currentScenario}
-                telemetryMap={telemetryMap}
-                onStartTour={() => setIsTourActive(true)}
-                isTourActive={isTourActive}
-                onSolveSituation={handleSolveSituation}
-              />
-            </div>
-          )}
-          <NasaDatasetsView />
-        </div>
-      )}
 
       {/* ─── 3. EARTH MISSION CONTROL CENTER (MCC GROUND CONSOLE — DELAYED TELEMETRY) ─── */}
       {activeView === 'MCC' && (
@@ -1483,14 +1375,33 @@ export function App() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <UniversalButton
-                    variant="cyan"
-                    size="xs"
-                    pill
+                  <button
                     onClick={handleCloseMccTelemetry}
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.12)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      borderRadius: 4,
+                      padding: '3px 10px',
+                      color: '#38bdf8',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontFamily: "var(--hud-font-sans, 'Tomorrow', sans-serif)",
+                      letterSpacing: '0.04em',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
+                    }}
                   >
-                    ← Return to Earth MCC
-                  </UniversalButton>
+                    <span>← RETURN TO MCC MAIN CONSOLE</span>
+                  </button>
 
                   <span style={{ color: '#334155' }}>|</span>
 
@@ -1505,10 +1416,10 @@ export function App() {
                         display: 'inline-block',
                       }}
                     />
-                    <span style={{ color: '#f8fafc', fontWeight: 700, letterSpacing: '0.02em' }}>
-                      Earth MCC · Clinical Telemetry Console
+                    <span style={{ color: '#f8fafc', fontWeight: 800, letterSpacing: '0.06em' }}>
+                      EARTH MCC // CLINICAL TELEMETRY CONSOLE
                     </span>
-                    <span style={{ color: '#64748b', fontSize: '10px' }}>(JSC Flight Surgeon Workstation)</span>
+                    <span style={{ color: '#64748b' }}>(JSC FLIGHT SURGEON WORKSTATION)</span>
                   </div>
                 </div>
 
@@ -1552,18 +1463,28 @@ export function App() {
                 zIndex: 100,
               }}
             >
-              <UniversalButton
-                variant="cyan"
-                size="xs"
-                pill
+              <button
                 onClick={handleCloseMccTelemetry}
+                style={{
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                  borderRadius: 4,
+                  padding: '3px 10px',
+                  color: '#38bdf8',
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
               >
-                ← Return to Earth MCC
-              </UniversalButton>
+                ← RETURN TO MCC OVERVIEW
+              </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '10.5px' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8', display: 'inline-block' }} />
-                <span style={{ color: '#f8fafc', fontWeight: 700, letterSpacing: '0.02em' }}>
-                  Earth MCC · Clinical Telemetry ({activeMccAstronautId ? activeMccAstronautId.replace('AST-0', 'CREW-0') : 'CREW-01'})
+                <span style={{ color: '#f8fafc', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  EARTH MCC // CLINICAL TELEMETRY ({activeMccAstronautId ? activeMccAstronautId.replace('AST-0', 'CREW-0') : 'CREW-01'})
                 </span>
               </div>
             </div>
@@ -1751,7 +1672,6 @@ export function App() {
           onEnterDashboard={() => handleSelectView('HUD')}
         />
       )}
-      </Suspense>
 
       {/* Global Scenario Controller (Floating Action Pill + Aerospace Modal) */}
       {activeView !== 'DRAGON_DOCKING' && (

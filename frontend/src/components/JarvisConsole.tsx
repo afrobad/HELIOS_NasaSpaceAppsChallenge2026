@@ -167,15 +167,10 @@ export const JarvisConsole: React.FC<JarvisConsoleProps> = ({
         if (res.ok) {
           const data = await res.json();
           const engine = data.ai_engine || {};
-          const isGeminiAvailable = Boolean(data.gemini?.available);
-          if (engine.status === 'ONLINE' || isGeminiAvailable) {
+          if (engine.status === 'ONLINE') {
             setOllamaStatus('ONLINE');
             setInitiationProgress(100);
-            if (isGeminiAvailable && data.gemini?.model) {
-              setActiveModel(data.gemini.model);
-            } else if (engine.active_model) {
-              setActiveModel(engine.active_model);
-            }
+            if (engine.active_model) setActiveModel(engine.active_model);
             return;
           }
         }
@@ -194,14 +189,9 @@ export const JarvisConsole: React.FC<JarvisConsoleProps> = ({
         if (res.ok) {
           const data = await res.json();
           const engine = data.ai_engine || {};
-          const isGeminiAvailable = Boolean(data.gemini?.available);
-          if (engine.status === 'ONLINE' || isGeminiAvailable) {
+          if (engine.status === 'ONLINE') {
             setOllamaStatus('ONLINE');
-            if (isGeminiAvailable && data.gemini?.model) {
-              setActiveModel(data.gemini.model);
-            } else if (engine.active_model) {
-              setActiveModel(engine.active_model);
-            }
+            if (engine.active_model) setActiveModel(engine.active_model);
           } else if (ollamaStatus !== 'INITIATING') {
             triggerInitiation();
           }

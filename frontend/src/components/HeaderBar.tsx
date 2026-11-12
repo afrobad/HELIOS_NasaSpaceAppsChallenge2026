@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Volume2, VolumeX, X, Compass, Sparkles, CheckCircle2, Wifi, WifiOff } from 'lucide-react';
+import { Volume2, VolumeX, X, Compass, Sparkles, CheckCircle2 } from 'lucide-react';
 import { audioService } from '../services/audioService';
-import { useAlertStore } from '../services/alertStore';
-import type { AlertPayload, DistancePreset, TelemetryPacket, NavigationViewType } from '../types/telemetry';
+import type { AlertPayload, DistancePreset, TelemetryPacket } from '../types/telemetry';
 import { DISTANCES } from '../types/telemetry';
 import { EvidenceProvenanceModal } from './EvidenceProvenanceModal';
-import { HelixNavButton } from './HelixNavButton';
 import './HeaderBar.css';
 
 interface HeaderBarProps {
@@ -15,8 +13,8 @@ interface HeaderBarProps {
   orbitalPosition?: DistancePreset;
   onSelectOrbitalPosition?: (pos: DistancePreset) => void;
   speedMultiplier?: number;
-  activeView?: NavigationViewType;
-  onSelectView?: (view: NavigationViewType) => void;
+  activeView?: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD' | 'CABIN_3D' | 'DRAGON_DOCKING' | 'SELF_ASSESSMENT' | 'MISSION_ROUTINE';
+  onSelectView?: (view: 'HUD' | 'HEALTH_TELEMETRY' | 'MCC' | 'SCANNER' | 'MCC_TELEMETRY' | 'SUIT_HUD' | 'CABIN_3D' | 'DRAGON_DOCKING' | 'SELF_ASSESSMENT' | 'MISSION_ROUTINE') => void;
   latestAlert?: AlertPayload | null;
   selectedAstronautId?: string;
   /** When true, renders ONLY the fixed bottom JARVIS bar — no top navbar */
@@ -85,7 +83,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   isTourActive = false,
   onSolveSituation,
 }) => {
-  const { activeCount: alertCount } = useAlertStore();
   const [audioEngaged, setAudioEngaged] = useState<boolean>(true);
 
   // Active Orbital Position & Light Propagation Delay (applies to Earth MCC views)
@@ -682,175 +679,126 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-      {/* ── MAIN UNIVERSAL COMMAND BAR WITH CLEAN HORIZONTAL DIVIDER ── */}
+      {/* ── MAIN UNIVERSAL FLOATING COMMAND CAPSULE (MATCHING REFERENCE IMAGE 2) ── */}
       <header
         aria-label="HELIOS Biometric Flight Deck Universal Command Bar"
         className="helios-header-capsule"
       >
-        <div className="helios-header-inner">
-          {/* 1. Left: Brand Name + Minimal Status Icon Pill + Divider */}
-          <div className="helios-header-left">
-            <button
-              type="button"
-              onClick={() => onSelectView?.('HUD')}
-              title="HELIOS Flight Deck - Return to Dashboard"
-              className="helios-brand-btn"
-            >
-              <span className="helios-brand-title">HELIOS</span>
-              <span
-                className={`helios-status-icon-pill ${
-                  connected ? 'helios-status-icon-pill--online' : 'helios-status-icon-pill--offline'
-                }`}
-                title={connected ? 'Telemetry Link: Online (Ground Sync 0.0s)' : 'Telemetry Link: Offline (Autonomous Local Mode)'}
-              >
-                {connected ? <Wifi size={12} strokeWidth={2.5} /> : <WifiOff size={12} strokeWidth={2.5} />}
-              </span>
-            </button>
-            <span className="helios-header-divider">|</span>
-          </div>
-
-          {/* 2. Center: Categorized & Grouped Universal Navigation Menu */}
-          {onSelectView && (
-            <div className="helios-header-center">
-              <nav aria-label="Universal Navigation" className="helios-nav-capsule">
-                {[
-                  {
-                    category: 'OPS',
-                    items: [
-                      { id: 'HUD', label: 'Dashboard', title: 'Executive Mission Overview & Multi-Crew HUD' },
-                      { id: 'HEALTH_TELEMETRY', label: 'Telemetry', title: 'Health & Clinical Telemetry Stream' },
-                      { id: 'ALERTS', label: 'Alerts', title: 'Flight Alerts Console', badgeCount: alertCount },
-                    ],
-                  },
-                  {
-                    category: 'AI',
-                    items: [
-                      { id: 'ANALYST', isHelixButton: true, title: 'Helix-Ai Autonomous Clinical Sentry & Gemini RAG' },
-                    ],
-                  },
-                  {
-                    category: 'CREW',
-                    items: [
-                      { id: 'SELF_ASSESSMENT', label: 'Self-Check', title: 'Astronaut Daily Clinical Self-Assessment' },
-                      { id: 'MISSION_ROUTINE', label: 'Routine', title: 'Mission Protocol & Routine Adherence' },
-                    ],
-                  },
-                  {
-                    category: 'EARTH',
-                    items: [
-                      { id: 'MCC', label: 'Earth MCC', title: 'Houston Mission Control Center Telemetry' },
-                      { id: 'NASA_DATA', label: 'NASA Data', title: 'NASA Open Science & Inspiration4 Datasets' },
-                    ],
-                  },
-                  {
-                    category: '3D',
-                    items: [
-                      { id: 'SUIT_HUD', label: 'Suit HUD', title: 'Astronaut EVA Bio-Suit Telemetry HUD' },
-                      { id: 'CABIN_3D', label: 'ISS Deck', title: '3D Spacecraft Station Cabin Environment' },
-                    ],
-                  },
-                ].map((group, groupIdx) => (
-                  <React.Fragment key={group.category}>
-                    {groupIdx > 0 && <span className="helios-nav-group-divider" aria-hidden="true" />}
-                    <div className="helios-nav-group">
-                      {group.items.map((tab) => {
-                        const isActive =
-                          activeView === tab.id || (tab.id === 'MCC' && activeView === 'MCC_TELEMETRY');
-                        if ((tab as any).isHelixButton) {
-                          return (
-                            <HelixNavButton
-                              key={tab.id}
-                              isActive={isActive}
-                              onClick={() => onSelectView('ANALYST')}
-                              title={tab.title}
-                            />
-                          );
-                        }
-                        return (
-                          <button
-                            key={tab.id}
-                            type="button"
-                            title={tab.title || tab.label}
-                            onClick={() => onSelectView(tab.id as any)}
-                            className={`helios-nav-tab ${isActive ? 'helios-nav-tab--active' : ''}`}
-                          >
-                            <span>{tab.label}</span>
-                            {typeof (tab as any).badgeCount === 'number' && (tab as any).badgeCount > 0 && (
-                              <span className="helios-nav-badge">{(tab as any).badgeCount}</span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </React.Fragment>
-                ))}
-                {onStartTour && (
-                  <>
-                    <span className="helios-nav-group-divider" aria-hidden="true" />
-                    <button
-                      type="button"
-                      title="Start 3-Minute Automated Interactive Walkthrough Tour"
-                      onClick={() => {
-                        audioService.initAudioContext();
-                        audioService.setEngaged(true);
-                        audioService.setTourMode(true);
-                        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                          window.speechSynthesis.cancel();
-                          window.speechSynthesis.resume();
-                        }
-                        onStartTour();
-                      }}
-                      className="helios-tour-nav-btn"
-                    >
-                      <Sparkles size={13} style={{ marginRight: 5, flexShrink: 0, color: '#fef08a' }} />
-                      <span>3-Min Tour</span>
-                    </button>
-                  </>
-                )}
-              </nav>
-            </div>
-          )}
-
-          {/* 3. Right: Spacecraft Telemetry Clocks + Audio Control */}
-          <div className="helios-header-right">
-            <div className="helios-header-clocks">
-              <span className="helios-clock-item">
-                <span className="helios-clock-label">EARTH</span>{' '}
-                <span className="helios-clock-val helios-clock-val--earth">
-                  {earthTime.toISOString().substring(11, 19)}
-                </span>{' '}
-                <span className="helios-clock-zone">UTC</span>
-              </span>
-              <span className="helios-clock-divider helios-clock-divider--spacecraft">|</span>
-              <span className="helios-clock-item helios-clock-item--spacecraft">
-                <span className="helios-clock-label">SPACECRAFT</span>{' '}
-                <span className="helios-clock-val helios-clock-val--spacecraft">
-                  {new Date(earthTime.getTime() - Math.round(delaySec) * 1000).toISOString().substring(11, 19)}
-                </span>{' '}
-                <span className="helios-clock-zone">SVT</span>
-              </span>
-              <span className="helios-clock-divider">|</span>
-              <span className="helios-clock-item helios-clock-item--met">
-                <span className="helios-clock-label">MET</span>{' '}
-                <span className="helios-clock-val helios-clock-val--met">
-                  {getMetParts(Math.max(0, baseMetSeconds - Math.round(delaySec))).day}{' '}
-                  {getMetParts(Math.max(0, baseMetSeconds - Math.round(delaySec))).time}
-                </span>
-              </span>
-            </div>
-
-            {/* Voice Audio Toggle Button */}
-            <button
-              type="button"
-              onClick={handleToggleAudio}
-              title={audioEngaged ? 'Turn voice alerts off' : 'Turn voice alerts on'}
-              className={`helios-audio-pill ${
-                audioEngaged ? 'helios-audio-pill--active' : 'helios-audio-pill--inactive'
+        {/* 1. Left: Brand Name + Status Badge + Divider */}
+        <div className="helios-header-left">
+          <button
+            type="button"
+            onClick={() => onSelectView?.('HUD')}
+            title="HELIOS Flight Deck - Return to Dashboard"
+            className="helios-brand-btn"
+          >
+            <span className="helios-brand-title">HELIOS</span>
+            <span
+              className={`helios-status-pill ${
+                connected ? 'helios-status-pill--online' : 'helios-status-pill--offline'
               }`}
             >
-              {audioEngaged ? <Volume2 size={15} /> : <VolumeX size={15} />}
-            </button>
+              <span className="helios-status-dot" />
+              <span>{connected ? 'ONLINE' : 'OFFLINE'}</span>
+            </span>
+          </button>
+          <span className="helios-header-divider">|</span>
+        </div>
+
+        {/* 2. Center: Sleek Universal Navigation Capsule */}
+        {onSelectView && (
+          <div className="helios-header-center">
+            <nav aria-label="Universal Navigation" className="helios-nav-capsule">
+              {[
+                { id: 'HUD', label: 'Dashboard' },
+                { id: 'HEALTH_TELEMETRY', label: 'Telemetry', title: 'Health & Clinical Telemetry' },
+                { id: 'SELF_ASSESSMENT', label: 'Self-Check' },
+                { id: 'MISSION_ROUTINE', label: 'Routine' },
+                { id: 'MCC', label: 'Earth MCC' },
+                { id: 'SCANNER', label: '3D Scanner' },
+                { id: 'SUIT_HUD', label: 'Suit HUD' },
+                { id: 'CABIN_3D', label: 'ISS Deck' },
+              ].map((tab) => {
+                const isActive =
+                  activeView === tab.id || (tab.id === 'MCC' && activeView === 'MCC_TELEMETRY');
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    title={tab.title || tab.label}
+                    onClick={() => onSelectView(tab.id as any)}
+                    className={`helios-nav-tab ${isActive ? 'helios-nav-tab--active' : ''}`}
+                  >
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+              {onStartTour && (
+                <>
+                  <span className="helios-nav-divider" aria-hidden="true" />
+                  <button
+                    type="button"
+                    title="Start 3-Minute Automated Interactive Walkthrough Tour"
+                    onClick={() => {
+                      audioService.initAudioContext();
+                      audioService.setEngaged(true);
+                      audioService.setTourMode(true);
+                      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        window.speechSynthesis.resume();
+                      }
+                      onStartTour();
+                    }}
+                    className="helios-nav-tab helios-tour-nav-btn"
+                  >
+                    <Sparkles size={13} style={{ marginRight: 5, flexShrink: 0, color: '#fef08a', filter: 'drop-shadow(0 0 4px rgba(253, 224, 71, 0.8))' }} />
+                    <span>3-Min Tour</span>
+                  </button>
+                </>
+              )}
+            </nav>
           </div>
+        )}
+
+        {/* 3. Right: Spacecraft Telemetry Clocks + Audio Control */}
+        <div className="helios-header-right">
+          <div className="helios-header-clocks">
+            <span className="helios-clock-item">
+              <span className="helios-clock-label">EARTH</span>{' '}
+              <span className="helios-clock-val helios-clock-val--earth">
+                {earthTime.toISOString().substring(11, 19)}
+              </span>{' '}
+              <span className="helios-clock-zone">UTC</span>
+            </span>
+            <span className="helios-clock-divider helios-clock-divider--spacecraft">|</span>
+            <span className="helios-clock-item helios-clock-item--spacecraft">
+              <span className="helios-clock-label">SPACECRAFT</span>{' '}
+              <span className="helios-clock-val helios-clock-val--spacecraft">
+                {new Date(earthTime.getTime() - Math.round(delaySec) * 1000).toISOString().substring(11, 19)}
+              </span>{' '}
+              <span className="helios-clock-zone">SVT</span>
+            </span>
+            <span className="helios-clock-divider">|</span>
+            <span className="helios-clock-item helios-clock-item--met">
+              <span className="helios-clock-label">MET</span>{' '}
+              <span className="helios-clock-val helios-clock-val--met">
+                {getMetParts(Math.max(0, baseMetSeconds - Math.round(delaySec))).day}{' '}
+                {getMetParts(Math.max(0, baseMetSeconds - Math.round(delaySec))).time}
+              </span>
+            </span>
+          </div>
+
+          {/* Voice Audio Toggle Button */}
+          <button
+            type="button"
+            onClick={handleToggleAudio}
+            title={audioEngaged ? 'Turn voice alerts off' : 'Turn voice alerts on'}
+            className={`helios-audio-pill ${
+              audioEngaged ? 'helios-audio-pill--active' : 'helios-audio-pill--inactive'
+            }`}
+          >
+            {audioEngaged ? <Volume2 size={15} /> : <VolumeX size={15} />}
+          </button>
         </div>
       </header>
 

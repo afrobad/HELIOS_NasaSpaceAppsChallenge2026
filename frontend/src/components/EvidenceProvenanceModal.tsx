@@ -113,15 +113,14 @@ export const EvidenceProvenanceModal: React.FC<EvidenceProvenanceModalProps> = (
           width: '100%',
           maxWidth: '820px',
           maxHeight: '90vh',
-          backgroundColor: '#0c130f',
-          background: 'linear-gradient(180deg, rgba(20, 30, 23, 0.98) 0%, rgba(13, 19, 15, 0.99) 100%)',
-          border: '1px solid rgba(122, 148, 99, 0.30)',
+          backgroundColor: '#070d17',
+          border: '1px solid rgba(56, 189, 248, 0.35)',
           borderRadius: '12px',
-          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.85), 0 0 40px rgba(56, 189, 248, 0.15)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          fontFamily: "'Hubot Sans', monospace, sans-serif",
+          fontFamily: "'Tomorrow', monospace",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -129,15 +128,15 @@ export const EvidenceProvenanceModal: React.FC<EvidenceProvenanceModalProps> = (
         <div
           style={{
             padding: '16px 20px',
-            borderBottom: '1px solid rgba(122, 148, 99, 0.22)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: 'rgba(26, 38, 29, 0.85)',
+            backgroundColor: 'rgba(14, 23, 42, 0.7)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ShieldCheck size={20} color="#34d399" />
+            <ShieldCheck size={20} color="#38bdf8" />
             <div>
               <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', letterSpacing: '0.06em' }}>
                 SCIENTIFIC PROVENANCE & NASA OSDR EVIDENCE
@@ -169,8 +168,8 @@ export const EvidenceProvenanceModal: React.FC<EvidenceProvenanceModalProps> = (
         <div
           style={{
             padding: '10px 20px',
-            backgroundColor: 'rgba(16, 24, 18, 0.90)',
-            borderBottom: '1px solid rgba(122, 148, 99, 0.20)',
+            backgroundColor: 'rgba(56, 189, 248, 0.05)',
+            borderBottom: '1px solid rgba(56, 189, 248, 0.15)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -182,15 +181,14 @@ export const EvidenceProvenanceModal: React.FC<EvidenceProvenanceModalProps> = (
             <button
               onClick={() => setActiveTab('5Q_EXPLANATION')}
               style={{
-                background: activeTab === '5Q_EXPLANATION' ? 'linear-gradient(180deg, #2a3828 0%, #1a251b 100%)' : 'transparent',
-                border: activeTab === '5Q_EXPLANATION' ? '1px solid rgba(161, 180, 142, 0.45)' : '1px solid rgba(122, 148, 99, 0.20)',
-                borderRadius: '5px',
+                background: activeTab === '5Q_EXPLANATION' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                border: activeTab === '5Q_EXPLANATION' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: '4px',
                 padding: '4px 10px',
                 color: activeTab === '5Q_EXPLANATION' ? '#ffffff' : '#94a3b8',
                 fontSize: '10px',
                 fontWeight: 700,
                 cursor: 'pointer',
-                fontFamily: 'monospace',
               }}
             >
               5-QUESTION CLINICAL EXPLANATION
@@ -198,15 +196,14 @@ export const EvidenceProvenanceModal: React.FC<EvidenceProvenanceModalProps> = (
             <button
               onClick={() => setActiveTab('PROVENANCE_JSON')}
               style={{
-                background: activeTab === 'PROVENANCE_JSON' ? 'linear-gradient(180deg, #2a3828 0%, #1a251b 100%)' : 'transparent',
-                border: activeTab === 'PROVENANCE_JSON' ? '1px solid rgba(161, 180, 142, 0.45)' : '1px solid rgba(122, 148, 99, 0.20)',
-                borderRadius: '5px',
+                background: activeTab === 'PROVENANCE_JSON' ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                border: activeTab === 'PROVENANCE_JSON' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: '4px',
                 padding: '4px 10px',
                 color: activeTab === 'PROVENANCE_JSON' ? '#ffffff' : '#94a3b8',
                 fontSize: '10px',
                 fontWeight: 700,
                 cursor: 'pointer',
-                fontFamily: 'monospace',
               }}
             >
               PROVENANCE JSON (AUDIT LOG)
