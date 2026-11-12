@@ -974,17 +974,17 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
     setLaserMode('SWEEP');
   }, []);
 
-  // Handle Anatomical Organ Selection & Cinematic Focus
-  const handleOrganClick = useCallback((organ: typeof anatomicalParts[0]) => {
+  // Handle Anatomical Organ / Suit Subsystem Selection & Cinematic Focus
+  const handleOrganClick = useCallback((organ: typeof anatomicalParts[0] | typeof suitParts[0] | any) => {
     targetCameraPosRef.current = null;
     targetControlsTargetRef.current = null;
     setSelectedOrganId(organ.id as any);
-    setSelectedHotspot(organ.subsystemId);
+    setSelectedHotspot((organ as any).subsystemId || organ.id);
     setShowOrganModal(true);
     targetFocusYRef.current = organ.scanTargetY;
 
     if (onSelectSubsystem) {
-      onSelectSubsystem(organ.subsystemId);
+      onSelectSubsystem(((organ as any).subsystemId || organ.id) as any);
     }
   }, [onSelectSubsystem]);
 
@@ -2901,7 +2901,7 @@ export const HolographicBodyScanner: React.FC<HolographicBodyScannerProps> = ({
                         setSelectedHotspot(hs.id);
                         if (modelType === 'SUIT') {
                           const targetPart = suitParts.find(p => p.subsystemId === hs.id);
-                          if (targetPart) handleOrganClick(targetPart);
+                          if (targetPart) handleOrganClick(targetPart as any);
                         } else {
                           if (onSelectSubsystem) onSelectSubsystem(hs.id as any);
                         }
