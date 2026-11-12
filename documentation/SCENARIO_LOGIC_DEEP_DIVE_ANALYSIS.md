@@ -4,7 +4,7 @@
 **Audit date:** 2026-10-01  
 **Scope:** Scenario simulation, telemetry transformation, biomarker calculations, alert-priority logic, and NASA/spaceflight context.
 
-> **Safety note:** H.E.L.I.O.S. is a demonstration and research prototype. It is not a certified medical device, flight-qualified software system, or validated clinical decision-support tool. The calculations below must not be used for real medical or mission decisions.
+> **Safety note:** H.E.L.I.O.S. is a demonstration and research prototype. It is not a certified health device, flight-qualified software system, or validated health decision-support tool. The calculations below must not be used for real health or mission decisions.
 
 ## 1. Executive summary
 
@@ -20,7 +20,7 @@ The project has a useful separation between:
 
 ### Overall finding
 
-**Suitable for an educational/demo simulation, but not yet clinically or operationally validated.**
+**Suitable for an educational/demo simulation, but not yet healthly or operationally validated.**
 
 The most important implementation findings are:
 
@@ -29,7 +29,7 @@ The most important implementation findings are:
 3. `sleep_score` is loaded and baseline data exists, but it does not participate in alerting.
 4. Several scenarios use only one or two surrogate signals and therefore do not model the underlying condition completely.
 5. Radiation dose is calculated from a fixed four-hour exposure assumption, while the scenario also supplies a hard-coded dose; these values can disagree substantially.
-6. The code uses project-specific heuristic scores. They should not be described as NASA-validated clinical algorithms.
+6. The code uses project-specific heuristic scores. They should not be described as NASA-validated health algorithms.
 
 ## 2. Runtime simulation flow
 
@@ -221,7 +221,7 @@ It must not be presented as a validated operational radiation-dose estimator wit
 - include magnesium and calcium, which also affect repolarization;
 - distinguish a risk score from a diagnosis of arrhythmia.
 
-**NASA context:** Electrolyte balance and cardiovascular adaptation are recognized human-spaceflight concerns, but the project thresholds are heuristic and require clinical validation.
+**NASA context:** Electrolyte balance and cardiovascular adaptation are recognized human-spaceflight concerns, but the project thresholds are heuristic and require health validation.
 
 ### Scenario 7 — Venous thrombosis risk
 
@@ -277,7 +277,7 @@ It must not be presented as a validated operational radiation-dose estimator wit
 
 **Assessment:** **Good demonstration concept, but EPI can be recalculated to a different value.** The engine computes EPI using IL-6, WBC, and HRV; CRP and temperature are not part of the formula. Because the code keeps the maximum of calculated and supplied EPI, the displayed score can depend on hidden hard-coded values.
 
-**Improvements:** Use a single reproducible calculation, add CRP only after defining a validated weighting, and distinguish “inflammation risk” from sepsis. Sepsis requires clinical context and cannot be diagnosed from these four values alone.
+**Improvements:** Use a single reproducible calculation, add CRP only after defining a validated weighting, and distinguish “inflammation risk” from sepsis. Sepsis requires health context and cannot be diagnosed from these four values alone.
 
 **NASA context:** NASA research has documented altered immunity and latent viral reactivation during spaceflight. That supports monitoring immune changes, but it does not validate this EPI as a sepsis predictor.
 
@@ -292,7 +292,7 @@ It must not be presented as a validated operational radiation-dose estimator wit
 
 **Assessment:** **Reasonable early-warning concept, but not a virus detector.** IL-6 and lymphocyte count are nonspecific. There is no viral load, PCR, antibody, or virus-specific signal.
 
-**Improvements:** Add a separate viral-reactivation index using available cytokines such as IFN-γ and relevant clinical/laboratory evidence. Label the current result “immune dysregulation risk,” not confirmed viral reactivation.
+**Improvements:** Add a separate viral-reactivation index using available cytokines such as IFN-γ and relevant health/laboratory evidence. Label the current result “immune dysregulation risk,” not confirmed viral reactivation.
 
 **NASA context:** NASA immunology research has reported latent herpesvirus reactivation and immune changes in astronauts. The project should cite the underlying study and avoid claiming that a nonspecific cytokine pattern identifies a particular virus.
 
@@ -309,7 +309,7 @@ It must not be presented as a validated operational radiation-dose estimator wit
 
 **Assessment:** **Strong demonstration of severe systemic inflammation, but not a validated cytokine-release syndrome model.** The alert logic still ignores CRP and temperature in EPI, and there is no hypotension, oxygen-delivery, organ-function, lactate, or renal/hepatic signal.
 
-**Improvements:** Add blood pressure, perfusion, lactate, renal function, liver function, oxygen requirement, and a defined severity rubric. Use “severe systemic inflammatory state” unless the clinical syndrome is formally defined.
+**Improvements:** Add blood pressure, perfusion, lactate, renal function, liver function, oxygen requirement, and a defined severity rubric. Use “severe systemic inflammatory state” unless the health syndrome is formally defined.
 
 ### Scenario 13 — Radiation marrow exhaustion
 
@@ -396,7 +396,7 @@ packet["scenario_phase"] = "SCENARIO_16_HEPATIC_METABOLIC_DYSFUNCTION"
 - add trend and recovery logic;
 - optionally model modest inflammatory changes, but document them as assumptions.
 
-**NASA context:** NASA identifies sleep, circadian rhythm, fatigue, and performance as important human-spaceflight risks. A sleep score is useful for operational risk management but is not itself a medical diagnosis.
+**NASA context:** NASA identifies sleep, circadian rhythm, fatigue, and performance as important human-spaceflight risks. A sleep score is useful for operational risk management but is not itself a health diagnosis.
 
 ## 5. Biomarker calculation audit
 
@@ -415,7 +415,7 @@ EPI        = 0.45*IL-6 + 0.30*WBC + 0.25*HRV-decay*2
 
 **Problems:**
 
-- weights are project choices, not validated clinical coefficients;
+- weights are project choices, not validated health coefficients;
 - CRP, temperature, blood pressure, lactate, and organ function are absent;
 - it is called a sepsis index even though it is not sepsis-validated;
 - hard-coded scenario values can differ from recalculated values.
@@ -437,7 +437,7 @@ The code uses a Fridericia-style correction and a potassium-sensitive heuristic.
 
 ### 5.3 TRM — thrombosis risk
 
-The formula emphasizes hematocrit and includes platelets, IL-6, and SpO₂. This is a plausible educational heuristic, but it is not the NASA IJV thrombosis model or a validated clinical score.
+The formula emphasizes hematocrit and includes platelets, IL-6, and SpO₂. This is a plausible educational heuristic, but it is not the NASA IJV thrombosis model or a validated health score.
 
 **Problems:**
 
@@ -473,7 +473,7 @@ The repository references NASA OSDR studies OSD-569 and OSD-575. Those datasets 
 
 Relevant NASA research areas include:
 
-- NASA-STD-3001 and NASA human-system standards for crew health, environmental conditions, and medical operations;
+- NASA-STD-3001 and NASA human-system standards for crew health, environmental conditions, and health operations;
 - NASA Human Research Program evidence on spaceflight-associated neuro-ocular syndrome;
 - NASA research on fluid shifts, cardiovascular deconditioning, exercise countermeasures, and orthostatic intolerance;
 - NASA-supported research on immune dysregulation and latent herpesvirus reactivation;
@@ -512,9 +512,9 @@ What remains a project assumption:
 
 - Replace instant changes with ramps, delays, persistence, and recovery curves.
 - Add missing variables: respiratory rate, blood pressure, oxygen fraction, CO₂ exposure history, sodium, calcium, magnesium, renal markers, liver markers, hemoglobin, and inflammatory/coagulation markers.
-- Separate environmental hazards from clinical diagnoses.
+- Separate environmental hazards from health diagnoses.
 - Use symptom, sensor-quality, and data-age metadata.
-- Model crew-wide hazards separately from individual medical events.
+- Model crew-wide hazards separately from individual health events.
 
 ### Priority 3 — validation and safety
 
@@ -558,7 +558,7 @@ For each scenario, test at least:
 | Scenario organization | Good for a demonstration |
 | Telemetry replay | Functional design, limited physiological time modeling |
 | Alert ordering | Sensible, but first-match behavior hides coexisting findings |
-| EPI | Useful heuristic, not clinically validated |
+| EPI | Useful heuristic, not healthly validated |
 | ARF/QTc | Directionally appropriate, but synthetic and inconsistent with hard-coded values |
 | TRM | Plausible educational heuristic, incomplete thrombosis model |
 | RSI | Useful visualization, not full radiation biodosimetry |
@@ -566,6 +566,6 @@ For each scenario, test at least:
 | Scenario 16 | Not implemented |
 | Sleep/fatigue logic | Data exists, alert integration missing |
 | NASA traceability | Needs exact citations and clearer separation of evidence from assumptions |
-| Operational readiness | Not ready for medical or flight use |
+| Operational readiness | Not ready for health or flight use |
 
 **Bottom line:** The project has a strong demonstration architecture and covers many important human-spaceflight risks. The highest-value next steps are to implement Scenario 16, integrate and test sleep/CRP logic, remove conflicting hard-coded derived values, add time-dependent scenario trajectories, and replace broad NASA claims with exact, traceable references and explicit project assumptions.

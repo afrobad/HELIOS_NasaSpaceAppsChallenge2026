@@ -13,7 +13,7 @@
 | **Raisul Islam** | **Team Leader & Product Strategist** | Project coordination, challenge alignment, mission concept strategy, NASA Space Apps submission governance, and visual pitch production. |
 | **Mohammad Zihaduzzaman** | **Lead Full-Stack Developer** | React 19 / TypeScript architecture, 10 Hz WebSocket streaming pipeline, state synchronization, interactive UI/UX, and component engineering. |
 | **Mohammed Meraj** | **Lead Systems Architect & Security Engineer** | Aerospace system architecture, FastAPI core, OWASP defense-in-depth security, CSP/CORS lockdown, 3D WebGL engine calibration, and cloud deployment. |
-| **Ashfia Tasnim** | **Biomedical & Clinical Researcher** | NASA OSDR biological dataset curation (SOMA Inspiration4), spaceflight clinical logic, physiological risk scoring (SANS/ARS), and biomarker mapping. |
+| **Ashfia Tasnim** | **Biomedical & Life Sciences Researcher** | NASA OSDR biological dataset curation (SOMA Inspiration4), spaceflight health logic, physiological risk scoring (SANS/ARS), and biomarker mapping. |
 | **Mohammad Sabbir** | **Video Producer & Media Editor** | Competition pitch video cinematography, 3D visual choreography, audio synchronization, motion graphics, and presentation assets. |
 
 ---
@@ -23,7 +23,7 @@
 HELIOS is built in compliance with official National Aeronautics and Space Administration (NASA) flight standards:
 
 1. **NASA-STD-3001, Vol 1 (Rev B)**: *NASA Space Flight Human-System Standard: Crew Health*
-   - Standards for continuous vital sign monitoring, physiological reserves, and clinical care levels for exploration missions.
+   - Standards for continuous vital sign monitoring, physiological reserves, and health support levels for exploration missions.
 2. **NASA-STD-3001, Vol 2 (Rev D)**: *NASA Space Flight Human-System Standard: Human Factors, Habitability, and Environmental Health*
    - Environmental control thresholds: Cabin total pressure ($101.3\text{ kPa}$), partial pressure of carbon dioxide ($P\text{CO}_2 < 3.0\text{ mmHg}$), oxygen fraction ($20.9\% \pm 1.0\%$), and cabin acoustic/thermal limits.
 3. **NASA-STD-8739.8**: *Software Assurance and Software Safety Standard*
@@ -137,4 +137,4 @@ The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 ```
 
-*Disclaimer: H.E.L.I.O.S. is an experimental software research prototype created for the NASA International Space Apps Challenge 2026. It is designed to demonstrate autonomous healthcare concepts for deep-space missions and is not currently certified as an FDA or CE-marked medical device for terrestrial clinical diagnosis.*
+*Disclaimer: H.E.L.I.O.S. is an experimental software research prototype created for the NASA International Space Apps Challenge 2026. It is designed to demonstrate autonomous health intelligence concepts for deep-space missions and is not currently certified as an FDA or CE-marked device for terrestrial diagnostic use.*

@@ -2,7 +2,7 @@
 > **Target AI Voice Duration:** 3:50 – 3:55 Minutes (230 – 235 Seconds)  
 > **Word Count:** 498 words  
 > **AI Speaking Rate:** ~128–129 Words Per Minute (Calm, authoritative, hook-driven pacing)  
-> **NASA Compliance:** 100% Operational & Crew-Centric (Zero clinical / doctor / surgeon / hospital terms)  
+> **NASA Compliance:** 100% Operational & Crew-Centric (Zero health / flight director / health terms)  
 > **Evaluation Coverage:** Fully addresses all 5 NASA Space Apps Criteria (Impact, Creativity, Validity, Relevance, Presentation)
 
 ---

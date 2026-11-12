@@ -8,7 +8,7 @@
 
 > **Short answer: No. Only ~15% of the available dataset is actively used.**
 > The system ingests 6 fields out of 281 total dataset fields across 5 data files.
-> A large volume of clinically critical data — including 66 cytokines, 12 metabolic markers, 7 cardiovascular acute-phase proteins, and 14 CBC morphology markers — is loaded into the project directory but **never read by any backend module.**
+> A large volume of healthly critical data — including 66 cytokines, 12 metabolic markers, 7 cardiovascular acute-phase proteins, and 14 CBC morphology markers — is loaded into the project directory but **never read by any backend module.**
 
 ---
 
@@ -70,9 +70,9 @@ Only 3 of 20 CBC measurement columns are reflected in the telemetry stream:
 
 ## OSD-575 Comprehensive Metabolic Panel — 18/19 markers UNUSED
 
-Only potassium (K⁺) is in the telemetry stream. The CMP contains a full clinical chemistry panel:
+Only potassium (K⁺) is in the telemetry stream. The CMP contains a full health chemistry panel:
 
-| Marker | Status | Clinical Relevance |
+| Marker | Status | Health Relevance |
 |---|---|---|
 | `potassium` (K⁺) | ✅ Used (ARF QTc) | |
 | `sodium` (Na⁺) | 🔴 **NOT USED** | Hyponatremia in microgravity |
@@ -101,7 +101,7 @@ This is the largest gap. The immune panel has **71 cytokine/chemokine concentrat
 
 **Completely ignored (~70 markers including):**
 
-| Marker | Clinical Significance |
+| Marker | Health Significance |
 |---|---|
 | `tnfα` (TNF-alpha) | Systemic inflammation / septic shock |
 | `ifnγ` (Interferon-gamma) | Viral reactivation (EBV, CMV, HSV) — NASA OSD-575 key finding |
@@ -124,7 +124,7 @@ This is the largest gap. The immune panel has **71 cytokine/chemokine concentrat
 
 This file is in the project directory and **never opened by any backend code.** It contains 9 acute-phase protein markers measured pre/post-flight:
 
-| Marker | Clinical Significance |
+| Marker | Health Significance |
 |---|---|
 | `crp` (C-Reactive Protein) | Primary systemic inflammation marker |
 | `fibrinogen` | Coagulation / thrombosis risk |

@@ -1,5 +1,5 @@
 # H.E.L.I.O.S — Space Apps 2026 Operational & Innovation Master Documentation
-### Health Evaluation Logistic Intelligent Onboard System (Autonomous Deep-Space Clinical Sentry)
+### Health Evaluation Logistic Intelligent Onboard System (Autonomous Deep-Space Health Sentry)
 **NASA International Space Apps Challenge 2026**
 
 ---
@@ -8,7 +8,7 @@
 
 During missions to the Moon, Mars, and deep space, astronauts operate outside the protective communication bubble of Low Earth Orbit (LEO). Communication latency ranges from **4 to 24 minutes one-way** (8 to 48 minutes round-trip), rendering real-time guidance from Houston Mission Control impossible in life-critical emergencies. 
 
-**H.E.L.I.O.S** is a **100% autonomous, offline-first, zero-cloud medical flight sentry** engineered to bridge this gap. Running on standard spacecraft flight computers (<2% CPU, <35 MB RAM) without requiring heavy GPUs, H.E.L.I.O.S monitors 149 multimodal biomarkers, predicts physiological failure hours before visible symptoms emerge, and delivers instant, spoken 2-sentence clinical directives through **JARVIS AI Voice Intelligence**.
+**H.E.L.I.O.S** is a **100% autonomous, offline-first, zero-cloud health flight sentry** engineered to bridge this gap. Running on standard spacecraft flight computers (<2% CPU, <35 MB RAM) without requiring heavy GPUs, H.E.L.I.O.S monitors 149 multimodal biomarkers, predicts physiological failure hours before visible symptoms emerge, and delivers instant, spoken 2-sentence health directives through **JARVIS AI Voice Intelligence**.
 
 ---
 
@@ -17,12 +17,12 @@ During missions to the Moon, Mars, and deep space, astronauts operate outside th
 ### A. Offline Voice AI (Jarvis) & Immediate Spoken Directives
 - **Sub-100ms Instant Audio Initiation**: Resolved audio context initialization by ensuring audio context auto-engages on interaction.
 - **Fast Offline Fallback**: Replaced long remote neural TTS wait budgets with an agile 1200ms fallback that triggers browser-native Web Speech Synthesis (`SpeechSynthesisUtterance`) with natural prosody calibration, guaranteeing immediate spoken announcements in zero-connectivity environments.
-- **Problem + Recommended Solution Pairings**: Configured Jarvis to verbally announce both the underlying pathology and the immediate flight surgeon countermeasure (e.g., *"Critical alert: CO₂ scrubber breakthrough detected across cabin modules. Surgeon directive: Switch to backup lithium hydroxide scrubber beds and verify mask seals"*).
-- **Executive Emergency Banner on Main Dashboard**: Rendered a high-visibility, NASA-standard directive ribbon at the top of the Cockpit HUD showing the diagnosis, severity level, and specific surgeon action plan, complemented by a one-click manual audio replay button.
+- **Problem + Recommended Solution Pairings**: Configured Jarvis to verbally announce both the underlying pathology and the immediate flight systems director countermeasure (e.g., *"Critical alert: CO₂ scrubber breakthrough detected across cabin modules. Flight Director directive: Switch to backup lithium hydroxide scrubber beds and verify mask seals"*).
+- **Executive Emergency Banner on Main Dashboard**: Rendered a high-visibility, NASA-standard directive ribbon at the top of the Cockpit HUD showing the diagnosis, severity level, and specific flight director action plan, complemented by a one-click manual audio replay button.
 
 ### B. Earth Mission Control Center (MCC) Voice & Situation Briefings
-- **Cognitive Load Reduction**: Deep space medical emergencies generate overwhelming telemetry streams. An astronaut or flight controller under stress cannot analyze dozens of disparate charts.
-- **Executive Situation & Solution Console**: Embedded a real-time situation summary card and actionable flight surgeon protocol directly atop the MCC Overview tab.
+- **Cognitive Load Reduction**: Deep space health emergencies generate overwhelming telemetry streams. An astronaut or flight controller under stress cannot analyze dozens of disparate charts.
+- **Executive Situation & Solution Console**: Embedded a real-time situation summary card and actionable flight systems director protocol directly atop the MCC Overview tab.
 - **One-Click Voice Briefing**: Integrated a dedicated `PLAY VOICE BRIEFING` console button powered by `audioService`, giving operators an instant verbal situation briefing and solution readout without leaving the flight console.
 
 ### C. Unified Scenario Engine Integration
@@ -41,7 +41,7 @@ During missions to the Moon, Mars, and deep space, astronauts operate outside th
 
 ## 3. Groundbreaking Space Innovations (Beyond Current NASA Stack)
 
-While NASA currently employs post-flight genomic sequencing, periodic holter monitoring, and ground-in-the-loop telemedicine, deep-space exploration demands autonomous capabilities that NASA has not yet fielded on active missions:
+While NASA currently employs post-flight genomic sequencing, periodic holter monitoring, and ground-in-the-loop remote telemetry consultation, deep-space exploration demands autonomous capabilities that NASA has not yet fielded on active missions:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -53,13 +53,13 @@ While NASA currently employs post-flight genomic sequencing, periodic holter mon
 │ 2. Microgravity Cephalic Shift    │ Fixed Earth hospital ranges       │ Personalized Zero-G Baselines  │
 │ 3. Deep-Space Light Delay         │ Unusable (4–24 min radio delay)   │ 100% Autonomous Edge Directives│
 │ 4. Space Omics & Epigenomics      │ Samples frozen for post-flight    │ In-Flight SOMA Bio-Twin Engine │
-│ 5. Countermeasure Decisioning     │ Ground flight surgeon checklist   │ Closed-Loop Voice AI Copilot   │
+│ 5. Countermeasure Decisioning     │ Ground flight systems director checklist   │ Closed-Loop Voice AI Copilot   │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1. Autonomous Closed-Loop Clinical Countermeasure AI
-- **The Gap**: Currently, when an anomaly occurs on the ISS, biomedical flight controllers (BME) at Johnson Space Center evaluate the trace and consult flight surgeons. On a Mars transit, an acute hypercapnia breach or ventricular tachyarrhythmia will kill the crew long before a radio message travels to Earth and back.
-- **HELIOS Solution**: A localized multi-agent diagnostic engine cross-validates 149 biomarkers against personal baseline envelopes within **40 milliseconds**, proactively prescribing verified clinical protocols (e.g., lower-body negative pressure, electrolyte micro-infusion, ECLSS air recirculation changes) before irreversible damage occurs.
+### 1. Autonomous Closed-Loop Health Countermeasure AI
+- **The Gap**: Currently, when an anomaly occurs on the ISS, biohealth flight controllers (BME) at Johnson Space Center evaluate the trace and consult flight systems directors. On a Mars transit, an acute hypercapnia breach or ventricular tachyarrhythmia will kill the crew long before a radio message travels to Earth and back.
+- **HELIOS Solution**: A localized multi-agent diagnostic engine cross-validates 149 biomarkers against personal baseline envelopes within **40 milliseconds**, proactively prescribing verified health protocols (e.g., lower-body negative pressure, electrolyte micro-infusion, ECLSS air recirculation changes) before irreversible damage occurs.
 
 ### 2. In-Flight Predictive Bio-Twin (NASA OSDR Inspiration4 SOMA Integration)
 - **The Gap**: Space omics data (cell-free DNA, RNA transcripts, cytokine profiles) are traditionally sequenced weeks or months *after* landing.
@@ -67,7 +67,7 @@ While NASA currently employs post-flight genomic sequencing, periodic holter mon
 
 ### 3. Voice-First Multimodal JARVIS AI Copilot
 - **The Gap**: Astronauts in high-stress emergencies face cognitive tunneling when reading dense displays.
-- **HELIOS Solution**: Rather than acting as a passive alarm or simple speech reader, JARVIS serves as an active clinical copilot, prioritizing issues and delivering crisp, two-sentence authoritative directives directly into helmet comms and cabin audio.
+- **HELIOS Solution**: Rather than acting as a passive alarm or simple speech reader, JARVIS serves as an active health copilot, prioritizing issues and delivering crisp, two-sentence authoritative directives directly into helmet comms and cabin audio.
 
 ---
 

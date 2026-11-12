@@ -9,9 +9,9 @@
 ║                               SYSTEM AT A GLANCE                                 ║
 ╠══════════════════════════════════════════════════════════════════════════════════╣
 ║  • 100% Autonomous & Offline-First (Zero Cloud Dependency)                       ║
-║  • 149 Total Multimodal Biomarkers Across 10 Clinical Categories                 ║
+║  • 149 Total Multimodal Biomarkers Across 10 Health Categories                 ║
 ║  • 119 Authentic NASA OSDR Point-of-Care Laboratory Assays (Inspiration4 SOMA)   ║
-║  • 18 Clinically Certified Spaceflight Emergency Scenarios                       ║
+║  • 18 Healthly Certified Spaceflight Emergency Scenarios                       ║
 ║  • 10 Hz Real-Time Telemetry Streaming via WebSocket                             ║
 ║  • 60–90 FPS Decoupled HTML5 Canvas Waveform Rendering (Lead II ECG & Pleth)     ║
 ║  • Local JARVIS AI Voice Guidance (<35 MB RAM Fallback / Ollama CPU-Only)        ║
@@ -22,8 +22,8 @@
 
 ## 1. Challenge Alignment: The Why, The What, and The How
 
-### 1.1. The Why: The Deep-Space Medical Reality & NASA's 5 Spaceflight Hazards
-When astronauts live on the **International Space Station (ISS)**, Earth is only 400 km away. Houston Mission Control watches their heart rates live with sub-second latency. If something goes wrong, flight surgeons talk to them immediately.
+### 1.1. The Why: The Deep-Space Health Reality & NASA's 5 Spaceflight Hazards
+When astronauts live on the **International Space Station (ISS)**, Earth is only 400 km away. Houston Mission Control watches their heart rates live with sub-second latency. If something goes wrong, flight systems directors talk to them immediately.
 
 On long-duration missions to the **Moon (Artemis Base Camp), Mars, or deep space**, this umbilical breaks. NASA’s **Human Research Program (HRP)** maps the five primary hazards of human spaceflight:
 1. **Space Radiation**: Cosmic ionizing radiation and solar particle events cause DNA damage, bone marrow suppression, and acute radiation syndrome (ARS).
@@ -46,17 +46,17 @@ On missions to the **Moon, Mars, or deep space**, this completely breaks:
 │  [ Astronaut ] <── Real-Time Radio ──> [ Houston ]│  [ Astronaut ] <··· 4 to 24 min delay ···> [ Earth ]│
 │         │         (Latency < 1 sec)         │     │         │                                          │
 │         │                                   │     │         ▼ (Instant < 100ms on-board diagnosis)     │
-│         └────── Flight Surgeons Intervene ──┘     │  [ H.E.L.I.O.S Clinical Sentry ]                   │
+│         └────── Flight Systems Directors Intervene ──┘     │  [ H.E.L.I.O.S Health Sentry ]                   │
 │                                                   │         │                                          │
 │  Result: Ground doctors manage emergencies.       │         ▼                                          │
 │                                                   │  [ JARVIS AI Spoken Directives (100% Offline) ]    │
 │                                                   │                                                    │
-│                                                   │  Result: Autonomous onboard clinical survival.     │
+│                                                   │  Result: Autonomous onboard health survival.     │
 └───────────────────────────────────────────────────┴────────────────────────────────────────────────────┘
 ```
 
 ### 1.2. The What: An Autonomous Visual Health Self-Assessment System
-**H.E.L.I.O.S (Health Evaluation Logistic Intelligent Onboard System)** is an offline-first visual self-assessment and clinical decision-support system designed specifically for deep-space crews:
+**H.E.L.I.O.S (Health Evaluation Logistic Intelligent Onboard System)** is an offline-first visual self-assessment and health decision-support system designed specifically for deep-space crews:
 - **Visual Self-Assessment**: A **3D Holographic Bio-Twin (/scanner)** where each anatomical organ and physiological subsystem is interactive and clickable, color-coded with green/amber/red status heatmaps.
 - **Multimodal Glanceability**: A **Cockpit Flight HUD (/)** rendering decoupled 60–90 FPS Lead II ECG and PPG plethysmograms alongside dynamic vitals charts with personal baseline bands drawn behind current traces.
 - **First-Person Operational Ergonomics**: A **First-Person Astronaut Helmet Visor HUD (/suit-hud)** with head-tracking parallax, tactical waypoint locks, and audio alarms inside the EVA spacesuit helmet.
@@ -66,7 +66,7 @@ On missions to the **Moon, Mars, or deep space**, this completely breaks:
 - **High-Frequency Telemetry Ingestion (10 Hz)**: Streams continuous cardiovascular, respiratory, metabolic, and environmental indicators via non-blocking WebSockets.
 - **Dynamic Personal Zero-G Baselines**: Employs rolling personal baselines with physical workout gating so that treadmill exercise or ARED resistance sessions never trigger false tachycardia alarms.
 - **Multi-Signal Anomaly Detection**: Evaluates rolling z-score deviations across sliding 48-hour windows, firing multi-signal alerts for complex conditions (Early Sepsis [EPI], Arrhythmia [ARF], Thrombosis [TRM], Radiation Sickness [RSI]).
-- **Hands-Free JARVIS Voice Directives**: An edge-native AI voice warning engine delivering pre-emptive 2-sentence clinical directives in natural language, automatically speaking upon every anomaly and nominal status restoration.
+- **Hands-Free JARVIS Voice Directives**: An edge-native AI voice warning engine delivering pre-emptive 2-sentence health directives in natural language, automatically speaking upon every anomaly and nominal status restoration.
 - **Zero Cloud Footprint**: Runs completely locally on CPU (<35 MB RAM, <2% CPU overhead) with an embedded SQLite Write-Ahead Logging database executing >184,000 writes/second.
 
 ### 1.4. The Three Critical Deep-Space Challenges Solved
@@ -97,7 +97,7 @@ H.E.L.I.O.S works in four simple, continuous steps:
    [ 3. PREDICTS & ALERTS ] ────> Fuses multi-signals: Sepsis (EPI), Arrhythmia (ARF), Clots (TRM).
             │
             ▼
-   [ 4. SPEAKS (JARVIS AI) ] ───> Proactively delivers 2-sentence clinical voice directives.
+   [ 4. SPEAKS (JARVIS AI) ] ───> Proactively delivers 2-sentence health voice directives.
 ```
 
 1. **Listens (10 times every second)**: Reads heart rate, oxygen, temperature, ECG waveforms, blood test markers, and cabin air.
@@ -139,12 +139,12 @@ The entire system is lightweight, fast, and resilient.
 │  │   ├── NASA OSDR Laboratory Manager (119 Point-of-Care Assays: CBC, CMP, CV, Immune)         │  │
 │  │   └── High-Speed Storage (SQLite in WAL Mode — >168,000 writes/sec)                         │  │
 │  └────────────────────────────────────────┬────────────────────────────────────────────────────┘  │
-│                                           │ Medical Findings & Alerts                             │
+│                                           │ Health Findings & Alerts                             │
 │                                           ▼                                                       │
 │  AI & SPEECH INTELLIGENCE LAYER                                                                   │
 │  ┌────────────────────────────────────────┴────────────────────────────────────────────────────┐  │
 │  │ • Tier 2: Local Ollama LLM (llama3.2:1b CPU-Only)                                           │  │
-│  │ • Deterministic Fallback: 100% Certified Clinical Templates (<1ms, 0 MB Token Cost)          │  │
+│  │ • Deterministic Fallback: 100% Certified Health Templates (<1ms, 0 MB Token Cost)          │  │
 │  │ • Speech: Edge Neural TTS (Ryan, en-US) + 3.5s Quiet-Break Non-Overlapping Audio Queue      │  │
 │  └─────────────────────────────────────────────────────────────────────────────────────────────┘  │
 └───────────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -153,14 +153,14 @@ The entire system is lightweight, fast, and resilient.
 ### Technology Highlights
 
 - **Multi-View Aerospace Client (React 19, TypeScript, Vite)**:
-  - **Flight Cockpit HUD (`/` or `/flight-hud`)**: Minimalist obsidian interface (`#070707`) with `Tomorrow` typography, 10 Hz telemetry feeds, and real-time medical alert triage.
+  - **Flight Cockpit HUD (`/` or `/flight-hud`)**: Minimalist obsidian interface (`#070707`) with `Tomorrow` typography, 10 Hz telemetry feeds, and real-time health alert triage.
   - **First-Person Suit HUD (`/suit-hud`)**: Physical helmet visor curvature, dynamic environmental vignette/glare, head-tracking mouse parallax (±14px), 3 authentic planetary backdrops (Mars Surface, Lunar South Pole, and genuine NASA photographic International Space Station spacewalk), crew role perspectives, tactical waypoint lock, and military avionics typography (`Rajdhani` and `Tomorrow`).
-  - **Mission Control Center (`/mcc`, `/mcc/telemetry/:slug`)**: Deep-space speed-of-light radio delay simulator (4 to 24 min Mars distance) with instant Warp-Bypass toggle, JSC Flight Surgeon workstation, and ground operator authentication gate.
+  - **Mission Control Center (`/mcc`, `/mcc/telemetry/:slug`)**: Deep-space speed-of-light radio delay simulator (4 to 24 min Mars distance) with instant Warp-Bypass toggle, JSC Flight Systems Director workstation, and ground operator authentication gate.
   - **3D Holographic Anatomical Body Scanner (`/scanner`)**: Interactive WebGL wireframe rotating mannequin with multi-spectral organ stress diagnostics (Brain/CNS, Cardiovascular, Pulmonary, Hepatorenal).
 - **Hardware-Accelerated Waveforms**: Independent `requestAnimationFrame` render loops draw authentic Lead II ECG and SpO₂ Plethysmograph waveforms at 60–90 FPS without triggering React component re-renders.
 - **Backend (FastAPI, Python 3.11+)**: Ultra-fast async WebSocket bus broadcasting 10 ticks per second to all connected clients with deterministic scenario control.
 - **High-Throughput Database (SQLite WAL Mode)**: High-speed local logging achieving **168,845 writes/second** with microsecond read queries and bounded disk usage.
-- **Voice Intelligence (JARVIS)**: Hybrid intelligence using local Ollama LLMs with instant, deterministic medical fallback templates if the LLM is busy or offline.
+- **Voice Intelligence (JARVIS)**: Hybrid intelligence using local Ollama LLMs with instant, deterministic health fallback templates if the LLM is busy or offline.
 - **Enterprise Security Hardening**: Defense-in-depth HTTP security headers middleware (`SEC-06`), canonical path boundary enforcement (`SEC-02`), and PBKDF2-HMAC-SHA256 password hashing.
 
 ---
@@ -186,17 +186,17 @@ Judges and evaluators cross-check project claims against exact repositories. Eve
 
 | NASA / Partner Dataset | Official NASA OSDR Repository Link | What We Used It For | Exact How It Is Implemented In Code |
 |---|---|---|---|
-| **NASA OSDR OSD-575** *(Inspiration4 SOMA Atlas)* | [OSD-575 Portal](https://osdr.nasa.gov/bio/repo/data/study/OSD-575) | Resting zero-g cardiovascular, metabolic, electrolyte, and hematologic baselines across 4 astronauts. | Parsed into `data/nasa_astronaut_baselines.json` to calibrate baseline means ($\mu$) and standard deviations ($\sigma$) for Commander, Pilot, Medical Specialist, and Systems Engineer. |
+| **NASA OSDR OSD-575** *(Inspiration4 SOMA Atlas)* | [OSD-575 Portal](https://osdr.nasa.gov/bio/repo/data/study/OSD-575) | Resting zero-g cardiovascular, metabolic, electrolyte, and hematologic baselines across 4 astronauts. | Parsed into `data/nasa_astronaut_baselines.json` to calibrate baseline means ($\mu$) and standard deviations ($\sigma$) for Commander, Pilot, Health Specialist, and Systems Engineer. |
 | **NASA OSDR OSD-569** *(Inspiration4 CBC Profile)* | [OSD-569 Portal](https://osdr.nasa.gov/bio/repo/data/study/OSD-569) | Point-of-care laboratory panels (WBC, lymphocytes, neutrophils, eosinophils, platelets, hematocrit). | Sourced by `backend/app/core/computational_biomarkers.py` to evaluate spaceflight anemia, hemoconcentration, and immune cell depletion. |
 | **NASA OSDR OSD-379** *(Twins Study Fluid Shift)* | [OSD-379 Portal](https://osdr.nasa.gov/bio/repo/data/study/OSD-379) | Internal Jugular Vein (IJV) venous stagnation and cross-sectional area expansion under microgravity. | Powers the **Thrombosis Risk Index (TRM)** in `computational_biomarkers.py`: calculates venous stasis scores using IJV diameter, platelet count, and fibrinogen levels. |
 | **NASA OSDR OSD-665** *(Rodent & Human Bone Demineralization)* | [OSD-665 Portal](https://osdr.nasa.gov/bio/repo/data/study/OSD-665) | Trabecular bone mineral density (BMD) demineralization rates (-1.0% to -1.5%/month) and urinary calcium excretion. | Modeled in the skeletal telemetry vectors and ARED resistive exercise countermeasure tracker on the 3D Holographic Bio-Twin. |
 | **NASA OSDR OSD-539** *(Space Radiation Biomarkers)* | [OSD-539 Portal](https://osdr.nasa.gov/bio/repo/data/study/OSD-539) | Chromosomal aberration rates and lymphocyte depletion kinetics following cosmic ionizing radiation. | Powers the **Radiation Sickness Index (RSI)** in `computational_biomarkers.py`: monitors cumulative mGy flux and predicts acute radiation syndrome (ARS) onset during Solar Particle Events. |
-| **NASA-STD-3001 (Vol 1 & 2)** *(Human-System Standard)* | [NASA Technical Standards](https://standards.nasa.gov/standard/NASA/NASA-STD-3001-1) | Certified clinical safety envelopes for spacecraft life support (ECLSS) and human physiological limits. | Encoded into `backend/app/core/sentry_matrix.py`: enforces cabin atmospheric limits (CO₂ < 3.0 mmHg nominal, O₂ 19.5%–23.5%, cabin pressure 101.3 kPa). |
-| **NASA Human Research Program (HRP)** *(5 Hazards of Spaceflight)* | [NASA HRP Framework](https://www.nasa.gov/hrp/hazards) | Subsystem hazard taxonomy for deep-space mission medical autonomy. | Structured as the 5 primary clinical hazard nodes on the 3D Holographic Bio-Twin: Space Radiation, Isolation/Confinement, Distance from Earth, Gravity fields, Hostile Closed Environment. |
+| **NASA-STD-3001 (Vol 1 & 2)** *(Human-System Standard)* | [NASA Technical Standards](https://standards.nasa.gov/standard/NASA/NASA-STD-3001-1) | Certified health safety envelopes for spacecraft life support (ECLSS) and human physiological limits. | Encoded into `backend/app/core/sentry_matrix.py`: enforces cabin atmospheric limits (CO₂ < 3.0 mmHg nominal, O₂ 19.5%–23.5%, cabin pressure 101.3 kPa). |
+| **NASA Human Research Program (HRP)** *(5 Hazards of Spaceflight)* | [NASA HRP Framework](https://www.nasa.gov/hrp/hazards) | Subsystem hazard taxonomy for deep-space mission health autonomy. | Structured as the 5 primary health hazard nodes on the 3D Holographic Bio-Twin: Space Radiation, Isolation/Confinement, Distance from Earth, Gravity fields, Hostile Closed Environment. |
 
-### Complete 149-Biomarker Matrix (10 Clinical Categories)
+### Complete 149-Biomarker Matrix (10 Health Categories)
 
-| Category | Signal Count | Key Markers & Measured Parameters | Primary Spaceflight Clinical Purpose |
+| Category | Signal Count | Key Markers & Measured Parameters | Primary Spaceflight Health Purpose |
 |---|:---:|---|---|
 | **1. Continuous Biometrics** | **10** | Lead II ECG, PPG Pleth, HR, HRV (rMSSD), SpO₂, Core Temp, Sleep Score, Cabin CO₂, Radiation Flux, Dose | Instant detection of life-threatening events (hypoxia, cardiac arrest, fever). |
 | **2. Hematology (CBC)** | **20** | WBC, RBC, Hemoglobin, Hematocrit, Platelets, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils, MCV, MCH, MCHC, RDW, MPV | Spaceflight anemia, hemoconcentration, and immune cell depletion. |
@@ -208,19 +208,19 @@ Judges and evaluators cross-check project claims against exact repositories. Eve
 | **8. Chemokines & Trafficking** | **19** | MCP-1, RANTES, MIP-1a, MIP-1b, Eotaxin, Fractalkine, GRO-a, BCA-1, CTACK | White blood cell movement and localized tissue inflammation. |
 | **9. Growth Factors & Repair** | **15** | VEGF-A, G-CSF, GM-CSF, PDGF, EGF, FGF-2, SCF, Thrombopoietin (TPO) | Vascular remodeling, bone marrow recovery, and tissue healing in zero-g. |
 | **10. Synthetic Risk Vectors** | **5** | Fridericia QTc, ARF (Arrhythmia), TRM (Thrombosis), EPI (Early Sepsis), RSI (Radiation) | Real-time multi-signal algorithms fusing vitals with laboratory blood chemistries. |
-| **TOTAL** | **149** | **Full Organ & Multi-System Coverage** | **Complete aerospace clinical envelope.** |
+| **TOTAL** | **149** | **Full Organ & Multi-System Coverage** | **Complete aerospace health envelope.** |
 
 ---
 
 ## 5. Why This Dataset is More Than Enough
 
-Judges and engineers often ask: *Is this dataset sufficient to build a clinical medical sentry?*
+Judges and engineers often ask: *Is this dataset sufficient to build a health health sentry?*
 
 **Yes, it is more than enough for four concrete reasons:**
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                               FOUR PILLARS OF CLINICAL SUFFICIENCY                                │
+│                               FOUR PILLARS OF HEALTH SUFFICIENCY                                │
 ├─────────────────────────────────┬─────────────────────────────────┬───────────────────────────────┤
 │ 1. Real Spaceflight Physiology  │ 2. Whole-Body Multi-Organ Panel │ 3. Dual-Horizon Early Warning │
 ├─────────────────────────────────┼─────────────────────────────────┼───────────────────────────────┤
@@ -231,7 +231,7 @@ Judges and engineers often ask: *Is this dataset sufficient to build a clinical 
 └─────────────────────────────────┴─────────────────────────────────┴───────────────────────────────┘
                                                   │
                                                   ▼
-                        [ 100% Autonomous Deep-Space Medical Readiness ]
+                        [ 100% Autonomous Deep-Space Health Readiness ]
 ```
 
 1. **Authentic Spaceflight Physiology**: The data comes from the NASA OSDR Inspiration4 SOMA spaceflight mission. It captures real human bodies adapting to orbit—including real fluid redistribution, real cytokine fluctuations, and real hematocrit concentration.
@@ -277,7 +277,7 @@ Detects systemic bacterial or viral infection 24 to 48 hours before fever begins
 $$\text{EPI} = 0.45 \times \text{IL-6 Score} + 0.30 \times \text{WBC Score} + 0.25 \times (\text{HRV Autonomic Decay})$$
 
 - Fuses immune cytokine surges with heart rate variability loss.
-- $\text{EPI} \ge 0.90$: **WARNING (Subclinical Immune Activation)**.
+- $\text{EPI} \ge 0.90$: **WARNING (Subhealth Immune Activation)**.
 - $\text{EPI} \ge 1.50$: **CRITICAL (Early Sepsis Cascade)**.
 
 ### 5. Microgravity Venous Thrombosis Risk (TRM)
@@ -298,7 +298,7 @@ $$\text{Absorbed Dose (Gray)} = \frac{-\ln(\text{Lymphocyte Count} / \text{Basel
 
 ## 7. The 18 Flight Scenarios (Compact Scenario Cards)
 
-H.E.L.I.O.S is certified against 18 comprehensive spaceflight scenarios organized into 4 clinical groups.
+H.E.L.I.O.S is certified against 18 comprehensive spaceflight scenarios organized into 4 health groups.
 
 ---
 
@@ -447,7 +447,7 @@ H.E.L.I.O.S is certified against 18 comprehensive spaceflight scenarios organize
 #### 17. Spaceflight-Associated Neuro-Ocular Syndrome (SANS)
 - **Severity**: `WARNING`
 - **Simplified Definition**: Fluid pressure in the skull swells the optic nerve and flattens the back of the eyeball, degrading astronaut eyesight.
-- **Why It Exists**: Over 70% of long-duration space station crew members experience irreversible vision impairment. It is one of NASA's top clinical concerns.
+- **Why It Exists**: Over 70% of long-duration space station crew members experience irreversible vision impairment. It is one of NASA's top health concerns.
 - **How It Occurs in Spacecraft**: In microgravity, venous blood permanently pools in the head, raising intracranial and eye venous pressure, exacerbated by mild cabin CO₂ gas.
 - **How We Measure It**: Monitored via elevated ambient cabin carbon dioxide (`cabin_co2` = 3.6 mmHg), cephalic venous congestion markers (`platelet_count` = 290 k/μL), and correlated blood pressure and head fluid shift metrics.
 - **JARVIS Voice Guidance**: *"Commander, elevated cephalic fluid pressure may affect your visual clarity. Please don your lower-body negative pressure suit for 45 minutes."*
@@ -507,7 +507,7 @@ In compliance with **NASA-STD-8739.8** and **OWASP Top 10**, H.E.L.I.O.S impleme
 | **SEC-06** | Defense-in-Depth HTTP Headers | Automated FastAPI middleware injecting `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, and strict `Content-Security-Policy`. | **PROTECTED** |
 
 > [!IMPORTANT]
-> **Life-Safety Invariant Preserved:** In alignment with NASA aerospace avionics human factors standards, flight computer cockpit views (`/` and `/suit-hud`) operate with instant zero-authentication access so that astronauts under acute hypoxia or high-G flight regimes are never locked out of vital alarms by login screens. Ground station control links and individual historical medical records remain strictly authentication-gated.
+> **Life-Safety Invariant Preserved:** In alignment with NASA aerospace avionics human factors standards, flight computer cockpit views (`/` and `/suit-hud`) operate with instant zero-authentication access so that astronauts under acute hypoxia or high-G flight regimes are never locked out of vital alarms by login screens. Ground station control links and individual historical health records remain strictly authentication-gated.
 
 ---
 
@@ -565,7 +565,7 @@ CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 ## 11. Use of AI & Autonomous Intelligence Subsystems
 
-Judges, flight surgeons, and aerospace engineers require full transparency regarding where and how artificial intelligence operates within safety-critical flight software. H.E.L.I.O.S implements an edge-native, deterministic-first AI architecture that strictly separates mathematical telemetry evaluation from language synthesis.
+Judges, flight systems directors, and aerospace engineers require full transparency regarding where and how artificial intelligence operates within safety-critical flight software. H.E.L.I.O.S implements an edge-native, deterministic-first AI architecture that strictly separates mathematical telemetry evaluation from language synthesis.
 
 ### 11.1. Core AI Architecture & Safety Invariant
 
@@ -579,32 +579,32 @@ Judges, flight surgeons, and aerospace engineers require full transparency regar
 │ • Personal baseline dynamic rolling bounds (μ, σ) │ • Translates raw numerical flags into natural      │
 │ • Fast rolling Z-score evaluation (10 Hz, <2ms)   │   2-sentence spoken guidance for the crew.         │
 │ • Physical activity workout gating (MET counter)  │ • Sourced from localized Ollama CPU models or      │
-│ • Multi-signal clinical heuristics (EPI, ARF, TRM)│   deterministic aerospace contingency templates.   │
+│ • Multi-signal health heuristics (EPI, ARF, TRM)│   deterministic aerospace contingency templates.   │
 │                                                   │ • Strict regex post-check blocks hallucinations.   │
 └───────────────────────────────────────────────────┴────────────────────────────────────────────────────┘
 ```
 
 > [!IMPORTANT]
-> **NASA Class B Safety Invariant:** No language model computes biological anomalies, risk scores, or triage classifications. All clinical alert boundaries are computed purely through deterministic mathematics (`SentryMatrixEngine`). Language models and neural audio synthesizers are used exclusively to format, articulate, and vocalize guidance to the crew.
+> **NASA Class B Safety Invariant:** No language model computes biological anomalies, risk scores, or triage classifications. All health alert boundaries are computed purely through deterministic mathematics (`SentryMatrixEngine`). Language models and neural audio synthesizers are used exclusively to format, articulate, and vocalize guidance to the crew.
 
 ---
 
 ### 11.2. AI Tools & Models Implemented in the Solution
 
-| AI Subsystem / Model | Technical Architecture & Deployment | Exact Role & Data Worked On | Prompt Strategy & Clinical Reasoning | Operational Fallback & Guardrails |
+| AI Subsystem / Model | Technical Architecture & Deployment | Exact Role & Data Worked On | Prompt Strategy & Health Reasoning | Operational Fallback & Guardrails |
 |---|---|---|---|---|
-| **1. Local Ollama LLM (`llama3.2:1b` / `helios-jarvis`)** | 1.2B parameter 4-bit quantized model running 100% locally on CPU without GPU requirements (<850 MB RAM). | Ingests structured JSON anomaly vectors from `SentryMatrixEngine`, personal baseline deviations, and OSDR study metadata. Formulates concise, natural language medical summaries. | `CLINICAL_SYSTEM_PROMPT`: Directs the model to act as the onboard NASA AI Surgeon. Mandates exactly two sentences: Sentence 1 explains the deviation and affected crew member; Sentence 2 delivers a concrete NASA-STD-3001 countermeasure. | Post-generation regex validator strips conversational filler ("Sure, here is...") and guarantees exactly 2 sentences. If Ollama is offline or takes >500ms, immediately defaults to 0ms deterministic templates. |
+| **1. Local Ollama LLM (`llama3.2:1b` / `helios-jarvis`)** | 1.2B parameter 4-bit quantized model running 100% locally on CPU without GPU requirements (<850 MB RAM). | Ingests structured JSON anomaly vectors from `SentryMatrixEngine`, personal baseline deviations, and OSDR study metadata. Formulates concise, natural language health summaries. | `HEALTH_SYSTEM_PROMPT`: Directs the model to act as the onboard NASA AI Flight Director. Mandates exactly two sentences: Sentence 1 explains the deviation and affected crew member; Sentence 2 delivers a concrete NASA-STD-3001 countermeasure. | Post-generation regex validator strips conversational filler ("Sure, here is...") and guarantees exactly 2 sentences. If Ollama is offline or takes >500ms, immediately defaults to 0ms deterministic templates. |
 | **2. Google Gemini Pro / Flash (`gemini_client.py`)** | Cloud-assisted neural model invoked strictly when high-bandwidth Earth uplink is available during nominal LEO passes. | Analyzes multi-astronaut coalesced 48-hour longitudinal trend matrices and multi-factorial ECLSS life support interactions. | Deep-space aerospace triage prompt with low temperature (0.2). Synthesizes complex systemic interactions (e.g. combined radiation exposure + electrolyte loss). | Strict output parsing. Automatically bypassed during deep-space radio delays or blackout modes in favor of local edge AI. |
-| **3. Deterministic Clinical Voice Engine (`fallback_templates.py`)** | Pre-compiled dictionary of verified flight surgeon contingency voice scripts for 18 spaceflight emergencies. | Ingests triggered scenario keys, astronaut names, and severity levels. Formulates immediate voice payloads in 0.00ms. | Modeled after Apollo, Skylab, and ISS Emergency Flight Procedures (NASA Flight Rules Section B). Eliminates all stochastic risk. | 100% offline, zero external dependencies, zero memory allocations, zero latency. |
-| **4. Edge Neural Speech Synthesizer (`voice_engine.py`)** | Microsoft Edge Neural TTS streaming via chunked HTTP transfer (`en-GB-RyanNeural`). | Converts phonetically normalized clinical directives into natural, reassuring British JARVIS voice audio. | Custom phonetic expansion (`phonetically_normalize_for_tts`) expands all aerospace and medical abbreviations (`SpO2` → "oxygen saturation", `CO2` → "carbon dioxide", `QTc` → "Q-T interval") for crystal-clear verbal delivery. | 8000ms network budget. If unreachable, gracefully degrades to client-side Web Speech synthesis targeting British natural male voices (`Ryan`, `George`, `UK English Male`). |
+| **3. Deterministic Health Voice Engine (`fallback_templates.py`)** | Pre-compiled dictionary of verified flight systems director contingency voice scripts for 18 spaceflight emergencies. | Ingests triggered scenario keys, astronaut names, and severity levels. Formulates immediate voice payloads in 0.00ms. | Modeled after Apollo, Skylab, and ISS Emergency Flight Procedures (NASA Flight Rules Section B). Eliminates all stochastic risk. | 100% offline, zero external dependencies, zero memory allocations, zero latency. |
+| **4. Edge Neural Speech Synthesizer (`voice_engine.py`)** | Microsoft Edge Neural TTS streaming via chunked HTTP transfer (`en-GB-RyanNeural`). | Converts phonetically normalized health directives into natural, reassuring British JARVIS voice audio. | Custom phonetic expansion (`phonetically_normalize_for_tts`) expands all aerospace and health abbreviations (`SpO2` → "oxygen saturation", `CO2` → "carbon dioxide", `QTc` → "Q-T interval") for crystal-clear verbal delivery. | 8000ms network budget. If unreachable, gracefully degrades to client-side Web Speech synthesis targeting British natural male voices (`Ryan`, `George`, `UK English Male`). |
 
 ---
 
 ### 11.3. System Prompts & Enforcement Guardrails
 
-#### The JARVIS Clinical System Prompt (Ollama `backend/app/ai/clinical_prompts.py`)
+#### The JARVIS Health System Prompt (Ollama `backend/app/ai/health_prompts.py`)
 ```
-You are JARVIS, an autonomous AI flight surgeon on board an active deep-space crewed spacecraft.
+You are JARVIS, an autonomous AI flight systems director on board an active deep-space crewed spacecraft.
 You monitor real-time crew biometrics, laboratory assays, and environmental telemetry under NASA-STD-3001.
 
 CRITICAL RULES:
@@ -612,12 +612,12 @@ CRITICAL RULES:
 2. In the first sentence, state the primary physiological risk, the affected astronaut's name, and the critical deviating metric.
 3. In the second sentence, state the immediate, actionable countermeasure or protocol the crew must execute.
 4. Never apologize, never use conversational filler ("Hello", "Certainly", "As an AI"), and never mention your internal system details.
-5. Spell out all medical abbreviations phonetically so speech output is 100% clean and clear.
+5. Spell out all health abbreviations phonetically so speech output is 100% clean and clear.
 ```
 
 #### Pre-Generation & Post-Generation Safety Guardrails
 1. **Activity Gating Guardrail**: If an astronaut's physical exertion is detected (ARED strength workout or cycle ergometer MET > 3.0), elevated heart rate and respiratory rate are suppressed from triggering false tachycardia alerts.
-2. **Deterministic Anti-Chatter Cooldown**: Once an alert of a given severity is dispatched, identical alerts are locked out for 30 seconds unless a progressive clinical escalation occurs (e.g. WARNING → CRITICAL).
+2. **Deterministic Anti-Chatter Cooldown**: Once an alert of a given severity is dispatched, identical alerts are locked out for 30 seconds unless a progressive health escalation occurs (e.g. WARNING → CRITICAL).
 3. **Dual-Horizon Deduplication**: Speech queue enforces an 8-second semantic window preventing repetitive vocal chatter while keeping life-critical interruptions pre-emptive.
 
 ---
@@ -677,7 +677,7 @@ CRITICAL RULES:
 ### Prerequisites
 - Python 3.11 or higher
 - Node.js 18+ and npm
-- [Ollama](https://ollama.com) (Optional: runs 100% offline even without Ollama via deterministic clinical templates)
+- [Ollama](https://ollama.com) (Optional: runs 100% offline even without Ollama via deterministic health templates)
 
 ### 1. Backend Server Setup
 ```bash
@@ -712,16 +712,16 @@ Open `http://localhost:3000` to interact with the **H.E.L.I.O.S Cockpit HUD**.
 - Navigate to `/scanner` to inspect the **3D Holographic Anatomical Body Scanner**.
 - Click any of the **18 Simulation Scenarios** to trigger live anomalies.
 - Switch to **Health Telemetry** or navigate to `/telemetry/haley` to inspect all **149 biomarkers**.
-- Turn on audio to hear **JARVIS** deliver clear, natural clinical directives.
+- Turn on audio to hear **JARVIS** deliver clear, natural health directives.
 
 ---
 
 ## 14. Community Involvement, Societal Benefits & Terrestrial Spin-Offs
 
 ### 14.1. Mission Vision & What We Hope to Achieve
-H.E.L.I.O.S was conceived with an uncompromising objective: **to ensure that human exploratory spaceflight never fails due to preventable medical catastrophe or diagnostic delay.** By decoupling life-critical clinical decision support from terrestrial cloud infrastructure, H.E.L.I.O.S proves that real-time autonomous medicine is achievable today on modest, radiation-tolerant edge hardware.
+H.E.L.I.O.S was conceived with an uncompromising objective: **to ensure that human exploratory spaceflight never fails due to preventable health catastrophe or diagnostic delay.** By decoupling life-critical health decision support from terrestrial cloud infrastructure, H.E.L.I.O.S proves that real-time autonomous medicine is achievable today on modest, radiation-tolerant edge hardware.
 
-### 14.2. Critical Information for Judges, Flight Surgeons & Evaluators
+### 14.2. Critical Information for Judges, Flight Systems Directors & Evaluators
 1. **Zero Cloud Requirement**: The complete pipeline—from 10 Hz telemetry streaming and Lead II ECG rendering to circular buffer z-score detection and JARVIS voice warning generation—runs 100% offline. No external internet or API key is required for full operational functionality.
 2. **Deterministic Mathematical Integrity**: No stochastic black-box model is permitted to compute biological alert limits. Diagnostic thresholds are mathematically rooted in verified standard deviations ($\mu, \sigma$) derived directly from NASA OSDR spaceflight missions.
 3. **Extreme Low-Power Optimization**: The entire computational sentry executes on standard flight computer CPUs in under 2ms per evaluation cycle, consuming less than 35 MB of RAM and negligible CPU overhead (<2%).
@@ -732,14 +732,14 @@ H.E.L.I.O.S was conceived with an uncompromising objective: **to ensure that hum
 |---|---|---|
 | **1. Dynamic Zero-G Personal Baselines** | Eliminates false alarms caused by cephalic fluid redistribution and vigorous physical countermeasure routines. | Preserves crew psychological calm and prevents alarm fatigue during multi-year voyages. |
 | **2. First-Person Astronaut Helmet Visor (`/suit-hud`)** | Hands-free glanceable status with head-tracking parallax, meter-accurate habitat waypoint lock, and audio alerts directly inside the EVA helmet. | Vital telemetry remains constantly visible during critical extravehicular spacewalks without obscuring visual work. |
-| **3. 3D Holographic Bio-Twin Body Scanner (`/scanner`)** | Interactive 3D anatomical model with clickable organs, real-time stress heatmaps, and physiological explanations in everyday plain English. | Enables astronauts without formal medical doctor degrees to spot, understand, and evaluate their own health status intuitively. |
+| **3. 3D Holographic Bio-Twin Body Scanner (`/scanner`)** | Interactive 3D anatomical model with clickable organs, real-time stress heatmaps, and physiological explanations in everyday plain English. | Enables astronauts without formal physician specialist degrees to spot, understand, and evaluate their own health status intuitively. |
 | **4. Earth MCC Console with Light-Delay Modeling (`/mcc`)** | Accurately models the 4 to 24-minute speed-of-light propagation delay between Mars and Houston, with in-transit packet visualization. | Bridges the psychological gap between onboard crew autonomy and Earth ground supervision. |
 | **5. 3D ISS Flight Deck & Cupola Bay (`/iss`)** | Fully navigable zero-g station module featuring realistic ISPR science racks, 7-window Cupola dome, and live telemetry projected on 3D wall monitors. | Provides operational immersion and mission realism reflecting genuine space station architecture. |
-| **6. Hands-Free JARVIS Voice Directives** | Autonomous spoken clinical directives delivered in natural language, automatically announcing every anomaly and nominal status restoration. | Crucial when an astronaut is incapacitatingly dizzy, hypoxic, or wearing bulky EVA spacesuit gloves. |
+| **6. Hands-Free JARVIS Voice Directives** | Autonomous spoken health directives delivered in natural language, automatically announcing every anomaly and nominal status restoration. | Crucial when an astronaut is incapacitatingly dizzy, hypoxic, or wearing bulky EVA spacesuit gloves. |
 
 ### 14.4. Terrestrial Spin-Off Applications (Earth Benefits)
 Technology forged for deep space delivers immediate life-saving dividends on Earth:
-- **Polar & Antarctic Research Stations**: Outposts such as Amundsen-Scott South Pole Station and Concordia experience months of communication blackouts during severe weather; H.E.L.I.O.S provides local clinical autonomy for isolated research crews.
+- **Polar & Antarctic Research Stations**: Outposts such as Amundsen-Scott South Pole Station and Concordia experience months of communication blackouts during severe weather; H.E.L.I.O.S provides local health autonomy for isolated research crews.
 - **Naval Submarines & Offshore Maritime**: Subsea crews operating under strict radio silence or deep-sea drillships can monitor crew health without telemetry uplinks that reveal their position.
 - **Rural, Wilderness & Disaster Medicine**: First responders in disaster zones with destroyed telecommunications infrastructure can deploy H.E.L.I.O.S on ruggedized laptops for triage.
 - **Hospital ICU Alarm Fatigue Mitigation**: In terrestrial hospitals, up to 90% of telemetry monitor alarms are false positives. Our personal baseline and activity-gating algorithms reduce false alarms while maintaining 100% sensitivity to real biological anomalies.
@@ -762,7 +762,7 @@ The H.E.L.I.O.S engineering architecture is built upon the tireless work of the 
 
 ### 15.2. AI, Machine Intelligence & Audio Synthesis
 - **Ollama Team**: For creating the lightweight, edge-native CPU-compatible LLM runtime enabling zero-GPU local intelligence.
-- **Meta Llama Team**: For the Llama-3.2:1B instruction-tuned architecture that powers our offline AI Surgeon.
+- **Meta Llama Team**: For the Llama-3.2:1B instruction-tuned architecture that powers our offline AI Flight Director.
 - **Microsoft Edge Speech Team**: For the broadcast-quality neural speech synthesis models (`en-GB-RyanNeural`) bringing JARVIS to life.
 - **Google DeepMind & Gemini**: For high-capacity multi-modal intelligence used in complex telemetry synthesis.
 - **W3C Web Audio API**: Low-level audio synthesis standard enabling client-side procedural klaxons, Quindar beeps, and chimes.
@@ -783,8 +783,8 @@ The H.E.L.I.O.S engineering architecture is built upon the tireless work of the 
    - Study **OSD-379**: *Multi-Omics Assessment of Spaceflight Microgravity Fluid Redistribution and Cephalic Engorgement*, NASA Twins Study, NASA OSDR, 2020. [https://osdr.nasa.gov/bio/repo/data/study/OSD-379](https://osdr.nasa.gov/bio/repo/data/study/OSD-379)
    - Study **OSD-665**: *Trabecular Bone Loss, Calcium Demineralization, and Countermeasure Exercise Regimes in Microgravity*, NASA OSDR, 2023. [https://osdr.nasa.gov/bio/repo/data/study/OSD-665](https://osdr.nasa.gov/bio/repo/data/study/OSD-665)
    - Study **OSD-539**: *Spaceflight Radiation Biomarkers, Lymphocyte Depletion, and DNA Damage Response in Deep Space Analogues*, NASA OSDR, 2023. [https://osdr.nasa.gov/bio/repo/data/study/OSD-539](https://osdr.nasa.gov/bio/repo/data/study/OSD-539)
-2. **Peer-Reviewed Spaceflight Medical Literature**:
-   - Overbey, E.G., et al. (2024). *The Space Omics and Medical Atlas (SOMA) across orbits, cultures, and missions*. **Nature**, 632, 1165–1176.
+2. **Peer-Reviewed Spaceflight Health Literature**:
+   - Overbey, E.G., et al. (2024). *The Space Omics and Health Atlas (SOMA) across orbits, cultures, and missions*. **Nature**, 632, 1165–1176.
    - Garrett-Bakelman, F.E., et al. (2019). *The NASA Twins Study: A multidimensional analysis of a year-long human spaceflight*. **Science**, 364(6436), eaau8650.
    - Afshinnekoo, E., et al. (2020). *Comprehensive Multi-omics Analysis Reveals Mitochondrial Dysfunction as a Key Central Feature of Spaceflight*. **Cell**, 183(5), 1185–1201.
    - Marshall-Goebel, K., et al. (2019). *Assessment of Jugular Venous Blood Flow and Internal Jugular Vein Thrombosis in Astronauts During Spaceflight*. **JAMA Network Open**, 2(11), e1915011.

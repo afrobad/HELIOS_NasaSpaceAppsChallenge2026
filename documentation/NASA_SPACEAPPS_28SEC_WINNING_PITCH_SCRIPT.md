@@ -37,7 +37,7 @@
 
 | Time Window | Script Segment | Spoken Voiceover Narration | Visual on Screen (ISS Scene at the Finale) |
 | :--- | :--- | :--- | :--- |
-| **0:00 – 0:08**<br>*(8 sec)* | **TEAM & CHALLENGE** | *"We are Team **Aero Vitals**, passionate innovators answering the **NASA Space Apps Challenge** with **HELIOS**—an autonomous health intelligence platform for deep space."* | **Main Mission Cockpit (`/`):** Fast cinematic zoom into the high-tech HELIOS Clinical Console showing active crew status and team branding. |
+| **0:00 – 0:08**<br>*(8 sec)* | **TEAM & CHALLENGE** | *"We are Team **Aero Vitals**, passionate innovators answering the **NASA Space Apps Challenge** with **HELIOS**—an autonomous health intelligence platform for deep space."* | **Main Mission Cockpit (`/`):** Fast cinematic zoom into the high-tech HELIOS Flight Console showing active crew status and team branding. |
 | **0:08 – 0:15**<br>*(7 sec)* | **FEATURE 1 & 2**<br>*(Telemetry & Bio-Twin)* | *"HELIOS streams live **ECG biometrics**, visualizes physiological strain on a **3D Holographic Bio-Twin**, and deploys an **offline AI analyst**."* | **Main Console (`/`) & 3D Scanner (`/scanner`):** Screen capture of real-time Lead-II ECG canvas pulsing at 10 Hz, transitioning to the glowing 3D anatomical Bio-Twin. |
 | **0:15 – 0:22**<br>*(7 sec)* | **FEATURE 3 & 4**<br>*(Comm Delay & Suit HUD)* | *"When Earth doctors are **twenty minutes away**, it diagnoses emergencies in **milliseconds**, projecting lifesaving countermeasures straight into the astronaut's **Spacesuit HUD**."* | **Earth MCC (`/mcc`) to Suit HUD (`/suit-hud`):** Flash the red **+22 Min Mars Light Delay** badge, cutting instantly into the **Astronaut Visor HUD** showing the emergency oxygen checklist. |
 | **0:22 – 0:26**<br>*(4 sec)* | **DUAL-USE IMPACT** | *"Empowering crews to **Mars**, and **remote critical care on Earth**."* | **Mars Outpost to Earth Dual-Use:** Transition from the Mars base surface (`/suit-hud`) to the Firefighter Tactical HUD & rural ICU schematic (`SHOT_13A`/`SHOT_13B`). |
@@ -56,11 +56,11 @@ Every single second of this 28-second speech directly feeds into the official **
 
 ### 2. Creativity & Innovation (Score: 10/10)
 * **What judges hear:** *"Real-time health monitoring software for astronauts in deep space... guides astronauts offline inside their Suit HUD."*
-* **Why it wins:** Instead of another passive graph viewer, HELIOS is an **autonomous edge AI doctor** that projects AR guidance directly onto the astronaut's spacesuit visor during zero-G spacewalks.
+* **Why it wins:** Instead of another passive graph viewer, HELIOS is an **autonomous edge AI sentry powered by Helix-Ai Analyst** that projects AR guidance directly onto the astronaut's spacesuit visor during zero-G spacewalks.
 
 ### 3. Validity & NASA Data Usage (Score: 10/10)
 * **What judges hear:** *"Powered by real NASA Open Science data, HELIOS analyzes live vitals at ten hertz..."*
-* **Why it wins:** NASA judges specifically look for grounded data. The video explicitly names and displays the **NASA Open Science Data Repository (OSDR)** spaceflight baselines used to validate every clinical diagnostic rule.
+* **Why it wins:** NASA judges specifically look for grounded data. The video explicitly names and displays the **NASA Open Science Data Repository (OSDR)** spaceflight baselines used to validate every health diagnostic rule.
 
 ### 4. Relevance & Challenge Alignment (Score: 10/10)
 * **What judges hear:** *"On Mars, a twenty-minute comm delay means Earth doctors CANNOT save an astronaut..."*
@@ -85,7 +85,7 @@ Every single second of this 28-second speech directly feeds into the official **
 5. **Clip E (0:21–0:28):** Display the Dual-Use Architecture graphic (`frontend/public/videos/SHOT_13A_HELIOS_DUAL_USE_ARCHITECTURE.jpg`) followed by the Firefighter HUD (`SHOT_13B_FIREFIGHTER_TACTICAL_HUD.jpg`).
 
 ### Step 2: Voiceover Delivery Guidelines
-* **Tone:** Calm, dramatic, steady, and technologically authoritative (like a NASA mission director or lead flight surgeon).
+* **Tone:** Calm, dramatic, steady, and technologically authoritative (like a NASA flight director or lead aerospace commander).
 * **Pronunciation:** 
   * *HELIOS* = `HEE-lee-oss`
   * *NASA OSDR* = `NASA Open Science Data`

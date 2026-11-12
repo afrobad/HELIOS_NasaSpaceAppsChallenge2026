@@ -3,15 +3,15 @@
 **Team:** Aero Vitals  
 **Project:** H.E.L.I.O.S. (Health Evaluation & Longevity Intelligence for Orbiting Specialists)  
 **Target Walkthrough Duration:** **3 Minutes 45 Seconds (225 Seconds)**  
-**Speaking Pace:** **135–140 Words/Minute** (Calm, articulate, authoritative, clinical clarity)  
-**Tone:** Lead Flight Surgeon / NASA Systems Architect presenting a certified mission-critical software deployment.
+**Speaking Pace:** **135–140 Words/Minute** (Calm, articulate, authoritative, health clarity)  
+**Tone:** Lead Aerospace Architect / NASA Flight Systems Director presenting a certified mission-critical software deployment.
 
 ---
 
 ## 🎙️ Full Continuous Speech (Single Copy-Paste Paragraph)
 *Use this complete, unbroken paragraph for ElevenLabs, TTS voice generators, or teleprompter read-throughs:*
 
-> "Welcome to HELIOS—our autonomous, offline-first mission health intelligence system designed for long-duration spaceflight. On long voyages to Mars, medical evacuation is physically impossible. HELIOS bridges this gap by turning the spacecraft itself into an intelligent clinical monitor. On the left, the Crew Manifest tracks all four astronauts in real time. Notice our continuous Lead-II ECG canvas engine, streaming at ten hertz alongside real-time heart rate variability, core body temperature, and pulse-oximetry. It continuously screens for microgravity-induced arrhythmias and cardiovascular decompensation. In the center, our interactive 3D Holographic Digital Bio-Twin models each astronaut's individual organ physiology. It visualizes cephalic fluid shifts, kidney stone formation risks, and Spaceflight-Associated Neuro-ocular Syndrome—grounded directly in NASA Open Science Data Repository baselines. Now, let's observe how HELIOS responds to an in-flight crisis. Here, we simulate a sudden life-support scrubber breakthrough, causing cabin carbon dioxide to surge and oxygen saturation to plummet across the crew. Instantly, without needing Earth ground control, our Helix-AI Analyst detects acute collective hypoxia. In under four hundred milliseconds, the multi-agent clinical engine calculates the physiological threat, broadcasts verbal audio warnings to the habitat, and formulates prioritized clinical directives. Once the crew executes the countermeasure, the sentry monitors the physiological recovery curve in real time, validating that oxygenation has stabilized before standing down the alert. This eliminates alert fatigue while guaranteeing patient safety. For comprehensive clinical drill-downs, the Health Telemetry view provides multi-parameter physiological trends. Flight surgeons can inspect renal electrolyte balance, hematocrit shifts, and radiation absorption curves with microsecond fidelity. Daily astronaut routines are monitored through our Cognitive Self-Assessment module. Astronauts perform daily Psychomotor Vigilance Task reaction drills, logging subtle mental fatigue, sleep disruption, or early neuro-cognitive degradation. Coupled with the Mission Routine Adherence engine, HELIOS tracks exercise completion on the Advanced Resistive Exercise Device, preventing bone mineral density depletion and muscle atrophy before symptoms appear. HELIOS features a synchronized dual-domain architecture. On Earth, flight controllers at Mission Control monitor the fleet via the MCC console. But when a spacecraft travels to Mars, physics imposes a twenty-two minute one-way speed-of-light communication lag. By simulating this Deep Space Network delay, HELIOS demonstrates why Earth-dependent medical models fail. While Mission Control sees data that is twenty minutes old, HELIOS operates fully autonomously onboard the spacecraft, diagnosing and stabilizing the crew locally. Here on the ISS Flight Deck, HELIOS is physically embodied within the spacecraft environment. Astronauts can interact with wall displays, inspect ECLSS cargo bays, and observe real-time Earth geography beneath the seven-window Cupola dome. During extravehicular spacewalks, the system projects critical biometric alerts directly into the astronaut's Suit HUD. If suit pressure drops or metabolic workload spikes, the visor displays instant augmented-reality checklists and abort paths. Outside the station, orbital telemetry feeds real-time sun angle, day-night terminator transitions, and space radiation exposure to the HELIOS predictive models. Most importantly, HELIOS isn't just for space. Its offline edge intelligence translates directly to Earth: powering hands-free biometric HUDs for tactical firefighters, triage sentries for remote disaster response, and autonomous clinical monitors in underserved rural hospitals. Built by Team Aero Vitals, validated on NASA Open Science Data, and ready for the journey to Mars. This is HELIOS. Thank you."
+> "Welcome to HELIOS—our autonomous, offline-first mission health intelligence system designed for long-duration spaceflight. On long voyages to Mars, health evacuation is physically impossible. HELIOS bridges this gap by turning the spacecraft itself into an intelligent health monitor. On the left, the Crew Manifest tracks all four astronauts in real time. Notice our continuous Lead-II ECG canvas engine, streaming at ten hertz alongside real-time heart rate variability, core body temperature, and pulse-oximetry. It continuously screens for microgravity-induced arrhythmias and cardiovascular decompensation. In the center, our interactive 3D Holographic Digital Bio-Twin models each astronaut's individual organ physiology. It visualizes cephalic fluid shifts, kidney stone formation risks, and Spaceflight-Associated Neuro-ocular Syndrome—grounded directly in NASA Open Science Data Repository baselines. Now, let's observe how HELIOS responds to an in-flight crisis. Here, we simulate a sudden life-support scrubber breakthrough, causing cabin carbon dioxide to surge and oxygen saturation to plummet across the crew. Instantly, without needing Earth ground control, our Helix-AI Analyst detects acute collective hypoxia. In under four hundred milliseconds, the multi-agent health engine calculates the physiological threat, broadcasts verbal audio warnings to the habitat, and formulates prioritized health directives. Once the crew executes the countermeasure, the sentry monitors the physiological recovery curve in real time, validating that oxygenation has stabilized before standing down the alert. This eliminates alert fatigue while guaranteeing patient safety. For comprehensive health drill-downs, the Health Telemetry view provides multi-parameter physiological trends. Flight flight directors can inspect renal electrolyte balance, hematocrit shifts, and radiation absorption curves with microsecond fidelity. Daily astronaut routines are monitored through our Cognitive Self-Assessment module. Astronauts perform daily Psychomotor Vigilance Task reaction drills, logging subtle mental fatigue, sleep disruption, or early neuro-cognitive degradation. Coupled with the Mission Routine Adherence engine, HELIOS tracks exercise completion on the Advanced Resistive Exercise Device, preventing bone mineral density depletion and muscle atrophy before symptoms appear. HELIOS features a synchronized dual-domain architecture. On Earth, flight controllers at Mission Control monitor the fleet via the MCC console. But when a spacecraft travels to Mars, physics imposes a twenty-two minute one-way speed-of-light communication lag. By simulating this Deep Space Network delay, HELIOS demonstrates why Earth-dependent health models fail. While Mission Control sees data that is twenty minutes old, HELIOS operates fully autonomously onboard the spacecraft, diagnosing and stabilizing the crew locally. Here on the ISS Flight Deck, HELIOS is physically embodied within the spacecraft environment. Astronauts can interact with wall displays, inspect ECLSS cargo bays, and observe real-time Earth geography beneath the seven-window Cupola dome. During extravehicular spacewalks, the system projects critical biometric alerts directly into the astronaut's Suit HUD. If suit pressure drops or metabolic workload spikes, the visor displays instant augmented-reality checklists and abort paths. Outside the station, orbital telemetry feeds real-time sun angle, day-night terminator transitions, and space radiation exposure to the HELIOS predictive models. Most importantly, HELIOS isn't just for space. Its offline edge intelligence translates directly to Earth: powering hands-free biometric HUDs for tactical firefighters, triage sentries for remote disaster response, and autonomous health monitors in underserved rural hospitals. Built by Team Aero Vitals, validated on NASA Open Science Data, and ready for the journey to Mars. This is HELIOS. Thank you."
 
 ---
 
@@ -36,9 +36,9 @@
 * **On-Screen Text:** `H.E.L.I.O.S. // MISSION HEALTH COCKPIT · REAL-TIME 10 Hz TELEMETRY`
 
 > **[0:00 – 0:15]**  
-> *"Welcome to **HELIOS**—our autonomous, offline-first mission health intelligence system designed for long-duration spaceflight. On long voyages to Mars, medical evacuation is physically impossible. HELIOS bridges this gap by turning the spacecraft itself into an intelligent clinical monitor."*
+> *"Welcome to **HELIOS**—our autonomous, offline-first mission health intelligence system designed for long-duration spaceflight. On long voyages to Mars, health evacuation is physically impossible. HELIOS bridges this gap by turning the spacecraft itself into an intelligent health monitor."*
 
-* **Visual Cue:** Zoom in on **Crew Manifest** (Commander Haley, Pilot Chris, Medical Officer Dr. Sian, Flight Engineer Leo), then hover over the **Live Lead-II ECG Waveform**.
+* **Visual Cue:** Zoom in on **Crew Manifest** (Commander Haley, Pilot Chris, Science Officer Dr. Sian, Flight Engineer Leo), then hover over the **Live Lead-II ECG Waveform**.
 
 > **[0:15 – 0:30]**  
 > *"On the left, the **Crew Manifest** tracks all four astronauts in real time. Notice our continuous **Lead-II ECG canvas engine**, streaming at ten hertz alongside real-time heart rate variability, core body temperature, and pulse-oximetry. It continuously screens for microgravity-induced arrhythmias and cardiovascular decompensation."*
@@ -58,10 +58,10 @@
 > **[0:45 – 1:00]**  
 > *"Now, let's observe how HELIOS responds to an in-flight crisis. Here, we simulate a sudden life-support scrubber breakthrough, causing cabin carbon dioxide to surge and oxygen saturation to plummet across the crew."*
 
-* **Visual Cue:** Point to the top **Helix-AI Analyst Alert Drawer**. Show the real-time AI triage: *SpO₂ dropped to 88.5%, Tachycardia detected, Priority Clinical Action generated in under 0.4 seconds*.
+* **Visual Cue:** Point to the top **Helix-AI Analyst Alert Drawer**. Show the real-time AI triage: *SpO₂ dropped to 88.5%, Tachycardia detected, Priority Health Action generated in under 0.4 seconds*.
 
 > **[1:00 – 1:15]**  
-> *"Instantly, without needing Earth ground control, our **Helix-AI Analyst** detects acute collective hypoxia. In under four hundred milliseconds, the multi-agent clinical engine calculates the physiological threat, broadcasts verbal audio warnings to the habitat, and formulates prioritized clinical directives."*
+> *"Instantly, without needing Earth ground control, our **Helix-AI Analyst** detects acute collective hypoxia. In under four hundred milliseconds, the multi-agent health engine calculates the physiological threat, broadcasts verbal audio warnings to the habitat, and formulates prioritized health directives."*
 
 * **Visual Cue:** Click the **SOLVED / ALL NOMINAL** countermeasure resolution button. Watch the vitals smoothly recover, ECG rhythms stabilize, and the 3D Bio-Twin organ badges return to nominal green.
 
@@ -72,11 +72,11 @@
 
 ### ACT III: Deep Diagnostics, Daily Cognitive Self-Check & PVT Drill (1:30 – 2:15)
 
-* **Visual Cue:** Navigate to **Health Telemetry** tab (`/telemetry/AST-01_COMMANDER`). Show multi-parameter clinical timelines, blood biomarker panels, and OSDR distribution graphs.
+* **Visual Cue:** Navigate to **Health Telemetry** tab (`/telemetry/AST-01_COMMANDER`). Show multi-parameter health timelines, blood biomarker panels, and OSDR distribution graphs.
 * **On-Screen Text:** `DEEP PHYSIOLOGICAL TELEMETRY // MULTI-LEAD BIOSENSORS & BIOMARKERS`
 
 > **[1:30 – 1:45]**  
-> *"For comprehensive clinical drill-downs, the **Health Telemetry** view provides multi-parameter physiological trends. Flight surgeons can inspect renal electrolyte balance, hematocrit shifts, and radiation absorption curves with microsecond fidelity."*
+> *"For comprehensive health drill-downs, the **Health Telemetry** view provides multi-parameter physiological trends. Flight flight directors can inspect renal electrolyte balance, hematocrit shifts, and radiation absorption curves with microsecond fidelity."*
 
 * **Visual Cue:** Switch to **Self-Check** (`/self-check`) and **Routine** (`/mission-routine`). Show the NASA Psychomotor Vigilance Task (PVT) reaction speed test and countermeasure schedule.
 * **On-Screen Text:** `DAILY SELF-CHECK & PVT DRILL // COGNITIVE FATIGUE & ARED COUNTERMEASURES`
@@ -100,7 +100,7 @@
 * **Visual Cue:** Toggle the **Mars 22.4 Min Light Delay** switch. Show telemetry buffer queues and delayed packets.
 
 > **[2:30 – 2:45]**  
-> *"By simulating this **Deep Space Network delay**, HELIOS demonstrates why Earth-dependent medical models fail. While Mission Control sees data that is twenty minutes old, HELIOS operates fully autonomously onboard the spacecraft, diagnosing and stabilizing the crew locally."*
+> *"By simulating this **Deep Space Network delay**, HELIOS demonstrates why Earth-dependent health models fail. While Mission Control sees data that is twenty minutes old, HELIOS operates fully autonomously onboard the spacecraft, diagnosing and stabilizing the crew locally."*
 
 ---
 
@@ -113,7 +113,7 @@
 > *"Here on the **ISS Flight Deck**, HELIOS is physically embodied within the spacecraft environment. Astronauts can interact with wall displays, inspect ECLSS cargo bays, and observe real-time Earth geography beneath the seven-window Cupola dome."*
 
 * **Visual Cue:** Switch to **Astronaut Helmet Visor / Suit HUD** (`/suit-hud`). Show the tactical heads-up display with life-support telemetry, oxygen reserve countdown, and Mars surface habitat navigation.
-* **On-Screen Text:** `ASTRONAUT SPACESUIT HUD // ZERO-G AR VISOR · OFFLINE CLINICAL CHECKLISTS`
+* **On-Screen Text:** `ASTRONAUT SPACESUIT HUD // ZERO-G AR VISOR · OFFLINE HEALTH CHECKLISTS`
 
 > **[3:00 – 3:15]**  
 > *"During extravehicular spacewalks, the system projects critical biometric alerts directly into the astronaut's **Suit HUD**. If suit pressure drops or metabolic workload spikes, the visor displays instant augmented-reality checklists and abort paths."*
@@ -131,7 +131,7 @@
 * **On-Screen Text:** `DUAL-USE EARTH IMPACT // RURAL ICU · TACTICAL FIREFIGHTER HUD · SEARCH & RESCUE`
 
 > **[3:25 – 3:35]**  
-> *"Most importantly, HELIOS isn't just for space. Its offline edge intelligence translates directly to Earth: powering hands-free biometric HUDs for tactical firefighters, triage sentries for remote disaster response, and autonomous clinical monitors in underserved rural hospitals."*
+> *"Most importantly, HELIOS isn't just for space. Its offline edge intelligence translates directly to Earth: powering hands-free biometric HUDs for tactical firefighters, triage sentries for remote disaster response, and autonomous health monitors in underserved rural hospitals."*
 
 > **[3:35 – 3:45]**  
 > *"Built by **Team Aero Vitals**, validated on **NASA Open Science Data**, and ready for the journey to Mars. **This is HELIOS.** Thank you."*

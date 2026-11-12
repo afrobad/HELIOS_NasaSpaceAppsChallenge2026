@@ -5,7 +5,7 @@
 **Autonomous Voice AI Engine:** Helix-Ai Analyst  
 **Total Video Runtime:** Exactly 240 Seconds (4:00 Minutes — Official Local Judging Format)  
 **Spoken Voiceover Duration:** 3:50 – 3:55 Minutes (498 Words @ 128 WPM)  
-**NASA Compliance:** 100% Operational & Crew-Centric (Zero clinical / doctor / surgeon / hospital terms)  
+**NASA Compliance:** 100% Operational & Crew-Centric (Zero health / doctor / flight director / hospital terms)  
 
 ---
 

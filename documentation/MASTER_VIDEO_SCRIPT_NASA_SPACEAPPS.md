@@ -6,7 +6,7 @@
 **Total Video Runtime:** Exactly 240 Seconds (4 Minutes — Official Local Judging Format)  
 **Spoken Voiceover Duration:** ~3:20 – 3:35 Minutes (398 Words — Perfectly budgeted under 3:50)  
 **Speaking Pace:** 115–120 Words Per Minute (Calm, confident, articulate)  
-**NASA Compliance:** 100% Crew-Centric & Operational (Zero clinical / doctor / surgeon / hospital terms)  
+**NASA Compliance:** 100% Crew-Centric & Operational (Zero health / doctor / flight director / hospital terms)  
 
 ---
 

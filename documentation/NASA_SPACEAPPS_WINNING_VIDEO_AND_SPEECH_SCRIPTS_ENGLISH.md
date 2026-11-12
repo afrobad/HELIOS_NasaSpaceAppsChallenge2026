@@ -2,8 +2,8 @@
 ## 100% Winning Pitch Deck: Video & Speech Production Scripts (English)
 
 **Project Name:** H.E.L.I.O.S. (Health Evaluation Logistic Intelligent Onboard System)  
-**Autonomous Clinical Engine:** Helix-Ai Analyst  
-**Challenge Track:** Deep-Space Astronaut Health & Autonomous Medical Care  
+**Autonomous Health Engine:** Helix-Ai Analyst  
+**Challenge Track:** Deep-Space Astronaut Health & Autonomous Health Care  
 **Documentation Classification:** Master Production Specification & Judging Playbook  
 
 ---
@@ -14,7 +14,7 @@ Every second of these scripts is calibrated against the **5 Official NASA Space 
 
 | NASA Criteria | Weight / Target | How HELIOS Directly Scores Maximum Points |
 |:---|:---:|:---|
-| **1. Impact** | Primary Driver | Solves the single greatest biological barrier to human Mars colonization: the physical impossibility of real-time Earth telemedicine during critical medical crises. Dual-use application for remote Antarctica research stations, naval submarines, and underserved rural clinics. |
+| **1. Impact** | Primary Driver | Solves the single greatest biological barrier to human Mars colonization: the physical impossibility of real-time Earth remote telemetry consultation during critical health crises. Dual-use application for remote Antarctica research stations, naval submarines, and underserved rural clinics. |
 | **2. Creativity** | Paradigm Shift | Replaces static rule-checkers with a multimodal, hardware-decoupled **3D Holographic Bio-Twin**, an **Augmented Reality Suit HUD**, and **Helix-Ai Analyst** with real-time prosodic voice directives and an instant **"SOLVED // ALL NOMINAL"** crisis normalizer. |
 | **3. Validity** | 100% Empirically Grounded | Grounded in authentic **NASA OSDR** flight datasets (SpaceX Inspiration4 SOMA OSD-575, OSD-569), **NASA-STD-3001** Vol 1 & 2 human-system thresholds, and validated against a 77-test automated aerospace verification harness. |
 | **4. Relevance** | Direct Problem-Solution Fit | Specifically engineered for the **Artemis Moon-to-Mars missions**, answering the exact dilemma of 4-to-24 minute light-speed communication blackouts. Fully functional, responsive, and packaged with zero cloud latency. |
@@ -50,7 +50,7 @@ TIMELINE ARCHITECTURE:
 #### Spoken Voiceover Script (English):
 > *"Imagine you are three months into humanity's maiden voyage to Mars. You are two hundred million kilometers from home. Suddenly, an alarm screams through your headset. Your crewmate collapses, gasping for air. You reach for Mission Control in Houston—but between you and Earth lies a wall that no technology can break: the speed of light.*
 > 
-> *We are Team HELIOS. We are software engineers, biomedical enthusiasts, and deep-space dreamers. We built HELIOS because on the journey to Mars, when seconds decide survival, astronauts cannot wait forty minutes for a doctor's reply."*
+> *We are Team HELIOS. We are software engineers, biohealth enthusiasts, and deep-space dreamers. We built HELIOS because on the journey to Mars, when seconds decide survival, astronauts cannot wait forty minutes for a doctor's reply."*
 
 ---
 
@@ -75,7 +75,7 @@ TIMELINE ARCHITECTURE:
 > 
 > *Now combine that biological strain with an environmental emergency—like a CO₂ scrubber breakthrough or micro-meteoroid cabin depressurization. If a crew member suffers acute hypoxia or ventricular tachycardia, brain tissue begins dying within three minutes.*
 > 
-> *Telemedicine from Earth is completely impossible. Radio signals take four to twenty-four minutes each way. By the time Houston receives the telemetry, the window for survival has closed. Deep space demands autonomous, on-board clinical survival intelligence that operates with zero lag."*
+> *Remote Telemetry Consultation from Earth is completely impossible. Radio signals take four to twenty-four minutes each way. By the time Houston receives the telemetry, the window for survival has closed. Deep space demands autonomous, on-board health survival intelligence that operates with zero lag."*
 
 ---
 
@@ -93,7 +93,7 @@ TIMELINE ARCHITECTURE:
 * **2:32 - 2:45:** [Footage Cut 11] Cut to the **Suit HUD** view (`SuitHudView`). Demonstrate the first-person astronaut helmet visor with curvature, realistic sun glare, optical HUD compass, and real-time Mars surface backdrop (`MarsSurfaceView3D`).
 
 #### Spoken Voiceover Script (English):
-> *"Our answer is H.E.L.I.O.S.—the Health Evaluation Logistic Intelligent Onboard System. It is an autonomous, offline-first digital medical officer engineered specifically for interplanetary flight.*
+> *"Our answer is H.E.L.I.O.S.—the Health Evaluation Logistic Intelligent Onboard System. It is an autonomous, offline-first digital health officer engineered specifically for interplanetary flight.*
 > 
 > *At its core is the **Helix-Ai Analyst**. Operating on edge hardware with zero reliance on Earth internet, HELIOS continuously ingests 10 Hz multimodal telemetry across all four crew stations. Our hardware-decoupled engine renders real-time, 90 FPS cardiac waveforms while synchronizing a 3D Holographic Bio-Twin of each astronaut.*
 > 
@@ -120,7 +120,7 @@ TIMELINE ARCHITECTURE:
 * **3:45 - 4:00:** [Footage Cut 15] Return to the camera shot of the team looking forward. The screen displays the HELIOS logo, NASA Space Apps Challenge 2026 emblem, GitHub repository link, and open-source MIT license notice. End on a confident, memorable smile.
 
 #### Spoken Voiceover Script (English):
-> *"Watch what happens during a real crisis. When our simulator injects a cabin CO₂ scrubber breach, HELIOS immediately flags acute crew hypoxia, triggers the onboard klaxon, and Helix-Ai Analyst speaks prioritized clinical instructions through crew headsets.*
+> *"Watch what happens during a real crisis. When our simulator injects a cabin CO₂ scrubber breach, HELIOS immediately flags acute crew hypoxia, triggers the onboard klaxon, and Helix-Ai Analyst speaks prioritized health instructions through crew headsets.*
 > 
 > *And once the crew executes the countermeasure, our one-click **'SOLVED // ALL NOMINAL'** engine flushes the emergency pipeline, normalizes all four crew baselines, and confirms life-support stability with zero latency.*
 > 
@@ -158,9 +158,9 @@ TIMELINE ARCHITECTURE:
   Punchy high-contrast opening. HELIOS flight deck glowing in 4K resolution. Lower-third text:
   `TEAM HELIOS · NASA SPACE APPS CHALLENGE 2026`
 * **Voiceover:** 
-  *"We are Team HELIOS, and we built an autonomous, offline AI flight surgeon for deep-space survival."*
+  *"We are Team HELIOS, and we built an autonomous, offline AI flight systems director for deep-space survival."*
 * **On-Screen Subtitle:** 
-  `Team HELIOS: Autonomous, offline AI flight surgeon for deep-space survival.`
+  `Team HELIOS: Autonomous, offline AI flight systems director for deep-space survival.`
 
 ---
 
@@ -169,9 +169,9 @@ TIMELINE ARCHITECTURE:
   Close-up of the `Earth MCC` view with a red warning graphic flashing:
   `MARS TRANSIT: 44-MINUTE ROUND-TRIP SIGNAL DELAY // TELEMEDICINE IMPOSSIBLE`.
 * **Voiceover:** 
-  *"During Mars transit, a 44-minute radio blackout makes real-time medical help from Earth physically impossible."*
+  *"During Mars transit, a 44-minute radio blackout makes real-time health help from Earth physically impossible."*
 * **On-Screen Subtitle:** 
-  `During Mars transit, 44-minute communication delays make Earth telemedicine impossible.`
+  `During Mars transit, 44-minute communication delays make Earth remote telemetry consultation impossible.`
 
 ---
 
