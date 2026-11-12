@@ -1,15 +1,4 @@
-<table width="100%">
-  <tr>
-    <td>
-      <a href="README.md"><img src="assets/tabs/tab_readme_inactive.svg" height="28" alt="README" /></a>&nbsp;&nbsp;
-      <a href="LICENSE"><img src="assets/tabs/tab_license_inactive.svg" height="28" alt="License" /></a>&nbsp;&nbsp;
-      <a href="CREDITS.md"><img src="assets/tabs/tab_credits_active.svg" height="28" alt="Credits" /></a>
-      <hr />
-      <b>H.E.L.I.O.S.</b><br />
-      Health Evaluation &amp; Longevity Intelligence for Orbiting Specialists.
-    </td>
-  </tr>
-</table>
+
 
 # H.E.L.I.O.S. - Master Credits, Citations & Attributions
 ### Official Project Credentials & Open Science Attribution Index
