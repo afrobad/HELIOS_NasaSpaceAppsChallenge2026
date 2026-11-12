@@ -1,56 +1,142 @@
 <div align="center">
 
-# H.E.L.I.O.S.
+# 🛰️ H.E.L.I.O.S.
 ### Health Evaluation & Longevity Intelligence for Orbiting Specialists
-**Autonomous Offline-First Clinical Sentry, Multi-Agent Biometric Intelligence & 3D Digital Bio-Twin Platform for Deep-Space Exploration**
+**Autonomous Offline-First Clinical Sentry, Multi-Agent Biometric Intelligence & 3D Digital Bio-Twin for Deep-Space Exploration**
 
 **NASA International Space Apps Challenge 2026**  
 *Challenge Track: Create Health Monitoring Software for Astronauts on Space Missions*
 
+<br/>
+
 [![NASA Space Apps 2026](https://img.shields.io/badge/NASA_Space_Apps-2026_Global_Challenge-0B3D91.svg?style=for-the-badge&logo=nasa&logoColor=white)](https://www.spaceappschallenge.org/)
-[![NASA-STD-3001](https://img.shields.io/badge/Standard-NASA--STD--3001_Vol_1_%26_2-red.svg?style=for-the-badge&logo=nasa)](https://standards.nasa.gov/)
-[![NASA OSDR Grounded](https://img.shields.io/badge/Data-NASA_OSDR_Inspiration4_(SOMA)-orange.svg?style=for-the-badge&logo=nasa)](https://osdr.nasa.gov/)
+[![NASA-STD-3001](https://img.shields.io/badge/Flight_Standard-NASA--STD--3001_Vol_1_%26_2-critical.svg?style=for-the-badge&logo=nasa&logoColor=white)](https://standards.nasa.gov/)
+[![NASA OSDR Grounded](https://img.shields.io/badge/Data_Grounding-NASA_OSDR_Inspiration4_(SOMA)-orange.svg?style=for-the-badge&logo=nasa&logoColor=white)](https://osdr.nasa.gov/)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB.svg?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![FastAPI 0.115+](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React 19](https://img.shields.io/badge/React-19.0-61DAFB.svg?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
-[![TypeScript 5.6](https://img.shields.io/badge/TypeScript-5.6-3178C6.svg?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![React 19](https://img.shields.io/badge/React-19.0_Concurrent-61DAFB.svg?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript 5.6](https://img.shields.io/badge/TypeScript-5.6_Strict-3178C6.svg?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![Three.js WebGL](https://img.shields.io/badge/Three.js-WebGL_r160+-black.svg?style=for-the-badge&logo=three.js&logoColor=white)](https://threejs.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT_Open_Science-green.svg?style=for-the-badge)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT_Open_Science-10B981.svg?style=for-the-badge)](LICENSE)
 
----
+<br/>
 
-[Executive Overview](#executive-overview) • [The Deep-Space Medical Reality](#the-deep-space-medical-reality) • [NASA OSDR Grounding](#nasa-osdr-scientific-grounding) • [System Architecture](#system-architecture) • [Key Subsystems](#key-subsystems--innovations) • [Dual-Use Earth Impact](#dual-use-terrestrial-impact) • [Security & Safety](#security-safety--standards) • [Quick Start](#quick-start--deployment) • [Credits](#team--credits)
-
----
+<table>
+  <tr>
+    <td align="center">
+      <a href="#executive-overview"><b>🌟 Overview</b></a> &nbsp;•&nbsp;
+      <a href="#the-deep-space-medical-reality"><b>🚀 Deep-Space Challenge</b></a> &nbsp;•&nbsp;
+      <a href="#interactive-tech-stack"><b>💎 Tech Stack</b></a> &nbsp;•&nbsp;
+      <a href="#key-subsystems--innovations"><b>🕹️ Subsystems</b></a> &nbsp;•&nbsp;
+      <a href="#nasa-osdr-scientific-grounding"><b>🔬 NASA OSDR</b></a> &nbsp;•&nbsp;
+      <a href="#system-architecture"><b>🏗️ Architecture</b></a> &nbsp;•&nbsp;
+      <a href="#dual-use-terrestrial-impact"><b>🌍 Dual-Use</b></a> &nbsp;•&nbsp;
+      <a href="#quick-start--deployment"><b>⚡ Quick Start</b></a> &nbsp;•&nbsp;
+      <a href="#team--credits"><b>👥 Team</b></a>
+    </td>
+  </tr>
+</table>
 
 </div>
+
+---
 
 <a id="executive-overview"></a>
 
 ## 🌟 Executive Overview
 
-During humanity’s journey toward the Moon and Mars under the Artemis program, astronauts will travel hundreds of thousands to hundreds of millions of kilometers from Earth. Beyond Low Earth Orbit (LEO), the traditional umbilical cord connecting astronauts to Houston Mission Control breaks down: **light-speed radio signals take between 4 and 24 minutes one-way**, creating an unavoidable round-trip communication blackout of up to 48 minutes.
+During humanity’s journey toward the Moon and Mars under the Artemis program, astronauts will travel millions of kilometers from Earth. Beyond Low Earth Orbit (LEO), the traditional umbilical cord connecting astronauts to Houston Mission Control breaks down: **light-speed radio signals take between 4 and 24 minutes one-way**, creating an unavoidable round-trip communication blackout of up to 48 minutes.
 
 In acute medical crises—such as cabin decompression, severe toxic gas breakthrough, cardiac arrhythmias, or solar particle radiation storms—**Earth-dependent telemedicine is physically impossible**.
 
 **H.E.L.I.O.S.** (Health Evaluation & Longevity Intelligence for Orbiting Specialists) is a mission-grade, **100% autonomous, offline-first clinical decision-support and visual self-assessment platform**. Built for deep-space exploration crews and grounded in genuine **NASA Open Science Data Repository (OSDR)** spaceflight profiles, HELIOS transforms the spacecraft into an autonomous digital flight surgeon capable of presymptomatic anomaly detection, real-time 3D anatomical twin modeling, and hands-free spoken clinical intervention.
 
-```
-╔════════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║                                        HELIOS AT A GLANCE                                              ║
-╠════════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║  • 100% Autonomous & Offline-First: Zero cloud or ground dependency; runs entirely at the edge.         ║
-║  • 10 Hz Real-Time Biometric Ingestion: Low-latency WebSocket streaming for multi-astronaut vitals.     ║
-║  • 149 Multimodal Physiological Parameters across 10 vital clinical and life-support categories.       ║
-║  • 119 Point-of-Care Laboratory Assays grounded in NASA OSDR Inspiration4 (SOMA) baselines.            ║
-║  • 60–90 FPS Decoupled Canvas Engines: Clinically accurate Lead II ECG and SpO₂ photoplethysmography.  ║
-║  • 3D Holographic Bio-Twin: Interactive WebGL anatomical wireframe with organ-level stress heatmaps.   ║
-║  • First-Person Spacesuit AR Visor (Suit HUD): Optical helmet HUD with tactical waypoint guidance.     ║
-║  • 3D ISS Station Twin & Cupola: Photorealistic WebGL station with real-time Earth nadir tracking.     ║
-║  • Speed-of-Light Radio Delay Simulator: Realistic Mars-to-Earth telemetry propagation pipeline.       ║
-║  • Terrestrial Dual-Use: Direct deployment to tactical firefighting HUDs and remote rural ICUs.        ║
-╚════════════════════════════════════════════════════════════════════════════════════════════════════════╝
-```
+<br/>
+
+<table>
+  <thead>
+    <tr style="border-bottom: 2px solid #38bdf8;">
+      <th colspan="2" align="center" style="background: linear-gradient(90deg, #091e3a 0%, #0d2847 50%, #091e3a 100%); padding: 12px; font-size: 16px; color: #38bdf8; letter-spacing: 0.15em;">
+        ⚡ HELIOS AVIONICS CORE SPECIFICATION MATRIX
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td width="50%" style="background: rgba(13, 27, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); padding: 14px; vertical-align: top;">
+        <b>🔒 100% Autonomous & Offline-First</b><br/>
+        <sub>Zero cloud dependencies. Operates locally at the spacecraft edge with zero network requirement.</sub><br/><br/>
+        <b>📡 10 Hz Real-Time Biometric Ingestion</b><br/>
+        <sub>Continuous non-blocking WebSockets streaming multi-astronaut cardiovascular, respiratory, and metabolic vitals.</sub><br/><br/>
+        <b>🩺 149 Multimodal Physiological Parameters</b><br/>
+        <sub>Monitored continuously across 10 vital clinical categories (Hemodynamics, SpO₂, ECG, Renal, Biomarkers).</sub>
+      </td>
+      <td width="50%" style="background: rgba(13, 27, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); padding: 14px; vertical-align: top;">
+        <b>🧬 119 Point-of-Care Laboratory Assays</b><br/>
+        <sub>Calibrated against NASA OSDR Inspiration4 (SOMA) baseline distributions and spaceflight omics.</sub><br/><br/>
+        <b>📈 60–90 FPS Decoupled Canvas Waveforms</b><br/>
+        <sub>Hardware-accelerated Lead-II ECG and PPG plethysmograms rendered with zero DOM overhead.</sub><br/><br/>
+        <b>🥽 In-Suit AR Visor & 3D Bio-Twin</b><br/>
+        <sub>Optical helmet HUD with zero-g parallax and rotatable 3D WebGL organ-level radiation stress modeling.</sub>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+<a id="interactive-tech-stack"></a>
+
+## 💎 Aerospace Tech Stack & Glassmorphic Architecture
+
+<table>
+  <tr>
+    <td width="33.3%" align="center" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(2, 6, 23, 0.85) 100%); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; padding: 18px;">
+      <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/fastapi/fastapi-original.svg" width="46" height="46" alt="FastAPI" /><br/><br/>
+      <b style="color: #38bdf8; font-size: 15px;">FastAPI Aerospace Core</b><br/>
+      <sub style="color: #94a3b8;">Python 3.11+ · High-Rate ASGI</sub><br/><br/>
+      <code style="background: #0369a1; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px;">10 Hz WebSocket Loop</code><br/>
+      <sub style="color: #cbd5e1;">Non-blocking multi-crew telemetry feeder and z-score anomaly evaluation.</sub>
+    </td>
+    <td width="33.3%" align="center" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(2, 6, 23, 0.85) 100%); border: 1px solid rgba(129, 140, 248, 0.35); border-radius: 12px; padding: 18px;">
+      <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/react/react-original.svg" width="46" height="46" alt="React 19" /><br/><br/>
+      <b style="color: #818cf8; font-size: 15px;">React 19 & TypeScript</b><br/>
+      <sub style="color: #94a3b8;">Concurrent UI · Strict Typing</sub><br/><br/>
+      <code style="background: #4338ca; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px;">Decoupled Canvas 90 FPS</code><br/>
+      <sub style="color: #cbd5e1;">Hardware-accelerated Lead-II ECG canvas engine with zero DOM paint thrashing.</sub>
+    </td>
+    <td width="33.3%" align="center" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(2, 6, 23, 0.85) 100%); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 12px; padding: 18px;">
+      <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/threejs/threejs-original.svg" width="46" height="46" alt="Three.js" /><br/><br/>
+      <b style="color: #34d399; font-size: 15px;">Three.js WebGL r160+</b><br/>
+      <sub style="color: #94a3b8;">Full 3D GPU Rendering</sub><br/><br/>
+      <code style="background: #065f46; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px;">PBR Station & Bio-Twin</code><br/>
+      <sub style="color: #cbd5e1;">Photorealistic ISS 3D station, 7-window Cupola dome, and anatomical mannequin.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="33.3%" align="center" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(2, 6, 23, 0.85) 100%); border: 1px solid rgba(192, 132, 252, 0.35); border-radius: 12px; padding: 18px;">
+      <img src="https://api.iconify.design/lucide:brain.svg?color=%23c084fc" width="46" height="46" alt="AI" /><br/><br/>
+      <b style="color: #c084fc; font-size: 15px;">Helix-AI Sentry</b><br/>
+      <sub style="color: #94a3b8;">Multi-Agent Clinical Engine</sub><br/><br/>
+      <code style="background: #6b21a8; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px;">&lt; 400ms Local Triage</code><br/>
+      <sub style="color: #cbd5e1;">Presymptomatic triage, verbal Quindar audio alerts, and prioritized directives.</sub>
+    </td>
+    <td width="33.3%" align="center" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(2, 6, 23, 0.85) 100%); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 12px; padding: 18px;">
+      <img src="https://api.iconify.design/lucide:radio.svg?color=%23fbbf24" width="46" height="46" alt="Radio" /><br/><br/>
+      <b style="color: #fbbf24; font-size: 15px;">Mars Radio Delay Buffer</b><br/>
+      <sub style="color: #94a3b8;">Light-Speed Propagation Simulator</sub><br/><br/>
+      <code style="background: #92400e; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px;">4 to 24 Min Comm Lag</code><br/>
+      <sub style="color: #cbd5e1;">Physical DSN radio delay modeling between spacecraft edge and Earth MCC.</sub>
+    </td>
+    <td width="33.3%" align="center" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(2, 6, 23, 0.85) 100%); border: 1px solid rgba(248, 113, 113, 0.35); border-radius: 12px; padding: 18px;">
+      <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/sqlite/sqlite-original.svg" width="46" height="46" alt="SQLite" /><br/><br/>
+      <b style="color: #f87171; font-size: 15px;">SQLite WAL Aerospace DB</b><br/>
+      <sub style="color: #94a3b8;">High-Throughput Local Storage</sub><br/><br/>
+      <code style="background: #991b1b; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px;">&gt; 180,000 Writes / Sec</code><br/>
+      <sub style="color: #cbd5e1;">Zero-configuration, flight-proven local event logging and biomarker time-series.</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -60,43 +146,42 @@ In acute medical crises—such as cabin decompression, severe toxic gas breakthr
 
 NASA’s Human Research Program (HRP) identifies five fundamental hazards that jeopardize human life during long-duration interplanetary exploration:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                    THE 5 HAZARDS OF HUMAN SPACEFLIGHT                                   │
-├───────────────────────────┬─────────────────────────────────────────────────────────────────────────────┤
-│ 1. Space Radiation        │ Galactic cosmic rays and Solar Particle Events (SPE) cause DNA damage,      │
-│                           │ acute radiation syndrome (ARS), and central nervous system degradation.     │
-├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
-│ 2. Isolation & Confinement│ Prolonged confinement in closed modules triggers circadian desynchrony,     │
-│                           │ cognitive fatigue, elevated cortisol, and immune dysregulation.             │
-├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
-│ 3. Distance from Earth    │ Speed-of-light delays (4 to 24 min one-way to Mars) eliminate real-time     │
-│                           │ terrestrial medical rescue. Evacuation to Earth is physically impossible.   │
-├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
-│ 4. Altered Gravity Fields │ Microgravity causes cephalic fluid shifts (~1.5–2.0 L upward), SANS optic   │
-│                           │ nerve edema, bone mineral depletion (-1.5%/month), and muscle atrophy.      │
-├───────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
-│ 5. Hostile Closed Envs    │ Elevated cabin CO₂ (>3.0 mmHg), hypergolic coolant loop leaks, and toxic    │
-│                           │ trace contaminants require continuous ECLSS-physiological cross-triage.    │
-└───────────────────────────┴─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### The Communication Blackout Paradigm
-
-```
-LOW EARTH ORBIT / ISS (400 km)                     MARS TRANSIT & DEEP SPACE (>55,000,000 km)
-┌──────────────┐         Sub-second Radio         ┌──────────────┐         4 to 24 Minute Delay          ┌──────────────┐
-│  Astronaut   │ <==============================> │   Houston    │ <···································> │  Astronaut   │
-│  Spacecraft  │         Direct Ground Link       │ Mission Ctrl │     Light-Time Telemetry Lag      │ Deep Space   │
-└──────────────┘                                  └──────────────┘                                       └──────┬───────┘
-                                                                                                                │ Zero Latency
-                                                                                                         ┌──────▼───────┐
-                                                                                                         │  H.E.L.I.O.S │
-                                                                                                         │ Edge Sentry  │
-                                                                                                         └──────────────┘
-```
-
-On Mars, if an astronaut experiences acute cardiac ischemia or hypercapnic hypoxia, **waiting 40 minutes for a ground reply is fatal**. HELIOS solves this by deploying a fully local, deterministic clinical intelligence layer directly inside the spacecraft avionics.
+<table>
+  <thead>
+    <tr style="background: rgba(15, 23, 42, 0.9);">
+      <th width="28%" style="color: #38bdf8;">NASA Spaceflight Hazard</th>
+      <th width="36%" style="color: #e2e8f0;">Physiological & Environmental Threat</th>
+      <th width="36%" style="color: #10b981;">HELIOS Edge Solution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>☢️ Space Radiation</b></td>
+      <td>Cosmic ionizing rays and Solar Particle Events (SPE) cause acute radiation syndrome (ARS), bone marrow suppression, and cellular DNA damage.</td>
+      <td>Continuous biological radiation dosimeter tracking, organ absorption modeling in the 3D Bio-Twin, and radiation countermeasure protocols.</td>
+    </tr>
+    <tr>
+      <td><b>🔒 Isolation & Confinement</b></td>
+      <td>Closed module environments cause circadian disruption, sensory deprivation, elevated cortisol, immune dysregulation, and neuro-cognitive fatigue.</td>
+      <td>Daily NASA PVT (Psychomotor Vigilance Task) reaction speed drills and cognitive self-assessment tracking subtle mental fatigue.</td>
+    </tr>
+    <tr>
+      <td><b>📡 Distance from Earth</b></td>
+      <td>Speed-of-light delays (4 to 24 min one-way) eliminate terrestrial telemedicine. In-flight emergency medical evacuation is physically impossible.</td>
+      <td>100% onboard autonomous triage engine executing on flight CPUs, diagnosing emergencies in &lt; 400ms without ground assistance.</td>
+    </tr>
+    <tr>
+      <td><b>🌀 Altered Gravity Fields</b></td>
+      <td>Microgravity induces cephalic fluid shift (~1.5–2.0 L upward), SANS optic nerve edema, rapid bone demineralization (-1.5%/month), and muscle atrophy.</td>
+      <td>Dynamic zero-g baselines, SANS ocular ICP metrics, and Advanced Resistive Exercise Device (ARED) workout adherence logging.</td>
+    </tr>
+    <tr>
+      <td><b>💨 Hostile Closed Environments</b></td>
+      <td>Elevated cabin carbon dioxide (&gt;3.0 mmHg), hypergolic coolant loop breaches, and toxic trace gases threaten life-support containment.</td>
+      <td>ECLSS atmosphere bar cross-correlating cabin gas sensors with crew blood SpO₂ to catch presymptomatic scrubber breakthroughs.</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
@@ -104,24 +189,62 @@ On Mars, if an astronaut experiences acute cardiac ischemia or hypercapnic hypox
 
 ## 🔬 NASA OSDR Scientific Grounding
 
-HELIOS does not use synthetic, arbitrary medical thresholds. Every baseline distribution, z-score alert boundary, and laboratory assay reference is grounded in peer-reviewed scientific studies from the **NASA Open Science Data Repository (OSDR)** and official **NASA Standards**:
+HELIOS does not use arbitrary medical thresholds. Every baseline distribution, z-score alert boundary, and laboratory assay reference is grounded in peer-reviewed scientific studies from the **NASA Open Science Data Repository (OSDR)** and official **NASA Standards**:
 
-| NASA Dataset / Standard | Study Description | Operational Function in HELIOS |
-|:---|:---|:---|
-| **NASA OSDR OSD-575** | **Inspiration4 (I4) SOMA Longitudinal Multi-Omics Profiling** | Baseline distributions for point-of-care laboratory blood assays: hematocrit, serum potassium, troponin-I, ferritin, and cytokine inflammatory panels. |
-| **NASA OSDR OSD-569** | **Spaceflight Induces Longitudinal Epigenomic Immune Remodeling** | Dynamic calibration of microgravity cephalic fluid redistribution, endothelial activation markers, and immune senescence vectors. |
-| **NASA OSDR OSD-379 & 194** | **Murine and Human Microgravity Skeletal Demineralization** | Calibrated bone mineral density loss rate models ($-1.5\%\text{ per month}$) and ARED countermeasure resistance tracking curves. |
-| **NASA-STD-3001 Vol 1** | **Crew Health Flight Standard** | Multi-lead cardiovascular thresholds, SpO₂ hypoxemia limits ($<90\%$), heart rate variability (HRV RMSSD) circadian ranges, and core body temperature limits. |
-| **NASA-STD-3001 Vol 2** | **Habitability and Environmental Health** | ECLSS environmental safety envelopes: Cabin total pressure ($101.3\text{ kPa}$), partial pressure of carbon dioxide ($P\text{CO}_2 < 3.0\text{ mmHg}$), O₂ fraction ($20.9\% \pm 1.0\%$). |
-| **NASA HRP SANS Protocol** | **Spaceflight-Associated Neuro-ocular Syndrome** | Intracranial pressure (ICP) estimation, optic nerve sheath diameter (ONSD $\ge 5.8\text{ mm}$ alert threshold), and retinal microaneurysm screening. |
+<table>
+  <thead>
+    <tr style="background: rgba(15, 23, 42, 0.9);">
+      <th style="color: #38bdf8;">NASA Dataset / Standard</th>
+      <th style="color: #e2e8f0;">Scientific Study & Mission Profile</th>
+      <th style="color: #10b981;">Clinical Implementation in HELIOS</th>
+      <th style="color: #fbbf24;">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>NASA OSDR OSD-575</b></td>
+      <td><b>Inspiration4 (I4) SOMA Longitudinal Multi-Omics Profiling</b></td>
+      <td>Point-of-care laboratory blood assays: hematocrit, serum potassium, cardiac troponin-I, ferritin, and cytokine inflammatory panels.</td>
+      <td><code style="color: #34d399; background: #064e3b; padding: 2px 6px; border-radius: 4px;">VERIFIED</code></td>
+    </tr>
+    <tr>
+      <td><b>NASA OSDR OSD-569</b></td>
+      <td><b>Spaceflight Induces Longitudinal Epigenomic Immune Remodeling</b></td>
+      <td>Dynamic modeling of microgravity cephalic fluid shifts, endothelial activation markers, and immune senescence vectors.</td>
+      <td><code style="color: #34d399; background: #064e3b; padding: 2px 6px; border-radius: 4px;">VERIFIED</code></td>
+    </tr>
+    <tr>
+      <td><b>NASA OSDR OSD-379 &amp; 194</b></td>
+      <td><b>Murine &amp; Human Spaceflight Skeletal Demineralization</b></td>
+      <td>Calibrated bone mineral density loss rate models (-1.5% per month) and ARED resistive exercise countermeasure tracking curves.</td>
+      <td><code style="color: #34d399; background: #064e3b; padding: 2px 6px; border-radius: 4px;">VERIFIED</code></td>
+    </tr>
+    <tr>
+      <td><b>NASA-STD-3001 Vol 1</b></td>
+      <td><b>NASA Crew Health Flight Standard</b></td>
+      <td>Multi-lead cardiovascular parameters, hypoxemia thresholds (&lt;90% SpO₂), heart rate variability circadian envelopes, and core body temperature.</td>
+      <td><code style="color: #38bdf8; background: #0c4a6e; padding: 2px 6px; border-radius: 4px;">STANDARD</code></td>
+    </tr>
+    <tr>
+      <td><b>NASA-STD-3001 Vol 2</b></td>
+      <td><b>NASA Habitability &amp; Environmental Health</b></td>
+      <td>ECLSS atmospheric envelopes: Cabin pressure (101.3 kPa), CO₂ partial pressure (&lt;3.0 mmHg), O₂ fraction (20.9% ± 1.0%), and radiation limits.</td>
+      <td><code style="color: #38bdf8; background: #0c4a6e; padding: 2px 6px; border-radius: 4px;">STANDARD</code></td>
+    </tr>
+    <tr>
+      <td><b>NASA HRP SANS Protocol</b></td>
+      <td><b>Spaceflight-Associated Neuro-ocular Syndrome</b></td>
+      <td>Intracranial pressure (ICP) estimation, optic nerve sheath diameter (ONSD &ge; 5.8 mm threshold), and retinal microaneurysm screening.</td>
+      <td><code style="color: #fbbf24; background: #78350f; padding: 2px 6px; border-radius: 4px;">FLIGHT-READY</code></td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
 <a id="system-architecture"></a>
 
-## 🏗️ System Architecture
-
-HELIOS is built on a decoupled, aerospace-grade architecture that enforces zero-latency local execution, resilient cross-frame synchronization, and mathematical safety boundaries:
+## 🏗️ System Architecture & Telemetry Pipeline
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -151,7 +274,7 @@ HELIOS is built on a decoupled, aerospace-grade architecture that enforces zero-
 │                  │                                   │                                 │                │
 │   ┌──────────────▼─────────────────┐  ┌──────────────▼─────────────────┐  ┌────────────▼────────────┐   │
 │   │ NASA OSDR Baseline Manager     │  │ Radio Propagation Pipeline     │  │ SQLite WAL High-Rate DB │   │
-│   │ SOMA Inspirations4 profiles    │  │ Speed-of-light delay buffer    │  │ In-memory caching       │   │
+│   │ SOMA Inspiration4 profiles     │  │ Speed-of-light delay buffer    │  │ In-memory caching       │   │
 │   │ NASA-STD-3001 threshold logic  │  │ Packet loss / jitter simulation│  │ >180,000 writes/sec     │   │
 │   └────────────────────────────────┘  └────────────────────────────────┘  └─────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -163,45 +286,73 @@ HELIOS is built on a decoupled, aerospace-grade architecture that enforces zero-
 
 ## 🕹️ Key Subsystems & Innovations
 
-### 1. Unified Spacecraft Flight Command Deck (`/`)
+<details open>
+<summary><b>1. 🎛️ Unified Spacecraft Flight Command Deck (Dashboard · <code>/</code>)</b></summary>
+<br/>
+
 * **10 Hz Real-Time Biometric Feed**: Non-blocking WebSocket pipeline continuously streaming heart rate, pulse oximetry (SpO₂), core body temperature, heart rate variability (HRV RMSSD), blood pressure, and cabin life-support telemetry.
 * **Hardware-Decoupled 60–90 FPS Canvas Engine**: Clinically calibrated, real-time Lead II electrocardiogram (ECG) and photoplethysmogram (PPG) waveforms rendered on high-framerate HTML5 canvases without DOM overhead.
 * **ECLSS Life-Support Atmosphere Bar**: Real-time atmospheric containment monitors measuring cabin pressure ($101.3\text{ kPa}$), oxygen fraction ($20.9\%$), carbon dioxide partial pressure ($1.82\text{ mmHg}$), ambient temperature ($21.4^\circ\text{C}$), and ionizing radiation flux ($0.05\text{ mSv/h}$).
 * **Crew Telemetry Manifest**: Live health state cards for all four crew members (**Commander Haley**, **Pilot Chris**, **Medical Officer Dr. Sian**, **Specialist Leo**) with color-coded triage badges.
+</details>
 
-### 2. Autonomous Helix-Ai Clinical Analyst & Situation Normalizer
+<details open>
+<summary><b>2. 🧠 Autonomous Helix-Ai Clinical Analyst & Situation Normalizer</b></summary>
+<br/>
+
 * **Sub-Second Multi-Agent Triage**: Analyzes multi-sensor anomalies in $<400\text{ ms}$, categorizing clinical severity (`NOMINAL`, `WATCH`, `WARNING`, `CRITICAL`).
 * **Hands-Free Audio Directives**: Synthesizes medical verbal directives with authentic NASA Quindar tones ($2525\text{ Hz}$ initiate / $2475\text{ Hz}$ terminate) and clinical prosody, minimizing astronaut cognitive workload.
 * **One-Click Situation Normalization ("SOLVED // ALL NOMINAL")**: When an emergency is mitigated, the crew clicks **SOLVED**. The system validates physiological recovery, flushes stale anomaly state, silences klaxons, broadcasts speech confirmation, and resets crew baselines.
+</details>
 
-### 3. Interactive 3D Holographic Digital Bio-Twin (`/scanner`)
+<details open>
+<summary><b>3. 🩺 Interactive 3D Holographic Digital Bio-Twin (<code>/scanner</code>)</b></summary>
+<br/>
+
 * **360° Anatomical WebGL Mannequin**: Rotatable wireframe Bio-Twin with three rendering modes:
   * **Cyan Bio-Holo**: Standard physiological monitoring mode.
   * **Thermal IR Heatmap**: Thermal regulation and surface inflammation visualization.
   * **Amber Tactical HUD**: High-contrast emergency damage and radiation absorption mapping.
 * **Clickable Organ Telemetry Subsystems**: Real-time inspection for **Ocular & Brain** (SANS / ICP), **Heart & Cardiac** (arrhythmias, stroke volume), **Lungs & Pulmonary** (hypoxic vasoconstriction), **Renal System** (hydration, nephrolithiasis risk), and **Skeletal Architecture** (bone density loss).
+</details>
 
-### 4. First-Person Spacesuit Helmet Visor (`Suit HUD` · `/suit-hud`)
+<details open>
+<summary><b>4. 🥽 First-Person Spacesuit Helmet Visor (Suit HUD · <code>/suit-hud</code>)</b></summary>
+<br/>
+
 * **Zero-G Helmet Visor Simulation**: High-fidelity optical visor with curvature mapping, dynamic edge vignetting, visor glare reflections, and atmospheric condensation/smoke effects.
 * **Tactical Waypoint Navigation**: Real-time azimuth and distance tracking targeting spacecraft modules, lunar habitat airlocks, and emergency recharge nodes.
 * **Head-Tracking Zero-G Parallax**: Dynamic camera interpolation responding to mouse/pointer motion, replicating in-helmet astronaut situational awareness.
+</details>
 
-### 5. 3D ISS Orbital Flight Deck (`ISS Deck` · `/iss`)
+<details open>
+<summary><b>5. 🛰️ Photorealistic 3D ISS Orbital Flight Deck (<code>/iss</code>)</b></summary>
+<br/>
+
 * **Full-Scale Station Exterior & Interior Twin**: Engineered with authentic textures, deep-blue photovoltaic solar array wings, gold MLI thermal insulation blankets, and space-grade anodized aluminum modules.
 * **Seven-Window Cupola Observation Dome**: Real-time orbital Earth nadir tracking, calculating sub-satellite latitude/longitude, orbital velocity ($27,600\text{ km/h}$), and day-night terminator transitions over an 8K procedural Earth globe.
 * **Interactive Bulkhead Consoles**: Projecting real-time crew vitals and mission telemetry directly onto 3D in-world monitors using Three.js CSS2D/CSS3D technology.
+</details>
 
-### 6. Earth Mission Control Center Ground Console (`Earth MCC` · `/mcc`)
+<details open>
+<summary><b>6. 📡 Earth Mission Control Center Ground Console (<code>/mcc</code>)</b></summary>
+<br/>
+
 * **Physical Speed-of-Light Radio Delay Engine**: Simulates authentic distance-based radio latency:
   * Low Earth Orbit (LEO): $0.0\text{ seconds}$
   * Lunar Gateway / Artemis Base: $1.3\text{ seconds}$
   * Mars Closest Approach: $4.3\text{ minutes}$
   * Mars Solar Conjunction: $22.4\text{ minutes}$
 * **Asymmetric Telemetry Buffer**: Proves why Earth-dependent telemedicine fails: ground surgeons view delayed, queued telemetry packets while the onboard HELIOS sentry acts immediately.
+</details>
 
-### 7. Cognitive Self-Assessment & Psychomotor Vigilance Drill (`/self-check`, `/mission-routine`)
+<details open>
+<summary><b>7. ⏱️ Cognitive Self-Assessment & NASA PVT Drill (<code>/self-check</code>, <code>/mission-routine</code>)</b></summary>
+<br/>
+
 * **Interactive NASA PVT Reaction Drill**: Validated Psychomotor Vigilance Task measuring millisecond reaction times to detect subtle cognitive fatigue, sleep loss, and neuro-vestibular degradation.
 * **Countermeasure Adherence Engine**: Tracks daily compliance with the Advanced Resistive Exercise Device (ARED) and cycle ergometer, preventing muscle atrophy and cardiovascular deconditioning.
+</details>
 
 ---
 
@@ -209,30 +360,30 @@ HELIOS is built on a decoupled, aerospace-grade architecture that enforces zero-
 
 ## 🌍 Dual-Use Terrestrial Impact
 
-Space technology reaches its highest value when it protects human life on Earth. HELIOS is architected as a **dual-use technological bridge**:
+Space technology reaches its highest value when it protects human life on Earth. HELIOS is architected as an operational **dual-use technological bridge**:
 
-```
-                              ┌─────────────────────────────┐
-                              │    H.E.L.I.O.S. CORE ENGINE │
-                              │    Autonomous · Edge-Native │
-                              │    Zero-Cloud Offline AI    │
-                              └──────────────┬──────────────┘
-                                             │
-                      ┌──────────────────────┴──────────────────────┐
-                      ▼                                             ▼
-        ┌───────────────────────────┐                 ┌───────────────────────────┐
-        │     DEEP-SPACE DOMAIN     │                 │     TERRESTRIAL DOMAIN    │
-        ├───────────────────────────┤                 ├───────────────────────────┤
-        │ • Artemis Lunar Base      │                 │ • Tactical Firefighter HUD│
-        │ • Mars Transit Vehicles   │                 │ • Remote Rural ICU Clinics│
-        │ • Commercial Spaceflight  │                 │ • Subsea & Extreme Mining │
-        │ • Zero-G Spacewalks (EVA) │                 │ • Disaster Relief Zones   │
-        └───────────────────────────┘                 └───────────────────────────┘
-```
-
-1. **Tactical Firefighter & First Responder HUDs**: The in-helmet AR Visor (`/suit-hud`) integrates into structural firefighting masks, monitoring pulse rate, carbon monoxide exposure, and core temperature inside active structure fires where radio signals are blocked.
-2. **Rural & Austere Intensive Care Units**: In developing nations or remote regions lacking specialized physicians, HELIOS serves as an offline AI clinical monitor, triaging patient vitals and suggesting interventions without internet connectivity.
-3. **Disaster Relief & Search-and-Rescue**: During earthquakes, hurricanes, or cellular infrastructure blackouts, HELIOS operates on battery power, triaging trauma victims and monitoring field medics.
+<table>
+  <tr>
+    <td width="50%" style="background: rgba(13, 27, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 16px; vertical-align: top;">
+      <h3 style="color: #38bdf8; margin-top: 0;">🚀 Deep-Space Domain</h3>
+      <ul>
+        <li><b>Artemis Moon-to-Mars Transit</b>: Autonomous clinical sentry operating during speed-of-light communication blackouts.</li>
+        <li><b>Lunar Gateway &amp; Surface Habitats</b>: Environmental cross-triage correlating cabin CO₂/radiation with crew vital signs.</li>
+        <li><b>Commercial &amp; Civilian Spaceflight</b>: Protecting civilian astronauts without professional medical doctors onboard.</li>
+        <li><b>Zero-G Spacewalks (EVA)</b>: In-helmet AR HUD delivering hands-free physiological alerts and abort procedures.</li>
+      </ul>
+    </td>
+    <td width="50%" style="background: rgba(13, 27, 42, 0.75); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px; padding: 16px; vertical-align: top;">
+      <h3 style="color: #10b981; margin-top: 0;">🚒 Terrestrial High-Impact Domain</h3>
+      <ul>
+        <li><b>Tactical Firefighter HUDs</b>: Hands-free AR visor monitoring heart rate, core temperature, and CO exposure in structural fires where radios fail.</li>
+        <li><b>Rural &amp; Austere ICUs</b>: Offline AI clinical assistant triaging patients in developing nations or remote clinics lacking specialized surgeons.</li>
+        <li><b>Disaster Relief &amp; Search-and-Rescue</b>: Operating on battery power during hurricanes, earthquakes, or cellular infrastructure blackouts.</li>
+        <li><b>Subsea &amp; Extreme Mining Operations</b>: Autonomous vital monitoring in hyperbaric chambers, underwater habitats, and deep mines.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -258,13 +409,13 @@ HELIOS enforces strict **NASA-STD-8739.8** software safety and **OWASP Top 10** 
 * **Node.js**: 18.0 or newer (v20+ recommended)
 * **Operating System**: Linux, macOS, or Windows 10/11 (with WSL support)
 
-### 1. Repository Setup
+### 1. Installation
 ```bash
-# Clone the repository
+# Clone repository
 git clone https://github.com/haXorFalcon/nsa.git
 cd nsa
 
-# Create and activate Python virtual environment
+# Setup Python virtual environment
 python -m venv venv
 # Linux / macOS:
 source venv/bin/activate
@@ -280,9 +431,9 @@ npm install
 cd ..
 ```
 
-### 2. Launching Development Environment
+### 2. Launch Development Stack
 
-**Terminal 1 — Aerospace Backend Core:**
+**Terminal 1 — Aerospace Backend Engine:**
 ```bash
 python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -293,26 +444,13 @@ cd frontend
 npm run dev
 ```
 
-Open your browser at **`http://localhost:3000`** (or `http://localhost:5173`).
-
-### 3. Production Single-Process Deployment
-The FastAPI backend is capable of serving both the REST/WebSocket API and the compiled React static bundle from a single port (ideal for Render, Docker, or Kubernetes):
-
-```bash
-# Build frontend bundle
-cd frontend
-npm run build
-cd ..
-
-# Run production server
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
-```
+Open browser at **`http://localhost:3000`** (or `http://localhost:5173`).
 
 ---
 
 <a id="project-directory-structure"></a>
 
-## 📂 Project Directory Structure
+## 📂 Project Repository Structure
 
 ```text
 ├── backend/
@@ -361,7 +499,8 @@ For complete asset licenses, 3D model attributions, and scientific citations, pl
 
 <div align="center">
 
-**H.E.L.I.O.S. — Protecting Every Heartbeat, from Earth’s Orbit to Humanity’s First Footprint on Mars.**
+### 🛰️ H.E.L.I.O.S.
+**Protecting Every Heartbeat, from Earth’s Orbit to Humanity’s First Footprint on Mars.**
 
 *Released under the MIT License. Developed with pride for the NASA Space Apps Challenge 2026.*
 
