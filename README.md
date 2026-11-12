@@ -1,6 +1,6 @@
 <div align="center">
 
-# <img src="assets/icons/satellite.svg" width="34" height="34" align="center" alt="Satellite" /> H.E.L.I.O.S.
+# <img src="assets/team_aero_vitals_logo_round.png" width="40" height="40" align="center" alt="Team Aero Vitals" style="vertical-align: middle; border-radius: 50%;" /> &nbsp;H.E.L.I.O.S. <img src="assets/icons/satellite.svg" width="30" height="30" align="center" alt="Satellite" />
 ### Health Evaluation & Longevity Intelligence for Orbiting Specialists
 **Autonomous Offline-First Clinical Sentry, Multi-Agent Biometric Intelligence & 3D Digital Bio-Twin for Deep-Space Exploration**
 
@@ -589,6 +589,13 @@ Open browser at **`http://localhost:3000`** (or `http://localhost:5173`).
 
 ## <img src="assets/icons/users.svg" width="22" height="22" align="center" alt="Team" /> Team Aero Vitals & NASA Space Apps Submission
 
+<div align="center">
+  <img src="assets/team_aero_vitals_logo_round.png" width="84" height="84" alt="Team Aero Vitals Logo" style="vertical-align: middle; border-radius: 50%;" /><br/>
+  <b>Team Aero Vitals — Official NASA Space Apps Challenge 2026 Entry</b>
+</div>
+
+<br/>
+
 **NASA International Space Apps Challenge 2026**  
 *Project Name:* **H.E.L.I.O.S.**  
 *Team Name:* **Team Aero Vitals**
@@ -605,7 +612,7 @@ For complete asset licenses, 3D model attributions, and scientific citations, pl
 
 <div align="center">
 
-### <img src="assets/icons/satellite.svg" width="34" height="34" align="center" alt="Satellite" /> H.E.L.I.O.S.
+### <img src="assets/team_aero_vitals_logo_round.png" width="30" height="30" align="center" alt="Team Aero Vitals" style="vertical-align: middle; border-radius: 50%;" /> &nbsp;H.E.L.I.O.S. <img src="assets/icons/satellite.svg" width="24" height="24" align="center" alt="Satellite" />
 **Protecting Every Heartbeat, from Earth’s Orbit to Humanity’s First Footprint on Mars.**
 
 *Released under the MIT License. Developed with pride for the NASA Space Apps Challenge 2026.*

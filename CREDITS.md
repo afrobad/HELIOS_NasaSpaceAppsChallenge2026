@@ -6,7 +6,7 @@
 
 ---
 
-## <img src="assets/icons/users.svg" width="20" height="20" align="center" alt="Team" /> 1. Team Aero Vitals — Core Contributors
+## <img src="assets/team_aero_vitals_logo_round.png" width="22" height="22" align="center" alt="Team" style="vertical-align: middle; border-radius: 50%;" /> 1. Team Aero Vitals — Core Contributors
 
 | Contributor | Operational Role | Key Responsibilities & Contributions |
 |:---|:---|:---|
