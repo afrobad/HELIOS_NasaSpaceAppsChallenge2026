@@ -1,5 +1,4 @@
 
-
 # H.E.L.I.O.S. - Credits, Citations & Attributions
 ### Official Project Credentials & Open Science Attribution Index
 **NASA International Space Apps Challenge 2026**  
@@ -79,7 +78,7 @@ We gratefully acknowledge the developers and maintainers of the open-source soft
 
 ---
 
-## <img src="assets/icons/layers.svg" width="20" height="20" align="center" alt="Assets" /> 5. 3D Model Assets, Celestial Textures & Sound Design
+## <img src="assets/icons/layers.svg" width="20" height="20" align="center" alt="Assets" /> 5. 3D Models, Celestial Textures, Stock Video & Sound Design
 
 ### 3D Models & Photogrammetry
 1. **International Space Station (ISS) 3D Model**
@@ -118,6 +117,27 @@ We gratefully acknowledge the developers and maintainers of the open-source soft
   - Public domain Apollo, Space Shuttle, and ISS communications: authentic CapCom radio chatter and Quindar communications beeps ($2525\text{ Hz}$ introductory and $2475\text{ Hz}$ termination tones).
 - **Custom Telemetry Sound Design**
   - Procedural Web Audio API oscillators synthesizing continuous heartbeat pulses, hypoxic alarms, and nominal harmonic resolution chimes.
+
+### Stock Video & Media Footage Sources
+1. **Artemis II Launch - Kennedy Space Center (1001512)**
+   - Source: [Wikimedia Commons (File 1001512)](https://commons.wikimedia.org/wiki/File:Artemis_II_Launch_-_Kennedy_Space_Center_(1001512).webm)
+   - Attribution: NASA / Kennedy Space Center
+   - License: Public Domain (U.S. Government Work)
+2. **Artemis II Launch - Kennedy Space Center (1001792)**
+   - Source: [Wikimedia Commons (File 1001792)](https://commons.wikimedia.org/wiki/File:Artemis_II_Launch_-_Kennedy_Space_Center_(1001792).webm)
+   - Attribution: NASA / Kennedy Space Center
+   - License: Public Domain (U.S. Government Work)
+3. **Artemis II Launch from OSB II Balcony - Slo Mo (C4829)**
+   - Source: [Wikimedia Commons (File C4829)](https://commons.wikimedia.org/wiki/File:Artemis_II_Launch_from_OSB_II_Balcony_-_Slo_Mo_(C4829).webm)
+   - Attribution: NASA / Kennedy Space Center
+   - License: Public Domain (U.S. Government Work)
+4. **Artemis II Launch Live (SVS31385 - 2-launch-short-4K)**
+   - Source: [Wikimedia Commons (File SVS31385)](https://commons.wikimedia.org/wiki/File:Artemis_II_launch_live_(SVS31385_-_-2-launch-short-4K).webm)
+   - Attribution: NASA Scientific Visualization Studio (SVS)
+   - License: Public Domain (U.S. Government Work)
+5. **Space Exploration & Mission Sequence Footage**
+   - Source: [Bilibili (BV1txjM6LEvR)](https://www.bilibili.com/video/BV1txjM6LEvR/)
+   - Attribution: Archival spaceflight reference video
 
 ---
 
