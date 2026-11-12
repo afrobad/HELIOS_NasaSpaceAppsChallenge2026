@@ -6,7 +6,7 @@
 
 ---
 
-## 👥 1. Team Aero Vitals — Core Contributors
+## <img src="assets/icons/users.svg" width="20" height="20" align="center" alt="Team" /> 1. Team Aero Vitals — Core Contributors
 
 | Contributor | Operational Role | Key Responsibilities & Contributions |
 |:---|:---|:---|
@@ -18,7 +18,7 @@
 
 ---
 
-## 🏛️ 2. Official NASA Standards & Regulatory Frameworks
+## <img src="assets/icons/shield-check.svg" width="20" height="20" align="center" alt="Standards" /> 2. Official NASA Standards & Regulatory Frameworks
 
 HELIOS is built in compliance with official National Aeronautics and Space Administration (NASA) flight standards:
 
@@ -33,7 +33,7 @@ HELIOS is built in compliance with official National Aeronautics and Space Admin
 
 ---
 
-## 🔬 3. Scientific Data Citations & NASA OSDR Grounding
+## <img src="assets/icons/microscope.svg" width="20" height="20" align="center" alt="Science" /> 3. Scientific Data Citations & NASA OSDR Grounding
 
 All physiological baselines, biomarker ranges, and laboratory assay thresholds are grounded in authentic datasets retrieved from the **NASA Open Science Data Repository (OSDR)**:
 
@@ -51,7 +51,7 @@ All physiological baselines, biomarker ranges, and laboratory assay thresholds a
 
 ---
 
-## 💻 4. Open-Source Software & Engineering Frameworks
+## <img src="assets/icons/terminal.svg" width="20" height="20" align="center" alt="Engineering" /> 4. Open-Source Software & Engineering Frameworks
 
 We gratefully acknowledge the developers and maintainers of the open-source software libraries powering the HELIOS stack:
 
@@ -77,7 +77,7 @@ We gratefully acknowledge the developers and maintainers of the open-source soft
 
 ---
 
-## 🎨 5. 3D Model Assets, Celestial Textures & Sound Design
+## <img src="assets/icons/layers.svg" width="20" height="20" align="center" alt="Assets" /> 5. 3D Model Assets, Celestial Textures & Sound Design
 
 ### 3D Models & Photogrammetry
 1. **International Space Station (ISS) 3D Model**
@@ -119,7 +119,7 @@ We gratefully acknowledge the developers and maintainers of the open-source soft
 
 ---
 
-## 📜 6. Legal & Open-Source Licensing Statement
+## <img src="assets/icons/folder.svg" width="20" height="20" align="center" alt="License" /> 6. Legal & Open-Source Licensing Statement
 
 HELIOS is released under the **MIT License**.
 
