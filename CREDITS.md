@@ -1,6 +1,6 @@
 
 
-# H.E.L.I.O.S. - Master Credits, Citations & Attributions
+# H.E.L.I.O.S. - Credits, Citations & Attributions
 ### Official Project Credentials & Open Science Attribution Index
 **NASA International Space Apps Challenge 2026**  
 **Challenge Track:** Create Health Monitoring Software for Astronauts on Space Missions  
